@@ -1,13 +1,11 @@
-
-use cosmwasm_std::{
-    Addr, Coin, CosmosMsg, Deps, StdResult,
-    to_binary, WasmMsg,
-};
-use cw20_junoswap::Denom;
-use cw_asset::{Asset, AssetInfo};
 use crate::error::StakingError;
 use crate::traits::cw_staking_provider::CwStakingProvider;
 use crate::traits::identify::Identify;
+use cosmwasm_std::{to_binary, Addr, Coin, CosmosMsg, Deps, StdResult, WasmMsg};
+use cw20_junoswap::Denom;
+use cw20_stake::msg::ReceiveMsg;
+use cw_asset::{Asset, AssetInfo};
+use cw20::Cw20ExecuteMsg;
 
 pub const JUNOSWAP: &str = "junoswap";
 // Source https://github.com/wasmswap/wasmswap-contracts
@@ -23,11 +21,30 @@ impl Identify for JunoSwap {
 }
 
 impl CwStakingProvider for JunoSwap {
-    fn stake(&self, _deps: Deps, _staking_address: Addr, _asset: Asset) -> Result<Vec<CosmosMsg>, StakingError> {
-        unimplemented!()
+    fn stake(
+        &self,
+        _deps: Deps,
+        staking_address: Addr,
+        asset: Asset,
+    ) -> Result<Vec<CosmosMsg>, StakingError> {
+        let msg = to_binary(&ReceiveMsg::Stake {})?;
+        Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: asset.info.to_string(),
+            msg: to_binary(&Cw20ExecuteMsg::Send {
+                contract: staking_address.into(),
+                amount: asset.amount,
+                msg,
+            })?,
+            funds: vec![],
+        })])
     }
 
-    fn unstake(&self, _deps: Deps, _staking_address: Addr, _amount: Asset) -> Result<Vec<CosmosMsg>, StakingError> {
+    fn unstake(
+        &self,
+        _deps: Deps,
+        _staking_address: Addr,
+        _amount: Asset,
+    ) -> Result<Vec<CosmosMsg>, StakingError> {
         unimplemented!()
     }
 
