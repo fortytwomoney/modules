@@ -1,6 +1,9 @@
-use cosmwasm_std::{Addr};
+use cosmwasm_std::{
+    Addr, Coin, CosmosMsg, Decimal, Decimal256, Deps, StdError, StdResult, Uint128, Uint256,
+};
 
-
+use cw_asset::Asset;
+use osmosis_std::shim::Duration;
 #[cfg(feature = "osmosis")]
 use osmosis_std::types::osmosis::gamm::v1beta1::{
     MsgExitPool, MsgJoinPool, MsgSwapExactAmountIn, QuerySwapExactAmountInRequest,
@@ -12,8 +15,14 @@ use osmosis_std::types::{
     osmosis::gamm::v1beta1::{Pool, QueryPoolRequest},
 };
 
+#[cfg(feature = "osmosis")]
+use osmosis_std::types::{osmosis::lockup::MsgBeginUnlocking, osmosis::lockup::MsgLockTokens};
 
+use crate::error::StakingError;
 use crate::traits::identify::Identify;
+use crate::CwStakingProvider;
+
+const FORTEEN_DAYS: i64 = 60 * 60 * 24 * 14;
 
 pub const OSMOSIS: &str = "osmosis";
 pub struct Osmosis {
@@ -32,12 +41,43 @@ impl Identify for Osmosis {
 /// Osmosis app-chain dex implementation
 #[cfg(feature = "osmosis")]
 impl CwStakingProvider for Osmosis {
-    fn stake(&self, deps: Deps, staking_address: Addr, asset: Asset) -> Result<Vec<CosmosMsg>, StakingError> {
-        unimplemented!()
+    fn stake(
+        &self,
+        _deps: Deps,
+        _staking_address: Addr,
+        asset: Asset,
+    ) -> Result<Vec<CosmosMsg>, StakingError> {
+        let coin = OsmoCoin::try_from(asset).unwrap(); // TODO: Resolve the right gamm token and add it here
+
+        let msg: CosmosMsg = MsgLockTokens {
+            duration: Some(Duration {
+                seconds: FORTEEN_DAYS,
+                nanos: 0,
+            }),
+            owner: self.local_proxy_addr.as_ref().unwrap().to_string(),
+            coins: vec![coin],
+        }
+        .into();
+
+        Ok(vec![msg])
     }
 
-    fn unstake(&self, deps: Deps, staking_address: Addr, amount: Asset) -> Result<Vec<CosmosMsg>, StakingError> {
-        unimplemented!()
+    fn unstake(
+        &self,
+        deps: Deps,
+        staking_address: Addr,
+        amount: Asset,
+    ) -> Result<Vec<CosmosMsg>, StakingError> {
+        let gamm_id = 1; // TODO: Resolve the right gamm id and add it here
+
+        let msg: CosmosMsg = MsgBeginUnlocking {
+            owner: self.local_proxy_addr.as_ref().unwrap().to_string(),
+            coins: vec![OsmoCoin::try_from(amount).unwrap()], // see docs: "Unlocking all if unset"
+            id: gamm_id,
+        }
+        .into();
+
+        Ok(vec![msg])
     }
 
     fn claim(&self, deps: Deps, staking_address: Addr) -> Result<Vec<CosmosMsg>, StakingError> {
