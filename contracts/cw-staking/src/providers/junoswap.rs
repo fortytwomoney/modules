@@ -3,7 +3,7 @@ use crate::traits::cw_staking_provider::CwStakingProvider;
 use crate::traits::identify::Identify;
 use cosmwasm_std::{to_binary, Addr, Coin, CosmosMsg, Deps, StdResult, WasmMsg};
 use cw20_junoswap::Denom;
-use cw20_stake::msg::ReceiveMsg;
+use cw20_stake::msg::{ExecuteMsg as StakeCw20ExecuteMsg, ReceiveMsg};
 use cw_asset::{Asset, AssetInfo};
 use cw20::Cw20ExecuteMsg;
 
