@@ -55,8 +55,14 @@ impl CwStakingProvider for JunoSwap {
         })])
     }
 
-    fn claim(&self, _deps: Deps, _staking_address: Addr) -> Result<Vec<CosmosMsg>, StakingError> {
-        unimplemented!()
+    fn claim(&self, _deps: Deps, staking_address: Addr) -> Result<Vec<CosmosMsg>, StakingError> {
+        let msg = StakeCw20ExecuteMsg::Claim {};
+
+        Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: staking_address.to_string(),
+            msg: to_binary(&msg)?,
+            funds: vec![],
+        })])
     }
 }
 
