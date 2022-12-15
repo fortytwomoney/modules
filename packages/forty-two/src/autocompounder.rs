@@ -28,16 +28,18 @@
 //! ## Migration
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
-use cosmwasm_std::{Uint128};
+use abstract_sdk::os::dex::OfferAsset;
+use cosmwasm_std::Uint128;
+use cw_asset::Asset;
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 
 pub mod state {
-    use cosmwasm_std::{Uint128};
+    use cosmwasm_std::Uint128;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
-    use cw_storage_plus::{Item};
+    use cw_storage_plus::Item;
 
     #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
     pub struct FeeConfig {
@@ -45,7 +47,6 @@ pub mod state {
         pub deposit: Uint128,
         pub withdrawal: Uint128,
     }
-
 
     pub const FEE_CONFIG: Item<FeeConfig> = Item::new("fees");
 }
@@ -65,13 +66,14 @@ pub enum AutocompounderExecuteMsg {
         deposit: Option<Uint128>,
         withdrawal: Option<Uint128>,
     },
-    Zap {},
+    Zap {
+        pool: String,
+        funds: Asset,
+    },
     Compound {},
-
 }
 
 #[cosmwasm_schema::cw_serde]
 pub enum AutocompounderQueryMsg {
-    FeeConfig {}
+    FeeConfig {},
 }
-
