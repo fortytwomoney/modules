@@ -3,20 +3,19 @@ use cosmwasm_std::{
 };
 
 use cw_asset::Asset;
-use osmosis_std::shim::Duration;
 #[cfg(feature = "osmosis")]
-use osmosis_std::types::osmosis::gamm::v1beta1::{
-    MsgExitPool, MsgJoinPool, MsgSwapExactAmountIn, QuerySwapExactAmountInRequest,
-    SwapAmountInRoute,
+use osmosis_std::{
+    types::{
+        cosmos::base::v1beta1::Coin as OsmoCoin,
+        osmosis::gamm::v1beta1::{Pool, QueryPoolRequest},
+    },
+    types::osmosis::gamm::v1beta1::{
+        MsgExitPool, MsgJoinPool, MsgSwapExactAmountIn, QuerySwapExactAmountInRequest,
+        SwapAmountInRoute,
+    },
+    shim::Duration,
+    types::{osmosis::lockup::MsgBeginUnlocking, osmosis::lockup::MsgLockTokens}
 };
-#[cfg(feature = "osmosis")]
-use osmosis_std::types::{
-    cosmos::base::v1beta1::Coin as OsmoCoin,
-    osmosis::gamm::v1beta1::{Pool, QueryPoolRequest},
-};
-
-#[cfg(feature = "osmosis")]
-use osmosis_std::types::{osmosis::lockup::MsgBeginUnlocking, osmosis::lockup::MsgLockTokens};
 
 use crate::error::StakingError;
 use crate::traits::identify::Identify;
