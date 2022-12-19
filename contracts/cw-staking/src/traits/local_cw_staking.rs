@@ -66,7 +66,7 @@ pub trait LocalCwStaking: AbstractNameService + Execution {
         let staking_address = provider.lp_token_staking_contract_address(
             deps,
             ans.host(),
-            lp_token.info.as_str(),
+            lp_token.name.as_str(),
         )?;
 
         let staking_asset = ans.query(&lp_token)?;
@@ -85,7 +85,7 @@ pub trait LocalCwStaking: AbstractNameService + Execution {
         let staking_address = provider.lp_token_staking_contract_address(
             deps,
             ans.host(),
-            lp_token.info.as_str(),
+            lp_token.name.as_str(),
         )?;
 
         let staking_asset = ans.query(&lp_token)?;

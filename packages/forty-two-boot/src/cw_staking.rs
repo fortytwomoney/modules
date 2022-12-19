@@ -4,14 +4,14 @@ use boot_core::{BootEnvironment, Contract, IndexResponse, TxResponse};
 
 
 use cosmwasm_std::Empty;
-use abstract_os::extension;
-use forty_two::cw_staking::{CwStakingQueryMsg, CwStakingRequestMsg};
+use abstract_os::api;
+use forty_two::cw_staking::{CwStakingQueryMsg, CwStakingExecuteMsg};
 
-type ExtensionExecuteMsg = extension::ExecuteMsg<CwStakingRequestMsg>;
-type ExtensionQueryMsg = extension::QueryMsg<CwStakingQueryMsg>;
+type ApiExecuteMsg = api::ExecuteMsg<CwStakingExecuteMsg>;
+type ApiQueryMsg = api::QueryMsg<CwStakingQueryMsg>;
 
 /// Contract wrapper for interacting with BOOT
-#[boot_contract(Empty, ExtensionExecuteMsg, ExtensionQueryMsg, Empty)]
+#[boot_contract(Empty, ApiExecuteMsg, ApiQueryMsg, Empty)]
 pub struct CwStaking<Chain>;
 
 /// implement chain-generic functions

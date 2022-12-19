@@ -1,5 +1,5 @@
 use crate::{
-    contract::{CwStakingExtension, CwStakingResult},
+    contract::{CwStakingApi, CwStakingResult},
     error::StakingError,
     CwStakingProvider,
 };

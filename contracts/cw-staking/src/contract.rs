@@ -1,24 +1,21 @@
-use abstract_extension::{export_endpoints, ExtensionContract};
+use abstract_api::{export_endpoints, ApiContract};
 
 
 use cosmwasm_std::{
     Empty, Response,
 };
-use forty_two::cw_staking::{CwStakingQueryMsg, CwStakingRequestMsg, CW_STAKING};
+use forty_two::cw_staking::{CwStakingQueryMsg, CwStakingExecuteMsg, CW_STAKING};
 
 use crate::{error::StakingError, handlers};
 
 const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub type CwStakingExtension = ExtensionContract<StakingError, CwStakingRequestMsg, Empty, CwStakingQueryMsg>;
+pub type CwStakingApi = ApiContract<StakingError, CwStakingExecuteMsg, Empty, CwStakingQueryMsg>;
 pub type CwStakingResult = Result<Response, StakingError>;
 
-pub const CW_STAKING_EXTENSION: CwStakingExtension = CwStakingExtension::new(CW_STAKING, MODULE_VERSION)
+pub const CW_STAKING_API: CwStakingApi = CwStakingApi::new(CW_STAKING, MODULE_VERSION, None)
     .with_execute(handlers::execute_handler)
     .with_query(handlers::query_handler);
 
-
-// don't export endpoints when imported as library
-#[cfg(not(feature = "library"))]
 // Export the endpoints for this contract
-export_endpoints!(CW_STAKING_EXTENSION, CwStakingExtension);
+export_endpoints!(CW_STAKING_API, CwStakingApi);

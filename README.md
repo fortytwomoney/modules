@@ -1,4 +1,4 @@
-# CosmWasm Staking Extension
-An [Abstract](https://abstract.money) extension for staking tokens in CosmWasm contracts.
+# CosmWasm Staking Api
+An [Abstract](https://abstract.money) api for staking tokens in CosmWasm contracts.
 
 # Features

@@ -1,6 +1,7 @@
 pub mod contract;
 pub mod error;
 mod handlers;
+mod dependencies;
 
 // TODO; FIX
 // #[cfg(test)]

@@ -1,4 +1,4 @@
-use abstract_extension::ExtensionError;
+use abstract_api::ApiError;
 use cosmwasm_std::StdError;
 use thiserror::Error;
 
@@ -8,7 +8,7 @@ pub enum StakingError {
     Std(#[from] StdError),
 
     #[error("{0}")]
-    ExtensionError(#[from] ExtensionError),
+    ApiError(#[from] ApiError),
 
     #[error("DEX {0} is not a known dex on this network.")]
     UnknownDex(String),
