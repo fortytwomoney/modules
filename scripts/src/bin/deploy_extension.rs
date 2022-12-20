@@ -12,7 +12,7 @@ const NETWORK: NetworkInfo = networks::UNI_5;
 
 const _MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub fn deploy_extension() -> anyhow::Result<()> {
+pub fn deploy_api() -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
     let daemon_options = DaemonOptionsBuilder::default()
@@ -42,17 +42,17 @@ pub fn deploy_extension() -> anyhow::Result<()> {
     // );
     //
     // // Upload and register your module
-    // let mut extension = CwStakingExtension::new(&CW_STAKING, &chain);
+    // let mut api = CwStakingApi::new(&CW_STAKING, &chain);
     // let module_version = Version::parse(MODULE_VERSION)?;
     //
-    // let extension_init_msg = extension::InstantiateMsg {
-    //     base: extension::BaseInstantiateMsg {
+    // let api_init_msg = api::InstantiateMsg {
+    //     base: api::BaseInstantiateMsg {
     //         ans_host_address: ans_host.address()?.into_string(),
     //         version_control_address: version_control.address()?.into_string(),
     //     },
     //     app: Empty {},
     // };
-    // version_control.upload_and_register_extension(&mut extension.as_instance_mut(), &extension_init_msg, &module_version)?;
+    // version_control.upload_and_register_api(&mut api.as_instance_mut(), &api_init_msg, &module_version)?;
 
 
     // Example queries
@@ -71,7 +71,7 @@ fn main() {
 
     use dotenv::dotenv;
 
-    if let Err(ref err) = deploy_extension() {
+    if let Err(ref err) = deploy_api() {
         log::error!("{}", err);
         err.chain()
             .skip(1)

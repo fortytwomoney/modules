@@ -4,9 +4,9 @@ use abstract_sdk::base::features::AbstractNameService;
 use abstract_sdk::{IbcInterface, Resolve};
 use abstract_sdk::feature_objects::AnsHost;
 
-use forty_two::cw_staking::{CwStakingAction, CwStakingRequestMsg, IBC_STAKING_PROVIDER_ID, ProviderName};
+use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, IBC_STAKING_PROVIDER_ID, ProviderName};
 use crate::{LocalCwStaking};
-use crate::contract::{CwStakingExtension, CwStakingResult};
+use crate::contract::{CwStakingApi, CwStakingResult};
 use crate::providers::resolver;
 
 const ACTION_RETRIES: u8 = 3;
@@ -15,36 +15,36 @@ pub fn execute_handler(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    extension: CwStakingExtension,
-    msg: CwStakingRequestMsg,
+    api: CwStakingApi,
+    msg: CwStakingExecuteMsg,
 ) -> CwStakingResult {
-    let CwStakingRequestMsg {
+    let CwStakingExecuteMsg {
         provider: provider_name,
         action,
     } = msg;
     let provider = resolver::resolve_provider_by_name(&provider_name)?;
     // if provider is on an app-chain, execute the action on the app-chain
     if provider.over_ibc() {
-        handle_ibc_request(&deps, info, &extension, provider_name, &action)
+        handle_ibc_request(&deps, info, &api, provider_name, &action)
     } else {
         // the action can be executed on the local chain
-        handle_local_request(deps, env, info, extension, action, provider_name)
+        handle_local_request(deps, env, info, api, action, provider_name)
     }
 }
 
-/// Handle an extension request that can be executed on the local chain
+/// Handle an api request that can be executed on the local chain
 fn handle_local_request(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    extension: CwStakingExtension,
+    api: CwStakingApi,
     action: CwStakingAction,
     provider: String,
 ) -> CwStakingResult {
     let provider = resolver::resolve_local_provider(&provider)?;
     Ok(
         Response::new()
-            .add_submessage(extension.resolve_staking_action(deps, action, provider, false)?),
+            .add_submessage(api.resolve_staking_action(deps, action, provider, false)?),
     )
 }
 
@@ -52,13 +52,13 @@ fn handle_local_request(
 fn handle_ibc_request(
     deps: &DepsMut,
     info: MessageInfo,
-    extension: &CwStakingExtension,
+    api: &CwStakingApi,
     provider_name: ProviderName,
     action: &CwStakingAction,
 ) -> CwStakingResult {
     let host_chain = provider_name;
-    let ans = extension.name_service(deps.as_ref());
-    let ibc_client = extension.ibc_client(deps.as_ref());
+    let ans = api.name_service(deps.as_ref());
+    let ibc_client = api.ibc_client(deps.as_ref());
     // get the to-be-sent assets from the action
     let coins = resolve_assets_to_transfer(deps.as_ref(), action, ans.host())?;
     // construct the ics20 call(s)

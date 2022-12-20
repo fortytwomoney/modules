@@ -1,7 +1,7 @@
 [package]
 # TODO rename
 name = "cw-staking"
-description = "Cw-staking is a Abstract extension for staking tokens by 4t2 Finance."
+description = "Cw-staking is a Abstract api for staking tokens by 4t2 Finance."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -35,7 +35,7 @@ schemars = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 abstract-sdk = { workspace = true }
-abstract-extension = { workspace = true }
+abstract-api = { workspace = true }
 cw-asset = "2.4.0"
 forty-two = { path = "../../packages/forty-two" }
 cw20-stake = { path = "../../dao-contracts/contracts/staking/cw20-stake", features = [

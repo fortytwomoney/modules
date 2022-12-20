@@ -28,7 +28,7 @@
 //! ## Migration
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
-use abstract_sdk::os::dex::OfferAsset;
+use abstract_sdk::os::{app, dex::OfferAsset};
 use cosmwasm_std::Uint128;
 use cw_asset::Asset;
 
@@ -50,6 +50,10 @@ pub mod state {
 
     pub const FEE_CONFIG: Item<FeeConfig> = Item::new("fees");
 }
+
+/// Impls for being able to call methods on the autocompounder app directly
+impl app::AppExecuteMsg for AutocompounderExecuteMsg {}
+impl app::AppQueryMsg for AutocompounderQueryMsg {}
 
 /// Migrate msg
 #[cosmwasm_schema::cw_serde]

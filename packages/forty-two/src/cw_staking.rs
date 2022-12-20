@@ -1,7 +1,8 @@
-//! # Staking Extension
+//! # Staking Api
 //!
 //! `4t2::cw-staking`
 
+use abstract_sdk::os::api;
 use abstract_sdk::os::objects::{AnsAsset, AssetEntry};
 use cosmwasm_schema::QueryResponses;
 
@@ -14,9 +15,16 @@ pub const IBC_STAKING_PROVIDER_ID: u32 = 22335;
 
 pub const CW_STAKING: &str = "4t2:cw_staking";
 
-/// A request message that's sent to this staking extension
+pub type ExecuteMsg = api::ExecuteMsg<CwStakingExecuteMsg>;
+pub type QueryMsg = api::QueryMsg<CwStakingQueryMsg>;
+
+impl api::ApiExecuteMsg for CwStakingExecuteMsg {}
+
+impl api::ApiQueryMsg for CwStakingQueryMsg {}
+
+/// A request message that's sent to this staking api
 #[cosmwasm_schema::cw_serde]
-pub struct CwStakingRequestMsg {
+pub struct CwStakingExecuteMsg {
     pub provider: ProviderName,
     pub action: CwStakingAction,
 }
