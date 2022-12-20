@@ -34,23 +34,6 @@ use cw_asset::Asset;
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 
-pub mod state {
-    use cosmwasm_std::Uint128;
-    use schemars::JsonSchema;
-    use serde::{Deserialize, Serialize};
-
-    use cw_storage_plus::Item;
-
-    #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
-    pub struct FeeConfig {
-        pub performance: Uint128,
-        pub deposit: Uint128,
-        pub withdrawal: Uint128,
-    }
-
-    pub const FEE_CONFIG: Item<FeeConfig> = Item::new("fees");
-}
-
 /// Impls for being able to call methods on the autocompounder app directly
 impl app::AppExecuteMsg for AutocompounderExecuteMsg {}
 impl app::AppQueryMsg for AutocompounderQueryMsg {}
@@ -61,7 +44,13 @@ pub struct AutocompounderMigrateMsg {}
 
 /// Init msg
 #[cosmwasm_schema::cw_serde]
-pub struct AutocompounderInstantiateMsg {}
+pub struct AutocompounderInstantiateMsg {
+    pub staking_contract: String,
+    pub liquidity_token: String,
+    pub performance_fees: Uint128,
+    pub deposit_fees: Uint128,
+    pub withdrawal_fees: Uint128,
+}
 
 #[cosmwasm_schema::cw_serde]
 pub enum AutocompounderExecuteMsg {
@@ -79,5 +68,5 @@ pub enum AutocompounderExecuteMsg {
 
 #[cosmwasm_schema::cw_serde]
 pub enum AutocompounderQueryMsg {
-    FeeConfig {},
+    Config {},
 }
