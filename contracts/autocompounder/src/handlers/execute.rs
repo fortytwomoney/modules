@@ -1,9 +1,11 @@
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Uint128};
+use cosmwasm_std::{from_binary, DepsMut, Env, MessageInfo, Response, Uint128};
+use cw20::Cw20ReceiveMsg;
 use cw_asset::Asset;
-use forty_two::autocompounder::AutocompounderExecuteMsg;
+use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 
 use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::error::AutocompounderError;
+use crate::state::CONFIG;
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
@@ -20,6 +22,7 @@ pub fn execute_handler(
             deposit,
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
         AutocompounderExecuteMsg::Zap { pool, funds } => zap(deps, info, _env, app, pool, funds),
+        AutocompounderExecuteMsg::Receive(msg) => receive(deps, info, _env, msg),
         _ => Err(AutocompounderError::ExceededMaxCount {}),
     }
 }
@@ -50,10 +53,46 @@ pub fn zap(
     // TODO: Check if the pool is valid
     deps.api.addr_validate(&pool)?;
     // TODO: Swap the funds into 50/50. Might not be nescesarry with dex module single sided add liquidity
-    
+
     // TODO: get the liquidity token amount
 
     // TODO: stake the liquidity token
 
     unimplemented!()
+}
+
+/// Handles receiving CW20 messages
+pub fn receive(
+    deps: DepsMut,
+    info: MessageInfo,
+    env: Env,
+    msg: Cw20ReceiveMsg,
+) -> AutocompounderResult {
+    // Withdraw fn can only be called by liquidity token
+    let config = CONFIG.load(deps.storage)?;
+
+    if info.sender != config.liquidity_token {
+        return Err(AutocompounderError::SenderIsNotLiquidityToken {});
+    }
+
+    match from_binary(&msg.msg)? {
+        Cw20HookMsg::Redeem {} => redeem(deps, env, msg.sender, msg.amount),
+    }
+}
+
+fn redeem(deps: DepsMut, env: Env, sender: String, amount: Uint128) -> AutocompounderResult {
+    let config = CONFIG.load(deps.storage)?;
+
+    // TODO: check that withdrawals are enabled
+
+    // parse sender
+    let sender = deps.api.addr_validate(&sender)?;
+
+    // TODO: calculate the size of vault and the amount of assets to withdraw
+
+    // TODO: create message to send back underlying tokens to user
+
+    // TODO: burn liquidity tokens
+
+    Ok(Response::default())
 }

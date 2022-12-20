@@ -29,7 +29,8 @@
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
 use abstract_sdk::os::{app, dex::OfferAsset};
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Binary, Uint128};
+use cw20::Cw20ReceiveMsg;
 use cw_asset::Asset;
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
@@ -64,9 +65,16 @@ pub enum AutocompounderExecuteMsg {
         funds: Vec<Asset>,
     },
     Compound {},
+    Receive(Cw20ReceiveMsg),
 }
 
 #[cosmwasm_schema::cw_serde]
 pub enum AutocompounderQueryMsg {
     Config {},
+}
+
+#[cosmwasm_schema::cw_serde]
+pub enum Cw20HookMsg {
+    /// Withdraws a given amount from the vault.
+    Redeem {},
 }
