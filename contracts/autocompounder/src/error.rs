@@ -22,4 +22,7 @@ pub enum AutocompounderError {
 
     #[error("The update would exceed the configured max count")]
     ExceededMaxCount {},
+
+    #[error("Withdraw function can only be called by the liquidity token")]
+    SenderIsNotLiquidityToken {},
 }

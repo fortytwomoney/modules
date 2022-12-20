@@ -1,11 +1,10 @@
 [package]
 name = "forty-two"
-version = {workspace = true}
-authors = {workspace = true}
-edition = {workspace = true}
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
 description = "4t2 contract interfaces and storage layouts"
 readme = "README.md"
-
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -20,11 +19,11 @@ backtraces = ["cosmwasm-std/backtraces"]
 [dependencies]
 cosmwasm-std = { workspace = true, features = ["iterator"] }
 cosmwasm-schema = { workspace = true }
-schemars = {workspace = true}
-serde = {workspace = true}
-cw-asset= {workspace = true}
+schemars = { workspace = true }
+serde = { workspace = true }
+cw-asset = { workspace = true }
 abstract-sdk = { workspace = true }
 cw-storage-plus = { workspace = true }
 #cw2 = {workspace = true}
-#cw20 = {workspace = true}
+cw20 = { workspace = true }
 #cw20-base = {workspace = true}
