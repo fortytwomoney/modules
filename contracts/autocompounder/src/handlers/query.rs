@@ -1,7 +1,7 @@
 use crate::contract::AutocompounderApp;
 use cosmwasm_std::{to_binary,  Binary, Deps, Env, StdResult};
 use forty_two::autocompounder::AutocompounderQueryMsg;
-use forty_two::autocompounder::state::{FEE_CONFIG, FeeConfig};
+use crate::state::{CONFIG, Config};
 
 const _DEFAULT_PAGE_SIZE: u8 = 5;
 const _MAX_PAGE_SIZE: u8 = 20;
@@ -14,14 +14,14 @@ pub fn query_handler(
     msg: AutocompounderQueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-        AutocompounderQueryMsg::FeeConfig { } => to_binary(&query_fee_config(deps)?)?,
+        AutocompounderQueryMsg::Config { } => to_binary(&query_config(deps)?)?,
     };
     unimplemented!();
 }
 
 /// Returns the current configuration.
-pub fn query_fee_config(deps: Deps) -> StdResult<FeeConfig> {
-    let _config = FEE_CONFIG.load(deps.storage)?;
+pub fn query_config(deps: Deps) -> StdResult<Config> {
+    let _config = CONFIG.load(deps.storage)?;
 
     unimplemented!();
 }
