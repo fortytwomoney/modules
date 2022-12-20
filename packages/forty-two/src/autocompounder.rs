@@ -72,7 +72,7 @@ pub enum AutocompounderExecuteMsg {
     },
     Zap {
         pool: String,
-        funds: Asset,
+        funds: Vec<Asset>,
     },
     Compound {},
 }

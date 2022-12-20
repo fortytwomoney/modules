@@ -45,12 +45,12 @@ pub fn zap(
     env: Env,
     dapp: AutocompounderApp,
     pool: String,
-    funds: Asset,
+    funds: Vec<Asset>,
 ) -> AutocompounderResult {
     // TODO: Check if the pool is valid
-
+    deps.api.addr_validate(&pool)?;
     // TODO: Swap the funds into 50/50. Might not be nescesarry with dex module single sided add liquidity
-
+    
     // TODO: get the liquidity token amount
 
     // TODO: stake the liquidity token
