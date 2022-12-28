@@ -1,4 +1,6 @@
-use cosmwasm_std::{from_binary, DepsMut, Env, MessageInfo, Response, Uint128};
+use abstract_sdk::base::features::AbstractNameService;
+use abstract_sdk::os::dex::DexAction;
+use cosmwasm_std::{from_binary, DepsMut, Env, MessageInfo, Response, Uint128, Decimal, SubMsg, Addr};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::Asset;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
@@ -21,9 +23,12 @@ pub fn execute_handler(
             withdrawal,
             deposit,
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
-        AutocompounderExecuteMsg::Zap { pool, funds } => zap(deps, info, _env, app, pool, funds),
         AutocompounderExecuteMsg::Receive(msg) => receive(deps, info, _env, msg),
+        AutocompounderExecuteMsg::Zap {  funds } => zap(deps, info, _env, app, funds),
         _ => Err(AutocompounderError::ExceededMaxCount {}),
+        AutocompounderExecuteMsg::Deposit { funds } => todo!(),
+        AutocompounderExecuteMsg::Withdraw {  } => todo!(),
+        AutocompounderExecuteMsg::Compound {  } => todo!(),
     }
 }
 
@@ -47,11 +52,19 @@ pub fn zap(
     msg_info: MessageInfo,
     env: Env,
     dapp: AutocompounderApp,
-    pool: String,
-    funds: Vec<Asset>,
+    funds: Asset,
 ) -> AutocompounderResult {
     // TODO: Check if the pool is valid
-    deps.api.addr_validate(&pool)?;
+    let config = CONFIG.load(deps.storage)?;
+
+    let dex_pair = dapp.name_service(deps.as_ref()).query( &config.dex_pair)?;
+    let staking_address = Addr::unchecked("");
+    let staking_proxy_balance:Uint128 = Uint128::zero(); // TODO
+    let value_of_staking_proxy_balance: Decimal = Decimal::zero(); // TODO
+
+
+    let swap_action = DexAction::ProvideLiquidity { assets: vec![funds], max_spread: None };
+    let sub_msg: SubMsg = SubMsg::new(swap_action.into());
     // TODO: Swap the funds into 50/50. Might not be nescesarry with dex module single sided add liquidity
 
     // TODO: get the liquidity token amount
@@ -84,15 +97,27 @@ fn redeem(deps: DepsMut, env: Env, sender: String, amount: Uint128) -> Autocompo
     let config = CONFIG.load(deps.storage)?;
 
     // TODO: check that withdrawals are enabled
+    
 
     // parse sender
     let sender = deps.api.addr_validate(&sender)?;
 
     // TODO: calculate the size of vault and the amount of assets to withdraw
-
+    
     // TODO: create message to send back underlying tokens to user
 
     // TODO: burn liquidity tokens
 
     Ok(Response::default())
+}
+
+fn get_token_amount(
+    deps: DepsMut,
+    env: Env,
+    sender: String,
+    amount: Uint128,
+) -> AutocompounderResult {
+    let config = CONFIG.load(deps.storage)?;
+
+
 }

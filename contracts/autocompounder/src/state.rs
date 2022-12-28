@@ -1,3 +1,4 @@
+use abstract_sdk::os::objects::DexAssetPairing;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Uint128;
@@ -14,8 +15,14 @@ pub struct FeeConfig {
 pub struct Config {
     /// Address of the staking contract
     pub staking_contract: Addr,
+    ///
+    pub dex_pair: DexAssetPairing,
     /// Address of the LP token contract
     pub liquidity_token: Addr,
+    /// Vault token
+    pub vault_token: Addr,
+    /// Address that recieves the fee commissions
+    pub commission_addr: Addr,
     /// Vault fee structure
     pub fees: FeeConfig,
 }

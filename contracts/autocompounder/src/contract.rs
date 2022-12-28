@@ -27,6 +27,8 @@ const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Expected replies
 pub const EXAMPLE_REPLY_ID: u64 = 69420;
+pub const INSTANTIATE_REPLY_ID: u64 = 0u64;
+pub const LP_PROVISION_REPLY_ID: u64 = 1u64;
 
 /// Used as the foundation for building your app.
 /// All entrypoints are executed through this const (`instantiate`, `query`, `execute`, `migrate`)
@@ -35,7 +37,7 @@ const APP: AutocompounderApp = AutocompounderApp::new(AUTOCOMPOUNDER, MODULE_VER
     .with_query(handlers::query_handler)
     .with_execute(handlers::execute_handler)
     .with_migrate(handlers::migrate_handler)
-    .with_replies(&[(EXAMPLE_REPLY_ID, handlers::example_reply_handler)])
+    .with_replies(&[(EXAMPLE_REPLY_ID, handlers::reply_handler)])
     .with_dependencies(AUTOCOMPOUNDER_DEPS);
 
 // Export the endpoints for this contract
