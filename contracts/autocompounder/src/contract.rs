@@ -28,6 +28,7 @@ const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Expected replies
 pub const EXAMPLE_REPLY_ID: u64 = 69420;
 pub const INSTANTIATE_REPLY_ID: u64 = 0u64;
+pub const LP_PROVISION_REPLY_ID: u64 = 1u64;
 
 /// Used as the foundation for building your app.
 /// All entrypoints are executed through this const (`instantiate`, `query`, `execute`, `migrate`)

@@ -1,7 +1,6 @@
-use abstract_sdk::Resolve;
 use abstract_sdk::base::features::AbstractNameService;
-use abstract_sdk::os::objects::ans_host;
-use cosmwasm_std::{from_binary, DepsMut, Env, MessageInfo, Response, Uint128};
+use abstract_sdk::os::dex::DexAction;
+use cosmwasm_std::{from_binary, DepsMut, Env, MessageInfo, Response, Uint128, Decimal, SubMsg, Addr};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::Asset;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
@@ -57,9 +56,15 @@ pub fn zap(
 ) -> AutocompounderResult {
     // TODO: Check if the pool is valid
     let config = CONFIG.load(deps.storage)?;
+
     let dex_pair = dapp.name_service(deps.as_ref()).query( &config.dex_pair)?;
+    let staking_address = Addr::unchecked("");
+    let staking_proxy_balance:Uint128 = Uint128::zero(); // TODO
+    let value_of_staking_proxy_balance: Decimal = Decimal::zero(); // TODO
 
 
+    let swap_action = DexAction::ProvideLiquidity { assets: vec![funds], max_spread: None };
+    let sub_msg: SubMsg = SubMsg::new(swap_action.into());
     // TODO: Swap the funds into 50/50. Might not be nescesarry with dex module single sided add liquidity
 
     // TODO: get the liquidity token amount
@@ -104,4 +109,15 @@ fn redeem(deps: DepsMut, env: Env, sender: String, amount: Uint128) -> Autocompo
     // TODO: burn liquidity tokens
 
     Ok(Response::default())
+}
+
+fn get_token_amount(
+    deps: DepsMut,
+    env: Env,
+    sender: String,
+    amount: Uint128,
+) -> AutocompounderResult {
+    let config = CONFIG.load(deps.storage)?;
+
+
 }
