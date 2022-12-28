@@ -50,7 +50,7 @@ pub struct AutocompounderInstantiateMsg {
     pub liquidity_token: String,
     pub performance_fees: Uint128,
     pub deposit_fees: Uint128,
-    pub withdrawal_fees: Uint128,    
+    pub withdrawal_fees: Uint128,
     /// address that recieves the fee commissions
     pub commission_addr: String,
     /// cw20 code id
@@ -70,17 +70,11 @@ pub enum AutocompounderExecuteMsg {
         deposit: Option<Uint128>,
         withdrawal: Option<Uint128>,
     },
-    /// Zap in by depositing a single asset
-    Zap {
-        funds: Asset,
-    },
     /// Join vault by depositing 2 funds
-    Deposit {
-        funds: Vec<Asset>,
-    },
+    Deposit { funds: Vec<Asset> },
     /// Withdraw all unbonded funds
-    Withdraw { },
-    /// Unbond LP tokens 
+    Withdraw {},
+    /// Unbond LP tokens
     Unbond { amount: Uint128 },
     /// Compound all rewards in the vault
     Compound {},

@@ -1,8 +1,10 @@
-use cosmwasm_std::{DepsMut, Env, Reply, StdResult, Response, StdError, Uint128};
+use cosmwasm_std::{DepsMut, Env, Reply, Response, StdError, StdResult, Uint128};
 
 use protobuf::Message;
 
-use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID, LP_PROVISION_REPLY_ID};
+use crate::contract::{
+    AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID, LP_PROVISION_REPLY_ID,
+};
 use crate::state::{Config, CONFIG};
 
 use crate::response::MsgInstantiateContractResponse;
@@ -19,8 +21,11 @@ pub fn reply_handler(
         LP_PROVISION_REPLY_ID => lp_provision_reply(_deps, _env, _app, reply),
         _ => StdError::generic_err("Unknown reply id"),
     }
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 50e42ec (check funds have proper amount/allowance + transfer assets to contract)
 }
 
 pub fn instantiate_reply(
@@ -73,7 +78,6 @@ pub fn lp_provision_reply(
     // mint_amount =  (current_vault_amount / lp_token_minted) * new_lp_tokens_minted
 
     let mint_amount = Uint128::zero(); // TODO: calculate
-
 
     Ok(Response::new().add_attribute("vault_token_minted", mint_amount))
 }

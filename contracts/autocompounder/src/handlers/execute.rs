@@ -1,8 +1,11 @@
 use abstract_sdk::base::features::AbstractNameService;
 use abstract_sdk::os::dex::DexAction;
-use cosmwasm_std::{from_binary, DepsMut, Env, MessageInfo, Response, Uint128, Decimal, SubMsg, Addr};
-use cw20::Cw20ReceiveMsg;
-use cw_asset::Asset;
+use cosmwasm_std::{
+    from_binary, to_binary, Addr, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, QuerierWrapper,
+    QueryRequest, Response, StdError, StdResult, SubMsg, Uint128, WasmQuery,
+};
+use cw20::{AllowanceResponse, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
+use cw_asset::{Asset, AssetInfo};
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 
 use crate::contract::{AutocompounderApp, AutocompounderResult};
@@ -24,11 +27,10 @@ pub fn execute_handler(
             deposit,
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
         AutocompounderExecuteMsg::Receive(msg) => receive(deps, info, _env, msg),
-        AutocompounderExecuteMsg::Zap {  funds } => zap(deps, info, _env, app, funds),
+        AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, _env, app, funds),
         _ => Err(AutocompounderError::ExceededMaxCount {}),
-        AutocompounderExecuteMsg::Deposit { funds } => todo!(),
-        AutocompounderExecuteMsg::Withdraw {  } => todo!(),
-        AutocompounderExecuteMsg::Compound {  } => todo!(),
+        AutocompounderExecuteMsg::Withdraw {} => todo!(),
+        AutocompounderExecuteMsg::Compound {} => todo!(),
     }
 }
 
@@ -47,31 +49,84 @@ pub fn update_fee_config(
 }
 
 // im assuming that this is the function that will be called when the user wants to pool AND stake their funds
-pub fn zap(
+pub fn deposit(
     deps: DepsMut,
     msg_info: MessageInfo,
     env: Env,
     dapp: AutocompounderApp,
-    funds: Asset,
+    funds: Vec<Asset>,
 ) -> AutocompounderResult {
     // TODO: Check if the pool is valid
     let config = CONFIG.load(deps.storage)?;
 
-    let dex_pair = dapp.name_service(deps.as_ref()).query( &config.dex_pair)?;
+    let dex_pair = dapp.name_service(deps.as_ref()).query(&config.dex_pair)?;
     let staking_address = Addr::unchecked("");
-    let staking_proxy_balance:Uint128 = Uint128::zero(); // TODO
+    let staking_proxy_balance: Uint128 = Uint128::zero(); // TODO
     let value_of_staking_proxy_balance: Decimal = Decimal::zero(); // TODO
 
+    let mut messages: Vec<CosmosMsg> = vec![];
 
-    let swap_action = DexAction::ProvideLiquidity { assets: vec![funds], max_spread: None };
+    // check if funds have proper amount/allowance
+    for asset in funds {
+        let sent_funds = match asset.info.clone() {
+            AssetInfo::Native(denom) => msg_info
+                .funds
+                .iter()
+                .filter(|c| c.denom == denom)
+                .map(|c| c.amount)
+                .sum::<Uint128>(),
+            AssetInfo::Cw20(contract_addr) => {
+                let allowance: AllowanceResponse = deps.querier.query_wasm_smart(
+                    contract_addr,
+                    &cw20::Cw20QueryMsg::Allowance {
+                        owner: msg_info.sender.clone().into_string(),
+                        spender: env.contract.address.clone().into_string(),
+                    },
+                )?;
+
+                allowance.allowance
+            }
+            _ => {
+                return Err(AutocompounderError::Std(StdError::GenericErr {
+                    msg: "asset type not supported".to_string(),
+                }))
+            }
+        };
+        if sent_funds != asset.amount {
+            return Err(AutocompounderError::FundsMismatch {
+                sent: sent_funds,
+                wanted: asset.amount,
+            });
+        }
+        // add cw20 transfer message if needed
+        if let AssetInfo::Cw20(contract_addr) = asset.info.clone() {
+            messages.push(
+                asset.transfer_from_msg(msg_info.sender.clone(), env.contract.address.clone())?,
+            )
+        }
+    }
+
+    // get total vault shares
+    let total_vault_shares: TokenInfoResponse =
+        get_token_info(&deps.querier, config.liquidity_token.clone())?.total_supply;
+
+    // // calculate vault tokens to mint
+    // let vault_tokens_amount_to_mint = if total_vault_shares.is_zero() {
+    //     // first depositor to the vault, mint LP tokens 1:1
+    //     amount
+    // }
+
+    let swap_action = DexAction::ProvideLiquidity {
+        assets: vec![funds],
+        max_spread: None,
+    };
     let sub_msg: SubMsg = SubMsg::new(swap_action.into());
+
     // TODO: Swap the funds into 50/50. Might not be nescesarry with dex module single sided add liquidity
 
     // TODO: get the liquidity token amount
 
     // TODO: stake the liquidity token
-
-    unimplemented!()
 }
 
 /// Handles receiving CW20 messages
@@ -97,13 +152,12 @@ fn redeem(deps: DepsMut, env: Env, sender: String, amount: Uint128) -> Autocompo
     let config = CONFIG.load(deps.storage)?;
 
     // TODO: check that withdrawals are enabled
-    
 
     // parse sender
     let sender = deps.api.addr_validate(&sender)?;
 
     // TODO: calculate the size of vault and the amount of assets to withdraw
-    
+
     // TODO: create message to send back underlying tokens to user
 
     // TODO: burn liquidity tokens
@@ -118,6 +172,13 @@ fn get_token_amount(
     amount: Uint128,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
+}
 
+fn get_token_info(querier: &QuerierWrapper, contract_addr: Addr) -> AutocompounderResult {
+    let token_info: TokenInfoResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: contract_addr.to_string(),
+        msg: to_binary(&Cw20QueryMsg::TokenInfo {})?,
+    }))?;
 
+    Ok(token_info)
 }
