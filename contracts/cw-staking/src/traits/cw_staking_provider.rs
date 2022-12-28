@@ -8,9 +8,9 @@ use crate::traits::identify::Identify;
 
 /// Trait that defines the interface for staking providers
 pub trait CwStakingProvider: Identify {
-    /// Construct the provider entry using the given assets
+    /// Construct the staking contract entry using the given assets
     fn provider_entry(&self, assets: &mut Vec<&AssetEntry>) -> ContractEntry {
-        ContractEntry::construct_dex_entry(self.name(), assets)
+        ContractEntry::construct_staking_entry(self.name(), assets)
     }
 
     /// Retrieve the staking contract address for the pool with the provided lp token name
