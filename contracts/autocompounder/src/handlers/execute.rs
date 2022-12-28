@@ -21,9 +21,12 @@ pub fn execute_handler(
             withdrawal,
             deposit,
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
-        AutocompounderExecuteMsg::Zap { pool, funds } => zap(deps, info, _env, app, pool, funds),
         AutocompounderExecuteMsg::Receive(msg) => receive(deps, info, _env, msg),
+        AutocompounderExecuteMsg::Zap {  funds } => zap(deps, info, _env, app, funds),
         _ => Err(AutocompounderError::ExceededMaxCount {}),
+        AutocompounderExecuteMsg::Deposit { funds } => todo!(),
+        AutocompounderExecuteMsg::Withdraw {  } => todo!(),
+        AutocompounderExecuteMsg::Compound {  } => todo!(),
     }
 }
 
@@ -47,8 +50,7 @@ pub fn zap(
     msg_info: MessageInfo,
     env: Env,
     dapp: AutocompounderApp,
-    pool: String,
-    funds: Vec<Asset>,
+    funds: Asset,
 ) -> AutocompounderResult {
     // TODO: Check if the pool is valid
     deps.api.addr_validate(&pool)?;
