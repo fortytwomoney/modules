@@ -92,12 +92,13 @@ fn redeem(deps: DepsMut, env: Env, sender: String, amount: Uint128) -> Autocompo
     let config = CONFIG.load(deps.storage)?;
 
     // TODO: check that withdrawals are enabled
+    
 
     // parse sender
     let sender = deps.api.addr_validate(&sender)?;
 
     // TODO: calculate the size of vault and the amount of assets to withdraw
-
+    
     // TODO: create message to send back underlying tokens to user
 
     // TODO: burn liquidity tokens

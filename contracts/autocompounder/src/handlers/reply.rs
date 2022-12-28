@@ -1,9 +1,11 @@
 use cosmwasm_std::{DepsMut, Env, Reply, StdResult, Response, StdError};
 
-use forty_two::autocompounder::state::CONFIG;
 use protobuf::Message;
 
 use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
+use crate::state::{Config, CONFIG};
+
+use crate::response::MsgInstantiateContractResponse;
 
 pub fn reply_handler(
     _deps: DepsMut,
