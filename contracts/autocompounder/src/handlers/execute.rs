@@ -1,3 +1,6 @@
+use abstract_sdk::Resolve;
+use abstract_sdk::base::features::AbstractNameService;
+use abstract_sdk::os::objects::ans_host;
 use cosmwasm_std::{from_binary, DepsMut, Env, MessageInfo, Response, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::Asset;
@@ -53,7 +56,10 @@ pub fn zap(
     funds: Asset,
 ) -> AutocompounderResult {
     // TODO: Check if the pool is valid
-    deps.api.addr_validate(&pool)?;
+    let config = CONFIG.load(deps.storage)?;
+    let dex_pair = dapp.name_service(deps.as_ref()).query( &config.dex_pair)?;
+
+
     // TODO: Swap the funds into 50/50. Might not be nescesarry with dex module single sided add liquidity
 
     // TODO: get the liquidity token amount

@@ -55,6 +55,12 @@ pub struct AutocompounderInstantiateMsg {
     pub commission_addr: String,
     /// cw20 code id
     pub code_id: u64,
+    /// first asset in the pair (alphabetical order)
+    pub asset_x: String,
+    /// second asset in the pair (alphabetical order)
+    pub asset_y: String,
+    /// initial offer
+    pub dex_name: String,
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -78,6 +84,7 @@ pub enum AutocompounderExecuteMsg {
     Unbond { amount: Uint128 },
     /// Compound all rewards in the vault
     Compound {},
+    /// Recieve cw20 tokens
     Receive(Cw20ReceiveMsg),
 }
 
