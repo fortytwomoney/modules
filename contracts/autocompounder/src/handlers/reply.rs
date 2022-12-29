@@ -1,5 +1,7 @@
+use abstract_sdk::os::objects::AssetEntry;
 use cosmwasm_std::{DepsMut, Env, Reply, Response, StdError, StdResult, Uint128};
 use abstract_sdk::ModuleInterface;
+use forty_two::cw_staking::{CW_STAKING, CwStakingQueryMsg, StakeResponse};
 
 use cw20::Cw20Contract;
 use protobuf::Message;
@@ -62,37 +64,43 @@ pub fn lp_provision_reply(
 
     let config = CONFIG.load(deps.storage)?;
     let lp_token = Cw20Contract(config.liquidity_token);
+    let vault_token = Cw20Contract(config.vault_token);
 
     new_lp_token_minted = lp_token
         .balance(deps.api, app.proxy_addr.clone())
         .unwrap();
 
-    let modules = app.modules(deps.as_ref());
-
-
-
-    
-
-    // TODO: get from reply
-
-    // LP tokens currently owned by the proxy (includes the amount of LP tokens minted in this transaction)
-    let lp_token_owned: Uint128; // TODO: get from lp contract query
+    // LP tokens currently owned by the proxy (Assuming all owned LP tokens are staked)
+    let vault_stake = query_stake(deps, app, config.liquidity_token); // TODO: THis might need to change to AssetEntry
 
     // Current amount of vault tokens in circulation
-    let current_vault_amount: Uint128; // TODO: get from vault token contract query
-
-    // amount of lp tokens staked by the proxy before this transaction
-    let prev_lp_token_amount = new_lp_token_minted.checked_sub(lp_token_owned).unwrap();
+    let current_vault_supply = vault_token.meta(&deps.querier).unwrap().total_supply;
 
     // The total value of all LP tokens that are staked by the proxy are equal to the total value of all vault tokens in circulation
     // mint_amount =  (current_vault_amount / lp_token_minted) * new_lp_tokens_minted]}
+    let mint_amount = new_lp_token_minted.checked_multiply_ratio(
+        current_vault_supply, vault_stake).unwrap();
+    
+    // 2) Stake the LP tokens
+    // TODO: This is where we would stake the LP tokens
 
-    let mint_amount = Uint128::zero(); // TODO: calculate
+    // 3) Mint vault tokens to the user
+    // TODO: This is where we would mint vault tokens to the user
+
+
 
     Ok(Response::new().add_attribute("vault_token_minted", mint_amount))
 }
 
-fn query_stake(deps: DepsMut, app: AutocompounderApp) {
+fn query_stake(deps: DepsMut, app: AutocompounderApp, lp_token_name: AssetEntry) -> Uint128 {
     let modules = app.modules(deps.as_ref());
-    modules
+    let staking_mod = modules.module_address(CW_STAKING).unwrap();
+
+    let query = CwStakingQueryMsg::Stake {
+        lp_token_name,
+        address: app.proxy_addr.clone(),
+    };
+    let res: StakeResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
+
+
 }
