@@ -1,7 +1,7 @@
-use abstract_sdk::os::objects::AssetEntry;
-use cosmwasm_std::{DepsMut, Env, Reply, Response, StdError, StdResult, Uint128};
+use abstract_sdk::os::objects::{AssetEntry, AnsAsset};
+use cosmwasm_std::{DepsMut, Env, Reply, Response, StdError, StdResult, Uint128, CosmosMsg, Addr};
 use abstract_sdk::ModuleInterface;
-use forty_two::cw_staking::{CW_STAKING, CwStakingQueryMsg, StakeResponse};
+use forty_two::cw_staking::{CW_STAKING, CwStakingQueryMsg, StakeResponse, CwStakingExecuteMsg, CwStakingAction};
 
 use cw20::Cw20Contract;
 use protobuf::Message;
@@ -55,18 +55,17 @@ pub fn lp_provision_reply(
     app: AutocompounderApp,
     reply: Reply,
 ) -> AutocompounderResult {
-    // Logic to execute on example reply
+    let config = CONFIG.load(deps.storage)?;
     let data = reply.result.unwrap().data.unwrap();
 
-    // 1) get the amount of LP tokens minted and the amount of LP tokens already owned by the proxy
-    // LP tokens minted in this transaction
-    let new_lp_token_minted: Uint128;
+    let user_address = Addr::unchecked(""); // TODO: Get the user address from the reply
 
-    let config = CONFIG.load(deps.storage)?;
     let lp_token = Cw20Contract(config.liquidity_token);
     let vault_token = Cw20Contract(config.vault_token);
 
-    new_lp_token_minted = lp_token
+    // 1) get the amount of LP tokens minted and the amount of LP tokens already owned by the proxy
+    // LP tokens minted in this transaction
+    let new_lp_token_minted = lp_token
         .balance(deps.api, app.proxy_addr.clone())
         .unwrap();
 
@@ -82,14 +81,17 @@ pub fn lp_provision_reply(
         current_vault_supply, vault_stake).unwrap();
     
     // 2) Stake the LP tokens
-    // TODO: This is where we would stake the LP tokens
+    let stake_msg = stake_lps(deps, app, "TODO".to_string(), config.liquidity_token, new_lp_token_minted);
 
     // 3) Mint vault tokens to the user
-    // TODO: This is where we would mint vault tokens to the user
+    let mint_msg = vault_token.mint(user_address, mint_amount).unwrap();
 
-
-
-    Ok(Response::new().add_attribute("vault_token_minted", mint_amount))
+    Ok(
+        Response::new()
+            .add_message(stake_msg)
+            .add_message(mint_msg)
+            .add_attribute("vault_token_minted", mint_amount)
+    )
 }
 
 fn query_stake(deps: DepsMut, app: AutocompounderApp, lp_token_name: AssetEntry) -> Uint128 {
@@ -101,6 +103,16 @@ fn query_stake(deps: DepsMut, app: AutocompounderApp, lp_token_name: AssetEntry)
         address: app.proxy_addr.clone(),
     };
     let res: StakeResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
+}
 
+fn stake_lps(deps: DepsMut, app: AutocompounderApp, provider: String, lp_token_name: AssetEntry, amount: Uint128) -> CosmosMsg {
+    let modules = app.modules(deps.as_ref());
+    let staking_mod = modules.module_address(CW_STAKING).unwrap();
 
+    let msg: CosmosMsg = modules.api_request(CW_STAKING, CwStakingExecuteMsg {
+        provider,
+        action: CwStakingAction::Stake { lp_token: AnsAsset::new(lp_token_name, amount) }
+    }).unwrap();
+    
+    return msg
 }
