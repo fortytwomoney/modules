@@ -1,5 +1,7 @@
 use cosmwasm_std::{DepsMut, Env, Reply, Response, StdError, StdResult, Uint128};
+use abstract_sdk::ModuleInterface;
 
+use cw20::Cw20Contract;
 use protobuf::Message;
 
 use crate::contract::{
@@ -10,28 +12,22 @@ use crate::state::{Config, CONFIG};
 use crate::response::MsgInstantiateContractResponse;
 
 pub fn reply_handler(
-    _deps: DepsMut,
-    _env: Env,
-    _app: AutocompounderApp,
+    deps: DepsMut,
+    env: Env,
+    app: AutocompounderApp,
     reply: Reply,
 ) -> AutocompounderResult {
     // Logic to execute on example reply
     match reply.id {
-        INSTANTIATE_REPLY_ID => instantiate_reply(_deps, _env, _app, reply),
-        LP_PROVISION_REPLY_ID => lp_provision_reply(_deps, _env, _app, reply),
-        _ => StdError::generic_err("Unknown reply id"),
+        INSTANTIATE_REPLY_ID => instantiate_reply(deps, env, app, reply),
+        LP_PROVISION_REPLY_ID => lp_provision_reply(deps, env, app, reply),
     }
-<<<<<<< HEAD
-
-
-=======
->>>>>>> 50e42ec (check funds have proper amount/allowance + transfer assets to contract)
 }
 
 pub fn instantiate_reply(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
-    _app: AutocompounderApp,
+    app: AutocompounderApp,
     reply: Reply,
 ) -> AutocompounderResult {
     // Logic to execute on example reply
@@ -43,7 +39,7 @@ pub fn instantiate_reply(
 
     let vault_token_addr = res.get_contract_address();
 
-    CONFIG.update(_deps.storage, |mut config| -> StdResult<_> {
+    CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
         config.lp_token = vault_token_addr.parse()?;
         Ok(config)
     })?;
@@ -52,18 +48,32 @@ pub fn instantiate_reply(
 }
 
 pub fn lp_provision_reply(
-    _deps: DepsMut,
-    _env: Env,
-    _app: AutocompounderApp,
+    deps: DepsMut,
+    env: Env,
+    app: AutocompounderApp,
     reply: Reply,
 ) -> AutocompounderResult {
     // Logic to execute on example reply
     let data = reply.result.unwrap().data.unwrap();
 
     // 1) get the amount of LP tokens minted and the amount of LP tokens already owned by the proxy
-
     // LP tokens minted in this transaction
-    let new_lp_token_minted: Uint128; // TODO: get from reply
+    let new_lp_token_minted: Uint128;
+
+    let config = CONFIG.load(deps.storage)?;
+    let lp_token = Cw20Contract(config.liquidity_token);
+
+    new_lp_token_minted = lp_token
+        .balance(deps.api, app.proxy_addr.clone())
+        .unwrap();
+
+    let modules = app.modules(deps.as_ref());
+
+
+
+    
+
+    // TODO: get from reply
 
     // LP tokens currently owned by the proxy (includes the amount of LP tokens minted in this transaction)
     let lp_token_owned: Uint128; // TODO: get from lp contract query
@@ -75,9 +85,14 @@ pub fn lp_provision_reply(
     let prev_lp_token_amount = new_lp_token_minted.checked_sub(lp_token_owned).unwrap();
 
     // The total value of all LP tokens that are staked by the proxy are equal to the total value of all vault tokens in circulation
-    // mint_amount =  (current_vault_amount / lp_token_minted) * new_lp_tokens_minted
+    // mint_amount =  (current_vault_amount / lp_token_minted) * new_lp_tokens_minted]}
 
     let mint_amount = Uint128::zero(); // TODO: calculate
 
     Ok(Response::new().add_attribute("vault_token_minted", mint_amount))
+}
+
+fn query_stake(deps: DepsMut, app: AutocompounderApp) {
+    let modules = app.modules(deps.as_ref());
+    modules
 }
