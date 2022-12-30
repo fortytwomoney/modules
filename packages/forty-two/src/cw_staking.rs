@@ -28,6 +28,7 @@ impl api::ApiQueryMsg for CwStakingQueryMsg {}
 /// A request message that's sent to this staking api
 #[cosmwasm_schema::cw_serde]
 pub struct CwStakingExecuteMsg {
+    /// The name of the staking provider
     pub provider: ProviderName,
     pub action: CwStakingAction,
 }

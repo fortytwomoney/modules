@@ -1,4 +1,5 @@
-use abstract_sdk::os::objects::DexAssetPairing;
+use abstract_sdk::os::dex::DexName;
+use abstract_sdk::os::objects::{AssetEntry, DexAssetPairing, PoolReference};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Uint128;
@@ -15,8 +16,11 @@ pub struct FeeConfig {
 pub struct Config {
     /// Address of the staking contract
     pub staking_contract: Addr,
-    ///
-    pub dex_pair: DexAssetPairing,
+    pub dex: DexName,
+
+    pub dex_assets: Vec<AssetEntry>,
+    /// Pool reference
+    pub pool_reference: PoolReference,
     /// Address of the LP token contract
     pub liquidity_token: Addr,
     /// Vault token

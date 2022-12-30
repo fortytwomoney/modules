@@ -1,7 +1,7 @@
 use abstract_sdk::base::features::AbstractNameService;
-use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
+use abstract_sdk::os::dex::{DexAction, DexExecuteMsg, OfferAsset};
 
-use abstract_sdk::ApplicationInterface;
+use abstract_sdk::{ModuleInterface, TransferInterface};
 use abstract_sdk::register::EXCHANGE;
 use cosmwasm_std::{
     from_binary, to_binary, Addr, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, QuerierWrapper,
@@ -56,16 +56,20 @@ pub fn deposit(
     deps: DepsMut,
     msg_info: MessageInfo,
     env: Env,
-    dapp: AutocompounderApp,
-    funds: Vec<Asset>,
+    app: AutocompounderApp,
+    funds: Vec<OfferAsset>,
 ) -> AutocompounderResult {
     // TODO: Check if the pool is valid
     let config = CONFIG.load(deps.storage)?;
 
-    let dex_pair = dapp.name_service(deps.as_ref()).query(&config.dex_pair)?;
+    let dex_pair = app.name_service(deps.as_ref()).query(&config.dex_pair)?;
     let staking_address = Addr::unchecked("");
     let staking_proxy_balance: Uint128 = Uint128::zero(); // TODO
     let value_of_staking_proxy_balance: Decimal = Decimal::zero(); // TODO
+
+    let bank = app.bank(deps.as_ref());
+    // TODO: ask Howard
+    bank.deposit(funds)?;
 
     let mut messages: Vec<CosmosMsg> = vec![];
 
@@ -90,9 +94,7 @@ pub fn deposit(
                 allowance.allowance
             }
             _ => {
-                return Err(AutocompounderError::Std(StdError::GenericErr {
-                    msg: "asset type not supported".to_string(),
-                }))
+                return Err(StdError::generic_err("asset type not supported".to_string()).into());
             }
         };
         if sent_funds != asset.amount {
@@ -118,17 +120,18 @@ pub fn deposit(
     //     // first depositor to the vault, mint LP tokens 1:1
     //     amount
     // }
-    let apps = dapp.applications(deps.as_ref());
-    let swapmsg: CosmosMsg = apps.api_request(EXCHANGE, DexExecuteMsg {
-        dex: dex_pair.into(),
+    let modules = app.modules(deps.as_ref());
+    let swap_msg: CosmosMsg = modules.api_request(EXCHANGE, DexExecuteMsg {
+        dex: config.dex.into(),
         action: DexAction::ProvideLiquidity {
-        assets: vec![funds],
-        max_spread: None,
-    }})?;
+            assets: funds,
+            max_spread: None,
+        },
+    })?;
 
     let sub_msg = SubMsg {
         id: LP_PROVISION_REPLY_ID,
-        msg: swapmsg,
+        msg: swap_msg,
         gas_limit: None,
         reply_on: ReplyOn::Success,
     };
@@ -137,8 +140,7 @@ pub fn deposit(
         Response::new()
             .add_submessage(sub_msg)
             .add_attribute("action", "4T2/AC/Deposit")
-
-)
+    )
 }
 
 /// Handles receiving CW20 messages

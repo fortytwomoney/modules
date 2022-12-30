@@ -26,6 +26,8 @@ use crate::response::MsgInstantiateContractResponse;
 //     }
 // }
 
+
+/// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.
 pub fn instantiate_reply(
     deps: DepsMut,
     _env: Env,
@@ -67,10 +69,12 @@ pub fn lp_provision_reply(
     let lp_token = Cw20Contract(config.liquidity_token);
     let vault_token = Cw20Contract(config.vault_token);
 
+    let base_state = app.load_state(deps.storage)?;
+
     // 1) get the amount of LP tokens minted and the amount of LP tokens already owned by the proxy
     // LP tokens minted in this transaction
     let new_lp_token_minted = lp_token
-        .balance(deps.api, app.proxy_addr.clone())
+        .balance(deps.api, base_state.proxy_address.clone())
         .unwrap();
 
     // LP tokens currently owned by the proxy (Assuming all owned LP tokens are staked)
@@ -83,7 +87,7 @@ pub fn lp_provision_reply(
     // mint_amount =  (current_vault_amount / lp_token_minted) * new_lp_tokens_minted]}
     let mint_amount = new_lp_token_minted.checked_multiply_ratio(
         current_vault_supply, vault_stake).unwrap();
-    
+
     // 2) Stake the LP tokens
     let stake_msg = stake_lps(deps, app, "TODO".to_string(), config.liquidity_token, new_lp_token_minted);
 
@@ -111,12 +115,11 @@ fn query_stake(deps: DepsMut, app: AutocompounderApp, lp_token_name: AssetEntry)
 
 fn stake_lps(deps: DepsMut, app: AutocompounderApp, provider: String, lp_token_name: AssetEntry, amount: Uint128) -> CosmosMsg {
     let modules = app.modules(deps.as_ref());
-    let staking_mod = modules.module_address(CW_STAKING).unwrap();
 
     let msg: CosmosMsg = modules.api_request(CW_STAKING, CwStakingExecuteMsg {
         provider,
         action: CwStakingAction::Stake { lp_token: AnsAsset::new(lp_token_name, amount) }
     }).unwrap();
-    
+
     return msg
 }

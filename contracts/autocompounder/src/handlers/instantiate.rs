@@ -1,4 +1,5 @@
-use abstract_sdk::os::objects::DexAssetPairing;
+use abstract_sdk::base::features::AbstractNameService;
+use abstract_sdk::os::objects::{ContractEntry, DexAssetPairing, LpToken, PoolId, PoolReference};
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Uint128, SubMsg, Addr, WasmMsg, to_binary, StdError, ReplyOn};
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
@@ -13,29 +14,58 @@ pub fn instantiate_handler(
     deps: DepsMut,
     env: Env,
     _info: MessageInfo,
-    _app: AutocompounderApp,
+    app: AutocompounderApp,
     msg: AutocompounderInstantiateMsg,
 ) -> AutocompounderResult {
-    let pair = DexAssetPairing::new(msg.asset_x.as_str(), msg.asset_y.as_str(), msg.dex_name.as_str());
+    let ans = app.name_service(deps.as_ref());
+
+    let AutocompounderInstantiateMsg {
+        performance_fees,
+        deposit_fees,
+        withdrawal_fees,
+        commission_addr,
+        code_id,
+        dex,
+        pool_assets,
+    } = msg;
+
+    // todo: avoid this iter
+    let pool_assets_strings = pool_assets.iter().map(|asset| asset.to_string()).collect::<Vec<String>>();
+    let lp_token = LpToken::new(dex.clone(), &pool_assets_strings);
+
+    let lp_token_info = ans.query(&lp_token)?;
+    // match on the info and get cw20
+    let lp_token_addr: Addr = Addr::unchecked("TODO");
+
+    let staking_contract_entry = ContractEntry::construct_staking_entry(&dex, &mut assets);
+    let staking_contract_addr = ans.query(&staking_contract_entry)?;
+
+    let pairing = DexAssetPairing::new(pool, msg.dex.as_str());
+
+    let pool_references = ans.query(&pairing)?;
+    assert_eq!(pool_references.len(), 1);
+    let pool_ref: PoolReference = pool_references[0].clone();
 
     let config: Config = Config {
         fees: FeeConfig {
-            performance: msg.performance_fees,
-            deposit: msg.deposit_fees,
-            withdrawal: msg.withdrawal_fees,
+            performance: performance_fees,
+            deposit: deposit_fees,
+            withdrawal: withdrawal_fees,
         },
         vault_token: Addr::unchecked(""),
-        staking_contract: deps.api.addr_validate(&msg.staking_contract)?,
-        liquidity_token: deps.api.addr_validate(&msg.liquidity_token)?,
-        commission_addr: deps.api.addr_validate(&msg.commission_addr)?,
-        dex_pair: pair,
+        staking_contract: staking_contract_addr,
+        liquidity_token: lp_token_addr,
+        commission_addr: deps.api.addr_validate(&commission_addr)?,
+        pool_reference,
+        dex_assets: pool_assets,
+        dex,
     };
-    
+
     CONFIG.save(deps.storage, &config)?;
 
     // create LP token SubMsg
     let sub_msg = create_lp_token_submsg(
-        env.contract.address.to_string(), 
+        env.contract.address.to_string(),
         pair.to_string() + " 4T2 Vault Token", "4T2V".to_string(), // TODO: find a better way to define name and symbol
         msg.code_id
     )?;
