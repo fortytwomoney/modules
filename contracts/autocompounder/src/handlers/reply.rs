@@ -1,3 +1,4 @@
+use abstract_sdk::base::features::Identification;
 use abstract_sdk::os::objects::{AssetEntry, AnsAsset};
 use cosmwasm_std::{DepsMut, Env, Reply, Response, StdError, StdResult, Uint128, CosmosMsg, Addr};
 use abstract_sdk::ModuleInterface;
@@ -44,7 +45,7 @@ pub fn instantiate_reply(
     let vault_token_addr = res.get_contract_address();
 
     CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
-        config.lp_token = vault_token_addr.parse()?;
+        config.vault_token = Addr::unchecked(vault_token_addr);
         Ok(config)
     })?;
 
@@ -74,7 +75,7 @@ pub fn lp_provision_reply(
     // 1) get the amount of LP tokens minted and the amount of LP tokens already owned by the proxy
     // LP tokens minted in this transaction
     let new_lp_token_minted = lp_token
-        .balance(deps.api, base_state.proxy_address.clone())
+        .balance(&deps.querier, base_state.proxy_address.clone())
         .unwrap();
 
     // LP tokens currently owned by the proxy (Assuming all owned LP tokens are staked)
@@ -108,7 +109,7 @@ fn query_stake(deps: DepsMut, app: AutocompounderApp, lp_token_name: AssetEntry)
 
     let query = CwStakingQueryMsg::Stake {
         lp_token_name,
-        address: app.proxy_addr.clone(),
+        address: app.proxy_address(deps.as_ref()).unwrap().to_string(),
     };
     let res: StakeResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
 }

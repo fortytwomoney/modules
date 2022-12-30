@@ -31,20 +31,20 @@ pub fn instantiate_handler(
 
     // todo: avoid this iter
     let pool_assets_strings = pool_assets.iter().map(|asset| asset.to_string()).collect::<Vec<String>>();
-    let lp_token = LpToken::new(dex.clone(), &pool_assets_strings);
+    let lp_token = LpToken { dex_name: dex.clone(),  assets: pool_assets_strings };
 
     let lp_token_info = ans.query(&lp_token)?;
     // match on the info and get cw20
     let lp_token_addr: Addr = Addr::unchecked("TODO");
 
-    let staking_contract_entry = ContractEntry::construct_staking_entry(&dex, &mut assets);
+    let staking_contract_entry = ContractEntry::construct_staking_entry(&dex,  pool_assets.as_mut_slice());
     let staking_contract_addr = ans.query(&staking_contract_entry)?;
 
-    let pairing = DexAssetPairing::new(pool, msg.dex.as_str());
+    let pairing = DexAssetPairing::from_assets(msg.dex.as_str(), pool_assets.clone());
 
     let pool_references = ans.query(&pairing)?;
     assert_eq!(pool_references.len(), 1);
-    let pool_ref: PoolReference = pool_references[0].clone();
+    let pool_reference: PoolReference = pool_references[0].clone();
 
     let config: Config = Config {
         fees: FeeConfig {
@@ -66,7 +66,7 @@ pub fn instantiate_handler(
     // create LP token SubMsg
     let sub_msg = create_lp_token_submsg(
         env.contract.address.to_string(),
-        pair.to_string() + " 4T2 Vault Token", "4T2V".to_string(), // TODO: find a better way to define name and symbol
+        format!("4T2 Vault Token for {}/{:?}", dex, pool_assets_strings), "4T2V".to_string(), // TODO: find a better way to define name and symbol
         msg.code_id
     )?;
 

@@ -1,6 +1,7 @@
 use abstract_sdk::base::features::AbstractNameService;
 use abstract_sdk::os::dex::{DexAction, DexExecuteMsg, OfferAsset};
 
+use abstract_sdk::os::objects::AnsAsset;
 use abstract_sdk::{ModuleInterface, TransferInterface};
 use abstract_sdk::register::EXCHANGE;
 use cosmwasm_std::{
@@ -57,7 +58,7 @@ pub fn deposit(
     msg_info: MessageInfo,
     env: Env,
     app: AutocompounderApp,
-    funds: Vec<OfferAsset>,
+    funds: Vec<AnsAsset>,
 ) -> AutocompounderResult {
     // TODO: Check if the pool is valid
     let config = CONFIG.load(deps.storage)?;
@@ -68,12 +69,12 @@ pub fn deposit(
     let value_of_staking_proxy_balance: Decimal = Decimal::zero(); // TODO
 
     let bank = app.bank(deps.as_ref());
-    // TODO: ask Howard
+    // TODO: check This with howard. Receiving tokens from users here is different from the way we do it in a normal contract
     bank.deposit(funds)?;
 
     let mut messages: Vec<CosmosMsg> = vec![];
 
-    // check if funds have proper amount/allowance
+    // check if funds have proper amount/allowance [Check previous TODO]
     for asset in funds {
         let sent_funds = match asset.info.clone() {
             AssetInfo::Native(denom) => msg_info
@@ -112,7 +113,7 @@ pub fn deposit(
     }
 
     // get total vault shares
-    let total_vault_shares: TokenInfoResponse =
+    let total_vault_shares =
         get_token_info(&deps.querier, config.liquidity_token.clone())?.total_supply;
 
     // // calculate vault tokens to mint
@@ -179,16 +180,16 @@ fn redeem(deps: DepsMut, env: Env, sender: String, amount: Uint128) -> Autocompo
     Ok(Response::default())
 }
 
-fn get_token_amount(
-    deps: DepsMut,
-    env: Env,
-    sender: String,
-    amount: Uint128,
-) -> AutocompounderResult {
-    let config = CONFIG.load(deps.storage)?;
-}
+// fn get_token_amount(
+//     deps: DepsMut,
+//     env: Env,
+//     sender: String,
+//     amount: Uint128,
+// ) -> AutocompounderResult {
+//     let config = CONFIG.load(deps.storage)?;
+// }
 
-fn get_token_info(querier: &QuerierWrapper, contract_addr: Addr) -> AutocompounderResult {
+fn get_token_info(querier: &QuerierWrapper, contract_addr: Addr) -> StdResult<TokenInfoResponse> {
     let token_info: TokenInfoResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: contract_addr.to_string(),
         msg: to_binary(&Cw20QueryMsg::TokenInfo {})?,
