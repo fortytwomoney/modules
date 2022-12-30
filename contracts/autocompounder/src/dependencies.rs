@@ -18,9 +18,7 @@ mod tests {
     #[test]
     fn test_dependencies() {
         AUTOCOMPOUNDER_DEPS.iter().for_each(|dep| {
-            dep.version_req.iter().for_each(|req| {
-                Comparator::parse(req).unwrap();
-            });
+            dep.check().unwrap();
         });
     }
 }

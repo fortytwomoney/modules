@@ -17,9 +17,10 @@ pub fn reply_handler(
     match reply.id {
         INSTANTIATE_REPLY_ID => instantiate_reply(_deps, _env, _app, reply),
         LP_PROVISION_REPLY_ID => lp_provision_reply(_deps, _env, _app, reply),
+        _ => StdError::generic_err("Unknown reply id"),
     }
 
-    
+
 }
 
 pub fn instantiate_reply(
@@ -34,7 +35,7 @@ pub fn instantiate_reply(
         Message::parse_from_bytes(data.as_slice()).map_err(|_| {
             StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data")
         })?;
-    
+
     let vault_token_addr = res.get_contract_address();
 
     CONFIG.update(_deps.storage, |mut config| -> StdResult<_> {
@@ -55,7 +56,7 @@ pub fn lp_provision_reply(
     let data = reply.result.unwrap().data.unwrap();
 
     // 1) get the amount of LP tokens minted and the amount of LP tokens already owned by the proxy
-    
+
     // LP tokens minted in this transaction
     let new_lp_token_minted: Uint128; // TODO: get from reply
 
@@ -71,7 +72,7 @@ pub fn lp_provision_reply(
     // The total value of all LP tokens that are staked by the proxy are equal to the total value of all vault tokens in circulation
     // mint_amount =  (current_vault_amount / lp_token_minted) * new_lp_tokens_minted
 
-    let mint_amount = Uint128::zero(); // TODO: calculate 
+    let mint_amount = Uint128::zero(); // TODO: calculate
 
 
     Ok(Response::new().add_attribute("vault_token_minted", mint_amount))
