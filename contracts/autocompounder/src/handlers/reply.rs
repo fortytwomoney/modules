@@ -13,18 +13,18 @@ use crate::state::{Config, CONFIG};
 
 use crate::response::MsgInstantiateContractResponse;
 
-pub fn reply_handler(
-    deps: DepsMut,
-    env: Env,
-    app: AutocompounderApp,
-    reply: Reply,
-) -> AutocompounderResult {
-    // Logic to execute on example reply
-    match reply.id {
-        INSTANTIATE_REPLY_ID => instantiate_reply(deps, env, app, reply),
-        LP_PROVISION_REPLY_ID => lp_provision_reply(deps, env, app, reply),
-    }
-}
+// pub fn reply_handler(
+//     deps: DepsMut,
+//     env: Env,
+//     app: AutocompounderApp,
+//     reply: Reply,
+// ) -> AutocompounderResult {
+//     // Logic to execute on example reply
+//     match reply.id {
+//         INSTANTIATE_REPLY_ID => instantiate_reply(deps, env, app, reply),
+//         LP_PROVISION_REPLY_ID => lp_provision_reply(deps, env, app, reply),
+//     }
+// }
 
 pub fn instantiate_reply(
     deps: DepsMut,
@@ -57,6 +57,10 @@ pub fn lp_provision_reply(
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let data = reply.result.unwrap().data.unwrap();
+    // TODO: What type? Should this be derived from response? Isnt this different for each dex/staking impl?
+    //
+    //
+    //
 
     let user_address = Addr::unchecked(""); // TODO: Get the user address from the reply
 

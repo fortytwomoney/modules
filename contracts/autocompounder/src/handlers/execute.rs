@@ -1,14 +1,17 @@
 use abstract_sdk::base::features::AbstractNameService;
-use abstract_sdk::os::dex::DexAction;
+use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
+
+use abstract_sdk::ApplicationInterface;
+use abstract_sdk::register::EXCHANGE;
 use cosmwasm_std::{
     from_binary, to_binary, Addr, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, QuerierWrapper,
-    QueryRequest, Response, StdError, StdResult, SubMsg, Uint128, WasmQuery,
+    QueryRequest, Response, StdError, StdResult, SubMsg, Uint128, WasmQuery, ReplyOn,
 };
 use cw20::{AllowanceResponse, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 use cw_asset::{Asset, AssetInfo};
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 
-use crate::contract::{AutocompounderApp, AutocompounderResult};
+use crate::contract::{AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID};
 use crate::error::AutocompounderError;
 use crate::state::CONFIG;
 
@@ -115,18 +118,27 @@ pub fn deposit(
     //     // first depositor to the vault, mint LP tokens 1:1
     //     amount
     // }
-
-    let swap_action = DexAction::ProvideLiquidity {
+    let apps = dapp.applications(deps.as_ref());
+    let swapmsg: CosmosMsg = apps.api_request(EXCHANGE, DexExecuteMsg {
+        dex: dex_pair.into(),
+        action: DexAction::ProvideLiquidity {
         assets: vec![funds],
         max_spread: None,
+    }})?;
+
+    let sub_msg = SubMsg {
+        id: LP_PROVISION_REPLY_ID,
+        msg: swapmsg,
+        gas_limit: None,
+        reply_on: ReplyOn::Success,
     };
-    let sub_msg: SubMsg = SubMsg::new(swap_action.into());
 
-    // TODO: Swap the funds into 50/50. Might not be nescesarry with dex module single sided add liquidity
+    Ok(
+        Response::new()
+            .add_submessage(sub_msg)
+            .add_attribute("action", "4T2/AC/Deposit")
 
-    // TODO: get the liquidity token amount
-
-    // TODO: stake the liquidity token
+)
 }
 
 /// Handles receiving CW20 messages
