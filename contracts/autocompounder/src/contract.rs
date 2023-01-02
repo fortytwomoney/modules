@@ -3,6 +3,7 @@ use abstract_app::AppContract;
 
 use cosmwasm_std::Response;
 
+use cw20::Cw20ReceiveMsg;
 use forty_two::autocompounder::{
     AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg,
     AutocompounderQueryMsg, AUTOCOMPOUNDER,
@@ -20,6 +21,7 @@ pub type AutocompounderApp = AppContract<
     AutocompounderInstantiateMsg,
     AutocompounderQueryMsg,
     AutocompounderMigrateMsg,
+    Cw20ReceiveMsg,
 >;
 
 pub type AutocompounderResult = Result<Response, AutocompounderError>;
@@ -42,6 +44,7 @@ const APP: AutocompounderApp = AutocompounderApp::new(AUTOCOMPOUNDER, MODULE_VER
         (INSTANTIATE_REPLY_ID, handlers::instantiate_reply),
         (LP_PROVISION_REPLY_ID, handlers::lp_provision_reply),
     ])
+    .with_receive(handlers::receive)
     .with_dependencies(AUTOCOMPOUNDER_DEPS);
 
 // Export the endpoints for this contract

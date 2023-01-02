@@ -1,17 +1,19 @@
-use abstract_sdk::base::features::AbstractNameService;
+use abstract_sdk::base::features::{AbstractNameService, Identification};
 use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
 
-use abstract_sdk::os::objects::AnsAsset;
+use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken};
 use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
-    from_binary, to_binary, Addr, CosmosMsg, DepsMut, Env, MessageInfo, QuerierWrapper,
-    QueryRequest, ReplyOn, Response, StdError, StdResult, SubMsg, Uint128, WasmQuery,
+    from_binary, to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
+    QuerierWrapper, QueryRequest, ReplyOn, Response, StdError, StdResult, SubMsg, Uint128,
+    WasmQuery,
 };
 use cw20::{AllowanceResponse, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
 use cw_asset::AssetInfo;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
+use forty_two::cw_staking::{CwStakingQueryMsg, StakeResponse, CW_STAKING};
 
 use crate::contract::{AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID};
 use crate::error::AutocompounderError;
@@ -31,7 +33,6 @@ pub fn execute_handler(
             withdrawal,
             deposit,
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
-        AutocompounderExecuteMsg::Receive(msg) => receive(deps, info, _env, msg),
         AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, _env, app, funds),
         _ => Err(AutocompounderError::ExceededMaxCount {}),
         AutocompounderExecuteMsg::Withdraw {} => todo!(),
@@ -134,8 +135,9 @@ pub fn deposit(
 /// Handles receiving CW20 messages
 pub fn receive(
     deps: DepsMut,
-    info: MessageInfo,
     env: Env,
+    info: MessageInfo,
+    dapp: AutocompounderApp,
     msg: Cw20ReceiveMsg,
 ) -> AutocompounderResult {
     // Withdraw fn can only be called by liquidity token
@@ -146,19 +148,37 @@ pub fn receive(
     }
 
     match from_binary(&msg.msg)? {
-        Cw20HookMsg::Redeem {} => redeem(deps, env, msg.sender, msg.amount),
+        Cw20HookMsg::Redeem {} => redeem(deps, env, dapp, msg.sender, msg.amount),
     }
 }
 
-fn redeem(deps: DepsMut, _env: Env, sender: String, _amount: Uint128) -> AutocompounderResult {
-    let _config = CONFIG.load(deps.storage)?;
+fn redeem(
+    deps: DepsMut,
+    _env: Env,
+    dapp: AutocompounderApp,
+    sender: String,
+    amount_of_vault_tokens_to_be_burned: Uint128,
+) -> AutocompounderResult {
+    let config = CONFIG.load(deps.storage)?;
 
-    // TODO: check that withdrawals are enabled
+    // 1) get the total supply of Vault token
+    let vault_token_info: TokenInfoResponse = deps
+        .querier
+        .query_wasm_smart(config.vault_token.clone(), &Cw20QueryMsg::TokenInfo {})?;
+    let vault_tokens_total_supply = vault_token_info.total_supply;
+
+    // 2) get total amount of LP tokens staked in vault
+    let lp_token = AssetEntry::from(LpToken::from(config.pool_data));
+    let total_lp_tokens_staked_in_vault = query_stake(deps.as_ref(), &dapp, lp_token.clone());
+
+    // 3) calculate lp tokens amount to withdraw
+    let lp_tokens_withdraw_amount = Decimal::from_ratio(
+        amount_of_vault_tokens_to_be_burned,
+        vault_tokens_total_supply,
+    ) * total_lp_tokens_staked_in_vault;
 
     // parse sender
-    let _sender = deps.api.addr_validate(&sender)?;
-
-    // TODO: calculate the size of vault and the amount of assets to withdraw
+    let sender = deps.api.addr_validate(&sender)?;
 
     // TODO: create message to send back underlying tokens to user
 
@@ -183,4 +203,16 @@ fn get_token_info(querier: &QuerierWrapper, contract_addr: Addr) -> StdResult<To
     }))?;
 
     Ok(token_info)
+}
+
+pub fn query_stake(deps: Deps, app: &AutocompounderApp, lp_token_name: AssetEntry) -> Uint128 {
+    let modules = app.modules(deps);
+    let staking_mod = modules.module_address(CW_STAKING).unwrap();
+
+    let query = CwStakingQueryMsg::Stake {
+        lp_token_name,
+        address: app.proxy_address(deps).unwrap().to_string(),
+    };
+    let res: StakeResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
+    res.amount
 }
