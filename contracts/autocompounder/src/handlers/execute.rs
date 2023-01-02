@@ -1,4 +1,4 @@
-use abstract_sdk::base::features::{AbstractNameService};
+use abstract_sdk::base::features::AbstractNameService;
 use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
 
 use abstract_sdk::os::objects::AnsAsset;
@@ -10,9 +10,8 @@ use cosmwasm_std::{
 };
 use cw20::{AllowanceResponse, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
-use cw_asset::{AssetInfo};
+use cw_asset::AssetInfo;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
-
 
 use crate::contract::{AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID};
 use crate::error::AutocompounderError;
@@ -142,8 +141,8 @@ pub fn receive(
     // Withdraw fn can only be called by liquidity token
     let config = CONFIG.load(deps.storage)?;
 
-    if info.sender != config.liquidity_token {
-        return Err(AutocompounderError::SenderIsNotLiquidityToken {});
+    if info.sender != config.vault_token {
+        return Err(AutocompounderError::SenderIsNotVaultToken {});
     }
 
     match from_binary(&msg.msg)? {

@@ -24,7 +24,7 @@ pub enum AutocompounderError {
     ExceededMaxCount {},
 
     #[error("Withdraw function can only be called by the liquidity token")]
-    SenderIsNotLiquidityToken {},
+    SenderIsNotVaultToken {},
 
     #[error("mismatch of sent {sent} but specified deposit amount of {wanted}")]
     FundsMismatch { sent: Uint128, wanted: Uint128 },
