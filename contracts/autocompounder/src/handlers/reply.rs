@@ -81,7 +81,7 @@ pub fn lp_provision_reply(
     // 2) get the number of LP tokens minted in this transaction
     let lp_token_info: TokenInfoResponse = deps
         .querier
-        .query_wasm_smart(config.vault_token.clone(), &Cw20TokenInfo {})?;
+        .query_wasm_smart(config.liquidity_token.clone(), &Cw20TokenInfo {})?;
     let new_lp_token_minted = lp_token_info.total_supply;
 
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data));
