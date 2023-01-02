@@ -1,5 +1,5 @@
 use abstract_app::AppError;
-use cosmwasm_std::{OverflowError, StdError};
+use cosmwasm_std::{OverflowError, StdError, Uint128};
 use cw_controllers::AdminError;
 use thiserror::Error;
 
@@ -25,4 +25,10 @@ pub enum AutocompounderError {
 
     #[error("Withdraw function can only be called by the liquidity token")]
     SenderIsNotLiquidityToken {},
+
+    #[error("mismatch of sent {sent} but specified deposit amount of {wanted}")]
+    FundsMismatch { sent: Uint128, wanted: Uint128 },
+    
+    #[error("Pools with more than 2 assets are not supported")]
+    PoolWithMoreThanTwoAssets {},
 }

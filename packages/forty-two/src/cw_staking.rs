@@ -5,10 +5,13 @@
 use abstract_sdk::os::api;
 use abstract_sdk::os::objects::{AnsAsset, AssetEntry};
 use cosmwasm_schema::QueryResponses;
+use cosmwasm_std::{Addr, Uint128};
+use cw20::Expiration;
 
 
 pub type ProviderName = String;
 pub type LpToken = AnsAsset;
+pub type Claim = (Uint128, Expiration);
 
 /// The callback id for staking over ibc
 pub const IBC_STAKING_PROVIDER_ID: u32 = 22335;
@@ -25,6 +28,7 @@ impl api::ApiQueryMsg for CwStakingQueryMsg {}
 /// A request message that's sent to this staking api
 #[cosmwasm_schema::cw_serde]
 pub struct CwStakingExecuteMsg {
+    /// The name of the staking provider
     pub provider: ProviderName,
     pub action: CwStakingAction,
 }
@@ -49,4 +53,18 @@ pub enum CwStakingAction {
 #[cosmwasm_schema::cw_serde]
 #[derive(QueryResponses)]
 pub enum CwStakingQueryMsg {
+    #[returns(StakeResponse)]
+    Stake {lp_token_name: AssetEntry, address: String},
+    #[returns(UnbondingResponse)]
+    Unbonding {lp_token_name: AssetEntry, address: String},
+}
+
+#[cosmwasm_schema::cw_serde]
+pub struct StakeResponse {
+    pub amount: Uint128,
+}
+
+#[cosmwasm_schema::cw_serde]
+pub struct UnbondingResponse {
+    pub claims: Vec<Claim>,
 }

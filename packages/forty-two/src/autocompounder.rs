@@ -29,6 +29,8 @@
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
 use abstract_sdk::os::{app, dex::OfferAsset};
+use abstract_sdk::os::dex::DexName;
+use abstract_sdk::os::objects::AssetEntry;
 use cosmwasm_std::{Binary, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::Asset;
@@ -46,21 +48,19 @@ pub struct AutocompounderMigrateMsg {}
 /// Init msg
 #[cosmwasm_schema::cw_serde]
 pub struct AutocompounderInstantiateMsg {
-    pub staking_contract: String,
-    pub liquidity_token: String,
+    // pub staking_contract: String,
+    // pub liquidity_token: String,
     pub performance_fees: Uint128,
     pub deposit_fees: Uint128,
-    pub withdrawal_fees: Uint128,    
+    pub withdrawal_fees: Uint128,
     /// address that recieves the fee commissions
     pub commission_addr: String,
     /// cw20 code id
     pub code_id: u64,
-    /// first asset in the pair (alphabetical order)
-    pub asset_x: String,
-    /// second asset in the pair (alphabetical order)
-    pub asset_y: String,
-    /// initial offer
-    pub dex_name: String,
+    /// Name of the target dex
+    pub dex: DexName,
+    /// Assets in the pool
+    pub pool_assets: Vec<AssetEntry>
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -70,17 +70,11 @@ pub enum AutocompounderExecuteMsg {
         deposit: Option<Uint128>,
         withdrawal: Option<Uint128>,
     },
-    /// Zap in by depositing a single asset
-    Zap {
-        funds: Asset,
-    },
     /// Join vault by depositing 2 funds
-    Deposit {
-        funds: Vec<Asset>,
-    },
+    Deposit { funds: Vec<OfferAsset> },
     /// Withdraw all unbonded funds
-    Withdraw { },
-    /// Unbond LP tokens 
+    Withdraw {},
+    /// Unbond LP tokens
     Unbond { amount: Uint128 },
     /// Compound all rewards in the vault
     Compound {},
