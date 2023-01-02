@@ -1,5 +1,5 @@
-use abstract_sdk::os::EXCHANGE;
 use abstract_sdk::os::objects::dependency::StaticDependency;
+use abstract_sdk::os::EXCHANGE;
 
 use forty_two::cw_staking::CW_STAKING;
 
@@ -12,8 +12,8 @@ pub const AUTOCOMPOUNDER_DEPS: &[StaticDependency] = &[DEX_DEP, CW_STAKING_DEP];
 
 #[cfg(test)]
 mod tests {
-    use semver::Comparator;
     use super::*;
+    use semver::Comparator;
 
     #[test]
     fn test_dependencies() {

@@ -28,7 +28,7 @@ pub enum AutocompounderError {
 
     #[error("mismatch of sent {sent} but specified deposit amount of {wanted}")]
     FundsMismatch { sent: Uint128, wanted: Uint128 },
-    
+
     #[error("Pools with more than 2 assets are not supported")]
     PoolWithMoreThanTwoAssets {},
 }

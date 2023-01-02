@@ -1,10 +1,12 @@
 use abstract_app::export_endpoints;
 use abstract_app::AppContract;
 
-
 use cosmwasm_std::Response;
 
-use forty_two::autocompounder::{AUTOCOMPOUNDER, AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg, AutocompounderQueryMsg};
+use forty_two::autocompounder::{
+    AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg,
+    AutocompounderQueryMsg, AUTOCOMPOUNDER,
+};
 
 use crate::dependencies::AUTOCOMPOUNDER_DEPS;
 
@@ -38,7 +40,7 @@ const APP: AutocompounderApp = AutocompounderApp::new(AUTOCOMPOUNDER, MODULE_VER
     .with_migrate(handlers::migrate_handler)
     .with_replies(&[
         (INSTANTIATE_REPLY_ID, handlers::instantiate_reply),
-        (LP_PROVISION_REPLY_ID, handlers::lp_provision_reply),    
+        (LP_PROVISION_REPLY_ID, handlers::lp_provision_reply),
     ])
     .with_dependencies(AUTOCOMPOUNDER_DEPS);
 
