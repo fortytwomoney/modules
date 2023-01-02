@@ -1,25 +1,25 @@
-use abstract_sdk::base::features::{AbstractNameService, Identification};
-use abstract_sdk::base::Handler;
-use abstract_sdk::os::objects::{AnsAsset, AssetEntry, DexAssetPairing, LpToken};
-use abstract_sdk::{ModuleInterface, Resolve};
+use abstract_sdk::base::features::{Identification};
+
+use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken};
+use abstract_sdk::{ModuleInterface};
 use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, Uint128,
     WasmMsg,
 };
 use cw20::TokenInfoResponse;
-use cw20_base::msg::ExecuteMsg::{Burn, BurnFrom, Mint};
-use cw20_base::state::TokenInfo;
+use cw20_base::msg::ExecuteMsg::{Mint};
+
 use forty_two::cw_staking::{
     CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, StakeResponse, CW_STAKING,
 };
 
-use cw20::Cw20QueryMsg::{Balance, TokenInfo as Cw20TokenInfo};
+use cw20::Cw20QueryMsg::{TokenInfo as Cw20TokenInfo};
 use protobuf::Message;
 
 use crate::contract::{
-    AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID, LP_PROVISION_REPLY_ID,
+    AutocompounderApp, AutocompounderResult,
 };
-use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
+use crate::state::{CACHED_USER_ADDR, CONFIG};
 
 use crate::response::MsgInstantiateContractResponse;
 
@@ -40,7 +40,7 @@ use crate::response::MsgInstantiateContractResponse;
 pub fn instantiate_reply(
     deps: DepsMut,
     _env: Env,
-    app: AutocompounderApp,
+    _app: AutocompounderApp,
     reply: Reply,
 ) -> AutocompounderResult {
     // Logic to execute on example reply
@@ -62,13 +62,13 @@ pub fn instantiate_reply(
 
 pub fn lp_provision_reply(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     app: AutocompounderApp,
-    reply: Reply,
+    _reply: Reply,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let base_state = app.load_state(deps.storage)?;
-    let proxy = base_state.proxy_address;
+    let _proxy = base_state.proxy_address;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     CACHED_USER_ADDR.remove(deps.storage);
 

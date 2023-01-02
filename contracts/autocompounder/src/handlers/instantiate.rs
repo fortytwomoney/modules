@@ -1,8 +1,8 @@
 use abstract_sdk::base::features::AbstractNameService;
-use abstract_sdk::os::objects::{ContractEntry, DexAssetPairing, LpToken, PoolId, PoolReference};
+use abstract_sdk::os::objects::{ContractEntry, DexAssetPairing, LpToken, PoolReference};
 use abstract_sdk::Resolve;
 use cosmwasm_std::{
-    to_binary, Addr, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg, Uint128,
+    to_binary, Addr, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg,
     WasmMsg,
 };
 use cw20::MinterResponse;
@@ -31,7 +31,7 @@ pub fn instantiate_handler(
         deposit_fees,
         withdrawal_fees,
         commission_addr,
-        code_id,
+        code_id: _,
         dex,
         pool_assets,
     } = msg;

@@ -1,5 +1,5 @@
 use abstract_sdk::os::dex::DexName;
-use abstract_sdk::os::objects::{AssetEntry, DexAssetPairing, PoolMetadata, PoolReference};
+use abstract_sdk::os::objects::{AssetEntry, PoolMetadata, PoolReference};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Uint128;

@@ -1,18 +1,18 @@
-use abstract_sdk::base::features::{AbstractNameService, Identification};
-use abstract_sdk::os::dex::{DexAction, DexExecuteMsg, OfferAsset};
+use abstract_sdk::base::features::{AbstractNameService};
+use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
 
 use abstract_sdk::os::objects::AnsAsset;
 use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
-    from_binary, to_binary, Addr, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, QuerierWrapper,
+    from_binary, to_binary, Addr, CosmosMsg, DepsMut, Env, MessageInfo, QuerierWrapper,
     QueryRequest, ReplyOn, Response, StdError, StdResult, SubMsg, Uint128, WasmQuery,
 };
 use cw20::{AllowanceResponse, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
-use cw_asset::{Asset, AssetInfo};
+use cw_asset::{AssetInfo};
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
-use forty_two::cw_staking::{CwStakingQueryMsg, StakeResponse, CW_STAKING};
+
 
 use crate::contract::{AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID};
 use crate::error::AutocompounderError;
@@ -64,12 +64,12 @@ pub fn deposit(
 ) -> AutocompounderResult {
     // TODO: Check if the pool is valid
     let config = CONFIG.load(deps.storage)?;
-    let staking_address = config.staking_contract;
+    let _staking_address = config.staking_contract;
     let ans_host = app.ans_host(deps.as_ref())?;
 
-    let bank = app.bank(deps.as_ref());
+    let _bank = app.bank(deps.as_ref());
 
-    let mut messages: Vec<CosmosMsg> = vec![];
+    let _messages: Vec<CosmosMsg> = vec![];
 
     // check if funds have proper amount/allowance [Check previous TODO]
     for asset in funds.clone() {
@@ -151,13 +151,13 @@ pub fn receive(
     }
 }
 
-fn redeem(deps: DepsMut, env: Env, sender: String, amount: Uint128) -> AutocompounderResult {
-    let config = CONFIG.load(deps.storage)?;
+fn redeem(deps: DepsMut, _env: Env, sender: String, _amount: Uint128) -> AutocompounderResult {
+    let _config = CONFIG.load(deps.storage)?;
 
     // TODO: check that withdrawals are enabled
 
     // parse sender
-    let sender = deps.api.addr_validate(&sender)?;
+    let _sender = deps.api.addr_validate(&sender)?;
 
     // TODO: calculate the size of vault and the amount of assets to withdraw
 
