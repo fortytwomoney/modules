@@ -1,15 +1,18 @@
-use abstract_sdk::Resolve;
 use abstract_sdk::base::features::AbstractNameService;
-use abstract_sdk::os::objects::{ContractEntry, DexAssetPairing, LpToken, PoolId, PoolReference};
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Uint128, SubMsg, Addr, WasmMsg, to_binary, StdError, ReplyOn};
+use abstract_sdk::os::objects::{ContractEntry, DexAssetPairing, LpToken, PoolReference};
+use abstract_sdk::Resolve;
+use cosmwasm_std::{
+    to_binary, Addr, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg,
+    WasmMsg,
+};
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 
-use forty_two::autocompounder::{AUTOCOMPOUNDER, AutocompounderInstantiateMsg};
+use forty_two::autocompounder::{AutocompounderInstantiateMsg, AUTOCOMPOUNDER};
 
 use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
 use crate::error::AutocompounderError;
-use crate::state::{Config, CONFIG, FeeConfig};
+use crate::state::{Config, FeeConfig, CONFIG};
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
@@ -20,7 +23,7 @@ pub fn instantiate_handler(
     msg: AutocompounderInstantiateMsg,
 ) -> AutocompounderResult {
     let ans = app.name_service(deps.as_ref());
-    
+
     let ans_host = app.ans_host(deps.as_ref())?;
 
     let AutocompounderInstantiateMsg {
@@ -28,35 +31,41 @@ pub fn instantiate_handler(
         deposit_fees,
         withdrawal_fees,
         commission_addr,
-        code_id,
+        code_id: _,
         dex,
         pool_assets,
     } = msg;
 
     if pool_assets.len() > 2 {
-        return Err(AutocompounderError::PoolWithMoreThanTwoAssets {  });
+        return Err(AutocompounderError::PoolWithMoreThanTwoAssets {});
     }
 
     // todo: avoid this iter
-    let pool_assets_strings = pool_assets.iter().map(|asset| asset.to_string()).collect::<Vec<String>>();
-    let lp_token = LpToken { dex: dex.clone(),  assets: pool_assets_strings };
+    let pool_assets_strings = pool_assets
+        .iter()
+        .map(|asset| asset.to_string())
+        .collect::<Vec<String>>();
+    let lp_token = LpToken {
+        dex: dex.clone(),
+        assets: pool_assets_strings.clone(),
+    };
 
     let lp_token_info = ans.query(&lp_token)?;
     // match on the info and get cw20
     let lp_token_addr: Addr = match lp_token_info {
         cw_asset::AssetInfoBase::Cw20(addr) => Ok(addr),
-        _ => Err(AutocompounderError::Std(StdError::generic_err("LP token is not a cw20"))),
+        _ => Err(AutocompounderError::Std(StdError::generic_err(
+            "LP token is not a cw20",
+        ))),
     }?;
-    
+
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
-    let staking_contract_entry = ContractEntry::construct_staking_entry(&dex,  pool_assets_slice);
+    let staking_contract_entry = ContractEntry::construct_staking_entry(&dex, pool_assets_slice);
     let staking_contract_addr = ans.query(&staking_contract_entry)?;
 
     // TODO: Store this in the config
-    let pairing = DexAssetPairing::from_assets(msg.dex.as_str(), pool_assets_slice);
-
-    
+    let pairing = DexAssetPairing::from_assets(&dex, pool_assets_slice);
 
     let pool_references = ans.query(&pairing)?;
     assert_eq!(pool_references.len(), 1);
@@ -76,7 +85,7 @@ pub fn instantiate_handler(
         pool_data,
         pool_reference,
         dex_assets: pool_assets,
-        dex,
+        dex: dex.clone(),
     };
 
     CONFIG.save(deps.storage, &config)?;
@@ -84,8 +93,9 @@ pub fn instantiate_handler(
     // create LP token SubMsg
     let sub_msg = create_lp_token_submsg(
         env.contract.address.to_string(),
-        format!("4T2 Vault Token for {}/{:?}", dex, pool_assets_strings), "4T2V".to_string(), // TODO: find a better way to define name and symbol
-        msg.code_id
+        format!("4T2 Vault Token for {}/{:?}", dex, pool_assets_strings),
+        "4T2V".to_string(), // TODO: find a better way to define name and symbol
+        msg.code_id,
     )?;
 
     Ok(Response::new()
@@ -94,18 +104,19 @@ pub fn instantiate_handler(
         .add_attribute("contract", AUTOCOMPOUNDER))
 }
 
-
 /// create a SubMsg to instantiate the Vault token.
-fn create_lp_token_submsg(minter: String, name: String, symbol: String, code_id: u64) -> Result<SubMsg, StdError> {
+fn create_lp_token_submsg(
+    minter: String,
+    name: String,
+    symbol: String,
+    code_id: u64,
+) -> Result<SubMsg, StdError> {
     let msg = TokenInstantiateMsg {
         name,
         symbol,
         decimals: 6,
         initial_balances: vec![],
-        mint: Some(MinterResponse {
-            minter,
-            cap: None,
-        }),
+        mint: Some(MinterResponse { minter, cap: None }),
         marketing: None,
     };
     Ok(SubMsg {

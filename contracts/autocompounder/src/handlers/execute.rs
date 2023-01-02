@@ -1,22 +1,22 @@
-use abstract_sdk::base::features::{AbstractNameService, Identification};
-use abstract_sdk::os::dex::{DexAction, DexExecuteMsg, OfferAsset};
+use abstract_sdk::base::features::{AbstractNameService};
+use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
 
 use abstract_sdk::os::objects::AnsAsset;
-use abstract_sdk::{ModuleInterface, TransferInterface};
 use abstract_sdk::register::EXCHANGE;
+use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
-    from_binary, to_binary, Addr, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, QuerierWrapper,
-    QueryRequest, Response, StdError, StdResult, SubMsg, Uint128, WasmQuery, ReplyOn,
+    from_binary, to_binary, Addr, CosmosMsg, DepsMut, Env, MessageInfo, QuerierWrapper,
+    QueryRequest, ReplyOn, Response, StdError, StdResult, SubMsg, Uint128, WasmQuery,
 };
 use cw20::{AllowanceResponse, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
-use cw_asset::{Asset, AssetInfo};
+use cw_asset::{AssetInfo};
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
-use forty_two::cw_staking::{CW_STAKING, CwStakingQueryMsg, StakeResponse};
+
 
 use crate::contract::{AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID};
 use crate::error::AutocompounderError;
-use crate::state::{CONFIG, CACHED_USER_ADDR};
+use crate::state::{CACHED_USER_ADDR, CONFIG};
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
@@ -64,17 +64,18 @@ pub fn deposit(
 ) -> AutocompounderResult {
     // TODO: Check if the pool is valid
     let config = CONFIG.load(deps.storage)?;
-    let staking_address = config.staking_contract;
+    let _staking_address = config.staking_contract;
+    let ans_host = app.ans_host(deps.as_ref())?;
 
-    let bank = app.bank(deps.as_ref());
-    // TODO: check This with howard. Receiving tokens from users here is different from the way we do it in a normal contract
-    bank.deposit(funds)?;
+    let _bank = app.bank(deps.as_ref());
 
-    let mut messages: Vec<CosmosMsg> = vec![];
+    let _messages: Vec<CosmosMsg> = vec![];
 
     // check if funds have proper amount/allowance [Check previous TODO]
-    for asset in funds {
-        let sent_funds = match asset.info.clone() {
+    for asset in funds.clone() {
+        let info = asset.resolve(&deps.querier, &ans_host)?.info;
+
+        let sent_funds = match info.clone() {
             AssetInfo::Native(denom) => msg_info
                 .funds
                 .iter()
@@ -102,23 +103,20 @@ pub fn deposit(
                 wanted: asset.amount,
             });
         }
-        // add cw20 transfer message if needed
-        if let AssetInfo::Cw20(contract_addr) = asset.info.clone() {
-            messages.push(
-                asset.transfer_from_msg(msg_info.sender.clone(), env.contract.address.clone())?,
-            )
-        }
     }
 
     let modules = app.modules(deps.as_ref());
 
-    let swap_msg: CosmosMsg = modules.api_request(EXCHANGE, DexExecuteMsg {
-        dex: config.dex.into(),
-        action: DexAction::ProvideLiquidity {
-            assets: funds,
-            max_spread: None,
+    let swap_msg: CosmosMsg = modules.api_request(
+        EXCHANGE,
+        DexExecuteMsg {
+            dex: config.dex.into(),
+            action: DexAction::ProvideLiquidity {
+                assets: funds,
+                max_spread: None,
+            },
         },
-    })?;
+    )?;
 
     let sub_msg = SubMsg {
         id: LP_PROVISION_REPLY_ID,
@@ -127,14 +125,11 @@ pub fn deposit(
         reply_on: ReplyOn::Success,
     };
 
-    
     // save the user address to the cache for later use in reply
     CACHED_USER_ADDR.save(deps.storage, &msg_info.sender)?;
-    Ok(
-        Response::new()
-            .add_submessage(sub_msg)
-            .add_attribute("action", "4T2/AC/Deposit")
-    )
+    Ok(Response::new()
+        .add_submessage(sub_msg)
+        .add_attribute("action", "4T2/AC/Deposit"))
 }
 
 /// Handles receiving CW20 messages
@@ -156,13 +151,13 @@ pub fn receive(
     }
 }
 
-fn redeem(deps: DepsMut, env: Env, sender: String, amount: Uint128) -> AutocompounderResult {
-    let config = CONFIG.load(deps.storage)?;
+fn redeem(deps: DepsMut, _env: Env, sender: String, _amount: Uint128) -> AutocompounderResult {
+    let _config = CONFIG.load(deps.storage)?;
 
     // TODO: check that withdrawals are enabled
 
     // parse sender
-    let sender = deps.api.addr_validate(&sender)?;
+    let _sender = deps.api.addr_validate(&sender)?;
 
     // TODO: calculate the size of vault and the amount of assets to withdraw
 

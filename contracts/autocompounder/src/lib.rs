@@ -1,9 +1,9 @@
 pub mod contract;
-pub mod error;
-pub mod state;
-pub mod response;
-mod handlers;
 mod dependencies;
+pub mod error;
+mod handlers;
+pub mod response;
+pub mod state;
 
 // TODO; FIX
 // #[cfg(test)]

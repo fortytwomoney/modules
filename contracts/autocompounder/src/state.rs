@@ -1,5 +1,5 @@
 use abstract_sdk::os::dex::DexName;
-use abstract_sdk::os::objects::{AssetEntry, DexAssetPairing, PoolReference, PoolMetadata};
+use abstract_sdk::os::objects::{AssetEntry, PoolMetadata, PoolReference};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Uint128;
@@ -17,7 +17,7 @@ pub struct Config {
     /// Address of the staking contract
     pub staking_contract: Addr,
     pub dex: DexName,
-    /// Pool metadata 
+    /// Pool metadata
     pub pool_data: PoolMetadata,
     /// Assets in the pool
     pub dex_assets: Vec<AssetEntry>,
@@ -33,7 +33,5 @@ pub struct Config {
     pub fees: FeeConfig,
 }
 
-
-pub const CACHED_USER_ADDR : Item<Addr> = Item::new("cached_user_addr");
+pub const CACHED_USER_ADDR: Item<Addr> = Item::new("cached_user_addr");
 pub const CONFIG: Item<Config> = Item::new("config");
-
