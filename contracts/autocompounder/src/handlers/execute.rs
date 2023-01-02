@@ -1,4 +1,4 @@
-use abstract_sdk::base::features::AbstractNameService;
+use abstract_sdk::base::features::{AbstractNameService, Identification};
 use abstract_sdk::os::dex::{DexAction, DexExecuteMsg, OfferAsset};
 
 use abstract_sdk::os::objects::AnsAsset;
@@ -9,12 +9,14 @@ use cosmwasm_std::{
     QueryRequest, Response, StdError, StdResult, SubMsg, Uint128, WasmQuery, ReplyOn,
 };
 use cw20::{AllowanceResponse, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
+
 use cw_asset::{Asset, AssetInfo};
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
+use forty_two::cw_staking::{CW_STAKING, CwStakingQueryMsg, StakeResponse};
 
 use crate::contract::{AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID};
 use crate::error::AutocompounderError;
-use crate::state::CONFIG;
+use crate::state::{CONFIG, CACHED_USER_ADDR};
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
@@ -62,11 +64,7 @@ pub fn deposit(
 ) -> AutocompounderResult {
     // TODO: Check if the pool is valid
     let config = CONFIG.load(deps.storage)?;
-
-    let dex_pair = app.name_service(deps.as_ref()).query(&config.dex_pair)?;
-    let staking_address = Addr::unchecked("");
-    let staking_proxy_balance: Uint128 = Uint128::zero(); // TODO
-    let value_of_staking_proxy_balance: Decimal = Decimal::zero(); // TODO
+    let staking_address = config.staking_contract;
 
     let bank = app.bank(deps.as_ref());
     // TODO: check This with howard. Receiving tokens from users here is different from the way we do it in a normal contract
@@ -112,16 +110,8 @@ pub fn deposit(
         }
     }
 
-    // get total vault shares
-    let total_vault_shares =
-        get_token_info(&deps.querier, config.liquidity_token.clone())?.total_supply;
-
-    // // calculate vault tokens to mint
-    // let vault_tokens_amount_to_mint = if total_vault_shares.is_zero() {
-    //     // first depositor to the vault, mint LP tokens 1:1
-    //     amount
-    // }
     let modules = app.modules(deps.as_ref());
+
     let swap_msg: CosmosMsg = modules.api_request(EXCHANGE, DexExecuteMsg {
         dex: config.dex.into(),
         action: DexAction::ProvideLiquidity {
@@ -137,6 +127,9 @@ pub fn deposit(
         reply_on: ReplyOn::Success,
     };
 
+    
+    // save the user address to the cache for later use in reply
+    CACHED_USER_ADDR.save(deps.storage, &msg_info.sender)?;
     Ok(
         Response::new()
             .add_submessage(sub_msg)

@@ -1,3 +1,4 @@
+use abstract_sdk::Resolve;
 use abstract_sdk::base::features::AbstractNameService;
 use abstract_sdk::os::objects::{ContractEntry, DexAssetPairing, LpToken, PoolId, PoolReference};
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Uint128, SubMsg, Addr, WasmMsg, to_binary, StdError, ReplyOn};
@@ -7,6 +8,7 @@ use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use forty_two::autocompounder::{AUTOCOMPOUNDER, AutocompounderInstantiateMsg};
 
 use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
+use crate::error::AutocompounderError;
 use crate::state::{Config, CONFIG, FeeConfig};
 
 /// Initial instantiation of the contract
@@ -18,6 +20,8 @@ pub fn instantiate_handler(
     msg: AutocompounderInstantiateMsg,
 ) -> AutocompounderResult {
     let ans = app.name_service(deps.as_ref());
+    
+    let ans_host = app.ans_host(deps.as_ref())?;
 
     let AutocompounderInstantiateMsg {
         performance_fees,
@@ -29,22 +33,35 @@ pub fn instantiate_handler(
         pool_assets,
     } = msg;
 
+    if pool_assets.len() > 2 {
+        return Err(AutocompounderError::PoolWithMoreThanTwoAssets {  });
+    }
+
     // todo: avoid this iter
     let pool_assets_strings = pool_assets.iter().map(|asset| asset.to_string()).collect::<Vec<String>>();
-    let lp_token = LpToken { dex_name: dex.clone(),  assets: pool_assets_strings };
+    let lp_token = LpToken { dex: dex.clone(),  assets: pool_assets_strings };
 
     let lp_token_info = ans.query(&lp_token)?;
     // match on the info and get cw20
-    let lp_token_addr: Addr = Addr::unchecked("TODO");
+    let lp_token_addr: Addr = match lp_token_info {
+        cw_asset::AssetInfoBase::Cw20(addr) => Ok(addr),
+        _ => Err(AutocompounderError::Std(StdError::generic_err("LP token is not a cw20"))),
+    }?;
+    
+    let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
-    let staking_contract_entry = ContractEntry::construct_staking_entry(&dex,  pool_assets.as_mut_slice());
+    let staking_contract_entry = ContractEntry::construct_staking_entry(&dex,  pool_assets_slice);
     let staking_contract_addr = ans.query(&staking_contract_entry)?;
 
-    let pairing = DexAssetPairing::from_assets(msg.dex.as_str(), pool_assets.clone());
+    // TODO: Store this in the config
+    let pairing = DexAssetPairing::from_assets(msg.dex.as_str(), pool_assets_slice);
+
+    
 
     let pool_references = ans.query(&pairing)?;
     assert_eq!(pool_references.len(), 1);
     let pool_reference: PoolReference = pool_references[0].clone();
+    let pool_data = pool_reference.id.resolve(&deps.querier, &ans_host)?;
 
     let config: Config = Config {
         fees: FeeConfig {
@@ -56,6 +73,7 @@ pub fn instantiate_handler(
         staking_contract: staking_contract_addr,
         liquidity_token: lp_token_addr,
         commission_addr: deps.api.addr_validate(&commission_addr)?,
+        pool_data,
         pool_reference,
         dex_assets: pool_assets,
         dex,
