@@ -13,7 +13,9 @@ use cw20::{AllowanceResponse, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
 use cw_asset::AssetInfo;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
-use forty_two::cw_staking::{CwStakingQueryMsg, StakeResponse, CW_STAKING};
+use forty_two::cw_staking::{
+    CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, StakeResponse, CW_STAKING,
+};
 
 use crate::contract::{AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID};
 use crate::error::AutocompounderError;
@@ -177,6 +179,10 @@ fn redeem(
         vault_tokens_total_supply,
     ) * total_lp_tokens_staked_in_vault;
 
+    // 4) claim lp tokens
+    let claim_unbonded_lps_msg =
+        withdraw_funds(deps.as_ref(), dapp, "junoswap".to_string(), lp_token);
+
     // parse sender
     let sender = deps.api.addr_validate(&sender)?;
 
@@ -184,7 +190,7 @@ fn redeem(
 
     // TODO: burn liquidity tokens
 
-    Ok(Response::default())
+    Ok(Response::new().add_message(claim_unbonded_lps_msg))
 }
 
 // fn get_token_amount(
@@ -215,4 +221,25 @@ pub fn query_stake(deps: Deps, app: &AutocompounderApp, lp_token_name: AssetEntr
     };
     let res: StakeResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
     res.amount
+}
+
+fn withdraw_funds(
+    deps: Deps,
+    app: AutocompounderApp,
+    provider: String,
+    lp_token_name: AssetEntry,
+) -> CosmosMsg {
+    let modules = app.modules(deps);
+
+    let msg: CosmosMsg = modules
+        .api_request(
+            CW_STAKING,
+            CwStakingExecuteMsg {
+                provider,
+                action: CwStakingAction::Claim { lp_token_name },
+            },
+        )
+        .unwrap();
+
+    return msg;
 }
