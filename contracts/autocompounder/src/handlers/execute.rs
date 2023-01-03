@@ -67,8 +67,6 @@ pub fn deposit(
     let _staking_address = config.staking_contract;
     let ans_host = app.ans_host(deps.as_ref())?;
 
-    let messages: Vec<CosmosMsg> = vec![];
-
     let mut claimed_deposits: AssetList = funds.resolve(&deps.querier, &ans_host)?.into();
     // deduct all the received `Coin`s from the claimed deposit, errors if not enough funds were provided
     // what's left should be the remaining cw20s
@@ -143,6 +141,7 @@ pub fn deposit(
     // save the user address to the cache for later use in reply
     CACHED_USER_ADDR.save(deps.storage, &msg_info.sender)?;
     Ok(Response::new()
+        .add_messages(cw_20_transfer_msgs_res?)
         .add_submessage(sub_msg)
         .add_attribute("action", "4T2/AC/Deposit"))
 }
