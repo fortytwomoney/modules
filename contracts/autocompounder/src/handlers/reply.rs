@@ -1,24 +1,22 @@
-use abstract_sdk::base::features::{Identification};
+use abstract_sdk::base::features::Identification;
 
 use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken};
-use abstract_sdk::{ModuleInterface};
+use abstract_sdk::ModuleInterface;
 use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, Uint128,
     WasmMsg,
 };
-use cw20::TokenInfoResponse;
-use cw20_base::msg::ExecuteMsg::{Mint};
+use cw20::{Balance, TokenInfoResponse};
+use cw20_base::msg::ExecuteMsg::Mint;
 
 use forty_two::cw_staking::{
     CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, StakeResponse, CW_STAKING,
 };
 
-use cw20::Cw20QueryMsg::{TokenInfo as Cw20TokenInfo};
+use cw20::Cw20QueryMsg::TokenInfo as Cw20TokenInfo;
 use protobuf::Message;
 
-use crate::contract::{
-    AutocompounderApp, AutocompounderResult,
-};
+use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::state::{CACHED_USER_ADDR, CONFIG};
 
 use crate::response::MsgInstantiateContractResponse;
@@ -67,8 +65,6 @@ pub fn lp_provision_reply(
     _reply: Reply,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
-    let base_state = app.load_state(deps.storage)?;
-    let _proxy = base_state.proxy_address;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     CACHED_USER_ADDR.remove(deps.storage);
 
@@ -78,20 +74,30 @@ pub fn lp_provision_reply(
         .query_wasm_smart(config.vault_token.clone(), &Cw20TokenInfo {})?;
     let current_vault_supply = vault_token_info.total_supply;
 
-    // 2) get the number of LP tokens minted in this transaction
-    let lp_token_info: TokenInfoResponse = deps
-        .querier
-        .query_wasm_smart(config.liquidity_token.clone(), &Cw20TokenInfo {})?;
-    let new_lp_token_minted = lp_token_info.total_supply;
-
+    // 2) Retrieve the number of LP tokens minted/staked.
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data));
-    let vault_stake = query_stake(deps.as_ref(), &app, lp_token.clone()); // TODO: THis might need to change to AssetEntry
+    let staked_lp = query_stake(deps.as_ref(), &app, lp_token.clone());
+    let cw20::BalanceResponse{
+        balance: received_lp,
+    } = deps.querier.query_wasm_smart(
+        config.vault_token.clone(),
+        &cw20::Cw20QueryMsg::Balance {
+            address: app.proxy_address(deps.as_ref())?.into_string(),
+        },
+    )?;
 
-    // The total value of all LP tokens that are staked by the proxy are equal to the total value of all vault tokens in circulation
+    // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens. 
     // 3) Calculate the number of vault tokens to mint
-    let mint_amount = new_lp_token_minted
-        .checked_multiply_ratio(current_vault_supply, vault_stake)
-        .unwrap();
+    let new_vault_supply = if !staked_lp.is_zero() {
+        current_vault_supply
+            // will overflow on first deposit!
+            .checked_multiply_ratio(received_lp + staked_lp, staked_lp)
+            .unwrap()
+    } else {
+        // if first deposit, mint the same amount of tokens as the LP tokens received
+        current_vault_supply + received_lp
+    };
+    let mint_amount = new_vault_supply - current_vault_supply;
 
     // 4) Mint vault tokens to the user
     let mint_msg: CosmosMsg = WasmMsg::Execute {
@@ -105,7 +111,7 @@ pub fn lp_provision_reply(
     .into();
 
     // 5) Stake the LP tokens
-    let stake_msg = stake_lps(deps, app, "TODO".to_string(), lp_token, new_lp_token_minted);
+    let stake_msg = stake_lps(deps, app, "TODO".to_string(), lp_token, received_lp);
 
     Ok(Response::new()
         .add_message(mint_msg)
@@ -121,8 +127,11 @@ fn query_stake(deps: Deps, app: &AutocompounderApp, lp_token_name: AssetEntry) -
         lp_token_name,
         address: app.proxy_address(deps).unwrap().to_string(),
     };
+
     let res: StakeResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
     res.amount
+
+    // TODO: update on new abstract release
 
     // // // alternative method
     // let modules = app.modules(deps.as_ref());
