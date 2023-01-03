@@ -15,7 +15,7 @@ use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 use forty_two::cw_staking::{CwStakingExecuteMsg, CW_STAKING, CwStakingAction};
 
 
-use crate::contract::{AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID, LP_CLAIM_REPLY_ID};
+use crate::contract::{AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID, LP_COMPOUND_REPLY_ID};
 use crate::error::AutocompounderError;
 use crate::state::{CACHED_USER_ADDR, CONFIG};
 
@@ -199,13 +199,14 @@ fn compound(
     // 1) Claim rewards from staking contract
     let claim_msg = claim_lp_rewards(deps, app, msg_info.sender.to_string(), AssetEntry::from(LpToken::from(config.pool_data)));
     let claim_submsg = SubMsg {
-        id: LP_CLAIM_REPLY_ID,
+        id: LP_COMPOUND_REPLY_ID,
         msg: claim_msg,
         gas_limit: None,
         reply_on: ReplyOn::Success,
     };
 
 
+    // [These steps are caried out by the reply 👇]
     // 2) deduct fee from rewards and swap to native token (send to treasury?)
 
     // 3) Swap rewards to token in pool
@@ -217,7 +218,7 @@ fn compound(
     Ok(
         Response::new()
             .add_submessage(claim_submsg)
-            .add_attribute("action", "4T2/AC/Compound")
+            .add_attribute("action", "4T2🚀AC🚀Compound🤖")
     )
 }
 
