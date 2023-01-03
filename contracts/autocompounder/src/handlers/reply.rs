@@ -177,8 +177,6 @@ pub fn lp_compound_reply(
     let config = CONFIG.load(deps.storage)?;
     let base_state = app.load_state(deps.storage)?;
     let _proxy = base_state.proxy_address;
-    let mut res = Response::new()
-        .add_attribute("action", "lp_claim_reply");
     // 1) claim rewards (this happened in the execution before this reply)
     
     // 2.1) query the rewards
@@ -190,17 +188,17 @@ pub fn lp_compound_reply(
         let tkn = entry.resolve(&deps.querier, &ans_host)?;
         let balance = tkn.query_balance(&deps.querier, app.proxy_address(deps.as_ref())?)?;
         
-        Ok(AnsAsset::new(*entry, balance))
+        Ok(AnsAsset::new(entry.clone(), balance))
     }).collect::<StdResult<Vec<AnsAsset>>>()?;
     // remove zero balances
-    rewards = rewards.iter().filter(|reward| reward.amount != Uint128::zero()).map(|a| *a).collect::<Vec<AnsAsset>>();
+    rewards = rewards.iter().filter(|reward| reward.amount != Uint128::zero()).map(|a| a.clone()).collect::<Vec<AnsAsset>>();
 
     // 2) deduct fee from rewards
     let fees = rewards.iter_mut().map(|reward| -> StdResult<AnsAsset>{
         let fee = reward.amount.checked_multiply_ratio(config.fees.performance, Uint128::new(100)).unwrap();
         reward.amount = reward.amount.checked_sub(fee)?;
 
-        Ok(AnsAsset::new(reward.name, fee))
+        Ok(AnsAsset::new(reward.clone().name, fee))
     }).collect::<StdResult<Vec<AnsAsset>>>()?;
     
     // 3) (swap and) Send fees to treasury
@@ -208,8 +206,6 @@ pub fn lp_compound_reply(
     // - if we want to swap, we should just create swap msgs with the last one containing a reply id
     //   and then send the fees to the treasury in the reply
     let fee_transfer_msg = bank.transfer(fees, &config.commission_addr)?;
-    res.add_message(fee_transfer_msg)
-        .add_attribute("action", "fee_transfer");
 
     // 3) Swap rewards to token in pool
     let pool_assets = config.pool_data.assets();
@@ -246,8 +242,8 @@ pub fn lp_compound_reply(
             if !pool_assets.contains(&reward.name) {
                 // 3.2) swap to asset in pool
                 let swap_msg = modules.api_request(EXCHANGE, DexExecuteMsg {
-                    dex: config.dex.into(),
-                    action: DexAction::Swap { offer_asset: *reward, ask_asset: pool_assets[0], max_spread: None, belief_price: None}
+                    dex: config.dex.clone().into(),
+                    action: DexAction::Swap { offer_asset: reward.clone(), ask_asset: pool_assets.get(0).unwrap().clone(), max_spread: None, belief_price: None}
                 })?;
                 swap_msgs.push(swap_msg);
             }
@@ -276,12 +272,13 @@ fn query_rewards(deps: Deps, app: &AutocompounderApp, pool_data: PoolMetadata) -
     let staking_mod = modules.module_address(CW_STAKING).unwrap();
     
     // TODO: Reward query has yet to be implemented
-    let query = CwStakingQueryMsg::Rewards {
-        address: app.proxy_address(deps).unwrap().to_string(),
-        pool_data,
-    };
-    let res: Vec<AssetEntry> = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
-    
+    // let query = CwStakingQueryMsg::Rewards {
+    //     address: app.proxy_address(deps).unwrap().to_string(),
+    //     pool_data,
+    // };
+    // let res: Vec<AssetEntry> = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
+    let res: Vec<AssetEntry> = vec![];
+
     res
 }
 
@@ -299,7 +296,7 @@ pub fn swapped_reply(deps: DepsMut, _env: Env, app: AutocompounderApp, _reply: R
     let mut rewards = config.pool_data.assets().iter().map(|entry| -> StdResult<AnsAsset> {
         let tkn = entry.resolve(&deps.querier, &ans_host)?;
         let balance = tkn.query_balance(&deps.querier, app.proxy_address(deps.as_ref())?)?;
-        Ok(AnsAsset::new(*entry, balance))
+        Ok(AnsAsset::new(entry.clone(), balance))
 
     }).collect::<StdResult<Vec<AnsAsset>>>()?;
     
