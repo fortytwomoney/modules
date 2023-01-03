@@ -40,17 +40,15 @@ pub fn instantiate_handler(
         return Err(AutocompounderError::PoolWithMoreThanTwoAssets {});
     }
 
-    // todo: avoid this iter
-    let pool_assets_strings = pool_assets
-        .iter()
-        .map(|asset| asset.to_string())
-        .collect::<Vec<String>>();
+    // verify that pool assets are valid
+    pool_assets.resolve(&deps.querier, &ans_host)?;
+
     let lp_token = LpToken {
         dex: dex.clone(),
-        assets: pool_assets_strings.clone(),
+        assets: pool_assets.clone(),
     };
-
     let lp_token_info = ans.query(&lp_token)?;
+
     // match on the info and get cw20
     let lp_token_addr: Addr = match lp_token_info {
         cw_asset::AssetInfoBase::Cw20(addr) => Ok(addr),
@@ -65,11 +63,13 @@ pub fn instantiate_handler(
     let staking_contract_addr = ans.query(&staking_contract_entry)?;
 
     // TODO: Store this in the config
-    let pairing = DexAssetPairing::from_assets(&dex, pool_assets_slice);
+    let pairing = DexAssetPairing::new(pool_assets_slice[0].clone(),pool_assets_slice[1].clone(),&dex);
+    let mut pool_references = pairing.resolve(&deps.querier, &ans_host)?;
 
-    let pool_references = ans.query(&pairing)?;
     assert_eq!(pool_references.len(), 1);
-    let pool_reference: PoolReference = pool_references[0].clone();
+    // Takes the value from the vector
+    let pool_reference: PoolReference = pool_references.swap_remove(0);
+    // get the pool data
     let pool_data = pool_reference.id.resolve(&deps.querier, &ans_host)?;
 
     let config: Config = Config {
@@ -82,8 +82,8 @@ pub fn instantiate_handler(
         staking_contract: staking_contract_addr,
         liquidity_token: lp_token_addr,
         commission_addr: deps.api.addr_validate(&commission_addr)?,
-        pool_data,
-        pool_reference,
+        pool_data: pool_data.clone(),
+        pool_address: pool_reference.pool_id,
         dex_assets: pool_assets,
         dex: dex.clone(),
     };
@@ -93,7 +93,7 @@ pub fn instantiate_handler(
     // create LP token SubMsg
     let sub_msg = create_lp_token_submsg(
         env.contract.address.to_string(),
-        format!("4T2 Vault Token for {}/{:?}", dex, pool_assets_strings),
+        format!("4T2 Vault Token for {}",pool_data.to_string()),
         "4T2V".to_string(), // TODO: find a better way to define name and symbol
         msg.code_id,
     )?;
