@@ -37,7 +37,7 @@ pub fn execute_handler(
         AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, _env, app, funds),
         _ => Err(AutocompounderError::ExceededMaxCount {}),
         AutocompounderExecuteMsg::Withdraw {} => todo!(),
-        AutocompounderExecuteMsg::Compound {} => todo!(),
+        AutocompounderExecuteMsg::Compound {} => compound(deps, info, _env, app),
     }
 }
 
