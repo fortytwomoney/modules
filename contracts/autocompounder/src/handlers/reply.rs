@@ -6,7 +6,7 @@ use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, Uint128,
-    WasmMsg, BalanceResponse,
+    WasmMsg, BalanceResponse, SubMsg,
 };
 use cw20::{TokenInfoResponse, Cw20QueryMsg};
 use cw20_base::ContractError;
@@ -19,7 +19,9 @@ use forty_two::cw_staking::{
 use cw20::Cw20QueryMsg::TokenInfo as Cw20TokenInfo;
 use protobuf::Message;
 
-use crate::contract::{AutocompounderApp, AutocompounderResult};
+use crate::contract::{
+    AutocompounderApp, AutocompounderResult, SWAPPED_REPLY_ID,
+};
 use crate::state::{CACHED_USER_ADDR, CONFIG};
 
 use crate::response::MsgInstantiateContractResponse;
@@ -167,7 +169,7 @@ fn stake_lps(
     return msg;
 }
 
-pub fn lp_claim_reply(
+pub fn lp_compound_reply(
     deps: DepsMut,
     _env: Env,
     app: AutocompounderApp,
@@ -180,6 +182,8 @@ pub fn lp_claim_reply(
     let config = CONFIG.load(deps.storage)?;
     let base_state = app.load_state(deps.storage)?;
     let _proxy = base_state.proxy_address;
+    let mut res = Response::new()
+        .add_attribute("action", "lp_claim_reply");
     // 1) claim rewards (this happened in the execution before this reply)
     
     // 2.1) query the rewards
@@ -189,12 +193,12 @@ pub fn lp_claim_reply(
     let mut rewards= rewards.iter().map(|entry| -> StdResult<AnsAsset> {
         // 2) get the number of LP tokens minted in this transaction
         let tkn = entry.resolve(&deps.querier, &ans_host)?;
-        let balance = tkn.query_balance(&deps.querier, app.proxy_address(deps.as_ref()).unwrap())?;
-        
+        let balance = tkn.query_balance(&deps.querier, app.proxy_address(deps.as_ref())?)?;
         
         Ok(AnsAsset::new(*entry, balance))
     }).collect::<StdResult<Vec<AnsAsset>>>()?;
-    
+    // remove zero balances
+    rewards = rewards.iter().filter(|reward| reward.amount != Uint128::zero()).map(|a| *a).collect::<Vec<AnsAsset>>();
 
     // 2) deduct fee from rewards
     let fees = rewards.iter_mut().map(|reward| -> StdResult<AnsAsset>{
@@ -207,6 +211,8 @@ pub fn lp_claim_reply(
     // 3) (swap and) Send fees to treasury
     // TODO: swap fees for desired treasury token
     let fee_transfer_msg = bank.transfer(fees, &config.commission_addr)?;
+    res.add_message(fee_transfer_msg)
+        .add_attribute("action", "fee_transfer");
 
     // 3) Swap rewards to token in pool
     let pool_assets = config.pool_data.assets();
@@ -214,13 +220,26 @@ pub fn lp_claim_reply(
 
     if rewards.iter().all(|f| pool_assets.contains(&f.name)) {
         // 3.1.1) if all assets are in the pool, we can just provide liquidity
-        // but we might need to check the length of the rewards.
-
+        //  TODO: but we might need to check the length of the rewards. 
 
         // 3.1.2) provide liquidity
+        let lp_msg: CosmosMsg = modules.api_request(
+            EXCHANGE,
+            DexExecuteMsg {
+                dex: config.dex.into(),
+                action: DexAction::ProvideLiquidity {
+                    assets: rewards,
+                    max_spread: None,
+                },
+            },
+        )?;
 
-
-
+        Ok(
+            Response::new()
+                .add_message(fee_transfer_msg)
+                .add_message(lp_msg)
+                .add_attribute("action", "provide_liquidity"),
+        )
     } else {
 
         
@@ -237,19 +256,21 @@ pub fn lp_claim_reply(
             }
             Ok(())
         })?;
-     
-        // TODO: Add swap msg to response
+
+        // get last swap msg and make it a submsg with reply
+        let swap_msg = swap_msgs.pop().unwrap();
+        let submsg = SubMsg::reply_on_success(swap_msg, SWAPPED_REPLY_ID);
+        
+        // adds all swap messages to the response and the submsg -> the submsg will be executed after the last swap message
+        // and will trigger the reply SWAPPED_REPLY_ID
+        Ok(
+            Response::new()
+                .add_message(fee_transfer_msg)
+                .add_messages(swap_msgs)
+                .add_submessage(submsg)
+                .add_attribute("action", "swap_rewards")
+        )
     }
-
-
-    // 4) Provide liquidity to pool
-    
-    Ok(
-        Response::new()
-            .add_attribute("action", "lp_claim_reply")
-            .add_message(fee_transfer_msg)
-
-    )
 }
 
 fn query_rewards(deps: Deps, app: &AutocompounderApp, pool_data: PoolMetadata) -> Vec<AssetEntry> {
@@ -265,4 +286,41 @@ fn query_rewards(deps: Deps, app: &AutocompounderApp, pool_data: PoolMetadata) -
     let res: Vec<AssetEntry> = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
     
     res
+}
+
+
+/// Queries the balances of pool assets and provides liquidity to the pool
+/// 
+/// This function is triggered after the last swap message of the lp_compound_reply
+/// and assumes the contract has no other rewards than the ones in the pool assets
+pub fn swapped_reply(deps: DepsMut, _env: Env, app: AutocompounderApp, _reply: Reply) -> AutocompounderResult {
+    let ans_host = app.ans_host(deps.as_ref())?;
+    let modules = app.modules(deps.as_ref());
+    let config = CONFIG.load(deps.storage)?;
+    
+    // 1) query balance of pool tokens
+    let mut rewards = config.pool_data.assets().iter().map(|entry| -> StdResult<AnsAsset> {
+        let tkn = entry.resolve(&deps.querier, &ans_host)?;
+        let balance = tkn.query_balance(&deps.querier, app.proxy_address(deps.as_ref())?)?;
+        Ok(AnsAsset::new(*entry, balance))
+
+    }).collect::<StdResult<Vec<AnsAsset>>>()?;
+    
+    // 2) provide liquidity
+    let lp_msg: CosmosMsg = modules.api_request(
+        EXCHANGE,
+        DexExecuteMsg {
+            dex: config.dex.into(),
+            action: DexAction::ProvideLiquidity {
+                assets: rewards,
+                max_spread: None,
+            },
+        },
+    )?;
+
+    Ok(
+        Response::new()
+            .add_message(lp_msg)
+            .add_attribute("action", "provide_liquidity")
+    )
 }
