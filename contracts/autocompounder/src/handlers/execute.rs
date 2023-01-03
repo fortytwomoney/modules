@@ -173,7 +173,7 @@ fn get_token_info(querier: &QuerierWrapper, contract_addr: Addr) -> StdResult<To
 fn compound(
     deps: DepsMut,
     msg_info: MessageInfo,
-    env: Env,
+    _env: Env,
     app: AutocompounderApp
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;

@@ -6,10 +6,10 @@ use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, Uint128,
-    WasmMsg, BalanceResponse, SubMsg,
+    WasmMsg, SubMsg,
 };
-use cw20::{TokenInfoResponse, Cw20QueryMsg};
-use cw20_base::ContractError;
+use cw20::{TokenInfoResponse};
+
 use cw20_base::msg::ExecuteMsg::{Mint};
 
 use forty_two::cw_staking::{
@@ -271,10 +271,10 @@ pub fn lp_compound_reply(
     }
 }
 
-fn query_rewards(deps: Deps, app: &AutocompounderApp, pool_data: PoolMetadata) -> Vec<AssetEntry> {
+fn query_rewards(deps: Deps, app: &AutocompounderApp, _pool_data: PoolMetadata) -> Vec<AssetEntry> {
     // query staking module for which rewards are available
     let modules = app.modules(deps);
-    let staking_mod = modules.module_address(CW_STAKING).unwrap();
+    let _staking_mod = modules.module_address(CW_STAKING).unwrap();
     
     // TODO: Reward query has yet to be implemented
     // let query = CwStakingQueryMsg::Rewards {
@@ -298,7 +298,7 @@ pub fn swapped_reply(deps: DepsMut, _env: Env, app: AutocompounderApp, _reply: R
     let config = CONFIG.load(deps.storage)?;
     
     // 1) query balance of pool tokens
-    let mut rewards = config.pool_data.assets().iter().map(|entry| -> StdResult<AnsAsset> {
+    let rewards = config.pool_data.assets().iter().map(|entry| -> StdResult<AnsAsset> {
         let tkn = entry.resolve(&deps.querier, &ans_host)?;
         let balance = tkn.query_balance(&deps.querier, app.proxy_address(deps.as_ref())?)?;
         Ok(AnsAsset::new(entry.clone(), balance))
