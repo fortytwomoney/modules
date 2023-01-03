@@ -67,7 +67,6 @@ pub fn deposit(
     let _staking_address = config.staking_contract;
     let ans_host = app.ans_host(deps.as_ref())?;
 
-    let _bank = app.bank(deps.as_ref());
 
     let _messages: Vec<CosmosMsg> = vec![];
 
@@ -104,6 +103,11 @@ pub fn deposit(
             });
         }
     }
+
+    // transfer funds to the bank contract
+    let bank = app.bank(deps.as_ref());
+    bank.deposit(funds.clone())?;
+
 
     let modules = app.modules(deps.as_ref());
 
