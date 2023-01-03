@@ -8,7 +8,6 @@ use cosmwasm_schema::QueryResponses;
 use cosmwasm_std::{Addr, Uint128};
 use cw20::Expiration;
 
-
 pub type ProviderName = String;
 pub type LpToken = AnsAsset;
 pub type Claim = (Uint128, Expiration);
@@ -37,26 +36,26 @@ pub struct CwStakingExecuteMsg {
 /// Possible actions to perform on the staking contract
 pub enum CwStakingAction {
     /// Stake a given LP token
-    Stake {
-        lp_token: LpToken,
-    },
+    Stake { lp_token: LpToken },
     /// Unstake a given LP token
-    Unstake {
-        lp_token: LpToken,
-    },
+    Unstake { lp_token: LpToken },
     /// Claim rewards for a given LP token
-    Claim {
-        lp_token_name: AssetEntry,
-    },
+    Claim { lp_token_name: AssetEntry },
 }
 
 #[cosmwasm_schema::cw_serde]
 #[derive(QueryResponses)]
 pub enum CwStakingQueryMsg {
     #[returns(StakeResponse)]
-    Stake {lp_token_name: AssetEntry, address: String},
+    Stake {
+        lp_token_name: AssetEntry,
+        address: String,
+    },
     #[returns(UnbondingResponse)]
-    Unbonding {lp_token_name: AssetEntry, address: String},
+    Unbonding {
+        lp_token_name: AssetEntry,
+        address: String,
+    },
 }
 
 #[cosmwasm_schema::cw_serde]

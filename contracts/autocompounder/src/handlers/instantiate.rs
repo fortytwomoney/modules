@@ -2,8 +2,7 @@ use abstract_sdk::base::features::AbstractNameService;
 use abstract_sdk::os::objects::{ContractEntry, DexAssetPairing, LpToken, PoolReference};
 use abstract_sdk::Resolve;
 use cosmwasm_std::{
-    to_binary, Addr, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg,
-    WasmMsg,
+    to_binary, Addr, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg, WasmMsg,
 };
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
@@ -63,7 +62,11 @@ pub fn instantiate_handler(
     let staking_contract_addr = ans.query(&staking_contract_entry)?;
 
     // TODO: Store this in the config
-    let pairing = DexAssetPairing::new(pool_assets_slice[0].clone(),pool_assets_slice[1].clone(),&dex);
+    let pairing = DexAssetPairing::new(
+        pool_assets_slice[0].clone(),
+        pool_assets_slice[1].clone(),
+        &dex,
+    );
     let mut pool_references = pairing.resolve(&deps.querier, &ans_host)?;
 
     assert_eq!(pool_references.len(), 1);
@@ -93,7 +96,7 @@ pub fn instantiate_handler(
     // create LP token SubMsg
     let sub_msg = create_lp_token_submsg(
         env.contract.address.to_string(),
-        format!("4T2 Vault Token for {}",pool_data.to_string()),
+        format!("4T2 Vault Token for {}", pool_data.to_string()),
         "4T2V".to_string(), // TODO: find a better way to define name and symbol
         msg.code_id,
     )?;

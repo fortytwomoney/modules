@@ -2,10 +2,9 @@ use boot_core::prelude::boot_contract;
 
 use boot_core::{BootEnvironment, Contract, IndexResponse, TxResponse};
 
-
-use cosmwasm_std::Empty;
 use abstract_os::api;
-use forty_two::cw_staking::{CwStakingQueryMsg, CwStakingExecuteMsg};
+use cosmwasm_std::Empty;
+use forty_two::cw_staking::{CwStakingExecuteMsg, CwStakingQueryMsg};
 
 type ApiExecuteMsg = api::ExecuteMsg<CwStakingExecuteMsg>;
 type ApiQueryMsg = api::QueryMsg<CwStakingQueryMsg>;
@@ -15,11 +14,11 @@ type ApiQueryMsg = api::QueryMsg<CwStakingQueryMsg>;
 pub struct CwStaking<Chain>;
 
 /// implement chain-generic functions
-impl<Chain: BootEnvironment> CwStaking<Chain> where TxResponse<Chain>: IndexResponse {
+impl<Chain: BootEnvironment> CwStaking<Chain>
+where
+    TxResponse<Chain>: IndexResponse,
+{
     pub fn new(id: &str, chain: &Chain) -> Self {
-        Self(
-            Contract::new(id, chain)
-                .with_wasm_path("cw_staking"),
-        )
+        Self(Contract::new(id, chain).with_wasm_path("cw_staking"))
     }
 }

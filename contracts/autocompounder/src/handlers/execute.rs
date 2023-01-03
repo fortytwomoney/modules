@@ -13,7 +13,6 @@ use cw20::{AllowanceResponse, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 use cw_asset::{AssetInfo, AssetList};
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 
-
 use crate::contract::{AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID};
 use crate::error::AutocompounderError;
 use crate::state::{CACHED_USER_ADDR, CONFIG};
@@ -70,15 +69,18 @@ pub fn deposit(
     let mut claimed_deposits: AssetList = funds.resolve(&deps.querier, &ans_host)?.into();
     // deduct all the received `Coin`s from the claimed deposit, errors if not enough funds were provided
     // what's left should be the remaining cw20s
-    claimed_deposits.deduct_many(&msg_info.funds.clone().into())?.purge();
+    claimed_deposits
+        .deduct_many(&msg_info.funds.clone().into())?
+        .purge();
 
-    let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>,_> = claimed_deposits.into_iter().map(
-        |asset| {
+    let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>, _> = claimed_deposits
+        .into_iter()
+        .map(|asset| {
             // transfer cw20 tokens to the OS
             // will fail if allowance is not set or if some other assets are sent
             asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)
-        }
-    ).collect();
+        })
+        .collect();
 
     // NOTE: We can still check for the allowance if you guys prefer to do it but it's functionally not required.
 

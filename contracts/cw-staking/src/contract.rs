@@ -1,10 +1,7 @@
 use abstract_api::{export_endpoints, ApiContract};
 
-
-use cosmwasm_std::{
-    Empty, Response,
-};
-use forty_two::cw_staking::{CwStakingQueryMsg, CwStakingExecuteMsg, CW_STAKING};
+use cosmwasm_std::{Empty, Response};
+use forty_two::cw_staking::{CwStakingExecuteMsg, CwStakingQueryMsg, CW_STAKING};
 
 use crate::{error::StakingError, handlers};
 
