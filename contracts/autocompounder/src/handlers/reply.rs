@@ -205,6 +205,8 @@ pub fn lp_compound_reply(
     
     // 3) (swap and) Send fees to treasury
     // TODO: swap fees for desired treasury token
+    // - if we want to swap, we should just create swap msgs with the last one containing a reply id
+    //   and then send the fees to the treasury in the reply
     let fee_transfer_msg = bank.transfer(fees, &config.commission_addr)?;
     res.add_message(fee_transfer_msg)
         .add_attribute("action", "fee_transfer");
