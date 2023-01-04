@@ -33,6 +33,7 @@ pub fn instantiate_handler(
         code_id: _,
         dex,
         pool_assets,
+        bonding_period,
     } = msg;
 
     if pool_assets.len() > 2 {
@@ -89,6 +90,7 @@ pub fn instantiate_handler(
         pool_address: pool_reference.pool_id,
         dex_assets: pool_assets,
         dex: dex.clone(),
+        bonding_period,
     };
 
     CONFIG.save(deps.storage, &config)?;

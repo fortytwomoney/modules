@@ -31,7 +31,7 @@
 use abstract_sdk::os::dex::DexName;
 use abstract_sdk::os::objects::AssetEntry;
 use abstract_sdk::os::{app, dex::OfferAsset};
-use cosmwasm_std::{Binary, Uint128};
+use cosmwasm_std::{Binary, Timestamp, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::Asset;
 
@@ -61,6 +61,8 @@ pub struct AutocompounderInstantiateMsg {
     pub dex: DexName,
     /// Assets in the pool
     pub pool_assets: Vec<AssetEntry>,
+    /// Pool bonding period
+    pub bonding_period: Timestamp,
 }
 
 #[cosmwasm_schema::cw_serde]

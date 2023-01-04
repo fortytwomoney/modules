@@ -1,9 +1,9 @@
 use abstract_sdk::os::dex::DexName;
 use abstract_sdk::os::objects::{AssetEntry, PoolId, PoolMetadata};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Addr;
 use cosmwasm_std::Uint128;
-use cw_storage_plus::Item;
+use cosmwasm_std::{Addr, Timestamp};
+use cw_storage_plus::{Item, Map};
 
 #[cw_serde]
 pub struct FeeConfig {
@@ -31,7 +31,21 @@ pub struct Config {
     pub commission_addr: Addr,
     /// Vault fee structure
     pub fees: FeeConfig,
+    /// Pool bonding period
+    pub bonding_period: Timestamp,
+}
+
+#[cw_serde]
+pub struct Claim {
+    // timestamp of the start of the unbonding process
+    pub unbonding_timestamp: Timestamp,
+    // amount of vault tokens to be burned
+    pub amount_of_vault_tokens_to_burn: Uint128,
+    //  amount of lp tokens being unbonded
+    pub amount_of_lp_tokens_to_unbond: Uint128,
 }
 
 pub const CACHED_USER_ADDR: Item<Addr> = Item::new("cached_user_addr");
+// Key: User address - Value: Claim
+pub const CLAIMS: Map<String, Claim> = Map::new("claims");
 pub const CONFIG: Item<Config> = Item::new("config");

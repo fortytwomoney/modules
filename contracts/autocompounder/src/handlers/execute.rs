@@ -21,7 +21,7 @@ use crate::contract::{
     AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::state::{CACHED_USER_ADDR, CONFIG};
+use crate::state::{Claim, CACHED_USER_ADDR, CLAIMS, CONFIG};
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
@@ -140,7 +140,7 @@ pub fn receive(
 
 fn redeem(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     dapp: AutocompounderApp,
     sender: String,
     amount_of_vault_tokens_to_be_burned: Uint128,
@@ -171,39 +171,67 @@ fn redeem(
         vault_tokens_total_supply,
     ) * total_lp_tokens_staked_in_vault;
 
-    // 4) claim lp tokens
-    let claim_unbonded_lps_msg =
-        claim_lps(deps.as_ref(), &dapp, config.dex.clone(), lp_token.clone());
+    // check if claim exists for this user
+    if let Some(existent_user_claim) = CLAIMS.may_load(deps.storage, sender.to_string())? {
+        let time_diff = env
+            .block
+            .time
+            .minus_nanos(existent_user_claim.unbonding_timestamp.nanos());
+        // Compares time difference between start of unbonding period and current time against pool bonding period
+        // if time diff is greater than bonding period that means tokens are ready to be withdrawn
+        if time_diff >= config.bonding_period {
+            // Remove claim from user
+            CLAIMS.remove(deps.storage, sender.to_string());
+            // 4) claim lp tokens
+            let claim_unbonded_lps_msg =
+                claim_lps(deps.as_ref(), &dapp, config.dex.clone(), lp_token.clone());
 
-    messages.push(claim_unbonded_lps_msg);
+            messages.push(claim_unbonded_lps_msg);
 
-    let modules = dapp.modules(deps.as_ref());
+            let modules = dapp.modules(deps.as_ref());
 
-    let withdraw_liquidity_msg: CosmosMsg = modules.api_request(
-        EXCHANGE,
-        DexExecuteMsg {
-            dex: config.dex.into(),
-            action: DexAction::WithdrawLiquidity {
-                lp_token: lp_token.clone(),
-                amount: lp_tokens_withdraw_amount,
-            },
-        },
-    )?;
+            let withdraw_liquidity_msg: CosmosMsg = modules.api_request(
+                EXCHANGE,
+                DexExecuteMsg {
+                    dex: config.dex.into(),
+                    action: DexAction::WithdrawLiquidity {
+                        lp_token: lp_token.clone(),
+                        amount: lp_tokens_withdraw_amount,
+                    },
+                },
+            )?;
 
-    let withdraw_liquidity_sub_msg = SubMsg {
-        id: LP_WITHDRAWAL_REPLY_ID,
-        msg: withdraw_liquidity_msg,
-        gas_limit: None,
-        reply_on: ReplyOn::Success,
-    };
+            let withdraw_liquidity_sub_msg = SubMsg {
+                id: LP_WITHDRAWAL_REPLY_ID,
+                msg: withdraw_liquidity_msg,
+                gas_limit: None,
+                reply_on: ReplyOn::Success,
+            };
 
-    let vault_token_burn_msg =
-        get_burn_msg(&config.vault_token, amount_of_vault_tokens_to_be_burned)?;
-    messages.push(vault_token_burn_msg);
+            let vault_token_burn_msg =
+                get_burn_msg(&config.vault_token, amount_of_vault_tokens_to_be_burned)?;
+            messages.push(vault_token_burn_msg);
 
-    Ok(Response::new()
-        .add_messages(messages)
-        .add_submessage(withdraw_liquidity_sub_msg))
+            Ok(Response::new()
+                .add_messages(messages)
+                .add_submessage(withdraw_liquidity_sub_msg))
+        } else {
+            // unbonding period still not completed
+            return Err(AutocompounderError::TokensStillBeingUnbonded {});
+        }
+    } else {
+        // Start unbonding process
+        let claim = Claim {
+            unbonding_timestamp: env.block.time,
+            amount_of_vault_tokens_to_burn: amount_of_vault_tokens_to_be_burned,
+            amount_of_lp_tokens_to_unbond: lp_tokens_withdraw_amount,
+        };
+
+        CLAIMS.save(deps.storage, sender.to_string(), &claim)?;
+
+        // TODO: send unbond message
+        Ok(Response::new())
+    }
 }
 
 // fn get_token_amount(
