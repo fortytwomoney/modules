@@ -57,7 +57,7 @@ pub fn update_fee_config(
 pub fn deposit(
     deps: DepsMut,
     msg_info: MessageInfo,
-    env: Env,
+    _env: Env,
     app: AutocompounderApp,
     funds: Vec<AnsAsset>,
 ) -> AutocompounderResult {
@@ -81,41 +81,6 @@ pub fn deposit(
             asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)
         })
         .collect();
-
-    // NOTE: We can still check for the allowance if you guys prefer to do it but it's functionally not required.
-
-    // check if funds have proper amount/allowance [Check previous TODO]
-    // for asset in funds.clone() {
-    //     let info = asset.resolve(&deps.querier, &ans_host)?;
-    //     let sent_funds = match info.clone() {
-    //         AssetInfo::Native(denom) => msg_info
-    //             .funds
-    //             .iter()
-    //             .filter(|c| c.denom == denom)
-    //             .map(|c| c.amount)
-    //             .sum::<Uint128>(),
-    //         AssetInfo::Cw20(contract_addr) => {
-    //             let allowance: AllowanceResponse = deps.querier.query_wasm_smart(
-    //                 contract_addr,
-    //                 &cw20::Cw20QueryMsg::Allowance {
-    //                     owner: msg_info.sender.clone().into_string(),
-    //                     spender: env.contract.address.clone().into_string(),
-    //                 },
-    //             )?;
-
-    //             allowance.allowance
-    //         }
-    //         _ => {
-    //             return Err(StdError::generic_err("asset type not supported".to_string()).into());
-    //         }
-    //     };
-    //     if sent_funds != asset.amount {
-    //         return Err(AutocompounderError::FundsMismatch {
-    //             sent: sent_funds,
-    //             wanted: asset.amount,
-    //         });
-    //     }
-    // }
 
     // transfer received coins to the bank contract
     let bank = app.bank(deps.as_ref());

@@ -23,19 +23,6 @@ use crate::state::{CACHED_USER_ADDR, CONFIG};
 
 use crate::response::MsgInstantiateContractResponse;
 
-// pub fn reply_handler(
-//     deps: DepsMut,
-//     env: Env,
-//     app: AutocompounderApp,
-//     reply: Reply,
-// ) -> AutocompounderResult {
-//     // Logic to execute on example reply
-//     match reply.id {
-//         INSTANTIATE_REPLY_ID => instantiate_reply(deps, env, app, reply),
-//         LP_PROVISION_REPLY_ID => lp_provision_reply(deps, env, app, reply),
-//     }
-// }
-
 /// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.
 pub fn instantiate_reply(
     deps: DepsMut,
@@ -79,8 +66,13 @@ pub fn lp_provision_reply(
 
     // 2) Retrieve the number of LP tokens minted/staked.
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data));
-    let staked_lp = query_stake(deps.as_ref(), &app, lp_token.clone(), proxy_address.to_string());
-    let cw20::BalanceResponse{
+    let staked_lp = query_stake(
+        deps.as_ref(),
+        &app,
+        lp_token.clone(),
+        proxy_address.to_string(),
+    );
+    let cw20::BalanceResponse {
         balance: received_lp,
     } = deps.querier.query_wasm_smart(
         config.vault_token.clone(),
@@ -89,11 +81,13 @@ pub fn lp_provision_reply(
         },
     )?;
 
-    // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens. 
+    // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
     // 3) Calculate the number of vault tokens to mint
     let mint_amount = if !staked_lp.is_zero() {
         // will zero if first deposit
-        current_vault_supply.checked_multiply_ratio(received_lp, staked_lp).unwrap()
+        current_vault_supply
+            .checked_multiply_ratio(received_lp, staked_lp)
+            .unwrap()
     } else {
         // if first deposit, mint the same amount of tokens as the LP tokens received
         received_lp
@@ -119,13 +113,18 @@ pub fn lp_provision_reply(
         .add_attribute("vault_token_minted", mint_amount))
 }
 
-fn query_stake(deps: Deps, app: &AutocompounderApp, lp_token_name: AssetEntry, address: String) -> Uint128 {
+fn query_stake(
+    deps: Deps,
+    app: &AutocompounderApp,
+    lp_token_name: AssetEntry,
+    address: String,
+) -> Uint128 {
     let modules = app.modules(deps);
     let staking_mod = modules.module_address(CW_STAKING).unwrap();
 
     let query = CwStakingQueryMsg::Stake {
         lp_token_name,
-        address
+        address,
     };
 
     let res: StakeResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
