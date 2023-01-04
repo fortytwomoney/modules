@@ -179,7 +179,7 @@ fn compound(
     let config = CONFIG.load(deps.storage)?;
     
     // 1) Claim rewards from staking contract
-    let claim_msg = claim_lp_rewards(deps, app, msg_info.sender.to_string(), AssetEntry::from(LpToken::from(config.pool_data)));
+    let claim_msg = claim_lp_rewards(deps, app, app.proxy_address(deps.as_ref())?.into_string(), AssetEntry::from(LpToken::from(config.pool_data)));
     let claim_submsg = SubMsg {
         id: LP_COMPOUND_REPLY_ID,
         msg: claim_msg,
