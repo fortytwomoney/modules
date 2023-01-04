@@ -96,7 +96,7 @@ pub fn lp_provision_reply(
         current_vault_supply.checked_multiply_ratio(received_lp, staked_lp).unwrap()
     } else {
         // if first deposit, mint the same amount of tokens as the LP tokens received
-        current_vault_supply + received_lp
+        received_lp
     };
 
     // 4) Mint vault tokens to the user
