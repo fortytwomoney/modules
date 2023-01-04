@@ -34,4 +34,6 @@ pub struct Config {
 }
 
 pub const CACHED_USER_ADDR: Item<Addr> = Item::new("cached_user_addr");
+pub const CACHED_AMOUNT_OF_VAULT_TOKENS_TO_BURN: Item<Uint128> =
+    Item::new("cached_amount_of_vault_tokens_to_burn");
 pub const CONFIG: Item<Config> = Item::new("config");

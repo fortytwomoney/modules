@@ -17,9 +17,11 @@ use forty_two::cw_staking::{
     CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, StakeResponse, CW_STAKING,
 };
 
-use crate::contract::{AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID};
+use crate::contract::{
+    AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
+};
 use crate::error::AutocompounderError;
-use crate::state::{CACHED_USER_ADDR, CONFIG};
+use crate::state::{CACHED_AMOUNT_OF_VAULT_TOKENS_TO_BURN, CACHED_USER_ADDR, CONFIG};
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
@@ -163,6 +165,16 @@ fn redeem(
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
 
+    // parse sender
+    let sender = deps.api.addr_validate(&sender)?;
+
+    // save the user address to the cache for later use in reply
+    CACHED_USER_ADDR.save(deps.storage, &sender)?;
+
+    // save the user address to the cache for later use in reply
+    CACHED_AMOUNT_OF_VAULT_TOKENS_TO_BURN
+        .save(deps.storage, &amount_of_vault_tokens_to_be_burned)?;
+
     // 1) get the total supply of Vault token
     let vault_token_info: TokenInfoResponse = deps
         .querier
@@ -180,17 +192,38 @@ fn redeem(
     ) * total_lp_tokens_staked_in_vault;
 
     // 4) claim lp tokens
-    let claim_unbonded_lps_msg =
-        withdraw_funds(deps.as_ref(), dapp, "junoswap".to_string(), lp_token);
+    let claim_unbonded_lps_msg = claim_lps(
+        deps.as_ref(),
+        &dapp,
+        "junoswap".to_string(),
+        lp_token.clone(),
+    );
 
-    // parse sender
-    let sender = deps.api.addr_validate(&sender)?;
+    let modules = dapp.modules(deps.as_ref());
 
-    // TODO: create message to send back underlying tokens to user
+    let withdraw_liquidity_msg: CosmosMsg = modules.api_request(
+        EXCHANGE,
+        DexExecuteMsg {
+            dex: config.dex.into(),
+            action: DexAction::WithdrawLiquidity {
+                lp_token: lp_token.clone(),
+                amount: lp_tokens_withdraw_amount,
+            },
+        },
+    )?;
+
+    let withdraw_liquidity_sub_msg = SubMsg {
+        id: LP_WITHDRAWAL_REPLY_ID,
+        msg: withdraw_liquidity_msg,
+        gas_limit: None,
+        reply_on: ReplyOn::Success,
+    };
 
     // TODO: burn liquidity tokens
 
-    Ok(Response::new().add_message(claim_unbonded_lps_msg))
+    Ok(Response::new()
+        .add_message(claim_unbonded_lps_msg)
+        .add_submessage(withdraw_liquidity_sub_msg))
 }
 
 // fn get_token_amount(
@@ -223,9 +256,9 @@ pub fn query_stake(deps: Deps, app: &AutocompounderApp, lp_token_name: AssetEntr
     res.amount
 }
 
-fn withdraw_funds(
+fn claim_lps(
     deps: Deps,
-    app: AutocompounderApp,
+    app: &AutocompounderApp,
     provider: String,
     lp_token_name: AssetEntry,
 ) -> CosmosMsg {
