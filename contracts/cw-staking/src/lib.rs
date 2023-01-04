@@ -7,8 +7,8 @@ mod traits;
 
 use traits::*;
 
-pub use local_cw_staking::LocalCwStaking;
 pub use cw_staking_provider::CwStakingProvider;
+pub use local_cw_staking::LocalCwStaking;
 
 #[cfg(any(feature = "juno", feature = "osmosis"))]
 pub mod host_exchange {

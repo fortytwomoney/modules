@@ -1,12 +1,15 @@
+use abstract_os::app;
 use abstract_os::app::{BaseExecuteMsg, BaseQueryMsg};
-use abstract_os::{app};
-use boot_core::{BootEnvironment, BootError, Contract, IndexResponse, TxResponse};
 use boot_core::prelude::{boot_contract, BootExecute, BootQuery};
+use boot_core::{BootEnvironment, BootError, Contract, IndexResponse, TxResponse};
 use cosmwasm_std::Coin;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use forty_two::autocompounder::{AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg, AutocompounderQueryMsg};
+use forty_two::autocompounder::{
+    AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg,
+    AutocompounderQueryMsg,
+};
 
 type AppInstantiateMsg = app::InstantiateMsg<AutocompounderInstantiateMsg>;
 type AppExecuteMsg = app::ExecuteMsg<AutocompounderExecuteMsg>;
@@ -22,9 +25,7 @@ where
     TxResponse<Chain>: IndexResponse,
 {
     pub fn new(name: &str, chain: &Chain) -> Self {
-        Self(
-            Contract::new(name, chain).with_wasm_path("autocompounder"),
-        )
+        Self(Contract::new(name, chain).with_wasm_path("autocompounder"))
     }
 
     /// Temporary helper to query the app explicitly

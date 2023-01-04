@@ -1,2 +1,2 @@
-pub mod cw_staking;
 pub mod autocompounder;
+pub mod cw_staking;

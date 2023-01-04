@@ -1,13 +1,15 @@
-use cosmwasm_std::{Coin, Deps, DepsMut, Env, MessageInfo, Response, StdResult, to_binary};
-use abstract_sdk::os::ibc_client::CallbackInfo;
 use abstract_sdk::base::features::AbstractNameService;
-use abstract_sdk::{IbcInterface, Resolve};
 use abstract_sdk::feature_objects::AnsHost;
+use abstract_sdk::os::ibc_client::CallbackInfo;
+use abstract_sdk::{IbcInterface, Resolve};
+use cosmwasm_std::{to_binary, Coin, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 
-use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, IBC_STAKING_PROVIDER_ID, ProviderName};
-use crate::{LocalCwStaking};
 use crate::contract::{CwStakingApi, CwStakingResult};
 use crate::providers::resolver;
+use crate::LocalCwStaking;
+use forty_two::cw_staking::{
+    CwStakingAction, CwStakingExecuteMsg, ProviderName, IBC_STAKING_PROVIDER_ID,
+};
 
 const ACTION_RETRIES: u8 = 3;
 
@@ -42,10 +44,7 @@ fn handle_local_request(
     provider: String,
 ) -> CwStakingResult {
     let provider = resolver::resolve_local_provider(&provider)?;
-    Ok(
-        Response::new()
-            .add_submessage(api.resolve_staking_action(deps, action, provider, false)?),
-    )
+    Ok(Response::new().add_submessage(api.resolve_staking_action(deps, action, provider, false)?))
 }
 
 /// Handle a request that needs to be executed on a remote chain

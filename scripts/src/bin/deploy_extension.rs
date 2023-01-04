@@ -1,9 +1,9 @@
 use std::env;
 use std::sync::Arc;
 
-use boot_core::{DaemonOptionsBuilder, networks};
 use boot_core::networks::NetworkInfo;
 use boot_core::prelude::instantiate_daemon_env;
+use boot_core::{networks, DaemonOptionsBuilder};
 
 const NETWORK: NetworkInfo = networks::UNI_5;
 
@@ -15,9 +15,7 @@ const _MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub fn deploy_api() -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
-    let daemon_options = DaemonOptionsBuilder::default()
-        .network(NETWORK)
-        .build()?;
+    let daemon_options = DaemonOptionsBuilder::default().network(NETWORK).build()?;
 
     // Setup the environment
     let (_sender, _chain) = instantiate_daemon_env(&rt, daemon_options)?;
@@ -53,7 +51,6 @@ pub fn deploy_api() -> anyhow::Result<()> {
     //     app: Empty {},
     // };
     // version_control.upload_and_register_api(&mut api.as_instance_mut(), &api_init_msg, &module_version)?;
-
 
     // Example queries
     // app.query_base(BaseQueryMsg::Admin {})?;

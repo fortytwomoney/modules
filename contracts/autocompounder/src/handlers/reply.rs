@@ -22,19 +22,6 @@ use crate::state::{CACHED_AMOUNT_OF_VAULT_TOKENS_TO_BURN, CACHED_USER_ADDR, CONF
 
 use crate::response::MsgInstantiateContractResponse;
 
-// pub fn reply_handler(
-//     deps: DepsMut,
-//     env: Env,
-//     app: AutocompounderApp,
-//     reply: Reply,
-// ) -> AutocompounderResult {
-//     // Logic to execute on example reply
-//     match reply.id {
-//         INSTANTIATE_REPLY_ID => instantiate_reply(deps, env, app, reply),
-//         LP_PROVISION_REPLY_ID => lp_provision_reply(deps, env, app, reply),
-//     }
-// }
-
 /// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.
 pub fn instantiate_reply(
     deps: DepsMut,
@@ -66,9 +53,8 @@ pub fn lp_provision_reply(
     _reply: Reply,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
-    let base_state = app.load_state(deps.storage)?;
-    let _proxy = base_state.proxy_address;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
+    let proxy_address = app.proxy_address(deps.as_ref())?;
     CACHED_USER_ADDR.remove(deps.storage);
 
     // 1) get the total supply of Vault token
@@ -77,20 +63,34 @@ pub fn lp_provision_reply(
         .query_wasm_smart(config.vault_token.clone(), &Cw20TokenInfo {})?;
     let current_vault_supply = vault_token_info.total_supply;
 
-    // 2) get the number of LP tokens minted in this transaction
-    let lp_token_info: TokenInfoResponse = deps
-        .querier
-        .query_wasm_smart(config.vault_token.clone(), &Cw20TokenInfo {})?;
-    let new_lp_token_minted = lp_token_info.total_supply;
-
+    // 2) Retrieve the number of LP tokens minted/staked.
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data));
-    let vault_stake = query_stake(deps.as_ref(), &app, lp_token.clone()); // TODO: THis might need to change to AssetEntry
+    let staked_lp = query_stake(
+        deps.as_ref(),
+        &app,
+        lp_token.clone(),
+        proxy_address.to_string(),
+    );
+    let cw20::BalanceResponse {
+        balance: received_lp,
+    } = deps.querier.query_wasm_smart(
+        config.vault_token.clone(),
+        &cw20::Cw20QueryMsg::Balance {
+            address: proxy_address.to_string(),
+        },
+    )?;
 
-    // The total value of all LP tokens that are staked by the proxy are equal to the total value of all vault tokens in circulation
+    // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
     // 3) Calculate the number of vault tokens to mint
-    let mint_amount = new_lp_token_minted
-        .checked_multiply_ratio(current_vault_supply, vault_stake)
-        .unwrap();
+    let mint_amount = if !staked_lp.is_zero() {
+        // will zero if first deposit
+        current_vault_supply
+            .checked_multiply_ratio(received_lp, staked_lp)
+            .unwrap()
+    } else {
+        // if first deposit, mint the same amount of tokens as the LP tokens received
+        received_lp
+    };
 
     // 4) Mint vault tokens to the user
     let mint_msg: CosmosMsg = WasmMsg::Execute {
@@ -104,7 +104,7 @@ pub fn lp_provision_reply(
     .into();
 
     // 5) Stake the LP tokens
-    let stake_msg = stake_lps(deps, app, "TODO".to_string(), lp_token, new_lp_token_minted);
+    let stake_msg = stake_lps(deps, app, "TODO".to_string(), lp_token, received_lp);
 
     Ok(Response::new()
         .add_message(mint_msg)
@@ -130,7 +130,7 @@ pub fn lp_withdrawal_reply(
     
     let mut messages = vec![];
     let mut funds: Vec<AnsAsset> = vec![];
-    for asset in config.pool_data.assets() {
+    for asset in config.pool_data.assets {
         let asset_info = asset.resolve(&deps.querier, &ans_host)?;
         
         // HOW TO IDENTIFY WHICH TOKEN AMOUNT CORRESPONDS TO WHICH TOKEN SINCE REPLY EVENTS ONLY CONTAINS TOKEN AMOUNTS BUT NO TOKEN ADDRESS OR DENOM?
@@ -153,16 +153,19 @@ pub fn lp_withdrawal_reply(
     Ok(Response::new().add_messages(messages))
 }
 
-fn query_stake(deps: Deps, app: &AutocompounderApp, lp_token_name: AssetEntry) -> Uint128 {
+    fn query_stake(deps: Deps, app: &AutocompounderApp, lp_token_name: AssetEntry,address: String,) -> Uint128 {
     let modules = app.modules(deps);
     let staking_mod = modules.module_address(CW_STAKING).unwrap();
 
     let query = CwStakingQueryMsg::Stake {
         lp_token_name,
-        address: app.proxy_address(deps).unwrap().to_string(),
+        address,
     };
+
     let res: StakeResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
     res.amount
+
+    // TODO: update on new abstract release
 
     // // // alternative method
     // let modules = app.modules(deps.as_ref());
