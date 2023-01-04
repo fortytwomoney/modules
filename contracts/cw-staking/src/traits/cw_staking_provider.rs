@@ -9,7 +9,7 @@ use crate::traits::identify::Identify;
 /// Trait that defines the interface for staking providers
 pub trait CwStakingProvider: Identify {
     /// Construct the staking contract entry using the given assets
-    fn provider_entry(&self, assets: &mut Vec<&AssetEntry>) -> ContractEntry {
+    fn staking_entry(&self, assets: &mut Vec<&AssetEntry>) -> ContractEntry {
         ContractEntry::construct_staking_entry(self.name(), assets)
     }
 
@@ -24,7 +24,7 @@ pub trait CwStakingProvider: Identify {
         // Assets by reference
         let mut lp_token_assets = lp_token_assets.iter().collect();
 
-        let provider_pair = self.provider_entry(&mut lp_token_assets);
+        let provider_pair = self.staking_entry(&mut lp_token_assets);
         ans_host.query_contract(&deps.querier, &provider_pair)
     }
 
