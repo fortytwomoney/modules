@@ -213,7 +213,7 @@ pub fn lp_compound_reply(
     let fee_transfer_msg = bank.transfer(fees, &config.commission_addr)?;
 
     // 3) Swap rewards to token in pool
-    let pool_assets = config.pool_data.assets();
+    let pool_assets = config.pool_data.assets;
     // 3.1) check if asset is not in pool assets
 
     if rewards.iter().all(|f| pool_assets.contains(&f.name)) {
@@ -298,7 +298,7 @@ pub fn swapped_reply(deps: DepsMut, _env: Env, app: AutocompounderApp, _reply: R
     let config = CONFIG.load(deps.storage)?;
     
     // 1) query balance of pool tokens
-    let rewards = config.pool_data.assets().iter().map(|entry| -> StdResult<AnsAsset> {
+    let rewards = config.pool_data.assets.iter().map(|entry| -> StdResult<AnsAsset> {
         let tkn = entry.resolve(&deps.querier, &ans_host)?;
         let balance = tkn.query_balance(&deps.querier, app.proxy_address(deps.as_ref())?)?;
         Ok(AnsAsset::new(entry.clone(), balance))
