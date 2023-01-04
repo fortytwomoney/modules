@@ -203,7 +203,7 @@ pub fn lp_compound_reply(
         let fee = reward.amount.checked_multiply_ratio(config.fees.performance, Uint128::new(100)).unwrap();
         reward.amount = reward.amount.checked_sub(fee)?;
 
-        Ok(AnsAsset::new(reward.clone().name, fee))
+        Ok(AnsAsset::new(reward.name.clone(), fee))
     }).collect::<StdResult<Vec<AnsAsset>>>()?;
     
     // 3) (swap and) Send fees to treasury
