@@ -217,7 +217,7 @@ fn claim_lp_rewards(
             CW_STAKING,
             CwStakingExecuteMsg {
                 provider,
-                action: CwStakingAction::Claim { lp_token_name },
+                action: CwStakingAction::ClaimRewards { staking_token: lp_token_name },
             },
         )
         .unwrap();
