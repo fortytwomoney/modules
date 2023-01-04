@@ -1,31 +1,32 @@
 use abstract_sdk::feature_objects::AnsHost;
 use abstract_sdk::os::objects::{AssetEntry, ContractEntry};
-use cosmwasm_std::{Addr, CosmosMsg, Deps, StdResult};
+use cosmwasm_std::{Addr, CosmosMsg, Deps, QuerierWrapper, StdResult, Uint128};
 use cw_asset::Asset;
+use forty_two::cw_staking::{Claim, StakingInfoResponse};
 
 use crate::error::StakingError;
 use crate::traits::identify::Identify;
 
 /// Trait that defines the interface for staking providers
 pub trait CwStaking: Identify {
-    /// Construct the staking contract entry using the given assets
-    fn staking_entry(&self, assets: &mut Vec<&AssetEntry>) -> ContractEntry {
-        ContractEntry::construct_staking_entry(self.name(), assets)
+    // TODO: Move to SDK.
+    /// Construct a staking contract entry from the staking token and the provider
+    fn staking_entry(&self, staking_token: &AssetEntry) -> ContractEntry {
+        ContractEntry {
+            protocol: self.name().to_string(),
+            contract: format!("staking/{}", staking_token.to_string()),
+        }
     }
-
-    /// Retrieve the staking contract address for the pool with the provided lp token name
-    fn lp_token_staking_contract_address(
+    // TODO: Move to SDK.
+    /// Retrieve the staking contract address for the pool with the provided staking token name
+    fn staking_contract_address(
         &self,
         deps: Deps,
         ans_host: &AnsHost,
-        lp_token_name: &str,
+        staking_token: &AssetEntry,
     ) -> StdResult<Addr> {
-        let lp_token_assets: Vec<AssetEntry> = assets_from_lp_token_name(lp_token_name);
-        // Assets by reference
-        let mut lp_token_assets = lp_token_assets.iter().collect();
-
-        let provider_pair = self.staking_entry(&mut lp_token_assets);
-        ans_host.query_contract(&deps.querier, &provider_pair)
+        let provider_staking_contract_entry = self.staking_entry(staking_token);
+        ans_host.query_contract(&deps.querier, &provider_staking_contract_entry)
     }
 
     /// Stake the provided asset into the staking contract
@@ -57,4 +58,22 @@ pub trait CwStaking: Identify {
     /// * `deps` - the dependencies
     /// * `staking_address` - the address of the staking contract
     fn claim(&self, deps: Deps, staking_address: Addr) -> Result<Vec<CosmosMsg>, StakingError>;
+
+    fn query_info(
+        &self,
+        querier: &QuerierWrapper,
+        staking_address: Addr,
+    ) -> StdResult<StakingInfoResponse>;
+    fn query_staked(
+        &self,
+        querier: &QuerierWrapper,
+        staking_address: Addr,
+        staker: Addr,
+    ) -> StdResult<Uint128>;
+    fn query_unbonding(
+        &self,
+        querier: &QuerierWrapper,
+        staking_address: Addr,
+        staker: Addr,
+    ) -> StdResult<Vec<Claim>>;
 }
