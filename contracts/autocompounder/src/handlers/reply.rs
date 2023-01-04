@@ -119,9 +119,8 @@ pub fn lp_withdrawal_reply(
     _reply: Reply,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
-    let base_state = dapp.load_state(deps.storage)?;
     let ans_host = dapp.ans_host(deps.as_ref())?;
-    let _proxy = base_state.proxy_address; 
+    let proxy_address = dapp.proxy_address(deps.as_ref())?; 
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     let amount_of_vault_tokens_to_be_burned =
     CACHED_AMOUNT_OF_VAULT_TOKENS_TO_BURN.load(deps.storage)?;
@@ -134,7 +133,7 @@ pub fn lp_withdrawal_reply(
         let asset_info = asset.resolve(&deps.querier, &ans_host)?;
         
         // HOW TO IDENTIFY WHICH TOKEN AMOUNT CORRESPONDS TO WHICH TOKEN SINCE REPLY EVENTS ONLY CONTAINS TOKEN AMOUNTS BUT NO TOKEN ADDRESS OR DENOM?
-        let amount = asset_info.query_balance(&deps.querier, dapp.proxy_address(deps.as_ref())?)?;
+        let amount = asset_info.query_balance(&deps.querier, proxy_address.to_string())?;
         funds.push(AnsAsset::new(asset, amount));
     }
     
