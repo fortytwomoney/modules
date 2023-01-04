@@ -3,7 +3,6 @@ members = [
   "contracts/*",
   "packages/*",
   "scripts",
-  "dao-contracts/contracts/staking/cw20-stake",
 ]
 
 [workspace.package]
