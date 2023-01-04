@@ -1,3 +1,5 @@
+use std::thread::current;
+
 use abstract_sdk::base::features::Identification;
 
 use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken};
@@ -88,16 +90,15 @@ pub fn lp_provision_reply(
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens. 
     // 3) Calculate the number of vault tokens to mint
-    let new_vault_supply = if !staked_lp.is_zero() {
-        current_vault_supply
-            // will overflow on first deposit!
-            .checked_multiply_ratio(received_lp + staked_lp, staked_lp)
-            .unwrap()
+    let mint_amount = if !staked_lp.is_zero() {
+        // will zero if first deposit
+        current_vault_supply.checked_multiply_ratio(received_lp, staked_lp).unwrap()
     } else {
         // if first deposit, mint the same amount of tokens as the LP tokens received
         current_vault_supply + received_lp
     };
-    let mint_amount = new_vault_supply - current_vault_supply;
+
+
 
     // 4) Mint vault tokens to the user
     let mint_msg: CosmosMsg = WasmMsg::Execute {
