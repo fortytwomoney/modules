@@ -1,7 +1,7 @@
 use abstract_sdk::base::features::{AbstractNameService, Identification};
 
 use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken};
-use abstract_sdk::{ModuleInterface, Resolve};
+use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
     to_binary, Addr, Coin, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult,
     Uint128, WasmMsg,
@@ -121,26 +121,27 @@ pub fn lp_withdrawal_reply(
     let config = CONFIG.load(deps.storage)?;
     let base_state = dapp.load_state(deps.storage)?;
     let ans_host = dapp.ans_host(deps.as_ref())?;
-    let _proxy = base_state.proxy_address;
+    let _proxy = base_state.proxy_address; 
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     let amount_of_vault_tokens_to_be_burned =
-        CACHED_AMOUNT_OF_VAULT_TOKENS_TO_BURN.load(deps.storage)?;
+    CACHED_AMOUNT_OF_VAULT_TOKENS_TO_BURN.load(deps.storage)?;
     CACHED_USER_ADDR.remove(deps.storage);
     CACHED_AMOUNT_OF_VAULT_TOKENS_TO_BURN.remove(deps.storage);
-
+    
     let mut messages = vec![];
+    let mut funds: Vec<AnsAsset> = vec![];
     for asset in config.pool_data.assets() {
         let asset_info = asset.resolve(&deps.querier, &ans_host)?;
-
+        
         // HOW TO IDENTIFY WHICH TOKEN AMOUNT CORRESPONDS TO WHICH TOKEN SINCE REPLY EVENTS ONLY CONTAINS TOKEN AMOUNTS BUT NO TOKEN ADDRESS OR DENOM?
-        // let transfer_msg = match asset_info {
-        //     AssetInfoBase::Cw20(contract_addr) => get_cw20_transfer_to_msg(&user_address, &contract_addr, token1_amount)?,
-        //     AssetInfoBase::Native(denom) => get_bank_transfer_to_msg(&user_address, &denom, token1_amount)
-        //     _ => panic!("unsupported asset type"),
-        // };
-
-        // messages.push(transfer_msg);
+        let amount = asset_info.query_balance(&deps.querier, dapp.proxy_address(deps.as_ref())?)?;
+        funds.push(AnsAsset::new(asset, amount));
     }
+    
+    let bank = dapp.bank(deps.as_ref());
+    let transfer_msg = bank.transfer(funds, &user_address)?;
+    messages.push(transfer_msg);
+
 
     let vault_token_burn_msg = get_burn_msg(
         &config.vault_token,
