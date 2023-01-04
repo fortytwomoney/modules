@@ -6,7 +6,7 @@ use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
     from_binary, to_binary, Addr, CosmosMsg, DepsMut, Env, MessageInfo, QuerierWrapper,
-    QueryRequest, ReplyOn, Response, StdError, StdResult, SubMsg, Uint128, WasmQuery,
+    QueryRequest, ReplyOn, Response, StdError, StdResult, SubMsg, Uint128, WasmQuery, Deps,
 };
 use cw20::{AllowanceResponse, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
@@ -179,7 +179,7 @@ fn compound(
     let config = CONFIG.load(deps.storage)?;
     
     // 1) Claim rewards from staking contract
-    let claim_msg = claim_lp_rewards(deps, app, app.proxy_address(deps.as_ref())?.into_string(), AssetEntry::from(LpToken::from(config.pool_data)));
+    let claim_msg = claim_lp_rewards(deps.as_ref(), &app, app.proxy_address(deps.as_ref())?.into_string(), AssetEntry::from(LpToken::from(config.pool_data)));
     let claim_submsg = SubMsg {
         id: LP_COMPOUND_REPLY_ID,
         msg: claim_msg,
@@ -207,12 +207,12 @@ fn compound(
 
 
 fn claim_lp_rewards(
-    deps: DepsMut,
-    app: AutocompounderApp,
+    deps: Deps,
+    app: &AutocompounderApp,
     provider: String,
     lp_token_name: AssetEntry,
 ) -> CosmosMsg {
-    let modules = app.modules(deps.as_ref());
+    let modules = app.modules(deps);
 
     let msg: CosmosMsg = modules
         .api_request(
