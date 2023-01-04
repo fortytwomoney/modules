@@ -4,7 +4,7 @@ use abstract_sdk::Execution;
 use cosmwasm_std::{CosmosMsg, Deps, DepsMut, ReplyOn, SubMsg};
 
 use crate::error::StakingError;
-use crate::traits::cw_staking_provider::CwStakingProvider;
+use crate::traits::cw_staking::CwStaking;
 use abstract_sdk::os::objects::AssetEntry;
 use forty_two::cw_staking::{CwStakingAction, LpToken};
 
@@ -21,7 +21,7 @@ pub trait LocalCwStaking: AbstractNameService + Execution {
         &self,
         deps: DepsMut,
         action: CwStakingAction,
-        exchange: &dyn CwStakingProvider,
+        exchange: &dyn CwStaking,
         with_reply: bool,
     ) -> Result<SubMsg, StakingError> {
         let (msgs, reply_id) = match action {
@@ -51,7 +51,7 @@ pub trait LocalCwStaking: AbstractNameService + Execution {
         &self,
         deps: Deps,
         lp_token: LpToken,
-        provider: &dyn CwStakingProvider,
+        provider: &dyn CwStaking,
     ) -> Result<Vec<CosmosMsg>, StakingError> {
         let ans = self.name_service(deps);
 
@@ -67,7 +67,7 @@ pub trait LocalCwStaking: AbstractNameService + Execution {
         &self,
         deps: Deps,
         lp_token: LpToken,
-        provider: &dyn CwStakingProvider,
+        provider: &dyn CwStaking,
     ) -> Result<Vec<CosmosMsg>, StakingError> {
         let ans = self.name_service(deps);
 
@@ -83,7 +83,7 @@ pub trait LocalCwStaking: AbstractNameService + Execution {
         &self,
         deps: Deps,
         lp_token_name: AssetEntry,
-        provider: &dyn CwStakingProvider,
+        provider: &dyn CwStaking,
     ) -> Result<Vec<CosmosMsg>, StakingError> {
         let ans = self.name_service(deps);
 

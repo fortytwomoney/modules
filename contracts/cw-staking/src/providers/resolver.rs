@@ -1,6 +1,6 @@
 use crate::error::StakingError;
 use crate::traits::identify::Identify;
-use crate::CwStakingProvider;
+use crate::CwStaking;
 
 #[cfg(feature = "juno")]
 pub use crate::providers::junoswap::{JunoSwap, JUNOSWAP};
@@ -34,7 +34,7 @@ pub(crate) fn resolve_provider_by_name(name: &str) -> Result<&'static dyn Identi
 /// Given the provider name, return the local provider implementation
 pub(crate) fn resolve_local_provider(
     name: &str,
-) -> Result<&'static dyn CwStakingProvider, StakingError> {
+) -> Result<&'static dyn CwStaking, StakingError> {
     match name {
         #[cfg(feature = "juno")]
         JUNOSWAP => Ok(&JunoSwap {}),

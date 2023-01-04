@@ -1,7 +1,7 @@
 use cosmwasm_std::{to_binary, Addr, Coin, CosmosMsg, Deps, StdResult, WasmMsg};
 
 use crate::error::StakingError;
-use crate::traits::cw_staking_provider::CwStakingProvider;
+use crate::traits::cw_staking::CwStaking;
 use crate::traits::identify::Identify;
 use cw_asset::{Asset, AssetInfo, AssetInfoBase};
 
@@ -17,7 +17,7 @@ impl Identify for Loop {
     }
 }
 
-impl CwStakingProvider for Loop {
+impl CwStaking for Loop {
     fn stake(
         &self,
         _deps: Deps,

@@ -7,7 +7,7 @@ use crate::error::StakingError;
 use crate::traits::identify::Identify;
 
 /// Trait that defines the interface for staking providers
-pub trait CwStakingProvider: Identify {
+pub trait CwStaking: Identify {
     /// Construct the staking contract entry using the given assets
     fn staking_entry(&self, assets: &mut Vec<&AssetEntry>) -> ContractEntry {
         ContractEntry::construct_staking_entry(self.name(), assets)
@@ -57,22 +57,4 @@ pub trait CwStakingProvider: Identify {
     /// * `deps` - the dependencies
     /// * `staking_address` - the address of the staking contract
     fn claim(&self, deps: Deps, staking_address: Addr) -> Result<Vec<CosmosMsg>, StakingError>;
-}
-
-// TODO: move these consts
-const LP_TOKEN_PROVIDER_SEPARATOR: char = ':';
-const LP_TOKEN_ASSET_SEPARATOR: char = '_';
-
-/// Parses the lp token name and returns the assets that make it up
-/// The format is: <provider>:<asset1>_<asset2>
-/// @todo: move this to abstract
-pub fn assets_from_lp_token_name(info: &str) -> Vec<AssetEntry> {
-    let words = info
-        .split(LP_TOKEN_PROVIDER_SEPARATOR)
-        .collect::<Vec<&str>>();
-    let _provider = words[0];
-    words[1]
-        .split(LP_TOKEN_ASSET_SEPARATOR)
-        .map(AssetEntry::from)
-        .collect()
 }

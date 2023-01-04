@@ -19,7 +19,7 @@ use osmosis_std::{
 
 use crate::error::StakingError;
 use crate::traits::identify::Identify;
-use crate::CwStakingProvider;
+use crate::CwStaking;
 
 const FORTEEN_DAYS: i64 = 60 * 60 * 24 * 14;
 
@@ -39,7 +39,7 @@ impl Identify for Osmosis {
 
 /// Osmosis app-chain dex implementation
 #[cfg(feature = "osmosis")]
-impl CwStakingProvider for Osmosis {
+impl CwStaking for Osmosis {
     fn stake(
         &self,
         _deps: Deps,

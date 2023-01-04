@@ -7,7 +7,7 @@ mod traits;
 
 use traits::*;
 
-pub use cw_staking_provider::CwStakingProvider;
+pub use cw_staking::CwStaking;
 pub use local_cw_staking::LocalCwStaking;
 
 #[cfg(any(feature = "juno", feature = "osmosis"))]

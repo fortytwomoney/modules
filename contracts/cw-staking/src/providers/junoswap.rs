@@ -1,5 +1,5 @@
 use crate::error::StakingError;
-use crate::traits::cw_staking_provider::CwStakingProvider;
+use crate::traits::cw_staking::CwStaking;
 use crate::traits::identify::Identify;
 use cosmwasm_std::{to_binary, Addr, Coin, CosmosMsg, Deps, StdResult, WasmMsg};
 use cw20::Cw20ExecuteMsg;
@@ -20,7 +20,7 @@ impl Identify for JunoSwap {
     }
 }
 
-impl CwStakingProvider for JunoSwap {
+impl CwStaking for JunoSwap {
     fn stake(
         &self,
         _deps: Deps,
