@@ -188,6 +188,7 @@ pub fn lp_compound_reply(
     let rewards = query_rewards(deps.as_ref(), &app, config.pool_data.clone());
 
     // 2.2) query balance of rewards
+    // TODO: use bank.balances query
     let mut rewards= rewards.iter().map(|entry| -> StdResult<AnsAsset> {
         // 2) get the number of LP tokens minted in this transaction
         let tkn = entry.resolve(&deps.querier, &ans_host)?;
@@ -256,6 +257,7 @@ pub fn lp_compound_reply(
         })?;
 
         // get last swap msg and make it a submsg with reply
+        // could panic if rewards is empty
         let swap_msg = swap_msgs.pop().unwrap();
         let submsg = SubMsg::reply_on_success(swap_msg, SWAPPED_REPLY_ID);
         
@@ -269,6 +271,8 @@ pub fn lp_compound_reply(
                 .add_attribute("action", "swap_rewards")
         )
     }
+
+    // TODO: stake lp tokens
 }
 
 fn query_rewards(deps: Deps, app: &AutocompounderApp, _pool_data: PoolMetadata) -> Vec<AssetEntry> {
