@@ -2,10 +2,10 @@ use crate::error::StakingError;
 use crate::traits::cw_staking_provider::CwStakingProvider;
 use crate::traits::identify::Identify;
 use cosmwasm_std::{to_binary, Addr, Coin, CosmosMsg, Deps, StdResult, WasmMsg};
+use cw20::Cw20ExecuteMsg;
 use cw20_junoswap::Denom;
 use cw20_stake::msg::{ExecuteMsg as StakeCw20ExecuteMsg, ReceiveMsg};
 use cw_asset::{Asset, AssetInfo};
-use cw20::Cw20ExecuteMsg;
 
 pub const JUNOSWAP: &str = "junoswap";
 // Source https://github.com/wasmswap/wasmswap-contracts

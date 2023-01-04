@@ -1,12 +1,9 @@
+use cosmwasm_std::{to_binary, Addr, Coin, CosmosMsg, Deps, StdResult, WasmMsg};
 
-use cosmwasm_std::{
-    Addr, Coin, CosmosMsg, Deps, StdResult, to_binary, WasmMsg,
-};
-
-use cw_asset::{Asset, AssetInfo, AssetInfoBase};
 use crate::error::StakingError;
 use crate::traits::cw_staking_provider::CwStakingProvider;
 use crate::traits::identify::Identify;
+use cw_asset::{Asset, AssetInfo, AssetInfoBase};
 
 pub const LOOP: &str = "loop";
 pub struct Loop {}
@@ -21,11 +18,21 @@ impl Identify for Loop {
 }
 
 impl CwStakingProvider for Loop {
-    fn stake(&self, _deps: Deps, _staking_address: Addr, _asset: Asset) -> Result<Vec<CosmosMsg>, StakingError> {
+    fn stake(
+        &self,
+        _deps: Deps,
+        _staking_address: Addr,
+        _asset: Asset,
+    ) -> Result<Vec<CosmosMsg>, StakingError> {
         unimplemented!()
     }
 
-    fn unstake(&self, _deps: Deps, _staking_address: Addr, _amount: Asset) -> Result<Vec<CosmosMsg>, StakingError> {
+    fn unstake(
+        &self,
+        _deps: Deps,
+        _staking_address: Addr,
+        _amount: Asset,
+    ) -> Result<Vec<CosmosMsg>, StakingError> {
         unimplemented!()
     }
 

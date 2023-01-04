@@ -4,6 +4,7 @@ use crate::{
     CwStakingProvider,
 };
 
+use crate::traits::identify::Identify;
 use abstract_sdk::OsExecute;
 use cosmwasm_std::{
     to_binary, wasm_execute, Addr, Coin, CosmosMsg, Decimal, Deps, QueryRequest, StdResult,
@@ -12,7 +13,6 @@ use cosmwasm_std::{
 use cw20::Cw20ExecuteMsg;
 use cw_asset::{Asset, AssetInfo, AssetInfoBase};
 use terraswap::pair::{PoolResponse, SimulationResponse};
-use crate::traits::identify::Identify;
 
 pub const TERRASWAP: &str = "terraswap";
 pub struct Terraswap {}
@@ -27,11 +27,21 @@ impl Identify for Terraswap {
 }
 
 impl CwStakingProvider for Terraswap {
-    fn stake(&self, deps: Deps, staking_address: Addr, asset: Asset) -> Result<Vec<CosmosMsg>, StakingError> {
+    fn stake(
+        &self,
+        deps: Deps,
+        staking_address: Addr,
+        asset: Asset,
+    ) -> Result<Vec<CosmosMsg>, StakingError> {
         unimplemented!()
     }
 
-    fn unstake(&self, deps: Deps, staking_address: Addr, amount: Asset) -> Result<Vec<CosmosMsg>, StakingError> {
+    fn unstake(
+        &self,
+        deps: Deps,
+        staking_address: Addr,
+        amount: Asset,
+    ) -> Result<Vec<CosmosMsg>, StakingError> {
         unimplemented!()
     }
 

@@ -1,4 +1,4 @@
-use abstract_sdk::base::features::{AbstractNameService};
+use abstract_sdk::base::features::{AbstractNameService, Identification};
 use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
 
 use abstract_sdk::os::objects::AnsAsset;
@@ -10,9 +10,8 @@ use cosmwasm_std::{
 };
 use cw20::{AllowanceResponse, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
-use cw_asset::{AssetInfo};
+use cw_asset::{AssetInfo, AssetList};
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
-
 
 use crate::contract::{AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID};
 use crate::error::AutocompounderError;
@@ -58,7 +57,7 @@ pub fn update_fee_config(
 pub fn deposit(
     deps: DepsMut,
     msg_info: MessageInfo,
-    env: Env,
+    _env: Env,
     app: AutocompounderApp,
     funds: Vec<AnsAsset>,
 ) -> AutocompounderResult {
@@ -67,46 +66,27 @@ pub fn deposit(
     let _staking_address = config.staking_contract;
     let ans_host = app.ans_host(deps.as_ref())?;
 
-    let _bank = app.bank(deps.as_ref());
+    let mut claimed_deposits: AssetList = funds.resolve(&deps.querier, &ans_host)?.into();
+    // deduct all the received `Coin`s from the claimed deposit, errors if not enough funds were provided
+    // what's left should be the remaining cw20s
+    claimed_deposits
+        .deduct_many(&msg_info.funds.clone().into())?
+        .purge();
 
-    let _messages: Vec<CosmosMsg> = vec![];
+    let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>, _> = claimed_deposits
+        .into_iter()
+        .map(|asset| {
+            // transfer cw20 tokens to the OS
+            // will fail if allowance is not set or if some other assets are sent
+            asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)
+        })
+        .collect();
 
-    // check if funds have proper amount/allowance [Check previous TODO]
-    for asset in funds.clone() {
-        let info = asset.resolve(&deps.querier, &ans_host)?.info;
-
-        let sent_funds = match info.clone() {
-            AssetInfo::Native(denom) => msg_info
-                .funds
-                .iter()
-                .filter(|c| c.denom == denom)
-                .map(|c| c.amount)
-                .sum::<Uint128>(),
-            AssetInfo::Cw20(contract_addr) => {
-                let allowance: AllowanceResponse = deps.querier.query_wasm_smart(
-                    contract_addr,
-                    &cw20::Cw20QueryMsg::Allowance {
-                        owner: msg_info.sender.clone().into_string(),
-                        spender: env.contract.address.clone().into_string(),
-                    },
-                )?;
-
-                allowance.allowance
-            }
-            _ => {
-                return Err(StdError::generic_err("asset type not supported".to_string()).into());
-            }
-        };
-        if sent_funds != asset.amount {
-            return Err(AutocompounderError::FundsMismatch {
-                sent: sent_funds,
-                wanted: asset.amount,
-            });
-        }
-    }
+    // transfer received coins to the bank contract
+    let bank = app.bank(deps.as_ref());
+    bank.deposit_coins(msg_info.funds)?;
 
     let modules = app.modules(deps.as_ref());
-
     let swap_msg: CosmosMsg = modules.api_request(
         EXCHANGE,
         DexExecuteMsg {
@@ -128,6 +108,7 @@ pub fn deposit(
     // save the user address to the cache for later use in reply
     CACHED_USER_ADDR.save(deps.storage, &msg_info.sender)?;
     Ok(Response::new()
+        .add_messages(cw_20_transfer_msgs_res?)
         .add_submessage(sub_msg)
         .add_attribute("action", "4T2/AC/Deposit"))
 }

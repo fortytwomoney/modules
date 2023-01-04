@@ -1,5 +1,5 @@
 use abstract_sdk::os::dex::DexName;
-use abstract_sdk::os::objects::{AssetEntry, PoolMetadata, PoolReference};
+use abstract_sdk::os::objects::{AssetEntry, PoolId, PoolMetadata};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Uint128;
@@ -17,12 +17,12 @@ pub struct Config {
     /// Address of the staking contract
     pub staking_contract: Addr,
     pub dex: DexName,
-    /// Pool metadata
-    pub pool_data: PoolMetadata,
     /// Assets in the pool
     pub dex_assets: Vec<AssetEntry>,
-    /// Pool reference
-    pub pool_reference: PoolReference,
+    /// Pool address (number or Address)
+    pub pool_address: PoolId,
+    /// Pool metadata
+    pub pool_data: PoolMetadata,
     /// Address of the LP token contract
     pub liquidity_token: Addr,
     /// Vault token

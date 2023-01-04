@@ -13,7 +13,6 @@ pub const AUTOCOMPOUNDER_DEPS: &[StaticDependency] = &[DEX_DEP, CW_STAKING_DEP];
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn test_dependencies() {
