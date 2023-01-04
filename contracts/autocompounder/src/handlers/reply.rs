@@ -59,6 +59,7 @@ pub fn lp_provision_reply(
     let config = CONFIG.load(deps.storage)?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     let proxy_address = app.proxy_address(deps.as_ref())?;
+    let ans_host = app.ans_host(deps.as_ref())?;
     CACHED_USER_ADDR.remove(deps.storage);
 
     // 1) get the total supply of Vault token
@@ -75,14 +76,8 @@ pub fn lp_provision_reply(
         lp_token.clone(),
         proxy_address.to_string(),
     );
-    let cw20::BalanceResponse {
-        balance: received_lp,
-    } = deps.querier.query_wasm_smart(
-        config.vault_token.clone(),
-        &cw20::Cw20QueryMsg::Balance {
-            address: proxy_address.to_string(),
-        },
-    )?;
+
+    let received_lp = lp_token.resolve(&deps.querier, &ans_host)?.query_balance(&deps.querier, proxy_address.to_string())?;
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
     // 3) Calculate the number of vault tokens to mint
