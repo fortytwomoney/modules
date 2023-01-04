@@ -6,12 +6,12 @@ use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
     from_binary, to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
-    QuerierWrapper, QueryRequest, ReplyOn, Response, StdError, StdResult, SubMsg, Uint128,
+    QuerierWrapper, QueryRequest, ReplyOn, Response, StdResult, SubMsg, Uint128, WasmMsg,
     WasmQuery,
 };
-use cw20::{AllowanceResponse, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
+use cw20::{Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
-use cw_asset::{AssetInfo, AssetList};
+use cw_asset::AssetList;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 use forty_two::cw_staking::{
     CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, StakeResponse, CW_STAKING,
@@ -21,7 +21,7 @@ use crate::contract::{
     AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::state::{CACHED_AMOUNT_OF_VAULT_TOKENS_TO_BURN, CACHED_USER_ADDR, CONFIG};
+use crate::state::{CACHED_USER_ADDR, CONFIG};
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
@@ -153,9 +153,7 @@ fn redeem(
     // save the user address to the cache for later use in reply
     CACHED_USER_ADDR.save(deps.storage, &sender)?;
 
-    // save the user address to the cache for later use in reply
-    CACHED_AMOUNT_OF_VAULT_TOKENS_TO_BURN
-        .save(deps.storage, &amount_of_vault_tokens_to_be_burned)?;
+    let mut messages = vec![];
 
     // 1) get the total supply of Vault token
     let vault_token_info: TokenInfoResponse = deps
@@ -174,12 +172,10 @@ fn redeem(
     ) * total_lp_tokens_staked_in_vault;
 
     // 4) claim lp tokens
-    let claim_unbonded_lps_msg = claim_lps(
-        deps.as_ref(),
-        &dapp,
-        "junoswap".to_string(),
-        lp_token.clone(),
-    );
+    let claim_unbonded_lps_msg =
+        claim_lps(deps.as_ref(), &dapp, config.dex.clone(), lp_token.clone());
+
+    messages.push(claim_unbonded_lps_msg);
 
     let modules = dapp.modules(deps.as_ref());
 
@@ -201,10 +197,12 @@ fn redeem(
         reply_on: ReplyOn::Success,
     };
 
-    // TODO: burn liquidity tokens
+    let vault_token_burn_msg =
+        get_burn_msg(&config.vault_token, amount_of_vault_tokens_to_be_burned)?;
+    messages.push(vault_token_burn_msg);
 
     Ok(Response::new()
-        .add_message(claim_unbonded_lps_msg)
+        .add_messages(messages)
         .add_submessage(withdraw_liquidity_sub_msg))
 }
 
@@ -257,4 +255,14 @@ fn claim_lps(
         .unwrap();
 
     return msg;
+}
+
+fn get_burn_msg(contract: &Addr, amount: Uint128) -> StdResult<CosmosMsg> {
+    let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
+    Ok(WasmMsg::Execute {
+        contract_addr: contract.to_string(),
+        msg: to_binary(&msg)?,
+        funds: vec![],
+    }
+    .into())
 }
