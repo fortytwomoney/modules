@@ -68,6 +68,7 @@ pub fn lp_provision_reply(
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
+    let proxy_address = app.proxy_address(deps.as_ref())?;
     CACHED_USER_ADDR.remove(deps.storage);
 
     // 1) get the total supply of Vault token
@@ -78,13 +79,13 @@ pub fn lp_provision_reply(
 
     // 2) Retrieve the number of LP tokens minted/staked.
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data));
-    let staked_lp = query_stake(deps.as_ref(), &app, lp_token.clone());
+    let staked_lp = query_stake(deps.as_ref(), &app, lp_token.clone(), proxy_address.to_string());
     let cw20::BalanceResponse{
         balance: received_lp,
     } = deps.querier.query_wasm_smart(
         config.vault_token.clone(),
         &cw20::Cw20QueryMsg::Balance {
-            address: app.proxy_address(deps.as_ref())?.into_string(),
+            address: proxy_address.to_string(),
         },
     )?;
 
@@ -97,8 +98,6 @@ pub fn lp_provision_reply(
         // if first deposit, mint the same amount of tokens as the LP tokens received
         current_vault_supply + received_lp
     };
-
-
 
     // 4) Mint vault tokens to the user
     let mint_msg: CosmosMsg = WasmMsg::Execute {
@@ -120,13 +119,13 @@ pub fn lp_provision_reply(
         .add_attribute("vault_token_minted", mint_amount))
 }
 
-fn query_stake(deps: Deps, app: &AutocompounderApp, lp_token_name: AssetEntry) -> Uint128 {
+fn query_stake(deps: Deps, app: &AutocompounderApp, lp_token_name: AssetEntry, address: String) -> Uint128 {
     let modules = app.modules(deps);
     let staking_mod = modules.module_address(CW_STAKING).unwrap();
 
     let query = CwStakingQueryMsg::Stake {
         lp_token_name,
-        address: app.proxy_address(deps).unwrap().to_string(),
+        address
     };
 
     let res: StakeResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
