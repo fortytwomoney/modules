@@ -11,7 +11,7 @@ pub use cw_staking::CwStaking;
 pub use local_cw_staking::LocalCwStaking;
 
 #[cfg(any(feature = "juno", feature = "osmosis"))]
-pub mod host_exchange {
+pub mod host_staking {
     pub use super::providers::osmosis::Osmosis;
 }
 
