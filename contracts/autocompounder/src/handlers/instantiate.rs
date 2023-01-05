@@ -96,7 +96,7 @@ pub fn instantiate_handler(
     // create LP token SubMsg
     let sub_msg = create_lp_token_submsg(
         env.contract.address.to_string(),
-        format!("4T2 Vault Token for {}", pool_data.to_string()),
+        format!("4T2 Vault Token for {}", pool_data),
         "4T2V".to_string(), // TODO: find a better way to define name and symbol
         msg.code_id,
     )?;

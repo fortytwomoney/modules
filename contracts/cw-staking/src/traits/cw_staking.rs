@@ -14,7 +14,7 @@ pub trait CwStaking: Identify {
     fn staking_entry(&self, staking_token: &AssetEntry) -> ContractEntry {
         ContractEntry {
             protocol: self.name().to_string(),
-            contract: format!("staking/{}", staking_token.to_string()),
+            contract: format!("staking/{}", staking_token),
         }
     }
     // TODO: Move to SDK.

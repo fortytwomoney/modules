@@ -1,8 +1,5 @@
-use cosmwasm_std::{
-    Addr, Coin, CosmosMsg, Decimal, Decimal256, Deps, StdError, StdResult, Uint128, Uint256,
-};
+use cosmwasm_std::Addr;
 
-use cw_asset::Asset;
 #[cfg(feature = "osmosis")]
 use osmosis_std::{
     shim::Duration,
@@ -17,10 +14,9 @@ use osmosis_std::{
     types::{osmosis::lockup::MsgBeginUnlocking, osmosis::lockup::MsgLockTokens},
 };
 
-use crate::error::StakingError;
 use crate::traits::identify::Identify;
-use crate::CwStaking;
 
+#[cfg(feature = "osmosis")]
 const FORTEEN_DAYS: i64 = 60 * 60 * 24 * 14;
 
 pub const OSMOSIS: &str = "osmosis";

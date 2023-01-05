@@ -59,7 +59,7 @@ pub fn lp_provision_reply(
     let config = CONFIG.load(deps.storage)?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     let proxy_address = app.proxy_address(deps.as_ref())?;
-    let ans_host = app.ans_host(deps.as_ref())?;
+    let _ans_host = app.ans_host(deps.as_ref())?;
     CACHED_USER_ADDR.remove(deps.storage);
 
     // 1) get the total supply of Vault token
@@ -141,7 +141,7 @@ fn stake_lps(
     amount: Uint128,
 ) -> CosmosMsg {
     let modules = app.modules(deps.as_ref());
-    let msg: CosmosMsg = modules
+    modules
         .api_request(
             CW_STAKING,
             CwStakingExecuteMsg {
@@ -151,9 +151,7 @@ fn stake_lps(
                 },
             },
         )
-        .unwrap();
-
-    return msg;
+        .unwrap()
 }
 
 pub fn lp_compound_reply(
@@ -188,9 +186,8 @@ pub fn lp_compound_reply(
         .collect::<StdResult<Vec<AnsAsset>>>()?;
     // remove zero balances
     rewards = rewards
-        .iter()
+        .into_iter()
         .filter(|reward| reward.amount != Uint128::zero())
-        .map(|a| a.clone())
         .collect::<Vec<AnsAsset>>();
 
     // 2) deduct fee from rewards
@@ -225,7 +222,7 @@ pub fn lp_compound_reply(
         let lp_msg: CosmosMsg = modules.api_request(
             EXCHANGE,
             DexExecuteMsg {
-                dex: config.dex.into(),
+                dex: config.dex,
                 action: DexAction::ProvideLiquidity {
                     assets: rewards,
                     max_spread: None,
@@ -249,7 +246,7 @@ pub fn lp_compound_reply(
                     let swap_msg = modules.api_request(
                         EXCHANGE,
                         DexExecuteMsg {
-                            dex: config.dex.clone().into(),
+                            dex: config.dex.clone(),
                             action: DexAction::Swap {
                                 offer_asset: reward.clone(),
                                 ask_asset: pool_assets.get(0).unwrap().clone(),
@@ -326,7 +323,7 @@ pub fn swapped_reply(
     let lp_msg: CosmosMsg = modules.api_request(
         EXCHANGE,
         DexExecuteMsg {
-            dex: config.dex.into(),
+            dex: config.dex,
             action: DexAction::ProvideLiquidity {
                 assets: rewards,
                 max_spread: None,

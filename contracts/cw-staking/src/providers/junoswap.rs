@@ -1,12 +1,10 @@
 use crate::error::StakingError;
 use crate::traits::cw_staking::CwStaking;
 use crate::traits::identify::Identify;
-use abstract_sdk::helpers::cosmwasm_std::wasm_smart_query;
-use cosmwasm_std::{
-    to_binary, Addr, Coin, CosmosMsg, Deps, Querier, QuerierWrapper, StdResult, Uint128, WasmMsg,
-};
+
+use cosmwasm_std::{to_binary, Addr, CosmosMsg, Deps, QuerierWrapper, StdResult, Uint128, WasmMsg};
 use cw20::Cw20ExecuteMsg;
-use cw20_junoswap::Denom;
+
 use cw20_stake::msg::{ExecuteMsg as StakeCw20ExecuteMsg, ReceiveMsg};
 use cw_asset::{Asset, AssetInfo};
 use forty_two::cw_staking::{Claim, StakingInfoResponse};
