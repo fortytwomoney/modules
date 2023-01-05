@@ -84,7 +84,6 @@ pub trait LocalCwStaking: AbstractNameService + Execution {
         provider: &dyn CwStaking,
     ) -> Result<Vec<CosmosMsg>, StakingError> {
         let ans = self.name_service(deps);
-
         let staking_address =
             provider.staking_contract_address(deps, ans.host(), &staking_token_name)?;
         provider.claim(deps, staking_address)
