@@ -80,6 +80,8 @@ pub enum AutocompounderExecuteMsg {
     Unbond { amount: Uint128 },
     /// Compound all rewards in the vault
     Compound {},
+    /// Unbond in batches
+    BatchUnbond {},
     /// Recieve cw20 tokens
     Receive(Cw20ReceiveMsg),
 }
