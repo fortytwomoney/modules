@@ -20,7 +20,7 @@ pub fn query_handler(
             let provider_id = resolver::resolve_provider_by_name(&provider).unwrap();
             // if provider is on an app-chain, error
             if provider_id.over_ibc() {
-                return Err(StdError::generic_err("IBC queries not supported."));
+                Err(StdError::generic_err("IBC queries not supported."))
             } else {
                 // the query can be executed on the local chain
                 let provider = resolver::resolve_local_provider(&provider)
@@ -38,7 +38,7 @@ pub fn query_handler(
             let provider_id = resolver::resolve_provider_by_name(&provider).unwrap();
             // if provider is on an app-chain, error
             if provider_id.over_ibc() {
-                return Err(StdError::generic_err("IBC queries not supported."));
+                Err(StdError::generic_err("IBC queries not supported."))
             } else {
                 // the query can be executed on the local chain
                 let provider = resolver::resolve_local_provider(&provider)
@@ -60,7 +60,7 @@ pub fn query_handler(
             let provider_id = resolver::resolve_provider_by_name(&provider).unwrap();
             // if provider is on an app-chain, error
             if provider_id.over_ibc() {
-                return Err(StdError::generic_err("IBC queries not supported."));
+                Err(StdError::generic_err("IBC queries not supported."))
             } else {
                 // the query can be executed on the local chain
                 let provider = resolver::resolve_local_provider(&provider)
