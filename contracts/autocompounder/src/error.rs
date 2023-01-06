@@ -32,6 +32,6 @@ pub enum AutocompounderError {
     #[error("Pools with more than 2 assets are not supported")]
     PoolWithMoreThanTwoAssets {},
 
-    #[error("TokensStillBeingUnbonded")]
-    TokensStillBeingUnbonded {},
+    #[error("No ongoing claims are ready for withdrawal")]
+    NoMaturedClaims {},
 }

@@ -17,7 +17,7 @@ use forty_two::cw_staking::{
 };
 
 use crate::contract::{
-    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
+    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::state::{Claim, CACHED_USER_ADDR, CLAIMS, CONFIG, PENDING_CLAIMS};
@@ -37,7 +37,7 @@ pub fn execute_handler(
             deposit,
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
         AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, env, app, funds),
-        AutocompounderExecuteMsg::Withdraw {} => todo!(),
+        AutocompounderExecuteMsg::Withdraw {} => withdraw_claims(deps, app, env, info.sender),
         AutocompounderExecuteMsg::BatchUnbond {} => batch_unbond(deps, info, env, app),
         AutocompounderExecuteMsg::Compound {} => compound(deps, info, env, app),
         AutocompounderExecuteMsg::Receive(msg) => receive(deps, env, info, app, msg),
@@ -333,6 +333,55 @@ fn compound(
     Ok(Response::new()
         .add_submessage(claim_submsg)
         .add_attribute("action", "4T2🚀AC🚀Compound🤖"))
+}
+
+// withdraw all matured claims for a user
+pub fn withdraw_claims(deps:DepsMut, app: AutocompounderApp, env: Env, address: Addr ) -> AutocompounderResult {
+    CACHED_USER_ADDR.save(deps.storage, &address)?;
+    let config = CONFIG.load(deps.storage)?;
+    let claims = CLAIMS.load(deps.storage, address.to_string())?;
+
+    // 1) get all matured claims for user
+    let mut ongoing_claims: Vec<Claim> = vec![];
+    let mut matured_claims: Vec<Claim>= vec![];
+    claims.iter().for_each(|claim| {
+        let time_diff = env.block.time.minus_nanos(claim.unbonding_timestamp.nanos());
+        if time_diff >= config.bonding_period {
+            matured_claims.push(claim.clone());
+        } else { 
+            ongoing_claims.push(claim.clone());
+        }
+    });
+
+    if matured_claims.len() == 0 {
+        return Err(AutocompounderError::NoMaturedClaims {});
+    }
+    
+    CLAIMS.save(deps.storage, address.to_string(), &ongoing_claims)?;
+    
+    // 2) sum up all matured claims
+    let lp_tokens_to_withdraw: Uint128 = matured_claims.iter().fold(Uint128::zero(), |acc, claim| {
+        acc + claim.amount_of_lp_tokens_to_unbond
+    });
+
+    // 3) withdraw lp tokens 
+    let modules = app.modules(deps.as_ref());
+    let swap_msg: CosmosMsg = modules.api_request(
+        EXCHANGE,
+        DexExecuteMsg {
+            dex: config.dex.into(),
+            action: DexAction::WithdrawLiquidity { lp_token: config.liquidity_token.to_string().into(), amount: lp_tokens_to_withdraw },
+        },
+    )?;
+    let sub_msg = SubMsg::reply_on_success(swap_msg, LP_WITHDRAWAL_REPLY_ID);
+
+
+
+    Ok(Response::new()
+        .add_submessage(sub_msg)
+        .add_attribute("action", "4T2/AC/Withdraw_claims")
+        .add_attribute("lp_tokens_to_withdraw", lp_tokens_to_withdraw.to_string())
+    )
 }
 
 fn claim_lp_rewards(
