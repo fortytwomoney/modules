@@ -1,8 +1,10 @@
 use abstract_sdk::base::features::AbstractNameService;
-use abstract_sdk::os::objects::{ContractEntry, DexAssetPairing, LpToken, PoolReference, AssetEntry};
-use abstract_sdk::{Resolve, ModuleInterface};
+use abstract_sdk::os::objects::{
+    AssetEntry, ContractEntry, DexAssetPairing, LpToken, PoolReference,
+};
+use abstract_sdk::{ModuleInterface, Resolve};
 use cosmwasm_std::{
-    to_binary, Addr, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg, WasmMsg, Deps,
+    to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg, WasmMsg,
 };
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
@@ -64,15 +66,20 @@ pub fn instantiate_handler(
     let staking_contract_addr = ans.query(&staking_contract_entry)?;
 
     // get staking info
-    let staking_info = query_staking_info(deps.as_ref(), &app, lp_token_info.to_string().into(), dex.clone());
-    let min_unbonding_cooldown = if let (Some(max_claims), Some(unbonding_period)) = (staking_info.max_claims,staking_info.unbonding_period) {
+    let staking_info = query_staking_info(
+        deps.as_ref(),
+        &app,
+        lp_token_info.to_string().into(),
+        dex.clone(),
+    );
+    let min_unbonding_cooldown = if let (Some(max_claims), Some(unbonding_period)) =
+        (staking_info.max_claims, staking_info.unbonding_period)
+    {
         match unbonding_period {
-            Duration::Height(block) => { 
+            Duration::Height(block) => {
                 Some(Duration::Height(block.saturating_div(max_claims.into())))
-            },
-            Duration::Time(secs) => {
-                Some(Duration::Time(secs.saturating_div(max_claims.into())))
             }
+            Duration::Time(secs) => Some(Duration::Time(secs.saturating_div(max_claims.into()))),
         }
     } else {
         None
@@ -91,7 +98,6 @@ pub fn instantiate_handler(
     let pool_reference: PoolReference = pool_references.swap_remove(0);
     // get the pool data
     let pool_data = pool_reference.id.resolve(&deps.querier, &ans_host)?;
-
 
     let config: Config = Config {
         fees: FeeConfig {
@@ -166,7 +172,10 @@ pub fn query_staking_info(
     let modules = app.modules(deps);
     let staking_mod = modules.module_address(CW_STAKING).unwrap();
 
-    let query = CwStakingQueryMsg::Info { provider: dex, staking_token: lp_token_name };
+    let query = CwStakingQueryMsg::Info {
+        provider: dex,
+        staking_token: lp_token_name,
+    };
     let res: StakingInfoResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
     res
 }

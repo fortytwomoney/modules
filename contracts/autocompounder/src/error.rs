@@ -35,7 +35,10 @@ pub enum AutocompounderError {
 
     #[error("No ongoing claims are ready for withdrawal")]
     NoMaturedClaims {},
-    
+
     #[error("Minimum cooldown {min_cooldown:?} has not passed since the the latest unbonding {latest_unbonding:?}")]
-    UnbondingCooldownNotExpired { min_cooldown: cw_utils::Duration, latest_unbonding: Expiration },
+    UnbondingCooldownNotExpired {
+        min_cooldown: cw_utils::Duration,
+        latest_unbonding: Expiration,
+    },
 }

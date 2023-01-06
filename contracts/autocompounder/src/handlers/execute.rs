@@ -20,10 +20,11 @@ use forty_two::cw_staking::{
 };
 
 use crate::contract::{
-    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
+    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
+    LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::state::{Claim, CACHED_USER_ADDR, CLAIMS, CONFIG, PENDING_CLAIMS, LATEST_UNBONDING};
+use crate::state::{Claim, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS};
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
@@ -122,7 +123,7 @@ pub fn deposit(
 
 pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
-    
+
     // check if the cooldown period has passed
     let latest_unbonding = LATEST_UNBONDING.load(deps.storage)?;
     if let Some(min_cooldown) = config.min_unbonding_cooldown {
@@ -148,8 +149,12 @@ pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> Autocomp
 
     // 2) get total amount of LP tokens staked in vault
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
-    let total_lp_tokens_staked_in_vault =
-        query_stake(deps.as_ref(), &app, lp_token.clone(), config.pool_data.dex.clone());
+    let total_lp_tokens_staked_in_vault = query_stake(
+        deps.as_ref(),
+        &app,
+        lp_token.clone(),
+        config.pool_data.dex.clone(),
+    );
 
     // 3) calculate lp tokens amount to withdraw per each user
     for pending_claim in pending_claims? {
@@ -169,10 +174,12 @@ pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> Autocomp
             .checked_add(user_amount_of_vault_tokens_to_be_burned)
             .unwrap();
 
-
         // sets the unbonding timestamp to the current block height + bonding period
         let new_claim = Claim {
-            unbonding_timestamp: config.bonding_period.unwrap_or(Duration::Height(0)).after(&env.block),
+            unbonding_timestamp: config
+                .bonding_period
+                .unwrap_or(Duration::Height(0))
+                .after(&env.block),
             amount_of_vault_tokens_to_burn: user_amount_of_vault_tokens_to_be_burned,
             amount_of_lp_tokens_to_unbond: user_lp_tokens_withdraw_amount,
         };
@@ -188,8 +195,13 @@ pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> Autocomp
     // clear pending claims
     PENDING_CLAIMS.clear(deps.storage);
 
-    let unstake_msg =
-        unstake_lp_tokens(deps, app, config.pool_data.dex, lp_token, total_lp_amount_to_unbond);
+    let unstake_msg = unstake_lp_tokens(
+        deps,
+        app,
+        config.pool_data.dex,
+        lp_token,
+        total_lp_amount_to_unbond,
+    );
 
     let burn_msg = get_burn_msg(&config.vault_token, total_vault_tokens_to_burn)?;
 
@@ -342,18 +354,23 @@ fn compound(deps: DepsMut, app: AutocompounderApp) -> AutocompounderResult {
 }
 
 // withdraw all matured claims for a user
-pub fn withdraw_claims(deps:DepsMut, app: AutocompounderApp, env: Env, address: Addr ) -> AutocompounderResult {
+pub fn withdraw_claims(
+    deps: DepsMut,
+    app: AutocompounderApp,
+    env: Env,
+    address: Addr,
+) -> AutocompounderResult {
     CACHED_USER_ADDR.save(deps.storage, &address)?;
     let config = CONFIG.load(deps.storage)?;
     let claims = CLAIMS.load(deps.storage, address.to_string())?;
 
     // 1) get all matured claims for user
     let mut ongoing_claims: Vec<Claim> = vec![];
-    let mut matured_claims: Vec<Claim>= vec![];
-    claims.into_iter().for_each(|claim| { 
+    let mut matured_claims: Vec<Claim> = vec![];
+    claims.into_iter().for_each(|claim| {
         if claim.unbonding_timestamp.is_expired(&env.block) {
             matured_claims.push(claim);
-        } else { 
+        } else {
             ongoing_claims.push(claim);
         }
     });
@@ -361,32 +378,33 @@ pub fn withdraw_claims(deps:DepsMut, app: AutocompounderApp, env: Env, address: 
     if matured_claims.is_empty() {
         return Err(AutocompounderError::NoMaturedClaims {});
     }
-    
-    CLAIMS.save(deps.storage, address.to_string(), &ongoing_claims)?;
-    
-    // 2) sum up all matured claims
-    let lp_tokens_to_withdraw: Uint128 = matured_claims.iter().fold(Uint128::zero(), |acc, claim| {
-        acc + claim.amount_of_lp_tokens_to_unbond
-    });
 
-    // 3) withdraw lp tokens 
+    CLAIMS.save(deps.storage, address.to_string(), &ongoing_claims)?;
+
+    // 2) sum up all matured claims
+    let lp_tokens_to_withdraw: Uint128 =
+        matured_claims.iter().fold(Uint128::zero(), |acc, claim| {
+            acc + claim.amount_of_lp_tokens_to_unbond
+        });
+
+    // 3) withdraw lp tokens
     let modules = app.modules(deps.as_ref());
     let swap_msg: CosmosMsg = modules.api_request(
         EXCHANGE,
         DexExecuteMsg {
             dex: config.pool_data.dex,
-            action: DexAction::WithdrawLiquidity { lp_token: config.liquidity_token.to_string().into(), amount: lp_tokens_to_withdraw },
+            action: DexAction::WithdrawLiquidity {
+                lp_token: config.liquidity_token.to_string().into(),
+                amount: lp_tokens_to_withdraw,
+            },
         },
     )?;
     let sub_msg = SubMsg::reply_on_success(swap_msg, LP_WITHDRAWAL_REPLY_ID);
 
-
-
     Ok(Response::new()
         .add_submessage(sub_msg)
         .add_attribute("action", "4T2/AC/Withdraw_claims")
-        .add_attribute("lp_tokens_to_withdraw", lp_tokens_to_withdraw.to_string())
-    )
+        .add_attribute("lp_tokens_to_withdraw", lp_tokens_to_withdraw.to_string()))
 }
 
 fn claim_lp_rewards(
