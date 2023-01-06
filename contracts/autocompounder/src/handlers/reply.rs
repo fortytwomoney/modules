@@ -69,7 +69,13 @@ pub fn lp_provision_reply(
 
     // 2) Retrieve the number of LP tokens minted/staked.
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data));
-    let staked_lp = query_stake(deps.as_ref(), &app, env, lp_token.clone(), config.dex.clone())?;
+    let staked_lp = query_stake(
+        deps.as_ref(),
+        &app,
+        env,
+        lp_token.clone(),
+        config.dex.clone(),
+    )?;
     let cw20::BalanceResponse {
         balance: received_lp,
     } = deps.querier.query_wasm_smart(

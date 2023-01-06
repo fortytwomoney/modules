@@ -6,8 +6,7 @@ use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
     from_binary, to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
-    QuerierWrapper, QueryRequest, ReplyOn, Response, StdResult, SubMsg, Uint128, WasmMsg,
-    WasmQuery,
+    ReplyOn, Response, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw20::{Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
@@ -16,10 +15,9 @@ use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 use forty_two::cw_staking::{
     CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, StakeResponse, CW_STAKING,
 };
-use schemars::_private::NoSerialize;
 
 use crate::contract::{
-    AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID, LP_COMPOUND_REPLY_ID,
+    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::state::{Claim, CACHED_USER_ADDR, CLAIMS, CONFIG, PENDING_CLAIMS};
@@ -27,7 +25,7 @@ use crate::state::{Claim, CACHED_USER_ADDR, CLAIMS, CONFIG, PENDING_CLAIMS};
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     app: AutocompounderApp,
     msg: AutocompounderExecuteMsg,
@@ -38,10 +36,11 @@ pub fn execute_handler(
             withdrawal,
             deposit,
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
-        AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, _env, app, funds),
+        AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, env, app, funds),
         AutocompounderExecuteMsg::Withdraw {} => todo!(),
-        AutocompounderExecuteMsg::Compound {} => compound(deps, info, _env, app),
-        _ => Err(AutocompounderError::ExceededMaxCount {}),
+        AutocompounderExecuteMsg::BatchUnbond {} => batch_unbond(deps, info, env, app),
+        AutocompounderExecuteMsg::Compound {} => compound(deps, info, env, app),
+        AutocompounderExecuteMsg::Receive(msg) => receive(deps, env, info, app, msg),
     }
 }
 
@@ -121,7 +120,7 @@ pub fn deposit(
 
 pub fn batch_unbond(
     deps: DepsMut,
-    msg_info: MessageInfo,
+    _msg_info: MessageInfo,
     env: Env,
     dapp: AutocompounderApp,
 ) -> AutocompounderResult {
@@ -140,7 +139,8 @@ pub fn batch_unbond(
 
     // 2) get total amount of LP tokens staked in vault
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data));
-    let total_lp_tokens_staked_in_vault = query_stake(deps.as_ref(), &dapp, lp_token.clone(), config.dex.clone());
+    let total_lp_tokens_staked_in_vault =
+        query_stake(deps.as_ref(), &dapp, lp_token.clone(), config.dex.clone());
 
     // 3) calculate lp tokens amount to withdraw per each user
     for pending_claim in pending_claims? {
@@ -209,12 +209,12 @@ pub fn receive(
 
 fn redeem(
     deps: DepsMut,
-    env: Env,
-    dapp: AutocompounderApp,
+    _env: Env,
+    _dapp: AutocompounderApp,
     sender: String,
     amount_of_vault_tokens_to_be_burned: Uint128,
 ) -> AutocompounderResult {
-    let config = CONFIG.load(deps.storage)?;
+    let _config = CONFIG.load(deps.storage)?;
 
     // parse sender
     let sender = deps.api.addr_validate(&sender)?;
@@ -356,7 +356,12 @@ fn claim_lp_rewards(
         .unwrap()
 }
 
-pub fn query_stake(deps: Deps, app: &AutocompounderApp, lp_token_name: AssetEntry, dex: String) -> Uint128 {
+pub fn query_stake(
+    deps: Deps,
+    app: &AutocompounderApp,
+    lp_token_name: AssetEntry,
+    dex: String,
+) -> Uint128 {
     let modules = app.modules(deps);
     let staking_mod = modules.module_address(CW_STAKING).unwrap();
 
@@ -367,27 +372,6 @@ pub fn query_stake(deps: Deps, app: &AutocompounderApp, lp_token_name: AssetEntr
     };
     let res: StakeResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
     res.amount
-}
-
-fn claim_lps(
-    deps: Deps,
-    app: &AutocompounderApp,
-    provider: String,
-    lp_token_name: AssetEntry,
-) -> CosmosMsg {
-    let modules = app.modules(deps);
-
-    let msg: CosmosMsg = modules
-        .api_request(
-            CW_STAKING,
-            CwStakingExecuteMsg {
-                provider,
-                action: CwStakingAction::ClaimRewards { staking_token: lp_token_name },
-            },
-        )
-        .unwrap();
-
-    return msg;
 }
 
 fn get_burn_msg(contract: &Addr, amount: Uint128) -> StdResult<CosmosMsg> {
@@ -409,7 +393,7 @@ fn unstake_lp_tokens(
 ) -> CosmosMsg {
     let modules = app.modules(deps.as_ref());
 
-    let msg: CosmosMsg = modules
+    modules
         .api_request(
             CW_STAKING,
             CwStakingExecuteMsg {
@@ -419,7 +403,5 @@ fn unstake_lp_tokens(
                 },
             },
         )
-        .unwrap();
-
-    return msg;
+        .unwrap()
 }
