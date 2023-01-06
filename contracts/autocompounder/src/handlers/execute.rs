@@ -358,7 +358,7 @@ pub fn withdraw_claims(deps:DepsMut, app: AutocompounderApp, env: Env, address: 
         }
     });
 
-    if matured_claims.len() == 0 {
+    if matured_claims.is_empty() {
         return Err(AutocompounderError::NoMaturedClaims {});
     }
     
@@ -374,7 +374,7 @@ pub fn withdraw_claims(deps:DepsMut, app: AutocompounderApp, env: Env, address: 
     let swap_msg: CosmosMsg = modules.api_request(
         EXCHANGE,
         DexExecuteMsg {
-            dex: config.pool_data.dex.into(),
+            dex: config.pool_data.dex,
             action: DexAction::WithdrawLiquidity { lp_token: config.liquidity_token.to_string().into(), amount: lp_tokens_to_withdraw },
         },
     )?;
