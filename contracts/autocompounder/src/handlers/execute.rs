@@ -38,7 +38,7 @@ pub fn execute_handler(
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
         AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, env, app, funds),
         AutocompounderExecuteMsg::BatchUnbond {} => batch_unbond(deps, env, app),
-        AutocompounderExecuteMsg::Compound {} => compound(deps,app),
+        AutocompounderExecuteMsg::Compound {} => compound(deps, app),
         AutocompounderExecuteMsg::Withdraw {} => todo!(),
     }
 }
@@ -117,11 +117,7 @@ pub fn deposit(
         .add_attribute("action", "4T2/AC/Deposit"))
 }
 
-pub fn batch_unbond(
-    deps: DepsMut,
-    env: Env,
-    app: AutocompounderApp,
-) -> AutocompounderResult {
+pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let pending_claims: StdResult<Vec<_>> = PENDING_CLAIMS
         .range(deps.storage, None, None, Order::Ascending)
@@ -175,8 +171,7 @@ pub fn batch_unbond(
     // clear pending claims
     PENDING_CLAIMS.clear(deps.storage);
 
-    let unstake_msg =
-        unstake_lp_tokens(deps, app, config.dex, lp_token, total_lp_amount_to_unbond);
+    let unstake_msg = unstake_lp_tokens(deps, app, config.dex, lp_token, total_lp_amount_to_unbond);
 
     let burn_msg = get_burn_msg(&config.vault_token, total_vault_tokens_to_burn)?;
 
@@ -299,10 +294,7 @@ fn redeem(
     Ok(Response::new().add_attribute("action", "4T2/AC/Register_pre_claim"))
 }
 
-fn compound(
-    deps: DepsMut,
-    app: AutocompounderApp,
-) -> AutocompounderResult {
+fn compound(deps: DepsMut, app: AutocompounderApp) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
 
     // 1) Claim rewards from staking contract
