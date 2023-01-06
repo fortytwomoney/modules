@@ -363,9 +363,9 @@ pub fn withdraw_claims(deps:DepsMut, app: AutocompounderApp, env: Env, address: 
     let mut matured_claims: Vec<Claim>= vec![];
     claims.iter().for_each(|claim| { 
         if claim.unbonding_timestamp.is_expired(&env.block) {
-            matured_claims.push(claim.clone());
+            matured_claims.push(claim.to_owned());
         } else { 
-            ongoing_claims.push(claim.clone());
+            ongoing_claims.push(claim.to_owned());
         }
     });
 
