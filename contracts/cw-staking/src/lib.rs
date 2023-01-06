@@ -5,10 +5,8 @@ mod providers;
 mod handlers;
 mod traits;
 
-use traits::*;
-
-pub use cw_staking::CwStaking;
-pub use local_cw_staking::LocalCwStaking;
+pub use traits::cw_staking::CwStaking;
+pub use traits::local_cw_staking::LocalCwStaking;
 
 #[cfg(any(feature = "juno", feature = "osmosis"))]
 pub mod host_staking {
