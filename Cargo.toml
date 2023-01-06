@@ -3,7 +3,6 @@ members = [
   "contracts/*",
   "packages/*",
   "scripts",
-  "dao-contracts/contracts/staking/cw20-stake",
 ]
 
 [workspace.package]
@@ -33,7 +32,7 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0" }
 cw-storage-plus = "0.16.0"
 cw-controllers = "0.16.0"
-cw-paginate = { path = "dao-contracts/packages/cw-paginate/" }
+cw-paginate = {git = "https://github.com/DA0-DA0/dao-contracts.git"}
 cosmwasm-storage = { version = "1.1" }
 cw-utils = "0.16"
 cw2 = "0.16"

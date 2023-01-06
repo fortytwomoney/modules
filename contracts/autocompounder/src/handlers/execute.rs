@@ -39,10 +39,9 @@ pub fn execute_handler(
             deposit,
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
         AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, _env, app, funds),
-        AutocompounderExecuteMsg::BatchUnbond {} => batch_unbond(deps, info, _env, app),
-        _ => Err(AutocompounderError::ExceededMaxCount {}),
         AutocompounderExecuteMsg::Withdraw {} => todo!(),
-        AutocompounderExecuteMsg::Compound {} => todo!(),
+        AutocompounderExecuteMsg::Compound {} => compound(deps, info, _env, app),
+        _ => Err(AutocompounderError::ExceededMaxCount {}),
     }
 }
 
@@ -97,7 +96,7 @@ pub fn deposit(
     let swap_msg: CosmosMsg = modules.api_request(
         EXCHANGE,
         DexExecuteMsg {
-            dex: config.dex.into(),
+            dex: config.dex,
             action: DexAction::ProvideLiquidity {
                 assets: funds,
                 max_spread: None,
@@ -302,22 +301,59 @@ fn redeem(
     Ok(Response::new().add_attribute("action", "4T2/AC/Register_pre_claim"))
 }
 
-// fn get_token_amount(
-//     deps: DepsMut,
-//     env: Env,
-//     sender: String,
-//     amount: Uint128,
-// ) -> AutocompounderResult {
-//     let config = CONFIG.load(deps.storage)?;
-// }
+fn compound(
+    deps: DepsMut,
+    _msg_info: MessageInfo,
+    _env: Env,
+    app: AutocompounderApp,
+) -> AutocompounderResult {
+    let config = CONFIG.load(deps.storage)?;
 
-fn get_token_info(querier: &QuerierWrapper, contract_addr: Addr) -> StdResult<TokenInfoResponse> {
-    let token_info: TokenInfoResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: contract_addr.to_string(),
-        msg: to_binary(&Cw20QueryMsg::TokenInfo {})?,
-    }))?;
+    // 1) Claim rewards from staking contract
+    let claim_msg = claim_lp_rewards(
+        deps.as_ref(),
+        &app,
+        app.proxy_address(deps.as_ref())?.into_string(),
+        AssetEntry::from(LpToken::from(config.pool_data)),
+    );
+    let claim_submsg = SubMsg {
+        id: LP_COMPOUND_REPLY_ID,
+        msg: claim_msg,
+        gas_limit: None,
+        reply_on: ReplyOn::Success,
+    };
 
-    Ok(token_info)
+    // [These steps are caried out by the reply 👇]
+    // 2) deduct fee from rewards and swap to native token (send to treasury?)
+
+    // 3) Swap rewards to token in pool
+
+    // 4) Provide liquidity to pool
+
+    Ok(Response::new()
+        .add_submessage(claim_submsg)
+        .add_attribute("action", "4T2🚀AC🚀Compound🤖"))
+}
+
+fn claim_lp_rewards(
+    deps: Deps,
+    app: &AutocompounderApp,
+    provider: String,
+    lp_token_name: AssetEntry,
+) -> CosmosMsg {
+    let modules = app.modules(deps);
+
+    modules
+        .api_request(
+            CW_STAKING,
+            CwStakingExecuteMsg {
+                provider,
+                action: CwStakingAction::ClaimRewards {
+                    staking_token: lp_token_name,
+                },
+            },
+        )
+        .unwrap()
 }
 
 pub fn query_stake(deps: Deps, app: &AutocompounderApp, lp_token_name: AssetEntry) -> Uint128 {
@@ -378,7 +414,7 @@ fn unstake_lp_tokens(
             CwStakingExecuteMsg {
                 provider,
                 action: CwStakingAction::Unstake {
-                    lp_token: AnsAsset::new(lp_token_name, amount),
+                    staking_token: AnsAsset::new(lp_token_name, amount),
                 },
             },
         )
