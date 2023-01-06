@@ -37,10 +37,9 @@ pub fn execute_handler(
             deposit,
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
         AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, env, app, funds),
+        AutocompounderExecuteMsg::BatchUnbond {} => batch_unbond(deps, env, app),
+        AutocompounderExecuteMsg::Compound {} => compound(deps,app),
         AutocompounderExecuteMsg::Withdraw {} => todo!(),
-        AutocompounderExecuteMsg::BatchUnbond {} => batch_unbond(deps, info, env, app),
-        AutocompounderExecuteMsg::Compound {} => compound(deps, info, env, app),
-        AutocompounderExecuteMsg::Receive(msg) => receive(deps, env, info, app, msg),
     }
 }
 
@@ -48,12 +47,12 @@ pub fn execute_handler(
 pub fn update_fee_config(
     deps: DepsMut,
     msg_info: MessageInfo,
-    dapp: AutocompounderApp,
+    app: AutocompounderApp,
     _fee: Option<Uint128>,
     _withdrawal: Option<Uint128>,
     _deposit: Option<Uint128>,
 ) -> AutocompounderResult {
-    dapp.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
+    app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
 
     unimplemented!()
 }
@@ -120,9 +119,8 @@ pub fn deposit(
 
 pub fn batch_unbond(
     deps: DepsMut,
-    _msg_info: MessageInfo,
     env: Env,
-    dapp: AutocompounderApp,
+    app: AutocompounderApp,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let pending_claims: StdResult<Vec<_>> = PENDING_CLAIMS
@@ -140,7 +138,7 @@ pub fn batch_unbond(
     // 2) get total amount of LP tokens staked in vault
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data));
     let total_lp_tokens_staked_in_vault =
-        query_stake(deps.as_ref(), &dapp, lp_token.clone(), config.dex.clone());
+        query_stake(deps.as_ref(), &app, lp_token.clone(), config.dex.clone());
 
     // 3) calculate lp tokens amount to withdraw per each user
     for pending_claim in pending_claims? {
@@ -178,7 +176,7 @@ pub fn batch_unbond(
     PENDING_CLAIMS.clear(deps.storage);
 
     let unstake_msg =
-        unstake_lp_tokens(deps, dapp, config.dex, lp_token, total_lp_amount_to_unbond);
+        unstake_lp_tokens(deps, app, config.dex, lp_token, total_lp_amount_to_unbond);
 
     let burn_msg = get_burn_msg(&config.vault_token, total_vault_tokens_to_burn)?;
 
@@ -192,7 +190,7 @@ pub fn receive(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    dapp: AutocompounderApp,
+    app: AutocompounderApp,
     msg: Cw20ReceiveMsg,
 ) -> AutocompounderResult {
     // Withdraw fn can only be called by liquidity token
@@ -203,14 +201,14 @@ pub fn receive(
     }
 
     match from_binary(&msg.msg)? {
-        Cw20HookMsg::Redeem {} => redeem(deps, env, dapp, msg.sender, msg.amount),
+        Cw20HookMsg::Redeem {} => redeem(deps, env, app, msg.sender, msg.amount),
     }
 }
 
 fn redeem(
     deps: DepsMut,
     _env: Env,
-    _dapp: AutocompounderApp,
+    _app: AutocompounderApp,
     sender: String,
     amount_of_vault_tokens_to_be_burned: Uint128,
 ) -> AutocompounderResult {
@@ -250,11 +248,11 @@ fn redeem(
     //         CLAIMS.remove(deps.storage, sender.to_string());
     //         // 4) claim lp tokens
     //         let claim_unbonded_lps_msg =
-    //             claim_lps(deps.as_ref(), &dapp, config.dex.clone(), lp_token.clone());
+    //             claim_lps(deps.as_ref(), &app, config.dex.clone(), lp_token.clone());
 
     //         messages.push(claim_unbonded_lps_msg);
 
-    //         let modules = dapp.modules(deps.as_ref());
+    //         let modules = app.modules(deps.as_ref());
 
     //         let withdraw_liquidity_msg: CosmosMsg = modules.api_request(
     //             EXCHANGE,
@@ -303,8 +301,6 @@ fn redeem(
 
 fn compound(
     deps: DepsMut,
-    _msg_info: MessageInfo,
-    _env: Env,
     app: AutocompounderApp,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
