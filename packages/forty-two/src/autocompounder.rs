@@ -32,7 +32,6 @@ use abstract_sdk::os::app;
 use abstract_sdk::os::dex::{DexName, OfferAsset};
 use abstract_sdk::os::objects::AssetEntry;
 use cosmwasm_std::Uint128;
-use cw20::Cw20ReceiveMsg;
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 
@@ -69,16 +68,14 @@ pub enum AutocompounderExecuteMsg {
         deposit: Option<Uint128>,
         withdrawal: Option<Uint128>,
     },
-    /// Join vault by depositing 2 funds
+    /// Join vault by depositing one or more funds
     Deposit { funds: Vec<OfferAsset> },
     /// Withdraw all unbonded funds
     Withdraw {},
-    /// Unbond LP tokens
-    Unbond { amount: Uint128 },
     /// Compound all rewards in the vault
     Compound {},
-    /// Recieve cw20 tokens
-    Receive(Cw20ReceiveMsg),
+    /// Unbond in batches
+    BatchUnbond {},
 }
 
 #[cosmwasm_schema::cw_serde]

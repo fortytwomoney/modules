@@ -9,7 +9,6 @@ use cosmwasm_std::{
     Uint128, WasmMsg,
 };
 use cw20::TokenInfoResponse;
-
 use cw20_base::msg::ExecuteMsg::Mint;
 
 use forty_two::cw_staking::{
@@ -69,8 +68,14 @@ pub fn lp_provision_reply(
     let current_vault_supply = vault_token_info.total_supply;
 
     // 2) Retrieve the number of LP tokens minted/staked.
-    let lp_token = AssetEntry::from(LpToken::from(config.pool_data));
-    let staked_lp = query_stake(deps.as_ref(), &app, env, lp_token.clone(), config.dex)?;
+    let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
+    let staked_lp = query_stake(
+        deps.as_ref(),
+        &app,
+        env,
+        lp_token.clone(),
+        config.pool_data.dex.clone(),
+    )?;
     let cw20::BalanceResponse {
         balance: received_lp,
     } = deps.querier.query_wasm_smart(
@@ -104,7 +109,7 @@ pub fn lp_provision_reply(
     .into();
 
     // 5) Stake the LP tokens
-    let stake_msg = stake_lps(deps, app, "TODO".to_string(), lp_token, received_lp);
+    let stake_msg = stake_lps(deps, app, config.pool_data.dex, lp_token, received_lp);
 
     Ok(Response::new()
         .add_message(mint_msg)
@@ -112,7 +117,33 @@ pub fn lp_provision_reply(
         .add_attribute("vault_token_minted", mint_amount))
 }
 
-// TODO: move to cw_staking SDK
+pub fn lp_withdrawal_reply(
+    deps: DepsMut,
+    _env: Env,
+    dapp: AutocompounderApp,
+    _reply: Reply,
+) -> AutocompounderResult {
+    let config = CONFIG.load(deps.storage)?;
+    let ans_host = dapp.ans_host(deps.as_ref())?;
+    let proxy_address = dapp.proxy_address(deps.as_ref())?;
+    let user_address = CACHED_USER_ADDR.load(deps.storage)?;
+    CACHED_USER_ADDR.remove(deps.storage);
+
+    let mut messages = vec![];
+    let mut funds: Vec<AnsAsset> = vec![];
+    for asset in config.pool_data.assets {
+        let asset_info = asset.resolve(&deps.querier, &ans_host)?;
+        let amount = asset_info.query_balance(&deps.querier, proxy_address.to_string())?;
+        funds.push(AnsAsset::new(asset, amount));
+    }
+
+    let bank = dapp.bank(deps.as_ref());
+    let transfer_msg = bank.transfer(funds, &user_address)?;
+    messages.push(transfer_msg);
+
+    Ok(Response::new().add_messages(messages))
+}
+
 fn query_stake(
     deps: Deps,
     app: &AutocompounderApp,
@@ -222,7 +253,7 @@ pub fn lp_compound_reply(
         let lp_msg: CosmosMsg = modules.api_request(
             EXCHANGE,
             DexExecuteMsg {
-                dex: config.dex,
+                dex: config.pool_data.dex,
                 action: DexAction::ProvideLiquidity {
                     assets: rewards,
                     max_spread: None,
@@ -246,7 +277,7 @@ pub fn lp_compound_reply(
                     let swap_msg = modules.api_request(
                         EXCHANGE,
                         DexExecuteMsg {
-                            dex: config.dex.clone(),
+                            dex: config.pool_data.dex.clone(),
                             action: DexAction::Swap {
                                 offer_asset: reward.clone(),
                                 ask_asset: pool_assets.get(0).unwrap().clone(),
@@ -323,7 +354,7 @@ pub fn swapped_reply(
     let lp_msg: CosmosMsg = modules.api_request(
         EXCHANGE,
         DexExecuteMsg {
-            dex: config.dex,
+            dex: config.pool_data.dex,
             action: DexAction::ProvideLiquidity {
                 assets: rewards,
                 max_spread: None,

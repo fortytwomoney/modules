@@ -1,6 +1,7 @@
 use abstract_app::AppError;
 use cosmwasm_std::{OverflowError, StdError, Uint128};
 use cw_controllers::AdminError;
+use cw_utils::Expiration;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -24,11 +25,20 @@ pub enum AutocompounderError {
     ExceededMaxCount {},
 
     #[error("Withdraw function can only be called by the liquidity token")]
-    SenderIsNotLiquidityToken {},
+    SenderIsNotVaultToken {},
 
     #[error("mismatch of sent {sent} but specified deposit amount of {wanted}")]
     FundsMismatch { sent: Uint128, wanted: Uint128 },
 
     #[error("Pools with more than 2 assets are not supported")]
     PoolWithMoreThanTwoAssets {},
+
+    #[error("No ongoing claims are ready for withdrawal")]
+    NoMaturedClaims {},
+
+    #[error("Minimum cooldown {min_cooldown:?} has not passed since the the latest unbonding {latest_unbonding:?}")]
+    UnbondingCooldownNotExpired {
+        min_cooldown: cw_utils::Duration,
+        latest_unbonding: Expiration,
+    },
 }
