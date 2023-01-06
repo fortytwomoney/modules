@@ -4,6 +4,7 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Uint128;
 use cosmwasm_std::{Addr, Timestamp};
 use cw_storage_plus::{Item, Map};
+use cw_utils::{Duration, Expiration};
 
 #[cw_serde]
 pub struct FeeConfig {
@@ -32,13 +33,15 @@ pub struct Config {
     /// Vault fee structure
     pub fees: FeeConfig,
     /// Pool bonding period
-    pub bonding_period: Timestamp,
+    pub bonding_period: Option<Duration>,
+    /// minimum unbonding cooldown
+    pub min_unbonding_cooldown: Option<Duration>,
 }
 
 #[cw_serde]
 pub struct Claim {
     // timestamp of the start of the unbonding process
-    pub unbonding_timestamp: Timestamp,
+    pub unbonding_timestamp: Expiration,
     // amount of vault tokens to be burned
     pub amount_of_vault_tokens_to_burn: Uint128,
     //  amount of lp tokens being unbonded
@@ -46,6 +49,7 @@ pub struct Claim {
 }
 
 pub const CACHED_USER_ADDR: Item<Addr> = Item::new("cached_user_addr");
+pub const LATEST_UNBONDING: Item<Expiration> = Item::new("latest_unbonding");
 // Key: User addreess - Value: Amount of vault tokens to be burned
 pub const PENDING_CLAIMS: Map<String, Uint128> = Map::new("pending_claims");
 // Key: User address - Value: Claim

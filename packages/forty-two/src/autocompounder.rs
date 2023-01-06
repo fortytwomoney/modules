@@ -60,8 +60,6 @@ pub struct AutocompounderInstantiateMsg {
     pub dex: DexName,
     /// Assets in the pool
     pub pool_assets: Vec<AssetEntry>,
-    /// Pool bonding period
-    pub bonding_period: Timestamp,
 }
 
 #[cosmwasm_schema::cw_serde]

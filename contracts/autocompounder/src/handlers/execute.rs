@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 use abstract_sdk::base::features::{AbstractNameService, Identification};
 use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
 
@@ -6,11 +8,12 @@ use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
     from_binary, to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
-    ReplyOn, Response, StdResult, SubMsg, Uint128, WasmMsg,
+    ReplyOn, Response, StdResult, SubMsg, Uint128, WasmMsg, BlockInfo,
 };
 use cw20::{Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
 use cw_asset::AssetList;
+use cw_utils::{Expiration, Duration};
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 use forty_two::cw_staking::{
     CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, StakeResponse, CW_STAKING,
@@ -20,7 +23,7 @@ use crate::contract::{
     AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::state::{Claim, CACHED_USER_ADDR, CLAIMS, CONFIG, PENDING_CLAIMS};
+use crate::state::{Claim, CACHED_USER_ADDR, CLAIMS, CONFIG, PENDING_CLAIMS, LATEST_UNBONDING};
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
@@ -125,6 +128,18 @@ pub fn batch_unbond(
     dapp: AutocompounderApp,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
+    
+    // check if the cooldown period has passed
+    let latest_unbonding = LATEST_UNBONDING.load(deps.storage)?;
+    if let Some(min_cooldown) = config.min_unbonding_cooldown {
+        if latest_unbonding.add(min_cooldown)?.is_expired(&env.block) {
+            return Err(AutocompounderError::UnbondingCooldownNotExpired {
+                min_cooldown,
+                latest_unbonding,
+            });
+        }
+    }
+
     let pending_claims: StdResult<Vec<_>> = PENDING_CLAIMS
         .range(deps.storage, None, None, Order::Ascending)
         .collect();
@@ -160,8 +175,10 @@ pub fn batch_unbond(
             .checked_add(user_amount_of_vault_tokens_to_be_burned)
             .unwrap();
 
+
+        // sets the unbonding timestamp to the current block height + bonding period
         let new_claim = Claim {
-            unbonding_timestamp: env.block.time,
+            unbonding_timestamp: config.bonding_period.unwrap_or(Duration::Height(0)).after(&env.block),
             amount_of_vault_tokens_to_burn: user_amount_of_vault_tokens_to_be_burned,
             amount_of_lp_tokens_to_unbond: user_lp_tokens_withdraw_amount,
         };
@@ -344,9 +361,8 @@ pub fn withdraw_claims(deps:DepsMut, app: AutocompounderApp, env: Env, address: 
     // 1) get all matured claims for user
     let mut ongoing_claims: Vec<Claim> = vec![];
     let mut matured_claims: Vec<Claim>= vec![];
-    claims.iter().for_each(|claim| {
-        let time_diff = env.block.time.minus_nanos(claim.unbonding_timestamp.nanos());
-        if time_diff >= config.bonding_period {
+    claims.iter().for_each(|claim| { 
+        if claim.unbonding_timestamp.is_expired(&env.block) {
             matured_claims.push(claim.clone());
         } else { 
             ongoing_claims.push(claim.clone());

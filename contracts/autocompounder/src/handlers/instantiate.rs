@@ -1,13 +1,15 @@
 use abstract_sdk::base::features::AbstractNameService;
-use abstract_sdk::os::objects::{ContractEntry, DexAssetPairing, LpToken, PoolReference};
-use abstract_sdk::Resolve;
+use abstract_sdk::os::objects::{ContractEntry, DexAssetPairing, LpToken, PoolReference, AssetEntry};
+use abstract_sdk::{Resolve, ModuleInterface};
 use cosmwasm_std::{
-    to_binary, Addr, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg, WasmMsg,
+    to_binary, Addr, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg, WasmMsg, Deps,
 };
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
+use cw_utils::Duration;
 
 use forty_two::autocompounder::{AutocompounderInstantiateMsg, AUTOCOMPOUNDER};
+use forty_two::cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING};
 
 use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
 use crate::error::AutocompounderError;
@@ -33,7 +35,6 @@ pub fn instantiate_handler(
         code_id: _,
         dex,
         pool_assets,
-        bonding_period,
     } = msg;
 
     if pool_assets.len() > 2 {
@@ -50,7 +51,7 @@ pub fn instantiate_handler(
     let lp_token_info = ans.query(&lp_token)?;
 
     // match on the info and get cw20
-    let lp_token_addr: Addr = match lp_token_info {
+    let lp_token_addr: Addr = match lp_token_info.clone() {
         cw_asset::AssetInfoBase::Cw20(addr) => Ok(addr),
         _ => Err(AutocompounderError::Std(StdError::generic_err(
             "LP token is not a cw20",
@@ -61,6 +62,21 @@ pub fn instantiate_handler(
 
     let staking_contract_entry = ContractEntry::construct_staking_entry(&dex, pool_assets_slice);
     let staking_contract_addr = ans.query(&staking_contract_entry)?;
+
+    // get staking info
+    let staking_info = query_staking_info(deps.as_ref(), &app, lp_token_info.to_string().into(), dex.clone());
+    let min_unbonding_cooldown = if let (Some(max_claims), Some(unbonding_period)) = (staking_info.max_claims,staking_info.unbonding_period) {
+        match unbonding_period {
+            Duration::Height(block) => { 
+                Some(Duration::Height(block.saturating_div(max_claims.into())))
+            },
+            Duration::Time(secs) => {
+                Some(Duration::Time(secs.saturating_div(max_claims.into())))
+            }
+        }
+    } else {
+        None
+    };
 
     // TODO: Store this in the config
     let pairing = DexAssetPairing::new(
@@ -76,6 +92,7 @@ pub fn instantiate_handler(
     // get the pool data
     let pool_data = pool_reference.id.resolve(&deps.querier, &ans_host)?;
 
+
     let config: Config = Config {
         fees: FeeConfig {
             performance: performance_fees,
@@ -90,7 +107,8 @@ pub fn instantiate_handler(
         pool_address: pool_reference.pool_id,
         dex_assets: pool_assets,
         dex: dex.clone(),
-        bonding_period,
+        bonding_period: staking_info.unbonding_period,
+        min_unbonding_cooldown,
     };
 
     CONFIG.save(deps.storage, &config)?;
@@ -137,4 +155,18 @@ fn create_lp_token_submsg(
         id: INSTANTIATE_REPLY_ID,
         reply_on: ReplyOn::Success,
     })
+}
+
+pub fn query_staking_info(
+    deps: Deps,
+    app: &AutocompounderApp,
+    lp_token_name: AssetEntry,
+    dex: String,
+) -> StakingInfoResponse {
+    let modules = app.modules(deps);
+    let staking_mod = modules.module_address(CW_STAKING).unwrap();
+
+    let query = CwStakingQueryMsg::Info { provider: dex, staking_token: lp_token_name };
+    let res: StakingInfoResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
+    res
 }
