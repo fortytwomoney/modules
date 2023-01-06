@@ -5,12 +5,11 @@ use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken};
 use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
-    from_binary, to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, MessageInfo, QuerierWrapper,
-    QueryRequest, ReplyOn, Response, StdError, StdResult, SubMsg, Uint128, WasmQuery,
+    from_binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, SubMsg, Uint128,
 };
-use cw20::{AllowanceResponse, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
+use cw20::Cw20ReceiveMsg;
 
-use cw_asset::{AssetInfo, AssetList};
+use cw_asset::AssetList;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
 
@@ -36,9 +35,9 @@ pub fn execute_handler(
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
         AutocompounderExecuteMsg::Receive(msg) => receive(deps, info, _env, msg),
         AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, _env, app, funds),
-        _ => Err(AutocompounderError::ExceededMaxCount {}),
         AutocompounderExecuteMsg::Withdraw {} => todo!(),
         AutocompounderExecuteMsg::Compound {} => compound(deps, info, _env, app),
+        _ => Err(AutocompounderError::ExceededMaxCount {}),
     }
 }
 
@@ -93,7 +92,7 @@ pub fn deposit(
     let swap_msg: CosmosMsg = modules.api_request(
         EXCHANGE,
         DexExecuteMsg {
-            dex: config.dex.into(),
+            dex: config.dex,
             action: DexAction::ProvideLiquidity {
                 assets: funds,
                 max_spread: None,
@@ -152,27 +151,9 @@ fn redeem(deps: DepsMut, _env: Env, sender: String, _amount: Uint128) -> Autocom
     Ok(Response::default())
 }
 
-// fn get_token_amount(
-//     deps: DepsMut,
-//     env: Env,
-//     sender: String,
-//     amount: Uint128,
-// ) -> AutocompounderResult {
-//     let config = CONFIG.load(deps.storage)?;
-// }
-
-fn get_token_info(querier: &QuerierWrapper, contract_addr: Addr) -> StdResult<TokenInfoResponse> {
-    let token_info: TokenInfoResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: contract_addr.to_string(),
-        msg: to_binary(&Cw20QueryMsg::TokenInfo {})?,
-    }))?;
-
-    Ok(token_info)
-}
-
 fn compound(
     deps: DepsMut,
-    msg_info: MessageInfo,
+    _msg_info: MessageInfo,
     _env: Env,
     app: AutocompounderApp,
 ) -> AutocompounderResult {
@@ -212,15 +193,15 @@ fn claim_lp_rewards(
 ) -> CosmosMsg {
     let modules = app.modules(deps);
 
-    let msg: CosmosMsg = modules
+    modules
         .api_request(
             CW_STAKING,
             CwStakingExecuteMsg {
                 provider,
-                action: CwStakingAction::Claim { lp_token_name },
+                action: CwStakingAction::ClaimRewards {
+                    staking_token: lp_token_name,
+                },
             },
         )
-        .unwrap();
-
-    return msg;
+        .unwrap()
 }

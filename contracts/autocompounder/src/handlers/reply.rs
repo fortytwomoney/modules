@@ -52,14 +52,14 @@ pub fn instantiate_reply(
 
 pub fn lp_provision_reply(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     app: AutocompounderApp,
     _reply: Reply,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     let proxy_address = app.proxy_address(deps.as_ref())?;
-    let ans_host = app.ans_host(deps.as_ref())?;
+    let _ans_host = app.ans_host(deps.as_ref())?;
     CACHED_USER_ADDR.remove(deps.storage);
 
     // 1) get the total supply of Vault token
@@ -70,14 +70,15 @@ pub fn lp_provision_reply(
 
     // 2) Retrieve the number of LP tokens minted/staked.
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data));
-    let staked_lp = query_stake(
-        deps.as_ref(),
-        &app,
-        lp_token.clone(),
-        proxy_address.to_string(),
-    );
-
-    let received_lp = lp_token.resolve(&deps.querier, &ans_host)?.query_balance(&deps.querier, proxy_address.to_string())?;
+    let staked_lp = query_stake(deps.as_ref(), &app, env, lp_token.clone(), config.dex)?;
+    let cw20::BalanceResponse {
+        balance: received_lp,
+    } = deps.querier.query_wasm_smart(
+        config.vault_token.clone(),
+        &cw20::Cw20QueryMsg::Balance {
+            address: proxy_address.to_string(),
+        },
+    )?;
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
     // 3) Calculate the number of vault tokens to mint
@@ -111,35 +112,27 @@ pub fn lp_provision_reply(
         .add_attribute("vault_token_minted", mint_amount))
 }
 
+// TODO: move to cw_staking SDK
 fn query_stake(
     deps: Deps,
     app: &AutocompounderApp,
+    env: Env,
     lp_token_name: AssetEntry,
-    address: String,
-) -> Uint128 {
+    dex: String,
+) -> StdResult<Uint128> {
     let modules = app.modules(deps);
     let staking_mod = modules.module_address(CW_STAKING).unwrap();
 
-    let query = CwStakingQueryMsg::Stake {
-        lp_token_name,
-        address,
+    let query = CwStakingQueryMsg::Staked {
+        staker_address: env.contract.address.to_string(),
+        provider: dex,
+        staking_token: lp_token_name,
     };
-
     let res: StakeResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
-    res.amount
-
-    // TODO: update on new abstract release
-
-    // // // alternative method
-    // let modules = app.modules(deps.as_ref());
-    // let proxy_stake: StakeResponse = deps.querier.query(
-    //     &modules.api_query(CW_STAKING, CwStakingQueryMsg::Stake {
-    //         lp_token_name: lp_token_name,               // TODO:: check if this is correct
-    //         address: app.proxy_address(deps.as_ref())?.to_string()
-    //     })?
-    // )?.into();
+    Ok(res.amount)
 }
 
+// TODO: move to cw_staking SDK
 fn stake_lps(
     deps: DepsMut,
     app: AutocompounderApp,
@@ -148,20 +141,17 @@ fn stake_lps(
     amount: Uint128,
 ) -> CosmosMsg {
     let modules = app.modules(deps.as_ref());
-
-    let msg: CosmosMsg = modules
+    modules
         .api_request(
             CW_STAKING,
             CwStakingExecuteMsg {
                 provider,
                 action: CwStakingAction::Stake {
-                    lp_token: AnsAsset::new(lp_token_name, amount),
+                    staking_token: AnsAsset::new(lp_token_name, amount),
                 },
             },
         )
-        .unwrap();
-
-    return msg;
+        .unwrap()
 }
 
 pub fn lp_compound_reply(
@@ -196,9 +186,8 @@ pub fn lp_compound_reply(
         .collect::<StdResult<Vec<AnsAsset>>>()?;
     // remove zero balances
     rewards = rewards
-        .iter()
+        .into_iter()
         .filter(|reward| reward.amount != Uint128::zero())
-        .map(|a| a.clone())
         .collect::<Vec<AnsAsset>>();
 
     // 2) deduct fee from rewards
@@ -233,7 +222,7 @@ pub fn lp_compound_reply(
         let lp_msg: CosmosMsg = modules.api_request(
             EXCHANGE,
             DexExecuteMsg {
-                dex: config.dex.into(),
+                dex: config.dex,
                 action: DexAction::ProvideLiquidity {
                     assets: rewards,
                     max_spread: None,
@@ -257,7 +246,7 @@ pub fn lp_compound_reply(
                     let swap_msg = modules.api_request(
                         EXCHANGE,
                         DexExecuteMsg {
-                            dex: config.dex.clone().into(),
+                            dex: config.dex.clone(),
                             action: DexAction::Swap {
                                 offer_asset: reward.clone(),
                                 ask_asset: pool_assets.get(0).unwrap().clone(),
@@ -334,7 +323,7 @@ pub fn swapped_reply(
     let lp_msg: CosmosMsg = modules.api_request(
         EXCHANGE,
         DexExecuteMsg {
-            dex: config.dex.into(),
+            dex: config.dex,
             action: DexAction::ProvideLiquidity {
                 assets: rewards,
                 max_spread: None,

@@ -23,8 +23,7 @@ default = ["juno"]
 library = []
 # for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces"]
-juno = ["dep:wasmswap", "dep:cw20_junoswap", "dep:terraswap"]
-terra = ["dep:terraswap"]
+juno = ["dep:wasmswap", "dep:cw20_junoswap", "dep:cw20-stake"]
 osmosis = ["library", "dep:osmosis-std"]
 
 
@@ -38,11 +37,9 @@ abstract-sdk = { workspace = true }
 abstract-api = { workspace = true }
 cw-asset = "2.4.0"
 forty-two = { path = "../../packages/forty-two" }
-cw20-stake = { path = "../../dao-contracts/contracts/staking/cw20-stake", features = [
-  "library",
-] }
 
 # Juno dexes
+cw20-stake = { git = "https://github.com/DA0-DA0/dao-contracts.git", optional = true, features = ["library"] }
 cw20_junoswap = { package = "cw20", version = "0.10.0", optional = true }
 wasmswap = { git = "https://github.com/Wasmswap/wasmswap-contracts", tag = "v1.1.2-beta", features = [
   "library",
@@ -50,7 +47,6 @@ wasmswap = { git = "https://github.com/Wasmswap/wasmswap-contracts", tag = "v1.1
 # terraswap_juno = {package = "terraswap", version = "2.8.0", optional = true}
 
 # Terra dexes
-terraswap = { version = "2.8.0", optional = true }
 cw20 = { version = "0.16" }
 
 # Osmosis

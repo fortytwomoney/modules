@@ -1,11 +1,13 @@
 use crate::error::StakingError;
-use crate::traits::cw_staking_provider::CwStakingProvider;
+use crate::traits::cw_staking::CwStaking;
 use crate::traits::identify::Identify;
-use cosmwasm_std::{to_binary, Addr, Coin, CosmosMsg, Deps, StdResult, WasmMsg};
+
+use cosmwasm_std::{to_binary, Addr, CosmosMsg, Deps, QuerierWrapper, StdResult, Uint128, WasmMsg};
 use cw20::Cw20ExecuteMsg;
-use cw20_junoswap::Denom;
+
 use cw20_stake::msg::{ExecuteMsg as StakeCw20ExecuteMsg, ReceiveMsg};
 use cw_asset::{Asset, AssetInfo};
+use forty_two::cw_staking::{Claim, StakingInfoResponse};
 
 pub const JUNOSWAP: &str = "junoswap";
 // Source https://github.com/wasmswap/wasmswap-contracts
@@ -20,7 +22,7 @@ impl Identify for JunoSwap {
     }
 }
 
-impl CwStakingProvider for JunoSwap {
+impl CwStaking for JunoSwap {
     fn stake(
         &self,
         _deps: Deps,
@@ -64,50 +66,61 @@ impl CwStakingProvider for JunoSwap {
             funds: vec![],
         })])
     }
-}
 
-fn _denom_and_asset_match(denom: &Denom, asset: &AssetInfo) -> Result<bool, StakingError> {
-    match denom {
-        Denom::Native(denom_name) => match asset {
-            cw_asset::AssetInfoBase::Native(asset_name) => Ok(denom_name == asset_name),
-            cw_asset::AssetInfoBase::Cw20(_asset_addr) => Ok(false),
-            cw_asset::AssetInfoBase::Cw1155(_, _) => Err(StakingError::Cw1155Unsupported),
-            _ => panic!("unsupported asset"),
-        },
-        Denom::Cw20(denom_addr) => match asset {
-            cw_asset::AssetInfoBase::Native(_asset_name) => Ok(false),
-            cw_asset::AssetInfoBase::Cw20(asset_addr) => Ok(denom_addr == asset_addr),
-            cw_asset::AssetInfoBase::Cw1155(_, _) => Err(StakingError::Cw1155Unsupported),
-            _ => panic!("unsupported asset"),
-        },
+    fn query_info(
+        &self,
+        querier: &QuerierWrapper,
+        staking_address: Addr,
+    ) -> StdResult<StakingInfoResponse> {
+        let stake_info_resp: cw20_stake::state::Config = querier.query_wasm_smart(
+            staking_address.clone(),
+            &cw20_stake::msg::QueryMsg::GetConfig {},
+        )?;
+        Ok(StakingInfoResponse {
+            staking_contract_address: staking_address,
+            staking_token: AssetInfo::Cw20(stake_info_resp.token_address),
+            unbonding_period: stake_info_resp.unstaking_duration,
+            max_claims: Some(cw20_stake::state::MAX_CLAIMS as u32),
+        })
     }
-}
 
-fn _cw_approve_msgs(assets: &[Asset], spender: &Addr) -> StdResult<Vec<CosmosMsg>> {
-    let mut msgs = vec![];
-    for asset in assets {
-        if let AssetInfo::Cw20(addr) = &asset.info {
-            let msg = cw20_junoswap::Cw20ExecuteMsg::IncreaseAllowance {
-                spender: spender.to_string(),
-                amount: asset.amount,
-                expires: None,
-            };
-            msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: addr.to_string(),
-                msg: to_binary(&msg)?,
-                funds: vec![],
-            }))
-        }
+    fn query_staked(
+        &self,
+        querier: &QuerierWrapper,
+        staking_address: Addr,
+        staker: Addr,
+    ) -> StdResult<Uint128> {
+        let stake_balance: cw20_stake::msg::StakedBalanceAtHeightResponse = querier
+            .query_wasm_smart(
+                staking_address,
+                &cw20_stake::msg::QueryMsg::StakedBalanceAtHeight {
+                    address: staker.into_string(),
+                    height: None,
+                },
+            )?;
+        Ok(stake_balance.balance)
     }
-    Ok(msgs)
-}
 
-fn _coins_in_assets(assets: &[Asset]) -> Vec<Coin> {
-    let mut coins = vec![];
-    for asset in assets {
-        if let AssetInfo::Native(denom) = &asset.info {
-            coins.push(Coin::new(asset.amount.u128(), denom.clone()));
-        }
+    fn query_unbonding(
+        &self,
+        querier: &QuerierWrapper,
+        staking_address: Addr,
+        staker: Addr,
+    ) -> StdResult<Vec<Claim>> {
+        let claims: cw20_stake::msg::ClaimsResponse = querier.query_wasm_smart(
+            staking_address,
+            &cw20_stake::msg::QueryMsg::Claims {
+                address: staker.into_string(),
+            },
+        )?;
+        let claims = claims
+            .claims
+            .iter()
+            .map(|claim| Claim {
+                amount: claim.amount,
+                claimable_at: claim.release_at,
+            })
+            .collect();
+        Ok(claims)
     }
-    coins
 }

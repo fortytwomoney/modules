@@ -88,13 +88,10 @@ fn resolve_assets_to_transfer(
     ans_host: &AnsHost,
 ) -> StdResult<Vec<Coin>> {
     match dex_action {
-        CwStakingAction::Stake { lp_token, .. } => {
-            let resolved: Coin = lp_token.resolve(&deps.querier, ans_host)?.try_into()?;
+        CwStakingAction::Stake { staking_token, .. } => {
+            let resolved: Coin = staking_token.resolve(&deps.querier, ans_host)?.try_into()?;
             Ok(vec![resolved])
         }
-        // No assets to transfer
-        CwStakingAction::Unstake { .. } => Ok(vec![]),
-        // No assets to transfer
-        CwStakingAction::Claim { .. } => Ok(vec![]),
+        _ => Ok(vec![]),
     }
 }

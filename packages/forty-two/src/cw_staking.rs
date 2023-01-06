@@ -7,10 +7,10 @@ use abstract_sdk::os::objects::{AnsAsset, AssetEntry};
 use cosmwasm_schema::QueryResponses;
 use cosmwasm_std::{Addr, Uint128};
 use cw20::Expiration;
+use cw_asset::AssetInfo;
+use cw_utils::Duration;
 
 pub type ProviderName = String;
-pub type LpToken = AnsAsset;
-pub type Claim = (Uint128, Expiration);
 
 /// The callback id for staking over ibc
 pub const IBC_STAKING_PROVIDER_ID: u32 = 22335;
@@ -35,27 +35,42 @@ pub struct CwStakingExecuteMsg {
 #[cosmwasm_schema::cw_serde]
 /// Possible actions to perform on the staking contract
 pub enum CwStakingAction {
-    /// Stake a given LP token
-    Stake { lp_token: LpToken },
-    /// Unstake a given LP token
-    Unstake { lp_token: LpToken },
-    /// Claim rewards for a given LP token
-    Claim { lp_token_name: AssetEntry },
+    /// Stakes/bonds a given token
+    Stake { staking_token: AnsAsset },
+    /// Unstake a given token
+    Unstake { staking_token: AnsAsset },
+    /// Claim rewards for a given token
+    ClaimRewards { staking_token: AssetEntry },
 }
 
 #[cosmwasm_schema::cw_serde]
 #[derive(QueryResponses)]
 pub enum CwStakingQueryMsg {
+    #[returns(StakingInfoResponse)]
+    Info {
+        provider: ProviderName,
+        staking_token: AssetEntry,
+    },
     #[returns(StakeResponse)]
-    Stake {
-        lp_token_name: AssetEntry,
-        address: String,
+    Staked {
+        provider: ProviderName,
+        staking_token: AssetEntry,
+        staker_address: String,
     },
     #[returns(UnbondingResponse)]
     Unbonding {
-        lp_token_name: AssetEntry,
-        address: String,
+        provider: ProviderName,
+        staking_token: AssetEntry,
+        staker_address: String,
     },
+}
+
+#[cosmwasm_schema::cw_serde]
+pub struct StakingInfoResponse {
+    pub unbonding_period: Option<Duration>,
+    pub staking_contract_address: Addr,
+    pub staking_token: AssetInfo,
+    pub max_claims: Option<u32>,
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -66,4 +81,10 @@ pub struct StakeResponse {
 #[cosmwasm_schema::cw_serde]
 pub struct UnbondingResponse {
     pub claims: Vec<Claim>,
+}
+
+#[cosmwasm_schema::cw_serde]
+pub struct Claim {
+    pub amount: Uint128,
+    pub claimable_at: Expiration,
 }
