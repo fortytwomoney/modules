@@ -75,8 +75,6 @@ pub enum AutocompounderExecuteMsg {
     Deposit { funds: Vec<OfferAsset> },
     /// Withdraw all unbonded funds
     Withdraw {},
-    /// Unbond LP tokens
-    Unbond { amount: Uint128 },
     /// Compound all rewards in the vault
     Compound {},
     /// Unbond in batches
