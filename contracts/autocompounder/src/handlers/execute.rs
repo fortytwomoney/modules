@@ -19,7 +19,7 @@ use forty_two::cw_staking::{
 use schemars::_private::NoSerialize;
 
 use crate::contract::{
-    AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
+    AutocompounderApp, AutocompounderResult, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID, LP_COMPOUND_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::state::{Claim, CACHED_USER_ADDR, CLAIMS, CONFIG, PENDING_CLAIMS};
@@ -140,7 +140,7 @@ pub fn batch_unbond(
 
     // 2) get total amount of LP tokens staked in vault
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data));
-    let total_lp_tokens_staked_in_vault = query_stake(deps.as_ref(), &dapp, lp_token.clone());
+    let total_lp_tokens_staked_in_vault = query_stake(deps.as_ref(), &dapp, lp_token.clone(), config.dex.clone());
 
     // 3) calculate lp tokens amount to withdraw per each user
     for pending_claim in pending_claims? {
@@ -356,13 +356,14 @@ fn claim_lp_rewards(
         .unwrap()
 }
 
-pub fn query_stake(deps: Deps, app: &AutocompounderApp, lp_token_name: AssetEntry) -> Uint128 {
+pub fn query_stake(deps: Deps, app: &AutocompounderApp, lp_token_name: AssetEntry, dex: String) -> Uint128 {
     let modules = app.modules(deps);
     let staking_mod = modules.module_address(CW_STAKING).unwrap();
 
-    let query = CwStakingQueryMsg::Stake {
-        lp_token_name,
-        address: app.proxy_address(deps).unwrap().to_string(),
+    let query = CwStakingQueryMsg::Staked {
+        staking_token: lp_token_name,
+        staker_address: app.proxy_address(deps).unwrap().to_string(),
+        provider: dex,
     };
     let res: StakeResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
     res.amount
@@ -381,7 +382,7 @@ fn claim_lps(
             CW_STAKING,
             CwStakingExecuteMsg {
                 provider,
-                action: CwStakingAction::Claim { lp_token_name },
+                action: CwStakingAction::ClaimRewards { staking_token: lp_token_name },
             },
         )
         .unwrap();
