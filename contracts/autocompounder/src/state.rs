@@ -1,8 +1,7 @@
-use abstract_sdk::os::dex::DexName;
-use abstract_sdk::os::objects::{AssetEntry, PoolId, PoolMetadata};
+use abstract_sdk::os::objects::{PoolId, PoolMetadata};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Uint128;
-use cosmwasm_std::{Addr, Timestamp};
+use cosmwasm_std::Addr;
 use cw_storage_plus::{Item, Map};
 use cw_utils::{Duration, Expiration};
 
@@ -17,9 +16,6 @@ pub struct FeeConfig {
 pub struct Config {
     /// Address of the staking contract
     pub staking_contract: Addr,
-    pub dex: DexName,
-    /// Assets in the pool
-    pub dex_assets: Vec<AssetEntry>,
     /// Pool address (number or Address)
     pub pool_address: PoolId,
     /// Pool metadata

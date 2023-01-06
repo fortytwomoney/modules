@@ -8,12 +8,12 @@ use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
     from_binary, to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
-    ReplyOn, Response, StdResult, SubMsg, Uint128, WasmMsg, BlockInfo,
+    ReplyOn, Response, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw20::{Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
 use cw_asset::AssetList;
-use cw_utils::{Expiration, Duration};
+use cw_utils::Duration;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 use forty_two::cw_staking::{
     CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, StakeResponse, CW_STAKING,
@@ -98,7 +98,7 @@ pub fn deposit(
     let swap_msg: CosmosMsg = modules.api_request(
         EXCHANGE,
         DexExecuteMsg {
-            dex: config.dex,
+            dex: config.pool_data.dex,
             action: DexAction::ProvideLiquidity {
                 assets: funds,
                 max_spread: None,
@@ -153,9 +153,9 @@ pub fn batch_unbond(
     let vault_tokens_total_supply = vault_token_info.total_supply;
 
     // 2) get total amount of LP tokens staked in vault
-    let lp_token = AssetEntry::from(LpToken::from(config.pool_data));
+    let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
     let total_lp_tokens_staked_in_vault =
-        query_stake(deps.as_ref(), &dapp, lp_token.clone(), config.dex.clone());
+        query_stake(deps.as_ref(), &dapp, lp_token.clone(), config.pool_data.dex.clone());
 
     // 3) calculate lp tokens amount to withdraw per each user
     for pending_claim in pending_claims? {
@@ -195,7 +195,7 @@ pub fn batch_unbond(
     PENDING_CLAIMS.clear(deps.storage);
 
     let unstake_msg =
-        unstake_lp_tokens(deps, dapp, config.dex, lp_token, total_lp_amount_to_unbond);
+        unstake_lp_tokens(deps, dapp, config.pool_data.dex, lp_token, total_lp_amount_to_unbond);
 
     let burn_msg = get_burn_msg(&config.vault_token, total_vault_tokens_to_burn)?;
 
@@ -385,7 +385,7 @@ pub fn withdraw_claims(deps:DepsMut, app: AutocompounderApp, env: Env, address: 
     let swap_msg: CosmosMsg = modules.api_request(
         EXCHANGE,
         DexExecuteMsg {
-            dex: config.dex.into(),
+            dex: config.pool_data.dex.into(),
             action: DexAction::WithdrawLiquidity { lp_token: config.liquidity_token.to_string().into(), amount: lp_tokens_to_withdraw },
         },
     )?;

@@ -105,8 +105,8 @@ pub fn instantiate_handler(
         commission_addr: deps.api.addr_validate(&commission_addr)?,
         pool_data: pool_data.clone(),
         pool_address: pool_reference.pool_id,
-        dex_assets: pool_assets,
-        dex: dex.clone(),
+        // dex_assets: pool_assets,
+        // dex: dex.clone(),
         bonding_period: staking_info.unbonding_period,
         min_unbonding_cooldown,
     };
