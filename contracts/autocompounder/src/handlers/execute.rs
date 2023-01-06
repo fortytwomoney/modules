@@ -41,8 +41,8 @@ pub fn execute_handler(
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
         AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, env, app, funds),
         AutocompounderExecuteMsg::Withdraw {} => withdraw_claims(deps, app, env, info.sender),
-        AutocompounderExecuteMsg::BatchUnbond {} => batch_unbond(deps, info, env, app),
-        AutocompounderExecuteMsg::Compound {} => compound(deps, info, env, app),
+        AutocompounderExecuteMsg::BatchUnbond {} => batch_unbond(deps, env, app),
+        AutocompounderExecuteMsg::Compound {} => compound(deps, app),
     }
 }
 
@@ -149,7 +149,7 @@ pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> Autocomp
     // 2) get total amount of LP tokens staked in vault
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
     let total_lp_tokens_staked_in_vault =
-        query_stake(deps.as_ref(), &dapp, lp_token.clone(), config.pool_data.dex.clone());
+        query_stake(deps.as_ref(), &app, lp_token.clone(), config.pool_data.dex.clone());
 
     // 3) calculate lp tokens amount to withdraw per each user
     for pending_claim in pending_claims? {
@@ -189,7 +189,7 @@ pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> Autocomp
     PENDING_CLAIMS.clear(deps.storage);
 
     let unstake_msg =
-        unstake_lp_tokens(deps, dapp, config.pool_data.dex, lp_token, total_lp_amount_to_unbond);
+        unstake_lp_tokens(deps, app, config.pool_data.dex, lp_token, total_lp_amount_to_unbond);
 
     let burn_msg = get_burn_msg(&config.vault_token, total_vault_tokens_to_burn)?;
 

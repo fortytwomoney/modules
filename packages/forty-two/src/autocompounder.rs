@@ -32,7 +32,6 @@ use abstract_sdk::os::app;
 use abstract_sdk::os::dex::{DexName, OfferAsset};
 use abstract_sdk::os::objects::AssetEntry;
 use cosmwasm_std::Uint128;
-use cw20::Cw20ReceiveMsg;
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 
