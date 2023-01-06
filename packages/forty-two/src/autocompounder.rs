@@ -69,7 +69,7 @@ pub enum AutocompounderExecuteMsg {
         deposit: Option<Uint128>,
         withdrawal: Option<Uint128>,
     },
-    /// Join vault by depositing 2 funds
+    /// Join vault by depositing one or more funds
     Deposit { funds: Vec<OfferAsset> },
     /// Withdraw all unbonded funds
     Withdraw {},
@@ -77,8 +77,6 @@ pub enum AutocompounderExecuteMsg {
     Compound {},
     /// Unbond in batches
     BatchUnbond {},
-    /// Recieve cw20 tokens
-    Receive(Cw20ReceiveMsg),
 }
 
 #[cosmwasm_schema::cw_serde]
