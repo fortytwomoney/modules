@@ -68,13 +68,13 @@ pub fn lp_provision_reply(
     let current_vault_supply = vault_token_info.total_supply;
 
     // 2) Retrieve the number of LP tokens minted/staked.
-    let lp_token = AssetEntry::from(LpToken::from(config.pool_data));
+    let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
     let staked_lp = query_stake(
         deps.as_ref(),
         &app,
         env,
         lp_token.clone(),
-        config.dex.clone(),
+        config.pool_data.dex.clone(),
     )?;
     let cw20::BalanceResponse {
         balance: received_lp,
@@ -109,7 +109,7 @@ pub fn lp_provision_reply(
     .into();
 
     // 5) Stake the LP tokens
-    let stake_msg = stake_lps(deps, app, config.dex, lp_token, received_lp);
+    let stake_msg = stake_lps(deps, app, config.pool_data.dex, lp_token, received_lp);
 
     Ok(Response::new()
         .add_message(mint_msg)
@@ -253,7 +253,7 @@ pub fn lp_compound_reply(
         let lp_msg: CosmosMsg = modules.api_request(
             EXCHANGE,
             DexExecuteMsg {
-                dex: config.dex,
+                dex: config.pool_data.dex,
                 action: DexAction::ProvideLiquidity {
                     assets: rewards,
                     max_spread: None,
@@ -277,7 +277,7 @@ pub fn lp_compound_reply(
                     let swap_msg = modules.api_request(
                         EXCHANGE,
                         DexExecuteMsg {
-                            dex: config.dex.clone(),
+                            dex: config.pool_data.dex.clone(),
                             action: DexAction::Swap {
                                 offer_asset: reward.clone(),
                                 ask_asset: pool_assets.get(0).unwrap().clone(),
@@ -354,7 +354,7 @@ pub fn swapped_reply(
     let lp_msg: CosmosMsg = modules.api_request(
         EXCHANGE,
         DexExecuteMsg {
-            dex: config.dex,
+            dex: config.pool_data.dex,
             action: DexAction::ProvideLiquidity {
                 assets: rewards,
                 max_spread: None,

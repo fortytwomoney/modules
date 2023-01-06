@@ -1,6 +1,7 @@
 use abstract_app::AppError;
 use cosmwasm_std::{OverflowError, StdError, Uint128};
 use cw_controllers::AdminError;
+use cw_utils::Expiration;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -32,6 +33,9 @@ pub enum AutocompounderError {
     #[error("Pools with more than 2 assets are not supported")]
     PoolWithMoreThanTwoAssets {},
 
-    #[error("TokensStillBeingUnbonded")]
-    TokensStillBeingUnbonded {},
+    #[error("No ongoing claims are ready for withdrawal")]
+    NoMaturedClaims {},
+    
+    #[error("Minimum cooldown {min_cooldown:?} has not passed since the the latest unbonding {latest_unbonding:?}")]
+    UnbondingCooldownNotExpired { min_cooldown: cw_utils::Duration, latest_unbonding: Expiration },
 }

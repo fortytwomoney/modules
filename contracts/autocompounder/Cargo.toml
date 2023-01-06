@@ -39,3 +39,4 @@ forty-two = { path = "../../packages/forty-two" }
 abstract-app = { workspace = true, features = ["library"] }
 abstract-sdk = { workspace = true }
 protobuf = { version = "2", features = ["with-bytes"] }
+cw-utils.workspace = true
