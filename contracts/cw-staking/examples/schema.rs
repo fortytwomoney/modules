@@ -1,8 +1,10 @@
 use std::env::current_dir;
 use std::fs::create_dir_all;
 
-use cosmwasm_schema::remove_schemas;
+use cosmwasm_schema::{remove_schemas, write_api};
+use cosmwasm_std::Empty;
 use cw_staking::contract::CwStakingApi;
+use forty_two::cw_staking::{CwStakingQueryMsg, CwStakingExecuteMsg};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
@@ -11,4 +13,12 @@ fn main() {
     remove_schemas(&out_dir).unwrap();
 
     CwStakingApi::export_schema(&out_dir);
+
+    write_api! {
+        name: "module-schema",
+        instantiate: Empty,
+        query: CwStakingQueryMsg,
+        execute: CwStakingExecuteMsg,
+        migrate: Empty,
+    };
 }
