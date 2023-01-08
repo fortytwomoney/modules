@@ -1,7 +1,5 @@
 use abstract_sdk::base::features::AbstractNameService;
-use abstract_sdk::os::objects::{
-    AssetEntry, ContractEntry, DexAssetPairing, LpToken, PoolReference,
-};
+use abstract_sdk::os::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference, UncheckedContractEntry};
 use abstract_sdk::{ModuleInterface, Resolve};
 use cosmwasm_std::{
     to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg, WasmMsg,
@@ -62,7 +60,10 @@ pub fn instantiate_handler(
 
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
-    let staking_contract_entry = ContractEntry::construct_staking_entry(&dex, pool_assets_slice);
+    // TODO: this will be fixed in a future release
+    let joined_assets = [pool_assets[0].as_str(), pool_assets[1].as_str()].join(",");
+    let staking_contract_name = ["staking", joined_assets.as_str()].join("/");
+    let staking_contract_entry = UncheckedContractEntry::new(&dex, &staking_contract_name).check();
     let staking_contract_addr = ans.query(&staking_contract_entry)?;
 
     // get staking info
@@ -97,7 +98,7 @@ pub fn instantiate_handler(
     // Takes the value from the vector
     let pool_reference: PoolReference = pool_references.swap_remove(0);
     // get the pool data
-    let pool_data = pool_reference.id.resolve(&deps.querier, &ans_host)?;
+    let pool_data = pool_reference.unique_id.resolve(&deps.querier, &ans_host)?;
 
     let config: Config = Config {
         fees: FeeConfig {
@@ -110,7 +111,7 @@ pub fn instantiate_handler(
         liquidity_token: lp_token_addr,
         commission_addr: deps.api.addr_validate(&commission_addr)?,
         pool_data: pool_data.clone(),
-        pool_address: pool_reference.pool_id,
+        pool_address: pool_reference.pool_address,
         // dex_assets: pool_assets,
         // dex: dex.clone(),
         bonding_period: staking_info.unbonding_period,

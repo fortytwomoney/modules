@@ -32,6 +32,7 @@ use abstract_sdk::os::app;
 use abstract_sdk::os::dex::{DexName, OfferAsset};
 use abstract_sdk::os::objects::AssetEntry;
 use cosmwasm_std::Uint128;
+use cosmwasm_schema::QueryResponses;
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 
@@ -79,7 +80,11 @@ pub enum AutocompounderExecuteMsg {
 }
 
 #[cosmwasm_schema::cw_serde]
+#[derive(QueryResponses)]
 pub enum AutocompounderQueryMsg {
+    /// Query the config of the autocompounder
+    /// Returns [`ConfigResponse`]
+    #[returns(ConfigResponse)]
     Config {},
 }
 
@@ -87,4 +92,8 @@ pub enum AutocompounderQueryMsg {
 pub enum Cw20HookMsg {
     /// Withdraws a given amount from the vault.
     Redeem {},
+}
+
+#[cosmwasm_schema::cw_serde]
+pub struct ConfigResponse {
 }
