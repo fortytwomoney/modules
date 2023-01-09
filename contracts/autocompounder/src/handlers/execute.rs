@@ -292,7 +292,7 @@ pub fn withdraw_claims(
 }
 
 
-
+#[allow(clippy::type_complexity)]
 /// Calculates the amount the total amount of lp tokens to unbond and vault tokens to burn
 fn calculate_withdrawals(deps: Deps, config: &Config, app: &AutocompounderApp, pending_claims: Vec<(String, Uint128)>, env: Env) -> Result<(Uint128, Uint128, Vec<(String, Vec<Claim>)>), AutocompounderError> {
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
@@ -310,7 +310,7 @@ fn calculate_withdrawals(deps: Deps, config: &Config, app: &AutocompounderApp, p
         deps,
         app,
         config.pool_data.dex.clone(),
-        lp_token.clone(),
+        lp_token,
     )?;
 
     let mut updated_claims: Vec<(String, Vec<Claim>)> = vec![];
@@ -352,14 +352,15 @@ fn calculate_withdrawals(deps: Deps, config: &Config, app: &AutocompounderApp, p
 /// Checks if the unbonding cooldown period for batch unbonding has passed or not.
 fn check_unbonding_cooldown(deps: &DepsMut, config: &crate::state::Config, env: &Env) -> Result<(), AutocompounderError> {
     let latest_unbonding = LATEST_UNBONDING.load(deps.storage)?;
-    Ok(if let Some(min_cooldown) = config.min_unbonding_cooldown {
+    if let Some(min_cooldown) = config.min_unbonding_cooldown {
         if latest_unbonding.add(min_cooldown)?.is_expired(&env.block) {
             return Err(AutocompounderError::UnbondingCooldownNotExpired {
                 min_cooldown,
                 latest_unbonding,
             });
         }
-    })
+    };
+    Ok(())
 }
 
 fn claim_lp_rewards(

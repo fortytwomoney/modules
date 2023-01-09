@@ -362,7 +362,7 @@ fn swap_rewards_with_reply(rewards: Vec<AnsAsset>, target_assets: Vec<AssetEntry
 /// queries available staking rewards assets and the corresponding balances
 fn get_staking_rewards(deps: Deps, app: &AutocompounderApp, config: &Config ) -> StdResult<Vec<AnsAsset>>{
     let ans_host = app.ans_host(deps)?;
-    let rewards = query_rewards(deps, &app, config.pool_data.clone());
+    let rewards = query_rewards(deps, app, config.pool_data.clone());
     let mut rewards = rewards
         .iter()
         .map(|entry| -> StdResult<AnsAsset> {
