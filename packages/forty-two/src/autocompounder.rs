@@ -52,6 +52,7 @@ pub struct AutocompounderInstantiateMsg {
     pub performance_fees: Uint128,
     pub deposit_fees: Uint128,
     pub withdrawal_fees: Uint128,
+    pub fee_asset: String,
     /// address that recieves the fee commissions
     pub commission_addr: String,
     /// cw20 code id
