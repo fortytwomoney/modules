@@ -10,13 +10,12 @@ use cosmwasm_std::{
     from_binary, to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
     ReplyOn, Response, StdResult, SubMsg, Uint128, WasmMsg,
 };
-use cw20::{Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
-
+use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetList;
 use cw_utils::Duration;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 use forty_two::cw_staking::{
-    CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, StakeResponse, CW_STAKING,
+    CwStakingAction, CwStakingExecuteMsg, CW_STAKING,
 };
 
 use crate::contract::{
@@ -238,7 +237,7 @@ fn compound(deps: DepsMut, app: AutocompounderApp) -> AutocompounderResult {
         .add_attribute("action", "4T2🚀AC🚀Compound🤖"))
 }
 
-// withdraw all matured claims for a user
+/// withdraw all matured claims for a user
 pub fn withdraw_claims(
     deps: DepsMut,
     app: AutocompounderApp,
