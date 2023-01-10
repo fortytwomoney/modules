@@ -25,9 +25,6 @@ pub struct Osmosis {
 }
 
 impl Identify for Osmosis {
-    fn over_ibc(&self) -> bool {
-        true
-    }
     fn name(&self) -> &'static str {
         OSMOSIS
     }

@@ -34,6 +34,7 @@ pub struct CwStakingExecuteMsg {
 
 #[cosmwasm_schema::cw_serde]
 /// Possible actions to perform on the staking contract
+/// All provide the staking token information
 pub enum CwStakingAction {
     /// Stakes/bonds a given token
     Stake { staking_token: AnsAsset },
