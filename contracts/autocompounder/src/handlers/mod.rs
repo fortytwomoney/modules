@@ -3,6 +3,7 @@ pub mod instantiate;
 pub mod migrate;
 pub mod query;
 pub mod reply;
+pub mod helpers;
 
 pub use crate::handlers::{
     execute::execute_handler, execute::receive, instantiate::instantiate_handler,
