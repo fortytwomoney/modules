@@ -32,10 +32,10 @@ exclude = [
 [workspace.dependencies]
 forty-two = { version = "0.1.0", path = "packages/forty-two" }
 forty-two-boot = { version = "0.1.0", path = "packages/forty-two-boot" }
-abstract-sdk = "0.5.1"
-abstract-api = { version = "0.5.1", features = ["library"] }
-abstract-app = { version = "0.5.1", features = ["library"] }
-abstract-os = "0.5.1"
+abstract-sdk = "0.5.2"
+abstract-api = { version = "0.5.2", features = ["library"] }
+abstract-app = { version = "0.5.2", features = ["library"] }
+abstract-os = "0.5.2"
 cosmwasm-std = { version = "1.1" }
 cosmwasm-schema = { version = "1.1" }
 cw-asset = { version = "2.4" }
@@ -59,6 +59,6 @@ semver = { package = "cw-semver", version = "1.0.0", git = "https://github.com/A
 dotenv = "0.15.0"
 env_logger = "0.10.0"
 
-boot-core = { version = "0.5.0", git = "https://github.com/Abstract-OS/BOOT.git" }
-boot-cw-plus = "0.5.0"
-abstract-boot = { path = "../../Abstract/contracts/packages/abstract-boot" }
+boot-core = { version = "0.5.1" }
+boot-cw-plus = "0.5.1"
+abstract-boot = "0.5.2"
