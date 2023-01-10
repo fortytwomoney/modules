@@ -24,7 +24,7 @@ fn deploy_cw_staking() -> anyhow::Result<()> {
     let mut deployer = ModuleDeployer::load_from_version_control(
         &chain,
         &abstract_version,
-        &Addr::unchecked("juno102k70cekzkwgex55en0zst5gy9x5h3gf8cegvn76w2uevqj4wdgs0q67mq"),
+        &Addr::unchecked("juno1q8tuzav8y6aawhc4sddqnwj6q4gdvn7lyk3m9ks4uw69xp37j83ql3ck2q"),
     )?;
 
     let mut cw_staking = CwStakingApi::new(CW_STAKING, &chain);
