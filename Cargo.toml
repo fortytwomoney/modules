@@ -15,7 +15,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 authors = []
 edition = "2021"
 
@@ -55,7 +55,7 @@ cw-multi-test = "0.16"
 
 # dev dependencies
 tokio = { version = "1.4", features = ["full"] }
-semver = { package = "cw-semver", version = "1.0.14", git = "https://github.com/Abstract-OS/cw-semver.git" }
+semver = { package = "cw-semver", version = "1.0" }
 dotenv = "0.15.0"
 env_logger = "0.10.0"
 

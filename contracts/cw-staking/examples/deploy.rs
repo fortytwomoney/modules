@@ -20,14 +20,14 @@ fn deploy_cw_staking() -> anyhow::Result<()> {
     let options = DaemonOptionsBuilder::default().network(network).build();
     let (_sender, chain) = instantiate_daemon_env(&rt, options?)?;
 
-    let abstract_version: Version = "0.1.0-rc.3".parse().unwrap();
+    let abstract_version: Version = std::env::var("ABSTRACT_VERSION").expect("Missing ABSTRACT_VERSION").parse().unwrap();
     let mut deployer = ModuleDeployer::load_from_version_control(
-        &chain,
+        chain.clone(),
         &abstract_version,
         &Addr::unchecked("juno1q8tuzav8y6aawhc4sddqnwj6q4gdvn7lyk3m9ks4uw69xp37j83ql3ck2q"),
     )?;
 
-    let mut cw_staking = CwStakingApi::new(CW_STAKING, &chain);
+    let mut cw_staking = CwStakingApi::new(CW_STAKING, chain.clone());
 
     deployer.deploy_api(cw_staking.as_instance_mut(), version, Empty {})?;
 

@@ -34,6 +34,13 @@ fn deploy_autocompounder() -> anyhow::Result<()> {
 
     // version_control.register_apps(vec![autocompounder.as_instance()], &version)?;
 
+    // // Remove beforehand
+    // version_control.remove_module(ModuleInfo {
+    //     name: "autocompounder".into(),
+    //     provider: "4t2".into(),
+    //     version: ModuleVersion::from(CONTRACT_VERSION)
+    // })?;
+
     version_control.add_modules(vec![(ModuleInfo {
         name: "autocompounder".into(),
         provider: "4t2".into(),

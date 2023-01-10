@@ -175,10 +175,22 @@ pub fn query_staking_info(
     let modules = app.modules(deps);
     let staking_mod = modules.module_address(CW_STAKING).unwrap();
 
+
+    /**
+    {
+      "app": {
+        "info": {
+          "provider": "junoswap",
+          "staking_token": "crab,junox"
+        }
+      }
+    }
+*/
     let query = CwStakingQueryMsg::Info {
         provider: dex,
         staking_token: lp_token_name,
     };
-    let res: StakingInfoResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
+
+    let res: StakingInfoResponse = modules.query_api(CW_STAKING, query).unwrap();
     res
 }
