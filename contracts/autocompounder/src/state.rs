@@ -1,4 +1,4 @@
-use abstract_sdk::os::objects::{PoolId, PoolMetadata};
+use abstract_sdk::os::objects::{PoolAddress, PoolMetadata};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Uint128;
@@ -17,14 +17,14 @@ pub struct Config {
     /// Address of the staking contract
     pub staking_contract: Addr,
     /// Pool address (number or Address)
-    pub pool_address: PoolId,
+    pub pool_address: PoolAddress,
     /// Pool metadata
     pub pool_data: PoolMetadata,
     /// Address of the LP token contract
     pub liquidity_token: Addr,
     /// Vault token
     pub vault_token: Addr,
-    /// Address that recieves the fee commissions
+    /// Address that receives the fee commissions
     pub commission_addr: Addr,
     /// Vault fee structure
     pub fees: FeeConfig,

@@ -31,8 +31,8 @@
 use abstract_sdk::os::app;
 use abstract_sdk::os::dex::{DexName, OfferAsset};
 use abstract_sdk::os::objects::AssetEntry;
-use cosmwasm_std::Uint128;
 use cosmwasm_schema::QueryResponses;
+use cosmwasm_std::Uint128;
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 
@@ -95,5 +95,4 @@ pub enum Cw20HookMsg {
 }
 
 #[cosmwasm_schema::cw_serde]
-pub struct ConfigResponse {
-}
+pub struct ConfigResponse {}
