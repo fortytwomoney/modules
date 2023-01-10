@@ -1,5 +1,9 @@
+
+
+use cosmwasm_std::{StdResult, StdError};
+
 use crate::error::StakingError;
-use crate::traits::identify::Identify;
+
 use crate::CwStaking;
 
 #[cfg(feature = "juno")]
@@ -8,24 +12,32 @@ pub use crate::providers::junoswap::{JunoSwap, JUNOSWAP};
 #[cfg(any(feature = "juno", feature = "osmosis"))]
 pub use crate::providers::osmosis::{Osmosis, OSMOSIS};
 
-/// Given the provider name, return the *identified* provider implementation
-pub(crate) fn resolve_provider_by_name(name: &str) -> Result<&'static dyn Identify, StakingError> {
-    match name {
+use super::astroport::{Astroport, ASTROPORT};
+
+pub (crate) fn is_over_ibc(provider: &str) -> StdResult<bool> {
+    match provider {
         #[cfg(feature = "juno")]
-        JUNOSWAP => Ok(&JunoSwap {}),
+        JUNOSWAP => Ok(false),
+        #[cfg(feature = "terra")]
+        ASTROPORT => Ok(false),
         #[cfg(feature = "juno")]
-        OSMOSIS => Ok(&Osmosis {
-            local_proxy_addr: None,
-        }),
-        _ => Err(StakingError::UnknownDex(name.to_owned())),
+        OSMOSIS => Ok(true),
+        _ => Err(StdError::generic_err(format!("Unknown provider {provider}"))),
     }
 }
 
+
 /// Given the provider name, return the local provider implementation
-pub(crate) fn resolve_local_provider(name: &str) -> Result<&'static dyn CwStaking, StakingError> {
+pub(crate) fn resolve_local_provider(
+    name: &str,
+) -> Result<Box<dyn CwStaking>, StakingError> {
     match name {
         #[cfg(feature = "juno")]
-        JUNOSWAP => Ok(&JunoSwap {}),
+        JUNOSWAP => Ok(Box::new(JunoSwap::default())),
+        #[cfg(feature = "osmosis")]
+        OSMOSIS => Ok(Box::new(Osmosis::default())),
+        #[cfg(feature = "terra")]
+        ASTROPORT=> Ok(Box::new(Astroport::default())),
         _ => Err(StakingError::ForeignDex(name.to_owned())),
     }
 }
