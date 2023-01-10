@@ -11,10 +11,10 @@ type ApiQueryMsg = api::QueryMsg<CwStakingQueryMsg>;
 
 /// Contract wrapper for interacting with BOOT
 #[boot_contract(Empty, ApiExecuteMsg, ApiQueryMsg, Empty)]
-pub struct CwStaking<Chain>;
+pub struct CwStakingApi<Chain>;
 
 /// implement chain-generic functions
-impl<Chain: BootEnvironment> CwStaking<Chain>
+impl<Chain: BootEnvironment> CwStakingApi<Chain>
 where
     TxResponse<Chain>: IndexResponse,
 {

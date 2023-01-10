@@ -13,12 +13,4 @@ fn main() {
     remove_schemas(&out_dir).unwrap();
 
     CwStakingApi::export_schema(&out_dir);
-
-    write_api! {
-        name: "module-schema",
-        instantiate: Empty,
-        query: CwStakingQueryMsg,
-        execute: CwStakingExecuteMsg,
-        migrate: Empty,
-    };
 }

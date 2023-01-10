@@ -12,12 +12,4 @@ fn main() {
     remove_schemas(&out_dir).unwrap();
 
     AutocompounderApp::export_schema(&out_dir);
-
-    write_api! {
-        name: "module-schema",
-        instantiate: AutocompounderInstantiateMsg,
-        query: AutocompounderQueryMsg,
-        execute: AutocompounderExecuteMsg,
-        migrate: AutocompounderMigrateMsg,
-    };
 }
