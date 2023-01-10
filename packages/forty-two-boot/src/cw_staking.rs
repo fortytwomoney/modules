@@ -18,7 +18,7 @@ impl<Chain: BootEnvironment> CwStakingApi<Chain>
 where
     TxResponse<Chain>: IndexResponse,
 {
-    pub fn new(id: &str, chain: &Chain) -> Self {
+    pub fn new(id: &str, chain: Chain) -> Self {
         Self(Contract::new(id, chain).with_wasm_path("cw_staking"))
     }
 }

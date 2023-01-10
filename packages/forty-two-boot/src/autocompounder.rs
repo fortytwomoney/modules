@@ -1,10 +1,8 @@
 use abstract_os::app;
-use abstract_os::app::{BaseExecuteMsg, BaseQueryMsg};
-use boot_core::prelude::{boot_contract, BootExecute, BootQuery};
+use abstract_os::app::BaseExecuteMsg;
+use boot_core::prelude::{boot_contract, BootExecute};
 use boot_core::{BootEnvironment, BootError, Contract, IndexResponse, TxResponse};
 use cosmwasm_std::Coin;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
 
 use forty_two::autocompounder::{
     AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg,
@@ -24,24 +22,8 @@ impl<Chain: BootEnvironment> AutocompounderApp<Chain>
 where
     TxResponse<Chain>: IndexResponse,
 {
-    pub fn new(name: &str, chain: &Chain) -> Self {
+    pub fn new(name: &str, chain: Chain) -> Self {
         Self(Contract::new(name, chain).with_wasm_path("autocompounder"))
-    }
-
-    /// Temporary helper to query the app explicitly
-    pub fn query_app<T: Serialize + DeserializeOwned>(
-        &self,
-        query_msg: AutocompounderQueryMsg,
-    ) -> Result<T, BootError> {
-        self.query(&app::QueryMsg::App(query_msg))
-    }
-
-    /// Temporary helper to query the app base explicitly
-    pub fn query_base<T: Serialize + DeserializeOwned>(
-        &self,
-        query_msg: BaseQueryMsg,
-    ) -> Result<T, BootError> {
-        self.query(&app::QueryMsg::Base(query_msg))
     }
 
     /// Temporary helper to execute the app explicitly

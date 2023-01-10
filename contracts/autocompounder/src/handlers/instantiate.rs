@@ -1,5 +1,7 @@
 use abstract_sdk::base::features::AbstractNameService;
-use abstract_sdk::os::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference, UncheckedContractEntry};
+use abstract_sdk::os::objects::{
+    AssetEntry, DexAssetPairing, LpToken, PoolReference, UncheckedContractEntry,
+};
 use abstract_sdk::{ModuleInterface, Resolve};
 use cosmwasm_std::{
     to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg, WasmMsg,

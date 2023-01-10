@@ -60,7 +60,6 @@ semver = { package = "cw-semver", version = "1.0.0", git = "https://github.com/A
 dotenv = "0.15.0"
 env_logger = "0.10.0"
 
-#boot-core = "0.2.0"
-#abstract-boot = "0.3.0-beta.2"
-boot-core = { version = "0.3.0", git = "https://github.com/Abstract-OS/BOOT.git", branch = "add/mock-test-helpers" }
+boot-core = { version = "0.5.0", git = "https://github.com/Abstract-OS/BOOT.git" }
+boot-cw-plus = "0.5.0"
 abstract-boot = { path = "../../Abstract/contracts/packages/abstract-boot" }

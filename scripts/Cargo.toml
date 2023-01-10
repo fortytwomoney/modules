@@ -1,16 +1,14 @@
 [package]
 name = "scripts"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace= true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 forty-two-boot = { path = "../packages/forty-two-boot" }
-#boot-core = "0.2.0"
-#abstract-boot = "0.3.0-beta.2"
 
-boot-core = { version = "0.3.0", git = "https://github.com/Abstract-OS/BOOT.git", branch = "add/mock-test-helpers" }
+boot-core = { workspace = true }
 abstract-boot = { path = "../../../Abstract/contracts/packages/abstract-boot" }
 
 log = "0.4.14"

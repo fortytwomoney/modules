@@ -4,7 +4,7 @@ use std::fs::create_dir_all;
 use cosmwasm_schema::{remove_schemas, write_api};
 use cosmwasm_std::Empty;
 use cw_staking::contract::CwStakingApi;
-use forty_two::cw_staking::{CwStakingQueryMsg, CwStakingExecuteMsg};
+use forty_two::cw_staking::{CwStakingExecuteMsg, CwStakingQueryMsg};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
