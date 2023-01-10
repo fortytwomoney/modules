@@ -6,10 +6,10 @@ edition.workspace= true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-forty-two-boot = { path = "../packages/forty-two-boot" }
+forty-two-boot = { workspace = true }
 
 boot-core = { workspace = true }
-abstract-boot = { path = "../../../Abstract/contracts/packages/abstract-boot" }
+abstract-boot = { workspace = true }
 
 log = "0.4.14"
 cosmwasm-std = { version = "1.1" }

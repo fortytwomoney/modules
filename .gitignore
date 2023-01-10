@@ -10,5 +10,5 @@ Cargo.lock
 **/*.rs.bk
 .env
 
-# ignore top-level schema
-./schema
+# Ignore base schema folder
+/schema/

@@ -14,7 +14,6 @@ members = [
 # See - https://github.com/apache/arrow-rs/pull/1822/files
 resolver = "2"
 
-
 [workspace.package]
 version = "0.1.0"
 authors = []

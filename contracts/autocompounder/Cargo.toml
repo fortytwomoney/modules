@@ -53,8 +53,6 @@ env_logger = {  workspace = true }
 
 forty-two-boot = { workspace = true }
 
-#boot-core = "0.2.0"
-#abstract-boot = "0.3.0-beta.2"
 boot-core = { workspace = true }
 abstract-boot = { workspace = true }
 abstract-app = { workspace = true, features = ["schema"] }
