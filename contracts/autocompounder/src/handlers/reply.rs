@@ -11,9 +11,7 @@ use cosmwasm_std::{
 };
 use cw20_base::msg::ExecuteMsg::Mint;
 
-use forty_two::cw_staking::{
-    CwStakingAction, CwStakingExecuteMsg, CW_STAKING,
-};
+use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
 
 use protobuf::Message;
 
@@ -21,11 +19,11 @@ use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, SWAPPED_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::state::{CACHED_USER_ADDR, CONFIG, Config};
+use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
 
 use crate::response::MsgInstantiateContractResponse;
 
-use super::helpers::{query_stake, cw20_total_supply};
+use super::helpers::{cw20_total_supply, query_stake};
 
 /// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.
 pub fn instantiate_reply(
@@ -75,7 +73,8 @@ pub fn lp_provision_reply(
         lp_token.clone(),
     )?;
 
-    let received_lp = lp_token.resolve(&deps.querier, &_ans_host)?
+    let received_lp = lp_token
+        .resolve(&deps.querier, &_ans_host)?
         .query_balance(&deps.querier, proxy_address.to_string())?;
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
@@ -103,10 +102,10 @@ pub fn lp_provision_reply(
 
     // 5) Stake the LP tokens
     let stake_msg = stake_lp_tokens(
-        deps, 
-        app, 
+        deps,
+        app,
         config.pool_data.dex,
-        AnsAsset::new(lp_token, received_lp)
+        AnsAsset::new(lp_token, received_lp),
     );
 
     Ok(Response::new()
@@ -158,7 +157,6 @@ pub fn lp_compound_reply(
 
     // 2.1) query the rewards
     let mut rewards = get_staking_rewards(deps.as_ref(), &app, &config)?;
-    
 
     // 2) deduct fee from rewards
     let fees = rewards
@@ -206,7 +204,13 @@ pub fn lp_compound_reply(
             .add_submessage(submsg)
             .add_attribute("action", "provide_liquidity"))
     } else {
-        let (swap_msgs, submsg) = swap_rewards_with_reply(rewards, pool_assets, modules, &config.pool_data.dex, SWAPPED_REPLY_ID)?;
+        let (swap_msgs, submsg) = swap_rewards_with_reply(
+            rewards,
+            pool_assets,
+            modules,
+            &config.pool_data.dex,
+            SWAPPED_REPLY_ID,
+        )?;
 
         // adds all swap messages to the response and the submsg -> the submsg will be executed after the last swap message
         // and will trigger the reply SWAPPED_REPLY_ID
@@ -277,15 +281,15 @@ pub fn compound_lp_provision_reply(
 
     // 1) query balance of lp tokens
     let lp_balance = lp_token
-    .resolve(&deps.querier, &ans_host)?
-    .query_balance(&deps.querier, proxy)?;
+        .resolve(&deps.querier, &ans_host)?
+        .query_balance(&deps.querier, proxy)?;
 
     // 2) stake lp tokens
     let stake_msg = stake_lp_tokens(
-        deps, 
-        app, 
-        config.pool_data.dex, 
-        AnsAsset::new(lp_token, lp_balance)
+        deps,
+        app,
+        config.pool_data.dex,
+        AnsAsset::new(lp_token, lp_balance),
     );
 
     Ok(Response::new()
@@ -331,7 +335,13 @@ fn stake_lp_tokens(
 }
 
 /// swaps all rewards that are not in the target assets and add a reply id to the latest swapmsg
-fn swap_rewards_with_reply(rewards: Vec<AnsAsset>, target_assets: Vec<AssetEntry>, modules: Modules<AutocompounderApp>, dex: &String, reply_id: u64) -> Result<(Vec<CosmosMsg>, SubMsg), AutocompounderError> {
+fn swap_rewards_with_reply(
+    rewards: Vec<AnsAsset>,
+    target_assets: Vec<AssetEntry>,
+    modules: Modules<AutocompounderApp>,
+    dex: &String,
+    reply_id: u64,
+) -> Result<(Vec<CosmosMsg>, SubMsg), AutocompounderError> {
     let mut swap_msgs: Vec<CosmosMsg> = vec![];
     rewards
         .iter()
@@ -360,7 +370,11 @@ fn swap_rewards_with_reply(rewards: Vec<AnsAsset>, target_assets: Vec<AssetEntry
 }
 
 /// queries available staking rewards assets and the corresponding balances
-fn get_staking_rewards(deps: Deps, app: &AutocompounderApp, config: &Config ) -> StdResult<Vec<AnsAsset>>{
+fn get_staking_rewards(
+    deps: Deps,
+    app: &AutocompounderApp,
+    config: &Config,
+) -> StdResult<Vec<AnsAsset>> {
     let ans_host = app.ans_host(deps)?;
     let rewards = query_rewards(deps, app, config.pool_data.clone());
     let mut rewards = rewards

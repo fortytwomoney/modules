@@ -14,18 +14,18 @@ use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetList;
 use cw_utils::Duration;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
-use forty_two::cw_staking::{
-    CwStakingAction, CwStakingExecuteMsg, CW_STAKING,
-};
+use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
 
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
     LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::state::{Claim, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS, Config};
+use crate::state::{
+    Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
+};
 
-use super::helpers::{query_stake, cw20_total_supply};
+use super::helpers::{cw20_total_supply, query_stake};
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
@@ -131,16 +131,18 @@ pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> Autocomp
     let pending_claims = PENDING_CLAIMS
         .range(deps.storage, None, None, Order::Ascending)
         .collect::<StdResult<Vec<(String, Uint128)>>>()?;
-        
-    let (total_lp_amount_to_unbond, total_vault_tokens_to_burn, updated_claims) = 
+
+    let (total_lp_amount_to_unbond, total_vault_tokens_to_burn, updated_claims) =
         calculate_withdrawals(deps.as_ref(), &config, &app, pending_claims, env)?;
 
     // clear pending claims
     PENDING_CLAIMS.clear(deps.storage);
     // update claims
-    updated_claims.into_iter().try_for_each(|(addr, claims)| -> StdResult<()> {
-        CLAIMS.save(deps.storage, addr, &claims)
-    })?;
+    updated_claims
+        .into_iter()
+        .try_for_each(|(addr, claims)| -> StdResult<()> {
+            CLAIMS.save(deps.storage, addr, &claims)
+        })?;
 
     let unstake_msg = unstake_lp_tokens(
         deps.as_ref(),
@@ -156,8 +158,6 @@ pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> Autocomp
         .add_messages(vec![unstake_msg, burn_msg])
         .add_attribute("action", "4T2/AC/UnbondBatch"))
 }
-
-
 
 /// Handles receiving CW20 messages
 pub fn receive(
@@ -291,12 +291,19 @@ pub fn withdraw_claims(
         .add_attribute("lp_tokens_to_withdraw", lp_tokens_to_withdraw.to_string()))
 }
 
-
 #[allow(clippy::type_complexity)]
 /// Calculates the amount the total amount of lp tokens to unbond and vault tokens to burn
-fn calculate_withdrawals(deps: Deps, config: &Config, app: &AutocompounderApp, pending_claims: Vec<(String, Uint128)>, env: Env) -> Result<(Uint128, Uint128, Vec<(String, Vec<Claim>)>), AutocompounderError> {
+fn calculate_withdrawals(
+    deps: Deps,
+    config: &Config,
+    app: &AutocompounderApp,
+    pending_claims: Vec<(String, Uint128)>,
+    env: Env,
+) -> Result<(Uint128, Uint128, Vec<(String, Vec<Claim>)>), AutocompounderError> {
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
-    let unbonding_timestamp = config.bonding_period.unwrap_or(Duration::Height(0))
+    let unbonding_timestamp = config
+        .bonding_period
+        .unwrap_or(Duration::Height(0))
         .after(&env.block);
 
     let mut total_lp_amount_to_unbond = Uint128::from(0u128);
@@ -306,12 +313,8 @@ fn calculate_withdrawals(deps: Deps, config: &Config, app: &AutocompounderApp, p
     let vault_tokens_total_supply = cw20_total_supply(deps, config)?;
 
     // 2) get total staked lp token
-    let total_lp_tokens_staked_in_vault = query_stake(
-        deps,
-        app,
-        config.pool_data.dex.clone(),
-        lp_token,
-    )?;
+    let total_lp_tokens_staked_in_vault =
+        query_stake(deps, app, config.pool_data.dex.clone(), lp_token)?;
 
     let mut updated_claims: Vec<(String, Vec<Claim>)> = vec![];
     for pending_claim in pending_claims {
@@ -345,12 +348,19 @@ fn calculate_withdrawals(deps: Deps, config: &Config, app: &AutocompounderApp, p
             updated_claims.push((user_address, vec![new_claim]))
         }
     }
-    Ok((total_lp_amount_to_unbond, total_vault_tokens_to_burn, updated_claims))
+    Ok((
+        total_lp_amount_to_unbond,
+        total_vault_tokens_to_burn,
+        updated_claims,
+    ))
 }
 
-
 /// Checks if the unbonding cooldown period for batch unbonding has passed or not.
-fn check_unbonding_cooldown(deps: &DepsMut, config: &crate::state::Config, env: &Env) -> Result<(), AutocompounderError> {
+fn check_unbonding_cooldown(
+    deps: &DepsMut,
+    config: &crate::state::Config,
+    env: &Env,
+) -> Result<(), AutocompounderError> {
     let latest_unbonding = LATEST_UNBONDING.load(deps.storage)?;
     if let Some(min_cooldown) = config.min_unbonding_cooldown {
         if latest_unbonding.add(min_cooldown)?.is_expired(&env.block) {

@@ -1,10 +1,9 @@
-use abstract_sdk::{os::objects::AssetEntry, ModuleInterface, base::features::Identification};
-use cosmwasm_std::{Deps, Uint128, StdResult};
-use cw20::{TokenInfoResponse, Cw20QueryMsg};
-use forty_two::cw_staking::{CW_STAKING, CwStakingQueryMsg, StakeResponse};
+use abstract_sdk::{base::features::Identification, os::objects::AssetEntry, ModuleInterface};
+use cosmwasm_std::{Deps, StdResult, Uint128};
+use cw20::{Cw20QueryMsg, TokenInfoResponse};
+use forty_two::cw_staking::{CwStakingQueryMsg, StakeResponse, CW_STAKING};
 
 use crate::{contract::AutocompounderApp, state::Config};
-
 
 /// queries staking module for the number of staked assets of the app
 pub fn query_stake(
