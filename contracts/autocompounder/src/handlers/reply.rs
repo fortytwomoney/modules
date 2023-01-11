@@ -106,7 +106,7 @@ pub fn lp_provision_reply(
         app,
         config.pool_data.dex,
         AnsAsset::new(lp_token, received_lp),
-    );
+    )?;
 
     Ok(Response::new()
         .add_message(mint_msg)
@@ -290,7 +290,7 @@ pub fn compound_lp_provision_reply(
         app,
         config.pool_data.dex,
         AnsAsset::new(lp_token, lp_balance),
-    );
+    )?;
 
     Ok(Response::new()
         .add_message(stake_msg)
@@ -299,15 +299,15 @@ pub fn compound_lp_provision_reply(
 
 fn query_rewards(deps: Deps, app: &AutocompounderApp, _pool_data: PoolMetadata) -> Vec<AssetEntry> {
     // query staking module for which rewards are available
-    let modules = app.modules(deps);
-    let _staking_mod = modules.module_address(CW_STAKING).unwrap();
+    let _modules = app.modules(deps);
+
 
     // TODO: Reward query has yet to be implemented
     // let query = CwStakingQueryMsg::Rewards {
     //     address: app.proxy_address(deps).unwrap().to_string(),
     //     pool_data,
     // };
-    // let res: Vec<AssetEntry> = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
+    // let res: Vec<AssetEntry> = modules.query_api(CW_STAKING, query).unwrap();
     let res: Vec<AssetEntry> = vec![];
 
     res
@@ -319,7 +319,7 @@ fn stake_lp_tokens(
     app: AutocompounderApp,
     provider: String,
     asset: AnsAsset,
-) -> CosmosMsg {
+) -> StdResult<CosmosMsg> {
     let modules = app.modules(deps.as_ref());
     modules
         .api_request(
@@ -331,7 +331,6 @@ fn stake_lp_tokens(
                 },
             },
         )
-        .unwrap()
 }
 
 /// swaps all rewards that are not in the target assets and add a reply id to the latest swapmsg

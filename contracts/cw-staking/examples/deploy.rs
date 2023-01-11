@@ -1,4 +1,4 @@
-use abstract_boot::{AnsHost, Deployment, DexApi, ModuleDeployer, VCExecFns, VCQueryFns, VersionControl};
+use abstract_boot::{ModuleDeployer, VCExecFns, VCQueryFns};
 use boot_core::networks::UNI_5;
 use boot_core::prelude::instantiate_daemon_env;
 use boot_core::prelude::*;
@@ -22,7 +22,7 @@ fn deploy_cw_staking(args: Arguments) -> anyhow::Result<()> {
     let (_sender, chain) = instantiate_daemon_env(&rt, options?)?;
 
     let abstract_version: Version = std::env::var("ABSTRACT_VERSION").expect("Missing ABSTRACT_VERSION").parse().unwrap();
-    let mut deployer = ModuleDeployer::load_from_version_control(
+    let deployer = ModuleDeployer::load_from_version_control(
         chain.clone(),
         &abstract_version,
         &Addr::unchecked(std::env::var("VERSION_CONTROL").expect("VERSION_CONTROL not set")),
@@ -43,7 +43,7 @@ fn deploy_cw_staking(args: Arguments) -> anyhow::Result<()> {
             reference
         )])?;
     } else {
-        let mut cw_staking = CwStakingApi::new(CW_STAKING, chain.clone());
+        let mut cw_staking = CwStakingApi::new(CW_STAKING, chain);
 
         deployer.deploy_api(cw_staking.as_instance_mut(), version, Empty {})?;
     }

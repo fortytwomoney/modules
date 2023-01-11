@@ -8,7 +8,7 @@ use cosmwasm_std::{to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Re
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use cw_utils::Duration;
-use schemars::_serde_json::json;
+
 
 use forty_two::autocompounder::{AutocompounderInstantiateMsg, AUTOCOMPOUNDER};
 use forty_two::cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING};
@@ -53,7 +53,7 @@ pub fn instantiate_handler(
     let lp_token_info = ans.query(&lp_token)?;
 
     // match on the info and get cw20
-    let lp_token_addr: Addr = match lp_token_info.clone() {
+    let lp_token_addr: Addr = match lp_token_info {
         cw_asset::AssetInfoBase::Cw20(addr) => Ok(addr),
         _ => Err(AutocompounderError::Std(StdError::generic_err(
             "LP token is not a cw20",
@@ -115,7 +115,7 @@ pub fn instantiate_handler(
         staking_contract: staking_contract_addr,
         liquidity_token: lp_token_addr,
         commission_addr: deps.api.addr_validate(&commission_addr)?,
-        pool_data: pool_data.clone(),
+        pool_data,
         pool_address: pool_reference.pool_address,
         // dex_assets: pool_assets,
         // dex: dex.clone(),

@@ -1,22 +1,22 @@
 use std::env;
 use std::sync::Arc;
 use abstract_boot::{OS, OSFactory, VersionControl};
-use abstract_os::{api, app, EXCHANGE, OS_FACTORY, VERSION_CONTROL};
+use abstract_os::{app, EXCHANGE, OS_FACTORY};
 use abstract_os::manager::QueryMsgFns;
-use abstract_os::objects::AssetEntry;
-use abstract_os::objects::gov_type::GovernanceDetails;
+
+
 use abstract_os::objects::module::ModuleVersion;
-use abstract_os::os_factory::ExecuteMsgFns;
+
 
 use boot_core::networks::NetworkInfo;
 use boot_core::prelude::*;
-use boot_core::{networks, DaemonOptionsBuilder, Contract};
+use boot_core::{networks, DaemonOptionsBuilder};
 use cosmwasm_std::{Addr, Empty};
-use semver::Version;
-use forty_two::autocompounder;
+
+
 use forty_two::autocompounder::{AUTOCOMPOUNDER, AutocompounderInstantiateMsg};
 use forty_two::cw_staking::CW_STAKING;
-use forty_two_boot::cw_staking::CwStakingApi;
+
 
 const NETWORK: NetworkInfo = networks::UNI_5;
 
@@ -54,29 +54,29 @@ pub fn deploy_api() -> anyhow::Result<()> {
         &Addr::unchecked("juno1q8tuzav8y6aawhc4sddqnwj6q4gdvn7lyk3m9ks4uw69xp37j83ql3ck2q"),
     );
 
-    let mut os_factory = OSFactory::new(
+    let os_factory = OSFactory::new(
         OS_FACTORY,
         chain.clone(),
     );
 
     let abstract_version = std::env::var("ABSTRACT_VERSION").expect("Missing ABSTRACT_VERSION");
 
-    let abstract_version = ModuleVersion::from(abstract_version.to_string());
-    os_factory.set_address(&version_control.get_api_addr(OS_FACTORY, abstract_version.clone())?);
+    let abstract_version = ModuleVersion::from(abstract_version);
+    os_factory.set_address(&version_control.get_api_addr(OS_FACTORY, abstract_version)?);
 
     //
     // let os = os_factory.create_default_os(GovernanceDetails::Monarchy {
     //     monarch: _sender.to_string(),
     // })?;
 
-    let cw_staking = CwStakingApi::load(chain.clone(), &Addr::unchecked("juno1vgrxcupau9zr3z85rar7aq7v28v47s4tgdjm4xasxx96ap8wdzssfwfx27"));
+    // let _cw_staking = CwStakingApi::load(chain.clone(), &Addr::unchecked("juno1vgrxcupau9zr3z85rar7aq7v28v47s4tgdjm4xasxx96ap8wdzssfwfx27"));
 
     // let query_res = forty_two::cw_staking::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
     // panic!("{?:}", query_res);
 
-    let os2 = OS::new(&chain.clone(), Some(4));
+    let os2 = OS::new(&chain, Some(4));
 
-    /// First uninstall autocompounder if found
+    // First uninstall autocompounder if found
     if is_module_installed(&os2, AUTOCOMPOUNDER)? {
         os2.manager.uninstall_module(AUTOCOMPOUNDER)?;
     }

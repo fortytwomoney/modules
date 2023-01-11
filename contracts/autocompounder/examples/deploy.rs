@@ -1,19 +1,19 @@
 use std::env;
-use abstract_boot::{AnsHost, Deployment, DexApi, ModuleDeployer, VCExecFns, VersionControl};
+use abstract_boot::{VCExecFns, VersionControl};
 use boot_core::networks::{NetworkInfo, UNI_5};
 use boot_core::prelude::instantiate_daemon_env;
 use boot_core::prelude::*;
 use boot_core::DaemonOptionsBuilder;
-use cosmwasm_std::{Addr, Empty};
-use semver::Version;
+use cosmwasm_std::{Addr};
+
 use std::sync::Arc;
 use abstract_sdk::os::objects::module::{ModuleInfo, ModuleVersion};
 use abstract_sdk::os::objects::module_reference::ModuleReference;
 use tokio::runtime::Runtime;
 use forty_two::autocompounder::AUTOCOMPOUNDER;
-use forty_two::cw_staking::CW_STAKING;
+
 use forty_two_boot::autocompounder::AutocompounderApp;
-use forty_two_boot::cw_staking::CwStakingApi;
+
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const NETWORK: NetworkInfo = UNI_5;
@@ -26,16 +26,16 @@ fn deploy_autocompounder(args: Arguments) -> anyhow::Result<()> {
     let options = DaemonOptionsBuilder::default().network(NETWORK).build();
     let (_sender, chain) = instantiate_daemon_env(&rt, options?)?;
 
-    let mut version_control = VersionControl::load(
+    let version_control = VersionControl::load(
         chain.clone(),
         &Addr::unchecked(std::env::var("VERSION_CONTROL").expect("VERSION_CONTROL not set")),
     );
 
-    let mut autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
+    let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
     if args.code_id.is_none() {
         panic!("No code id provided, and upload is broken");
-        autocompounder.upload()?;
+        // autocompounder.upload()?;
     } else {
         autocompounder.set_code_id(args.code_id.unwrap());
     }
