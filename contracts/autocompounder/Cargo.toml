@@ -42,7 +42,7 @@ forty-two = { workspace = true }
 abstract-app = { workspace = true }
 abstract-sdk = { workspace = true }
 protobuf = { version = "2", features = ["with-bytes"] }
-cw-utils.workspace = true
+cw-utils = {workspace = true}
 
 [dev-dependencies]
 # dev dependencies
@@ -57,3 +57,4 @@ boot-core = { workspace = true }
 abstract-boot = { workspace = true }
 abstract-app = { workspace = true, default-features = false }
 cw-utils = {workspace = true}
+clap =  { workspace = true }

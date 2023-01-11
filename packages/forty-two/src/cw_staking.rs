@@ -51,6 +51,7 @@ pub enum CwStakingQueryMsg {
     #[returns(StakingInfoResponse)]
     Info {
         provider: ProviderName,
+        // perhaps this should take the assets? Or the resolved?
         staking_token: AssetEntry,
     },
     #[returns(StakeResponse)]

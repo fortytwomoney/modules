@@ -15,7 +15,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.6"
 authors = []
 edition = "2021"
 
@@ -30,8 +30,8 @@ exclude = [
 
 # Keep as is until TendermintStake updates.
 [workspace.dependencies]
-forty-two = { version = "0.1.0", path = "packages/forty-two" }
-forty-two-boot = { version = "0.1.0", path = "packages/forty-two-boot" }
+forty-two = { version = "0.1.6", path = "packages/forty-two" }
+forty-two-boot = { version = "0.1.6", path = "packages/forty-two-boot" }
 abstract-sdk = "0.5.2"
 abstract-api = { version = "0.5.2", features = ["library"] }
 abstract-app = { version = "0.5.2", features = ["library"] }
@@ -44,11 +44,16 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0" }
 cw-storage-plus = "0.16.0"
 cw-controllers = "1.0.1"
-cw-paginate = {git = "https://github.com/DA0-DA0/dao-contracts.git"}
+cw-paginate = {git = "https://github.com/DA0-DA0/dao-contracts.git", tag = "v1.0.0"}
 cosmwasm-storage = { version = "1.1" }
-cw-utils = "0.16"
+
+# TODO: overridden due to DaoDaoV1
+cw-utils = "0.13.4"
+cw20 = "0.13.4"
+#cw-utils = "0.16"
+#cw20 = "0.16"
+
 cw2 = "0.16"
-cw20 = "0.16"
 cw20-base = "0.16"
 anyhow = { version = "1.0.51" }
 cw-multi-test = "0.16"
@@ -62,3 +67,4 @@ env_logger = "0.10.0"
 boot-core = { version = "0.5.1" }
 boot-cw-plus = "0.5.1"
 abstract-boot = "0.5.2"
+clap =  { version = "4.0.32", features = ["derive"] }

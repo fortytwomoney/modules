@@ -13,6 +13,6 @@ pub mod host_staking {
     pub use super::providers::osmosis::Osmosis;
 }
 
-// #[cfg(test)]
+#[cfg(test)]
 // #[cfg(not(target_arch = "wasm32"))]
-// mod tests;
+mod tests;

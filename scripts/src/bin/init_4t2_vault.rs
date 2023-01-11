@@ -1,7 +1,7 @@
 use std::env;
 use std::sync::Arc;
 use abstract_boot::{OS, OSFactory, VersionControl};
-use abstract_os::{api, app, OS_FACTORY, VERSION_CONTROL};
+use abstract_os::{api, app, EXCHANGE, OS_FACTORY, VERSION_CONTROL};
 use abstract_os::manager::QueryMsgFns;
 use abstract_os::objects::AssetEntry;
 use abstract_os::objects::gov_type::GovernanceDetails;
@@ -11,7 +11,7 @@ use abstract_os::os_factory::ExecuteMsgFns;
 use boot_core::networks::NetworkInfo;
 use boot_core::prelude::*;
 use boot_core::{networks, DaemonOptionsBuilder, Contract};
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Empty};
 use semver::Version;
 use forty_two::autocompounder;
 use forty_two::autocompounder::{AUTOCOMPOUNDER, AutocompounderInstantiateMsg};
@@ -24,6 +24,16 @@ const NETWORK: NetworkInfo = networks::UNI_5;
 // We can then deploy a test OS that uses that new app
 
 const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+
+// TODO: abstract boot
+fn is_module_installed<Chain: BootEnvironment>(
+    os: &OS<Chain>,
+    module_id: &str,
+) -> anyhow::Result<bool> {
+    let module_infos = os.manager.module_infos(None, None)?.module_infos;
+    Ok(module_infos.iter().any(|module_info| module_info.id == module_id))
+}
 
 pub fn deploy_api() -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
@@ -61,24 +71,33 @@ pub fn deploy_api() -> anyhow::Result<()> {
 
     let cw_staking = CwStakingApi::load(chain.clone(), &Addr::unchecked("juno1vgrxcupau9zr3z85rar7aq7v28v47s4tgdjm4xasxx96ap8wdzssfwfx27"));
 
-    let query_res = forty_two::cw_staking::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
+    // let query_res = forty_two::cw_staking::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
     // panic!("{?:}", query_res);
 
-    let os2 = OS::new(&chain.clone(), None);
+    let os2 = OS::new(&chain.clone(), Some(4));
 
-    if !os2.manager.module_infos(None, None)?.module_infos.iter().any(|module_info| module_info.id == CW_STAKING) {
-        os2.manager.install_module_version(CW_STAKING, ModuleVersion::from(MODULE_VERSION),Some(&api::InstantiateMsg {
-            base: api::BaseInstantiateMsg {
-                ans_host_address: "juno1qyetxuhvmpgan5qyjq3julmzz9g3rhn3jfp2jlgy29ftjknv0c6s0xywpp".to_string(),
-                version_control_address: version_control.addr_str()?
-            },
-            app: {},
-        }))?;
+    /// First uninstall autocompounder if found
+    if is_module_installed(&os2, AUTOCOMPOUNDER)? {
+        os2.manager.uninstall_module(AUTOCOMPOUNDER)?;
+    }
+
+    // Uninstall cw_staking if found
+    if is_module_installed(&os2, CW_STAKING)? {
+        os2.manager.uninstall_module(CW_STAKING)?;
+    }
+
+    // Install both modules
+    let new_module_version = ModuleVersion::from(MODULE_VERSION);
+    os2.manager.install_module_version(CW_STAKING, new_module_version.clone(), None::<&Empty>)?;
+
+    // Install abstract dex
+    if !is_module_installed(&os2, EXCHANGE)? {
+        os2.manager.install_module(EXCHANGE, None::<&Empty>)?;
     }
 
     // let os2 = Os::new
 
-    os2.manager.install_module(AUTOCOMPOUNDER, Some(&app::InstantiateMsg {
+    os2.manager.install_module_version(AUTOCOMPOUNDER, new_module_version, Some(&app::InstantiateMsg {
         base: app::BaseInstantiateMsg {
             ans_host_address: "juno1qyetxuhvmpgan5qyjq3julmzz9g3rhn3jfp2jlgy29ftjknv0c6s0xywpp".to_string(),
             // ans_host_address: version_control.get_api_addr(OS_FACTORY, abstract_version)?.to_string()
@@ -100,13 +119,9 @@ pub fn deploy_api() -> anyhow::Result<()> {
         },
     }))?;
 
-
-    // let app_config: ConfigResponse = app.query_app(AutocompounderQueryMsg::Config {})?;
-
-    // TODO: Attach to an OS
-
     Ok(())
 }
+
 
 fn main() {
     dotenv().ok();
