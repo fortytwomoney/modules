@@ -57,3 +57,6 @@ proxy = { workspace = true }
 manager = { workspace = true }
 rstest = {workspace = true }
 speculoos = { workspace = true }
+astroport = { workspace = true }
+
+

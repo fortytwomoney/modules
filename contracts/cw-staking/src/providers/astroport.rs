@@ -128,7 +128,11 @@ impl CwStaking for Astroport {
                 },
             )
             .map_err(|_| {
-                StdError::generic_err(format!("Failed to query staked balance on {} for {}", self.name(), staker))
+                StdError::generic_err(format!(
+                    "Failed to query staked balance on {} for {}",
+                    self.name(),
+                    staker
+                ))
             })?;
         Ok(stake_balance)
     }

@@ -69,3 +69,5 @@ subscription = {git = "https://github.com/Abstract-OS/contracts.git",features = 
 rstest = "0.16.0"
 speculoos = "0.11.0"
 
+astroport = {git = "https://github.com/astroport-fi/astroport-core.git"}
+
