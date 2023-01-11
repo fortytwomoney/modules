@@ -21,6 +21,9 @@ pub enum AutocompounderError {
     #[error("The configured max count has an error, {}", msg)]
     MaxCountError { msg: String },
 
+    #[error("Fee cannot exceed 1")]
+    InvalidFee {},
+
     #[error("The update would exceed the configured max count")]
     ExceededMaxCount {},
 
