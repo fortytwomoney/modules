@@ -11,7 +11,7 @@ use abstract_os::objects::module::ModuleVersion;
 use boot_core::networks::NetworkInfo;
 use boot_core::prelude::*;
 use boot_core::{networks, DaemonOptionsBuilder};
-use cosmwasm_std::{Addr, Empty};
+use cosmwasm_std::{Addr, Decimal, Empty};
 
 
 use forty_two::autocompounder::{AUTOCOMPOUNDER, AutocompounderInstantiateMsg};
@@ -104,15 +104,16 @@ pub fn deploy_api() -> anyhow::Result<()> {
         },
         app: AutocompounderInstantiateMsg
         {
-            performance_fees: 100u128.into(),
-            deposit_fees: 100u128.into(),
-            withdrawal_fees: 100u128.into(),
+            performance_fees: Decimal::new(100u128.into()),
+            deposit_fees: Decimal::new(100u128.into()),
+            withdrawal_fees: Decimal::new(100u128.into()),
             /// address that recieves the fee commissions
             commission_addr: _sender.to_string(),
             /// cw20 code id
             code_id: 4012,
             /// Name of the target dex
             dex: "junoswap".into(),
+            fee_asset: "junox".into(),
             /// Assets in the pool
             pool_assets: vec!["crab".into(), "junox".into()],
             // pool_assets: vec!["junox".into(), "crab".into()],
