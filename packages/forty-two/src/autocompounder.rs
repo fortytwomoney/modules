@@ -32,7 +32,7 @@ use abstract_sdk::os::app;
 use abstract_sdk::os::dex::{DexName, OfferAsset};
 use abstract_sdk::os::objects::AssetEntry;
 use cosmwasm_schema::QueryResponses;
-use cosmwasm_std::{Uint128, Decimal};
+use cosmwasm_std::Decimal;
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 

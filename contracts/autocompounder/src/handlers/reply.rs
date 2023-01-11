@@ -6,8 +6,8 @@ use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata};
 use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
-    to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg,
-    Uint128, WasmMsg, Fraction,
+    to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, Fraction, Reply, Response, StdError, StdResult,
+    SubMsg, Uint128, WasmMsg,
 };
 use cw20_base::msg::ExecuteMsg::Mint;
 
@@ -16,7 +16,8 @@ use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
 use protobuf::Message;
 
 use crate::contract::{
-    AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, SWAPPED_REPLY_ID, FEE_SWAPPED_REPLY,
+    AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, FEE_SWAPPED_REPLY,
+    SWAPPED_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
@@ -163,7 +164,10 @@ pub fn lp_compound_reply(
         .map(|reward| -> StdResult<AnsAsset> {
             let fee = reward
                 .amount
-                .checked_multiply_ratio(config.fees.performance.numerator(), config.fees.performance.denominator())
+                .checked_multiply_ratio(
+                    config.fees.performance.numerator(),
+                    config.fees.performance.denominator(),
+                )
                 .unwrap();
             reward.amount = reward.amount.checked_sub(fee)?;
 
@@ -173,11 +177,12 @@ pub fn lp_compound_reply(
 
     // 3) (swap and) Send fees to treasury
     let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
-        fees, 
-        vec![config.fees.fee_asset], 
-        &modules, 
-        &config.pool_data.dex, 
-        FEE_SWAPPED_REPLY)?;
+        fees,
+        vec![config.fees.fee_asset],
+        &modules,
+        &config.pool_data.dex,
+        FEE_SWAPPED_REPLY,
+    )?;
     // - if we want to swap, we should just create swap msgs with the last one containing a reply id
     //   and then send the fees to the treasury in the reply
     // let fee_transfer_msg = bank.transfer(fees, &config.commission_addr)?;
@@ -209,7 +214,13 @@ pub fn lp_compound_reply(
             .add_submessage(submsg)
             .add_attribute("action", "provide_liquidity"))
     } else {
-        let (swap_msgs, submsg) = swap_rewards_with_reply(rewards, pool_assets, &modules, &config.pool_data.dex, SWAPPED_REPLY_ID)?;
+        let (swap_msgs, submsg) = swap_rewards_with_reply(
+            rewards,
+            pool_assets,
+            &modules,
+            &config.pool_data.dex,
+            SWAPPED_REPLY_ID,
+        )?;
 
         // adds all swap messages to the response and the submsg -> the submsg will be executed after the last swap message
         // and will trigger the reply SWAPPED_REPLY_ID
@@ -296,23 +307,27 @@ pub fn compound_lp_provision_reply(
         .add_attribute("action", "stake"))
 }
 
-pub fn fee_swapped_reply(deps:DepsMut, _env: Env, app: AutocompounderApp, _reply: Reply) -> AutocompounderResult {
+pub fn fee_swapped_reply(
+    deps: DepsMut,
+    _env: Env,
+    app: AutocompounderApp,
+    _reply: Reply,
+) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let fee_asset = config.fees.fee_asset;
- 
+
     let fee_balance = fee_asset
         .resolve(&deps.querier, &app.ans_host(deps.as_ref())?)?
         .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?)?;
-    
+
     let transfer_msg = app.bank(deps.as_ref()).transfer(
-        vec![AnsAsset::new(fee_asset,fee_balance )], 
-        &config.commission_addr
+        vec![AnsAsset::new(fee_asset, fee_balance)],
+        &config.commission_addr,
     )?;
 
     Ok(Response::new()
         .add_message(transfer_msg)
-        .add_attribute("action", "transfer_platfrom_fees")
-    )
+        .add_attribute("action", "transfer_platfrom_fees"))
 }
 
 fn query_rewards(deps: Deps, app: &AutocompounderApp, _pool_data: PoolMetadata) -> Vec<AssetEntry> {
@@ -353,7 +368,13 @@ fn stake_lp_tokens(
 }
 
 /// swaps all rewards that are not in the target assets and add a reply id to the latest swapmsg
-fn swap_rewards_with_reply(rewards: Vec<AnsAsset>, target_assets: Vec<AssetEntry>, modules: &Modules<AutocompounderApp>, dex: &String, reply_id: u64) -> Result<(Vec<CosmosMsg>, SubMsg), AutocompounderError> {
+fn swap_rewards_with_reply(
+    rewards: Vec<AnsAsset>,
+    target_assets: Vec<AssetEntry>,
+    modules: &Modules<AutocompounderApp>,
+    dex: &String,
+    reply_id: u64,
+) -> Result<(Vec<CosmosMsg>, SubMsg), AutocompounderError> {
     let mut swap_msgs: Vec<CosmosMsg> = vec![];
     rewards
         .iter()
