@@ -1,8 +1,8 @@
 use std::env::current_dir;
 use std::fs::create_dir_all;
 
-use autocompounder::contract::AutocompounderApp;
 use cosmwasm_schema::remove_schemas;
+// use autocompounder::contract::AutocompounderApp;
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
@@ -10,5 +10,6 @@ fn main() {
     create_dir_all(&out_dir).unwrap();
     remove_schemas(&out_dir).unwrap();
 
-    AutocompounderApp::export_schema(&out_dir);
+    // TODO: figure out issue with feature
+    // AutocompounderApp::export_schema(&out_dir);
 }
