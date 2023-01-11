@@ -43,3 +43,17 @@ cw-utils = {workspace = true}
 
 [dev-dependencies]
 abstract-app = { workspace = true, features = ["schema"] }
+abstract-os = { workspace = true }
+cw-multi-test = { workspace = true , features = ["staking"]}
+cw20 = { workspace = true }
+abstract-boot = {workspace = true}
+boot-core = { workspace = true}
+anyhow = {workspace = true}
+os-factory = { workspace = true }
+module-factory = { workspace = true }
+ans-host = { workspace = true }
+version-control = { workspace = true }
+proxy = { workspace = true }
+manager = { workspace = true }
+rstest = {workspace = true }
+speculoos = { workspace = true }
