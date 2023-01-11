@@ -33,11 +33,6 @@ pub fn instantiate_reply(
     reply: Reply,
 ) -> AutocompounderResult {
     // Logic to execute on example reply
-    if reply.result.is_err() {
-        return Err(AutocompounderError::Std(StdError::generic_err(
-            format!("Reply failed, {:?}", reply.result),
-        )));
-    }
     let data = reply.result.unwrap().data.unwrap();
     let res: MsgInstantiateContractResponse =
         Message::parse_from_bytes(data.as_slice()).map_err(|_| {
