@@ -13,6 +13,7 @@ fn execute_on_proxy_through_manager() -> AResult {
     let sender = Addr::unchecked(common::ROOT_USER);
     let (_state, chain) = instantiate_default_mock_env(&sender)?;
     let (mut deployment, mut core) = init_abstract_env(&chain)?;
+
     deployment.deploy(&mut core)?;
     let os = create_default_os(&chain, &deployment.os_factory)?;
 

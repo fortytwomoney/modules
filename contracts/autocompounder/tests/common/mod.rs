@@ -1,3 +1,5 @@
+pub mod astroport;
+
 pub const ROOT_USER: &str = "root_user";
 pub const TEST_COIN: &str = "ucoin";
 
