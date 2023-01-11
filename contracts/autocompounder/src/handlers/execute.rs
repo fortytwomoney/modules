@@ -58,7 +58,7 @@ pub fn update_fee_config(
     deposit: Option<Decimal>,
 ) -> AutocompounderResult {
     app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
-    
+
     if let Some(fee) = fee {
         CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
             config.fees.performance = fee;
@@ -81,8 +81,7 @@ pub fn update_fee_config(
         })?;
     }
 
-    Ok(Response::new()
-        .add_attribute("action", "update_fee_config"))
+    Ok(Response::new().add_attribute("action", "update_fee_config"))
 }
 
 // im assuming that this is the function that will be called when the user wants to pool AND stake their funds
