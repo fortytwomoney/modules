@@ -6,7 +6,7 @@ use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata};
 use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
-    to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, Fraction, Reply, Response, StdError, StdResult,
+    to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult,
     SubMsg, Uint128, WasmMsg,
 };
 use cw20_base::msg::ExecuteMsg::Mint;
@@ -163,13 +163,9 @@ pub fn lp_compound_reply(
         .iter_mut()
         .map(|reward| -> StdResult<AnsAsset> {
             let fee = reward
-                .amount
-                .checked_multiply_ratio(
-                    config.fees.performance.numerator(),
-                    config.fees.performance.denominator(),
-                )
-                .unwrap();
-            reward.amount = reward.amount.checked_sub(fee)?;
+                .amount * config.fees.performance;
+
+            reward.amount = reward.amount - fee;
 
             Ok(AnsAsset::new(reward.name.clone(), fee))
         })
