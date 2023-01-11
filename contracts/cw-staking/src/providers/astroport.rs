@@ -6,14 +6,14 @@ use abstract_sdk::{
     os::objects::{AssetEntry, LpToken},
     Resolve,
 };
+use astroport::generator::{
+    Cw20HookMsg, ExecuteMsg as GeneratorExecuteMsg, QueryMsg as GeneratorQueryMsg,
+};
 use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, Deps, QuerierWrapper, StdError, StdResult, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
-use astroport::generator::{
-    Cw20HookMsg, ExecuteMsg as GeneratorExecuteMsg, QueryMsg as GeneratorQueryMsg,
-};
-use cw_asset::{AssetInfo};
+use cw_asset::AssetInfo;
 use forty_two::cw_staking::{Claim, StakingInfoResponse};
 
 pub const ASTROPORT: &str = "astroport";
@@ -24,16 +24,17 @@ pub struct Astroport {
     lp_token: LpToken,
     lp_token_address: Addr,
     generator_contract_address: Addr,
-    astro_token: AssetInfo,
 }
 
 impl Default for Astroport {
     fn default() -> Self {
-        Self { lp_token: Default::default(), lp_token_address: Addr::unchecked(""), generator_contract_address: Addr::unchecked(""), astro_token: cw_asset::AssetInfoBase::native("") }
+        Self {
+            lp_token: Default::default(),
+            lp_token_address: Addr::unchecked(""),
+            generator_contract_address: Addr::unchecked(""),
+        }
     }
 }
-
-pub const ASTRO_TOKEN: &str = "astro";
 
 // Data that's retrieved from ANS
 // - LP token address, based on provided LP token
@@ -45,7 +46,7 @@ impl Identify for Astroport {
 }
 
 impl CwStaking for Astroport {
-    // get the relevant data for Junoswap staking
+    // get the relevant data for Astroport staking
     fn fetch_data(
         &mut self,
         deps: Deps,
@@ -101,45 +102,39 @@ impl CwStaking for Astroport {
     }
 
     fn query_info(&self, querier: &QuerierWrapper) -> StdResult<StakingInfoResponse> {
-        let stake_info_resp: cw20_stake::state::Config = querier.query_wasm_smart(
-            self.generator_contract_address.clone(),
-            &GeneratorQueryMsg::Config {  },
-        )?;
+        let stake_info_resp: astroport::generator::Config = querier
+            .query_wasm_smart(
+                self.generator_contract_address.clone(),
+                &GeneratorQueryMsg::Config {},
+            )
+            .map_err(|_| {
+                StdError::generic_err(format!("Failed to query staking info for {}", self.name()))
+            })?;
         Ok(StakingInfoResponse {
             staking_contract_address: self.generator_contract_address.clone(),
-            staking_token: AssetInfo::Cw20(stake_info_resp.token_address),
-            unbonding_period: stake_info_resp.unstaking_duration,
-            max_claims: Some(cw20_stake::state::MAX_CLAIMS as u32),
+            staking_token: AssetInfo::Cw20(stake_info_resp.astro_token),
+            unbonding_period: None,
+            max_claims: None,
         })
     }
 
     fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<Uint128> {
-        let stake_balance: cw20_stake::msg::StakedBalanceAtHeightResponse = querier
+        let stake_balance: Uint128 = querier
             .query_wasm_smart(
                 self.generator_contract_address.clone(),
-                &cw20_stake::msg::QueryMsg::StakedBalanceAtHeight {
-                    address: staker.into_string(),
-                    height: None,
+                &GeneratorQueryMsg::Deposit {
+                    lp_token: self.lp_token_address.to_string(),
+                    user: staker.to_string(),
                 },
-            )?;
-        Ok(stake_balance.balance)
+            )
+            .map_err(|_| {
+                StdError::generic_err(format!("Failed to query staked balance on {} for {}", self.name(), staker))
+            })?;
+        Ok(stake_balance)
     }
 
-    fn query_unbonding(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<Vec<Claim>> {
-        let claims: cw20_stake::msg::ClaimsResponse = querier.query_wasm_smart(
-            self.generator_contract_address.clone(),
-            &cw20_stake::msg::QueryMsg::Claims {
-                address: staker.into_string(),
-            },
-        )?;
-        let claims = claims
-            .claims
-            .iter()
-            .map(|claim| Claim {
-                amount: claim.amount,
-                claimable_at: claim.release_at,
-            })
-            .collect();
-        Ok(claims)
+    fn query_unbonding(&self, _querier: &QuerierWrapper, _staker: Addr) -> StdResult<Vec<Claim>> {
+        // TODO: should we return an empty vec or error here?
+        Ok(vec![])
     }
 }
