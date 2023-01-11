@@ -1,15 +1,17 @@
+use abstract_sdk::os::objects::AssetEntry;
 use abstract_sdk::os::objects::{PoolAddress, PoolMetadata};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Addr;
 use cosmwasm_std::Uint128;
+use cosmwasm_std::{Addr, Decimal};
 use cw_storage_plus::{Item, Map};
 use cw_utils::{Duration, Expiration};
 
 #[cw_serde]
 pub struct FeeConfig {
-    pub performance: Uint128,
-    pub deposit: Uint128,
-    pub withdrawal: Uint128,
+    pub performance: Decimal,
+    pub deposit: Decimal,
+    pub withdrawal: Decimal,
+    pub fee_asset: AssetEntry,
 }
 
 #[cw_serde]
