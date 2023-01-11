@@ -25,7 +25,7 @@ use crate::state::{
     Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
 
-use super::helpers::{cw20_total_supply, query_stake};
+use super::helpers::{check_fee, cw20_total_supply, query_stake};
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
@@ -53,13 +53,38 @@ pub fn update_fee_config(
     deps: DepsMut,
     msg_info: MessageInfo,
     app: AutocompounderApp,
-    _fee: Option<Uint128>,
-    _withdrawal: Option<Uint128>,
-    _deposit: Option<Uint128>,
+    fee: Option<Decimal>,
+    withdrawal: Option<Decimal>,
+    deposit: Option<Decimal>,
 ) -> AutocompounderResult {
     app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
 
-    unimplemented!()
+    if let Some(fee) = fee {
+        check_fee(fee)?;
+        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
+            config.fees.performance = fee;
+            Ok(config)
+        })?;
+    }
+
+    if let Some(withdrawal) = withdrawal {
+        check_fee(withdrawal)?;
+        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
+            config.fees.withdrawal = withdrawal;
+
+            Ok(config)
+        })?;
+    }
+
+    if let Some(deposit) = deposit {
+        check_fee(deposit)?;
+        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
+            config.fees.deposit = deposit;
+            Ok(config)
+        })?;
+    }
+
+    Ok(Response::new().add_attribute("action", "update_fee_config"))
 }
 
 // im assuming that this is the function that will be called when the user wants to pool AND stake their funds

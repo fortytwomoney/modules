@@ -15,6 +15,7 @@ use forty_two::cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING};
 
 use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
 use crate::error::AutocompounderError;
+use crate::handlers::helpers::check_fee;
 use crate::state::{Config, FeeConfig, CONFIG};
 
 /// Initial instantiation of the contract
@@ -33,11 +34,16 @@ pub fn instantiate_handler(
         performance_fees,
         deposit_fees,
         withdrawal_fees,
+        fee_asset,
         commission_addr,
         code_id: _,
         dex,
         pool_assets,
     } = msg;
+
+    check_fee(performance_fees)?;
+    check_fee(deposit_fees)?;
+    check_fee(withdrawal_fees)?;
 
     if pool_assets.len() > 2 {
         return Err(AutocompounderError::PoolWithMoreThanTwoAssets {});
@@ -110,6 +116,7 @@ pub fn instantiate_handler(
             performance: performance_fees,
             deposit: deposit_fees,
             withdrawal: withdrawal_fees,
+            fee_asset: AssetEntry::from(fee_asset),
         },
         vault_token: Addr::unchecked(""),
         staking_contract: staking_contract_addr,
@@ -117,8 +124,6 @@ pub fn instantiate_handler(
         commission_addr: deps.api.addr_validate(&commission_addr)?,
         pool_data,
         pool_address: pool_reference.pool_address,
-        // dex_assets: pool_assets,
-        // dex: dex.clone(),
         bonding_period: staking_info.unbonding_period,
         min_unbonding_cooldown,
     };
