@@ -15,7 +15,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.6"
+version = "0.1.9"
 authors = []
 edition = "2021"
 
@@ -30,8 +30,8 @@ exclude = [
 
 # Keep as is until TendermintStake updates.
 [workspace.dependencies]
-forty-two = { version = "0.1.6", path = "packages/forty-two" }
-forty-two-boot = { version = "0.1.6", path = "packages/forty-two-boot" }
+forty-two = { version = "0.1.9", path = "packages/forty-two" }
+forty-two-boot = { version = "0.1.9", path = "packages/forty-two-boot" }
 abstract-sdk = "0.5.2"
 abstract-api = { version = "0.5.2", features = ["library"] }
 abstract-app = { version = "0.5.2", features = ["library"] }

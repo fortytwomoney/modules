@@ -33,6 +33,11 @@ pub fn instantiate_reply(
     reply: Reply,
 ) -> AutocompounderResult {
     // Logic to execute on example reply
+    if reply.result.is_err() {
+        return Err(AutocompounderError::Std(StdError::generic_err(
+            format!("Reply failed, {:?}", reply.result),
+        )));
+    }
     let data = reply.result.unwrap().data.unwrap();
     let res: MsgInstantiateContractResponse =
         Message::parse_from_bytes(data.as_slice()).map_err(|_| {
@@ -98,7 +103,7 @@ pub fn lp_provision_reply(
         })?,
         funds: vec![],
     }
-    .into();
+        .into();
 
     // 5) Stake the LP tokens
     let stake_msg = stake_lp_tokens(
