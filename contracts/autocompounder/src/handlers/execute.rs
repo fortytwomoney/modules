@@ -25,7 +25,7 @@ use crate::state::{
     Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
 
-use super::helpers::{cw20_total_supply, query_stake};
+use super::helpers::{check_fee, cw20_total_supply, query_stake};
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
@@ -60,6 +60,7 @@ pub fn update_fee_config(
     app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
 
     if let Some(fee) = fee {
+        check_fee(fee)?;
         CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
             config.fees.performance = fee;
             Ok(config)
@@ -67,6 +68,7 @@ pub fn update_fee_config(
     }
 
     if let Some(withdrawal) = withdrawal {
+        check_fee(withdrawal)?;
         CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
             config.fees.withdrawal = withdrawal;
 
@@ -75,6 +77,7 @@ pub fn update_fee_config(
     }
 
     if let Some(deposit) = deposit {
+        check_fee(deposit)?;
         CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
             config.fees.deposit = deposit;
             Ok(config)
