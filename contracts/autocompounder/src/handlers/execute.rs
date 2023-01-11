@@ -53,9 +53,9 @@ pub fn update_fee_config(
     deps: DepsMut,
     msg_info: MessageInfo,
     app: AutocompounderApp,
-    _fee: Option<Uint128>,
-    _withdrawal: Option<Uint128>,
-    _deposit: Option<Uint128>,
+    _fee: Option<Decimal>,
+    _withdrawal: Option<Decimal>,
+    _deposit: Option<Decimal>,
 ) -> AutocompounderResult {
     app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
 

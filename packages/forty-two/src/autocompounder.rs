@@ -32,7 +32,7 @@ use abstract_sdk::os::app;
 use abstract_sdk::os::dex::{DexName, OfferAsset};
 use abstract_sdk::os::objects::AssetEntry;
 use cosmwasm_schema::QueryResponses;
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Uint128, Decimal};
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 
@@ -49,9 +49,9 @@ pub struct AutocompounderMigrateMsg {}
 pub struct AutocompounderInstantiateMsg {
     // pub staking_contract: String,
     // pub liquidity_token: String,
-    pub performance_fees: Uint128,
-    pub deposit_fees: Uint128,
-    pub withdrawal_fees: Uint128,
+    pub performance_fees: Decimal,
+    pub deposit_fees: Decimal,
+    pub withdrawal_fees: Decimal,
     pub fee_asset: String,
     /// address that recieves the fee commissions
     pub commission_addr: String,
@@ -66,9 +66,9 @@ pub struct AutocompounderInstantiateMsg {
 #[cosmwasm_schema::cw_serde]
 pub enum AutocompounderExecuteMsg {
     UpdateFeeConfig {
-        performance: Option<Uint128>,
-        deposit: Option<Uint128>,
-        withdrawal: Option<Uint128>,
+        performance: Option<Decimal>,
+        deposit: Option<Decimal>,
+        withdrawal: Option<Decimal>,
     },
     /// Join vault by depositing one or more funds
     Deposit { funds: Vec<OfferAsset> },

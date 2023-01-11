@@ -7,7 +7,7 @@ use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg,
-    Uint128, WasmMsg,
+    Uint128, WasmMsg, Fraction,
 };
 use cw20_base::msg::ExecuteMsg::Mint;
 
@@ -163,7 +163,7 @@ pub fn lp_compound_reply(
         .map(|reward| -> StdResult<AnsAsset> {
             let fee = reward
                 .amount
-                .checked_multiply_ratio(config.fees.performance, Uint128::new(100))
+                .checked_multiply_ratio(config.fees.performance.numerator(), config.fees.performance.denominator())
                 .unwrap();
             reward.amount = reward.amount.checked_sub(fee)?;
 
@@ -220,7 +220,6 @@ pub fn lp_compound_reply(
             .add_submessage(submsg)
             .add_attribute("action", "swap_rewards"))
     }
-
     // TODO: stake lp tokens
 }
 
