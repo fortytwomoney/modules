@@ -1,4 +1,7 @@
-use crate::{contract::CwStakingApi, providers::resolver::{self, is_over_ibc}};
+use crate::{
+    contract::CwStakingApi,
+    providers::resolver::{self, is_over_ibc},
+};
 use abstract_sdk::base::features::AbstractNameService;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, StdError, StdResult};
 use forty_two::cw_staking::CwStakingQueryMsg;
