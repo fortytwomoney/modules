@@ -165,7 +165,7 @@ pub fn lp_compound_reply(
             let fee = reward
                 .amount * config.fees.performance;
 
-            reward.amount = reward.amount - fee;
+            reward.amount -= fee;
 
             Ok(AnsAsset::new(reward.name.clone(), fee))
         })

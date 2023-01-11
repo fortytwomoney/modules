@@ -53,13 +53,36 @@ pub fn update_fee_config(
     deps: DepsMut,
     msg_info: MessageInfo,
     app: AutocompounderApp,
-    _fee: Option<Decimal>,
-    _withdrawal: Option<Decimal>,
-    _deposit: Option<Decimal>,
+    fee: Option<Decimal>,
+    withdrawal: Option<Decimal>,
+    deposit: Option<Decimal>,
 ) -> AutocompounderResult {
     app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
+    
+    if let Some(fee) = fee {
+        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
+            config.fees.performance = fee;
+            Ok(config)
+        })?;
+    }
 
-    unimplemented!()
+    if let Some(withdrawal) = withdrawal {
+        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
+            config.fees.withdrawal = withdrawal;
+
+            Ok(config)
+        })?;
+    }
+
+    if let Some(deposit) = deposit {
+        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
+            config.fees.deposit = deposit;
+            Ok(config)
+        })?;
+    }
+
+    Ok(Response::new()
+        .add_attribute("action", "update_fee_config"))
 }
 
 // im assuming that this is the function that will be called when the user wants to pool AND stake their funds
