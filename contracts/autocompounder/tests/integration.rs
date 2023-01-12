@@ -1,10 +1,10 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use abstract_boot::ManagerExecFns;
+use abstract_boot::{ManagerExecFns, ManagerQueryFns};
 use abstract_os::ans_host::ExecuteMsgFns;
 use abstract_os::objects::pool_id::PoolAddressBase;
-use abstract_os::objects::{AssetEntry, LpToken, PoolMetadata, UncheckedContractEntry};
+use abstract_os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata, UncheckedContractEntry};
 use abstract_os::EXCHANGE;
 use astroport::asset::{Asset, AssetInfo, PairInfo};
 
@@ -27,12 +27,14 @@ use astroport::{
 };
 
 use boot_core::MockState;
+use boot_cw_plus::Cw20;
 use cosmwasm_std::{to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_multi_test::{App, ContractWrapper, Executor};
-use forty_two::autocompounder::AUTOCOMPOUNDER;
+use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
 use forty_two::cw_staking::CW_STAKING;
 
+use forty_two_boot::autocompounder::AutocompounderApp;
 use test_utils::abstract_helper;
 
 #[cfg(test)]
@@ -57,7 +59,9 @@ struct PoolWithProxy {
 
 #[test]
 fn generator_without_reward_proxies() {
+    use abstract_os::api::BaseExecuteMsgFns;
     use boot_core::prelude::*;
+    use forty_two::autocompounder::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns};
 
     let mut app = mock_app();
 
@@ -77,22 +81,6 @@ fn generator_without_reward_proxies() {
     let cny_eur_token_code_id = store_token_code(&mut app);
     let eur_token = instantiate_token(&mut app, cny_eur_token_code_id, "EUR", None);
     let usd_token = instantiate_token(&mut app, cny_eur_token_code_id, "USD", None);
-    let cny_token = instantiate_token(&mut app, cny_eur_token_code_id, "CNY", None);
-
-    let (_pair_cny_eur, lp_cny_eur) = create_pair(
-        &mut app,
-        &factory_instance,
-        None,
-        None,
-        vec![
-            AssetInfo::Token {
-                contract_addr: cny_token.clone(),
-            },
-            AssetInfo::Token {
-                contract_addr: eur_token.clone(),
-            },
-        ],
-    );
 
     let (pair_eur_usd, lp_eur_usd) = create_pair(
         &mut app,
@@ -115,16 +103,10 @@ fn generator_without_reward_proxies() {
     register_lp_tokens_in_generator(
         &mut app,
         &generator_instance,
-        vec![
-            PoolWithProxy {
-                pool: (lp_cny_eur.to_string(), Uint128::from(50u32)),
-                proxy: None,
-            },
-            PoolWithProxy {
-                pool: (lp_eur_usd.to_string(), Uint128::from(50u32)),
-                proxy: None,
-            },
-        ],
+        vec![PoolWithProxy {
+            pool: (lp_eur_usd.to_string(), Uint128::from(50u32)),
+            proxy: None,
+        }],
     );
 
     let mock_state = Rc::new(RefCell::new(MockState::new()));
@@ -192,11 +174,11 @@ fn generator_without_reward_proxies() {
         .unwrap();
 
     // set up the dex and staking contracts
-    abstract_helper::init_exchange(&mock, &deployment, None).unwrap();
-    abstract_helper::init_staking(&mock, &deployment, None).unwrap();
+    let exchange_api = abstract_helper::init_exchange(&mock, &deployment, None).unwrap();
+    let staking_api = abstract_helper::init_staking(&mock, &deployment, None).unwrap();
 
-    let mut auto_compounder =
-        forty_two_boot::autocompounder::AutocompounderApp::new(AUTOCOMPOUNDER, mock.clone());
+    let mut auto_compounder = AutocompounderApp::new(AUTOCOMPOUNDER, mock.clone());
+
     auto_compounder.as_instance_mut().set_mock(Box::new(
         ContractWrapper::new_with_empty(
             autocompounder::contract::execute,
@@ -243,7 +225,7 @@ fn generator_without_reward_proxies() {
                     dex: ASTROPORT.to_string(),
                     fee_asset: eur_asset.to_string(),
                     performance_fees: Decimal::zero(),
-                    pool_assets: vec![eur_asset, usd_asset],
+                    pool_assets: vec![eur_asset.clone(), usd_asset],
                     withdrawal_fees: Decimal::zero(),
                 },
                 base: abstract_os::app::BaseInstantiateMsg {
@@ -253,7 +235,53 @@ fn generator_without_reward_proxies() {
         )
         .unwrap();
 
-    // create OS and install dex
+    let auto_compounder_addr = os
+        .manager
+        .module_addresses(vec![AUTOCOMPOUNDER.into()])
+        .unwrap()
+        .modules[0]
+        .1
+        .clone();
+    auto_compounder.set_address(&Addr::unchecked(auto_compounder_addr.clone()));
+
+    exchange_api
+        .call_as(&os.manager.address().unwrap())
+        .update_traders(Some(vec![auto_compounder_addr.clone()]), None)
+        .unwrap();
+    staking_api
+        .call_as(&os.manager.address().unwrap())
+        .update_traders(Some(vec![auto_compounder_addr.clone()]), None)
+        .unwrap();
+
+    // deposit into the auto-compounder
+    // give user some funds
+    mint_tokens(
+        &mut mock.app.borrow_mut(),
+        owner.clone(),
+        &eur_token,
+        &owner,
+        100,
+    );
+
+    // increase allowance
+    mock.app
+        .borrow_mut()
+        .execute_contract(
+            owner.clone(),
+            eur_token,
+            &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                spender: auto_compounder_addr.clone(),
+                amount: Uint128::from(100u64),
+                expires: None,
+            },
+            &vec![],
+        )
+        .unwrap();
+
+    // deposit
+    auto_compounder
+        .deposit(vec![AnsAsset::new(eur_asset, 100u64)])
+        .unwrap();
 
     // // Mint tokens, so user can deposit
     // mint_tokens(&mut app, pair_cny_eur.clone(), &lp_cny_eur, &user1, 9);

@@ -149,8 +149,8 @@ pub(crate) fn init_staking(
     chain: &Mock,
     deployment: &Deployment<Mock>,
     version: Option<String>,
-) -> anyhow::Result<DexApi<Mock>> {
-    let mut staking = DexApi::new(CW_STAKING, chain.clone());
+) -> anyhow::Result<forty_two_boot::cw_staking::CwStakingApi<Mock>> {
+    let mut staking = forty_two_boot::cw_staking::CwStakingApi::new(CW_STAKING, chain.clone());
     staking
         .as_instance_mut()
         .set_mock(Box::new(cw_multi_test::ContractWrapper::new_with_empty(

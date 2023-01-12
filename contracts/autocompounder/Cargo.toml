@@ -45,6 +45,7 @@ cw-utils = {workspace = true}
 
 [dev-dependencies]
 forty-two-boot = {path = "../../packages/forty-two-boot" }
+forty-two = { workspace = true, features = ["boot"] }
 cw-staking = { path = "../../contracts/cw-staking" }
 
 abstract-app = { workspace = true, features = ["schema"] }
