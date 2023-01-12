@@ -8,6 +8,7 @@ pub mod delegation_helper;
 #[allow(clippy::all)]
 #[allow(dead_code)]
 pub mod escrow_helper;
+pub mod abstract_helper;
 
 pub fn mock_app() -> App {
     let mut app = App::default();

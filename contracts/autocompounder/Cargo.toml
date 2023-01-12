@@ -32,7 +32,6 @@ cw20-base = { workspace = true, features = ["library"] }
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.21" }
-semver = "1.0.0"
 lazy_static = "1.4.0"
 forty-two = { path = "../../packages/forty-two" }
 
@@ -58,9 +57,10 @@ manager = { workspace = true }
 rstest = {workspace = true }
 speculoos = { workspace = true }
 astroport = { workspace = true }
+dex = { workspace = true }
+semver = { package = "cw-semver", version = "1" }
 
 cw-astro = {package = "cw20", version = "0.15"}
-
 astroport-token = { git = "https://github.com/astroport-fi/astroport-core.git"}
 astroport-generator = { git = "https://github.com/astroport-fi/astroport-core.git"}
 astroport-vesting = { git = "https://github.com/astroport-fi/astroport-core.git"}
@@ -71,7 +71,6 @@ astroport-pair-stable = { git = "https://github.com/astroport-fi/astroport-core.
 astroport-whitelist = { git = "https://github.com/astroport-fi/astroport-core.git"}
 astroport-governance = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main"}
 generator-controller = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main" }
-
 
 voting-escrow = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main" }
 voting-escrow-delegation = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main" }

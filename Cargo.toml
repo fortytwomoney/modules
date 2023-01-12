@@ -62,8 +62,7 @@ version-control = {git = "https://github.com/Abstract-OS/contracts.git",features
 osmosis-host = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"] }
 proxy = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"] }
 manager = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"]}
-ibc-client = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"]}
-etf = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"]}
+dex = {git = "https://github.com/Abstract-OS/contracts.git"}
 subscription = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"]}
 
 rstest = "0.16.0"
