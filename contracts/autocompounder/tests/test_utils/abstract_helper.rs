@@ -135,7 +135,7 @@ pub(crate) fn init_exchange(
         None,
     )?;
 
-    let version: semver::Version = version.map(|s| s.parse().unwrap()).unwrap_or(deployment.version);
+    let version: semver::Version = version.map(|s| s.parse().unwrap()).unwrap_or(deployment.version.clone());
 
     deployment
         .version_control

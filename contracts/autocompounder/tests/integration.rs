@@ -1291,10 +1291,10 @@ fn generator_without_reward_proxies() {
 
     let os = deployment.os_factory.create_default_os(abstract_os::objects::gov_type::GovernanceDetails::Monarchy { monarch: owner.to_string() }).unwrap();
 
-    os.manager.install_module(AUTOCOMPOUNDER, Some(&forty_two::autocompounder::AutocompounderInstantiateMsg{
-        code_id: token_code_id,
+    // os.manager.install_module(AUTOCOMPOUNDER, Some(&forty_two::autocompounder::AutocompounderInstantiateMsg{
+    //     code_id: token_code_id,
         
-    }))
+    // })).unwrap();
 
 
 
