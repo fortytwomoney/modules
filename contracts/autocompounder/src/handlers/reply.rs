@@ -99,7 +99,7 @@ pub fn lp_provision_reply(
         })?,
         funds: vec![],
     }
-        .into();
+    .into();
 
     // 5) Stake the LP tokens
     let stake_msg = stake_lp_tokens(
@@ -329,7 +329,6 @@ fn query_rewards(deps: Deps, app: &AutocompounderApp, _pool_data: PoolMetadata) 
     // query staking module for which rewards are available
     let _modules = app.modules(deps);
 
-
     // TODO: Reward query has yet to be implemented
     // let query = CwStakingQueryMsg::Rewards {
     //     address: app.proxy_address(deps).unwrap().to_string(),
@@ -349,16 +348,15 @@ fn stake_lp_tokens(
     asset: AnsAsset,
 ) -> StdResult<CosmosMsg> {
     let modules = app.modules(deps.as_ref());
-    modules
-        .api_request(
-            CW_STAKING,
-            CwStakingExecuteMsg {
-                provider,
-                action: CwStakingAction::Stake {
-                    staking_token: asset,
-                },
+    modules.api_request(
+        CW_STAKING,
+        CwStakingExecuteMsg {
+            provider,
+            action: CwStakingAction::Stake {
+                staking_token: asset,
             },
-        )
+        },
+    )
 }
 
 /// swaps all rewards that are not in the target assets and add a reply id to the latest swapmsg

@@ -4,7 +4,7 @@ use boot_core::{BootEnvironment, Contract, IndexResponse, TxResponse};
 
 use abstract_os::api;
 use cosmwasm_std::{Addr, Empty};
-use forty_two::cw_staking::{CW_STAKING, CwStakingExecuteMsg, CwStakingQueryMsg};
+use forty_two::cw_staking::{CwStakingExecuteMsg, CwStakingQueryMsg, CW_STAKING};
 
 type ApiExecuteMsg = api::ExecuteMsg<CwStakingExecuteMsg>;
 type ApiQueryMsg = api::QueryMsg<CwStakingQueryMsg>;

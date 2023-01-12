@@ -1,6 +1,7 @@
 use astroport_governance::utils::{get_period, EPOCH_START};
 use cw_multi_test::App;
 
+pub mod abstract_helper;
 #[allow(clippy::all)]
 #[allow(dead_code)]
 pub mod controller_helper;
@@ -8,7 +9,6 @@ pub mod delegation_helper;
 #[allow(clippy::all)]
 #[allow(dead_code)]
 pub mod escrow_helper;
-pub mod abstract_helper;
 
 pub fn mock_app() -> App {
     let mut app = App::default();

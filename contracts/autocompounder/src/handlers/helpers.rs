@@ -19,7 +19,7 @@ pub fn query_stake(
         staker_address: app.proxy_address(deps)?.to_string(),
         provider: dex,
     };
-    let res: StakeResponse =modules.query_api(CW_STAKING, query)?;
+    let res: StakeResponse = modules.query_api(CW_STAKING, query)?;
     Ok(res.amount)
 }
 

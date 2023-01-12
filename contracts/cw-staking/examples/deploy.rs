@@ -1,15 +1,15 @@
 use abstract_boot::{ModuleDeployer, VCExecFns, VCQueryFns};
+use abstract_sdk::os::objects::module::{Module, ModuleInfo, ModuleVersion};
 use boot_core::networks::UNI_5;
 use boot_core::prelude::instantiate_daemon_env;
 use boot_core::prelude::*;
 use boot_core::DaemonOptionsBuilder;
 use cosmwasm_std::{Addr, Empty};
-use semver::Version;
-use std::sync::Arc;
-use abstract_sdk::os::objects::module::{Module, ModuleInfo, ModuleVersion};
-use tokio::runtime::Runtime;
 use forty_two::cw_staking::CW_STAKING;
 use forty_two_boot::cw_staking::CwStakingApi;
+use semver::Version;
+use std::sync::Arc;
+use tokio::runtime::Runtime;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -21,7 +21,10 @@ fn deploy_cw_staking(args: Arguments) -> anyhow::Result<()> {
     let options = DaemonOptionsBuilder::default().network(network).build();
     let (_sender, chain) = instantiate_daemon_env(&rt, options?)?;
 
-    let abstract_version: Version = std::env::var("ABSTRACT_VERSION").expect("Missing ABSTRACT_VERSION").parse().unwrap();
+    let abstract_version: Version = std::env::var("ABSTRACT_VERSION")
+        .expect("Missing ABSTRACT_VERSION")
+        .parse()
+        .unwrap();
     let deployer = ModuleDeployer::load_from_version_control(
         chain.clone(),
         &abstract_version,
@@ -29,19 +32,21 @@ fn deploy_cw_staking(args: Arguments) -> anyhow::Result<()> {
     )?;
 
     if args.prev_version.is_some() {
-        let Module {
-            info,
-            reference
-        } = deployer.version_control.module(ModuleInfo::from_id(CW_STAKING, ModuleVersion::from(args.prev_version.unwrap()))?)?.module;
+        let Module { info, reference } = deployer
+            .version_control
+            .module(ModuleInfo::from_id(
+                CW_STAKING,
+                ModuleVersion::from(args.prev_version.unwrap()),
+            )?)?
+            .module;
 
         let new_info = ModuleInfo {
             version: ModuleVersion::from(CONTRACT_VERSION),
             ..info
         };
-        deployer.version_control.add_modules(vec![(
-            new_info,
-            reference
-        )])?;
+        deployer
+            .version_control
+            .add_modules(vec![(new_info, reference)])?;
     } else {
         let mut cw_staking = CwStakingApi::new(CW_STAKING, chain);
 
@@ -52,7 +57,7 @@ fn deploy_cw_staking(args: Arguments) -> anyhow::Result<()> {
 }
 
 use clap::Parser;
-#[derive(Parser,Default,Debug)]
+#[derive(Parser, Default, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Arguments {
     /// Use a previously deployed verison

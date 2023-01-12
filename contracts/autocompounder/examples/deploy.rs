@@ -1,23 +1,21 @@
-use std::env;
 use abstract_boot::{VCExecFns, VersionControl};
 use boot_core::networks::{NetworkInfo, UNI_5};
 use boot_core::prelude::instantiate_daemon_env;
 use boot_core::prelude::*;
 use boot_core::DaemonOptionsBuilder;
-use cosmwasm_std::{Addr};
+use cosmwasm_std::Addr;
+use std::env;
 
-use std::sync::Arc;
 use abstract_sdk::os::objects::module::{ModuleInfo, ModuleVersion};
 use abstract_sdk::os::objects::module_reference::ModuleReference;
-use tokio::runtime::Runtime;
 use forty_two::autocompounder::AUTOCOMPOUNDER;
+use std::sync::Arc;
+use tokio::runtime::Runtime;
 
 use forty_two_boot::autocompounder::AutocompounderApp;
 
-
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const NETWORK: NetworkInfo = UNI_5;
-
 
 fn deploy_autocompounder(args: Arguments) -> anyhow::Result<()> {
     // let version: Version = CONTRACT_VERSION.parse().unwrap();
@@ -49,17 +47,20 @@ fn deploy_autocompounder(args: Arguments) -> anyhow::Result<()> {
     //     version: ModuleVersion::from(CONTRACT_VERSION)
     // })?;
 
-    version_control.add_modules(vec![(ModuleInfo {
-        name: "autocompounder".into(),
-        provider: "4t2".into(),
-        version: ModuleVersion::from(CONTRACT_VERSION)
-    }, ModuleReference::App(autocompounder.code_id()?))])?;
+    version_control.add_modules(vec![(
+        ModuleInfo {
+            name: "autocompounder".into(),
+            provider: "4t2".into(),
+            version: ModuleVersion::from(CONTRACT_VERSION),
+        },
+        ModuleReference::App(autocompounder.code_id()?),
+    )])?;
 
     Ok(())
 }
 
 use clap::Parser;
-#[derive(Parser,Default,Debug)]
+#[derive(Parser, Default, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Arguments {
     /// COde ID of the already uploaded contract
@@ -76,5 +77,4 @@ fn main() -> anyhow::Result<()> {
     let args = Arguments::parse();
 
     deploy_autocompounder(args)
-
 }

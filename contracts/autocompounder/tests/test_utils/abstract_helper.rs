@@ -1,7 +1,7 @@
 pub const ROOT_USER: &str = "root_user";
 pub const TEST_COIN: &str = "ucoin";
 
-use abstract_boot::{TMintStakingApi, OS, DexApi};
+use abstract_boot::{DexApi, TMintStakingApi, OS};
 use abstract_os::{
     api::InstantiateMsg, objects::gov_type::GovernanceDetails, PROXY, TENDERMINT_STAKING,
 };
@@ -115,13 +115,13 @@ pub(crate) fn init_exchange(
     version: Option<String>,
 ) -> anyhow::Result<DexApi<Mock>> {
     let mut exchange = DexApi::new(TENDERMINT_STAKING, chain.clone());
-    exchange.as_instance_mut().set_mock(Box::new(
-        cw_multi_test::ContractWrapper::new_with_empty(
+    exchange
+        .as_instance_mut()
+        .set_mock(Box::new(cw_multi_test::ContractWrapper::new_with_empty(
             ::dex::contract::execute,
             ::dex::contract::instantiate,
             ::dex::contract::query,
-        ),
-    ));
+        )));
     exchange.upload()?;
     exchange.instantiate(
         &InstantiateMsg {
@@ -135,7 +135,9 @@ pub(crate) fn init_exchange(
         None,
     )?;
 
-    let version: semver::Version = version.map(|s| s.parse().unwrap()).unwrap_or(deployment.version.clone());
+    let version: semver::Version = version
+        .map(|s| s.parse().unwrap())
+        .unwrap_or(deployment.version.clone());
 
     deployment
         .version_control

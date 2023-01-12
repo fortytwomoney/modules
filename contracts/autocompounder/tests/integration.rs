@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use abstract_boot::{OsFactoryExecFns, ManagerExecFns};
+use abstract_boot::{ManagerExecFns, OsFactoryExecFns};
 use astroport::asset::{native_asset_info, token_asset_info, Asset, AssetInfo, PairInfo};
 use astroport::generator::{ExecuteMsg, QueryMsg, StakerResponse};
 use astroport_governance::utils::WEEK;
@@ -1274,32 +1274,40 @@ fn generator_without_reward_proxies() {
     let (mut deployment, mut os_core) = abstract_helper::init_abstract_env(&mock).unwrap();
     deployment.deploy(&mut os_core).unwrap();
 
-    
-
     // set up the dex
     abstract_helper::init_exchange(&mock, &deployment, None).unwrap();
-    let mut auto_compounder = forty_two_boot::autocompounder::AutocompounderApp::new(AUTOCOMPOUNDER, mock.clone());
-    auto_compounder.as_instance_mut().set_mock( Box::new(ContractWrapper::new_with_empty(
-                autocompounder::contract::execute,
-                autocompounder::contract::instantiate,
-                autocompounder::contract::query,
-            )));
-    
+    let mut auto_compounder =
+        forty_two_boot::autocompounder::AutocompounderApp::new(AUTOCOMPOUNDER, mock.clone());
+    auto_compounder
+        .as_instance_mut()
+        .set_mock(Box::new(ContractWrapper::new_with_empty(
+            autocompounder::contract::execute,
+            autocompounder::contract::instantiate,
+            autocompounder::contract::query,
+        )));
+
     // upload and register autocompounder
     auto_compounder.upload().unwrap();
-    deployment.version_control.register_apps(vec![auto_compounder.as_instance()], &deployment.version).unwrap();
+    deployment
+        .version_control
+        .register_apps(vec![auto_compounder.as_instance()], &deployment.version)
+        .unwrap();
 
-    let os = deployment.os_factory.create_default_os(abstract_os::objects::gov_type::GovernanceDetails::Monarchy { monarch: owner.to_string() }).unwrap();
+    let os = deployment
+        .os_factory
+        .create_default_os(
+            abstract_os::objects::gov_type::GovernanceDetails::Monarchy {
+                monarch: owner.to_string(),
+            },
+        )
+        .unwrap();
 
     // os.manager.install_module(AUTOCOMPOUNDER, Some(&forty_two::autocompounder::AutocompounderInstantiateMsg{
     //     code_id: token_code_id,
-        
+
     // })).unwrap();
 
-
-
     // create OS and install dex
-
 
     // // Mint tokens, so user can deposit
     // mint_tokens(&mut app, pair_cny_eur.clone(), &lp_cny_eur, &user1, 9);

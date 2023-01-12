@@ -1,14 +1,16 @@
 use abstract_sdk::base::features::AbstractNameService;
+use abstract_sdk::os::api;
 use abstract_sdk::os::objects::{
     AssetEntry, DexAssetPairing, LpToken, PoolReference, UncheckedContractEntry,
 };
 use abstract_sdk::{ModuleInterface, Resolve};
-use abstract_sdk::os::api;
-use cosmwasm_std::{to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg, WasmMsg, StdResult};
+use cosmwasm_std::{
+    to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, StdResult,
+    SubMsg, WasmMsg,
+};
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use cw_utils::Duration;
-
 
 use forty_two::autocompounder::{AutocompounderInstantiateMsg, AUTOCOMPOUNDER};
 use forty_two::cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING};

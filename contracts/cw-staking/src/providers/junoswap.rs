@@ -136,13 +136,12 @@ impl CwStaking for JunoSwap {
     }
 }
 
-
 fn parse_duration(d: dao_cw_utils::Duration) -> cw_utils::Duration {
     match d {
         dao_cw_utils::Duration::Height(a) => cw_utils::Duration::Height(a),
         dao_cw_utils::Duration::Time(a) => cw_utils::Duration::Time(a),
     }
-} 
+}
 
 fn parse_expiration(d: dao_cw_utils::Expiration) -> cw_utils::Expiration {
     match d {
@@ -150,4 +149,4 @@ fn parse_expiration(d: dao_cw_utils::Expiration) -> cw_utils::Expiration {
         dao_cw_utils::Expiration::AtTime(a) => cw_utils::Expiration::AtTime(a),
         _ => cw_utils::Expiration::Never {},
     }
-} 
+}
