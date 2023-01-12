@@ -1,7 +1,6 @@
 use std::env::current_dir;
 use std::fs::create_dir_all;
 
-use autocompounder::contract::AutocompounderApp;
 use cosmwasm_schema::remove_schemas;
 
 fn main() {

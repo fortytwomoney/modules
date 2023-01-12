@@ -1,10 +1,8 @@
 pub const ROOT_USER: &str = "root_user";
 pub const TEST_COIN: &str = "ucoin";
 
-use abstract_boot::{DexApi, TMintStakingApi, OS};
-use abstract_os::{
-    api::InstantiateMsg, objects::gov_type::GovernanceDetails, EXCHANGE, PROXY, TENDERMINT_STAKING,
-};
+use abstract_boot::{DexApi, OS};
+use abstract_os::{api::InstantiateMsg, objects::gov_type::GovernanceDetails, EXCHANGE, PROXY};
 
 use boot_core::{
     prelude::{BootInstantiate, BootUpload, ContractInstance},
@@ -20,7 +18,6 @@ use abstract_os::{ANS_HOST, MANAGER, MODULE_FACTORY, OS_FACTORY, VERSION_CONTROL
 
 use cw_multi_test::ContractWrapper;
 use forty_two::cw_staking::CW_STAKING;
-use semver::Version;
 
 pub fn init_abstract_env(chain: &Mock) -> anyhow::Result<(Deployment<Mock>, OS<Mock>)> {
     let mut ans_host = AnsHost::new(ANS_HOST, chain.clone());
@@ -145,7 +142,6 @@ pub(crate) fn init_exchange(
         .register_apis(vec![exchange.as_instance()], &version)?;
     Ok(exchange)
 }
-
 
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]

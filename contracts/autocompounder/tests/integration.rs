@@ -1,8 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Arc;
 
-use abstract_boot::{ManagerExecFns, OsFactoryExecFns};
+use abstract_boot::ManagerExecFns;
 use abstract_os::ans_host::ExecuteMsgFns;
 use abstract_os::objects::pool_id::PoolAddressBase;
 use abstract_os::objects::{AssetEntry, LpToken, PoolMetadata, UncheckedContractEntry};
@@ -21,7 +20,7 @@ use astroport::{
         InstantiateMsg as GeneratorInstantiateMsg, PendingTokenResponse, PoolInfoResponse,
         QueryMsg as GeneratorQueryMsg,
     },
-    generator_proxy::{ExecuteMsg as ProxyExecuteMsg, InstantiateMsg as ProxyInstantiateMsg},
+    generator_proxy::InstantiateMsg as ProxyInstantiateMsg,
     token::InstantiateMsg as TokenInstantiateMsg,
     vesting::{
         Cw20HookMsg as VestingHookMsg, InstantiateMsg as VestingInstantiateMsg, VestingAccount,
@@ -29,16 +28,15 @@ use astroport::{
     },
 };
 
-use astroport::generator_proxy::ConfigResponse;
 use astroport::pair::StablePoolParams;
 use astroport_generator::error::ContractError;
 use boot_core::MockState;
 use cosmwasm_std::{to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
-use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
+use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_multi_test::{next_block, App, ContractWrapper, Executor};
 use forty_two::autocompounder::AUTOCOMPOUNDER;
 use forty_two::cw_staking::CW_STAKING;
-use semver::Version;
+
 use test_utils::abstract_helper;
 
 use crate::test_utils::controller_helper::ControllerHelper;
@@ -1210,8 +1208,8 @@ fn generator_without_reward_proxies() {
     let mut app = mock_app();
 
     let owner = Addr::unchecked(OWNER);
-    let user1 = Addr::unchecked(USER1);
-    let user2 = Addr::unchecked(USER2);
+    let _user1 = Addr::unchecked(USER1);
+    let _user2 = Addr::unchecked(USER2);
 
     let token_code_id = store_token_code(&mut app);
     let factory_code_id = store_factory_code(&mut app);
@@ -1227,7 +1225,7 @@ fn generator_without_reward_proxies() {
     let usd_token = instantiate_token(&mut app, cny_eur_token_code_id, "USD", None);
     let cny_token = instantiate_token(&mut app, cny_eur_token_code_id, "CNY", None);
 
-    let (pair_cny_eur, lp_cny_eur) = create_pair(
+    let (_pair_cny_eur, lp_cny_eur) = create_pair(
         &mut app,
         &factory_instance,
         None,
@@ -1345,13 +1343,14 @@ fn generator_without_reward_proxies() {
 
     let mut auto_compounder =
         forty_two_boot::autocompounder::AutocompounderApp::new(AUTOCOMPOUNDER, mock.clone());
-    auto_compounder
-        .as_instance_mut()
-        .set_mock(Box::new(ContractWrapper::new_with_empty(
+    auto_compounder.as_instance_mut().set_mock(Box::new(
+        ContractWrapper::new_with_empty(
             autocompounder::contract::execute,
             autocompounder::contract::instantiate,
             autocompounder::contract::query,
-        ).with_reply_empty(::autocompounder::contract::reply)));
+        )
+        .with_reply_empty(::autocompounder::contract::reply),
+    ));
 
     // upload and register autocompounder
     auto_compounder.upload().unwrap();

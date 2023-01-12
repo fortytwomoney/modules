@@ -77,12 +77,7 @@ pub fn instantiate_handler(
     let staking_contract_addr = ans.query(&staking_contract_entry)?;
 
     // get staking info
-    let staking_info = query_staking_info(
-        deps.as_ref(),
-        &app,
-        lp_token.into(),
-        dex.clone(),
-    )?;
+    let staking_info = query_staking_info(deps.as_ref(), &app, lp_token.into(), dex.clone())?;
     let min_unbonding_cooldown = if let (Some(max_claims), Some(unbonding_period)) =
         (staking_info.max_claims, staking_info.unbonding_period)
     {
