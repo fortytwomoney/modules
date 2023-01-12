@@ -54,7 +54,7 @@ impl CwStaking for Astroport {
         lp_token: AssetEntry,
     ) -> StdResult<()> {
         self.generator_contract_address =
-            self.staking_contract_address(deps, ans_host, &lp_token.clone().into())?;
+            self.staking_contract_address(deps, ans_host, &lp_token)?;
 
         let AssetInfo::Cw20(token_addr) = lp_token.resolve(&deps.querier, ans_host)? else {
                 return Err(StdError::generic_err("expected CW20 as LP token for staking."));
