@@ -5,7 +5,7 @@ use abstract_sdk::{IbcInterface, Resolve};
 use cosmwasm_std::{to_binary, Coin, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 
 use crate::contract::{CwStakingApi, CwStakingResult};
-use crate::providers::resolver;
+use crate::providers::resolver::{self, is_over_ibc};
 use crate::LocalCwStaking;
 use forty_two::cw_staking::{
     CwStakingAction, CwStakingExecuteMsg, ProviderName, IBC_STAKING_PROVIDER_ID,
@@ -24,9 +24,8 @@ pub fn execute_handler(
         provider: provider_name,
         action,
     } = msg;
-    let provider = resolver::resolve_provider_by_name(&provider_name)?;
     // if provider is on an app-chain, execute the action on the app-chain
-    if provider.over_ibc() {
+    if is_over_ibc(&provider_name)? {
         handle_ibc_request(&deps, info, &api, provider_name, &action)
     } else {
         // the action can be executed on the local chain
@@ -44,7 +43,7 @@ fn handle_local_request(
     provider: String,
 ) -> CwStakingResult {
     let provider = resolver::resolve_local_provider(&provider)?;
-    Ok(Response::new().add_submessage(api.resolve_staking_action(deps, action, provider, false)?))
+    Ok(Response::new().add_submessage(api.resolve_staking_action(deps, action, provider)?))
 }
 
 /// Handle a request that needs to be executed on a remote chain

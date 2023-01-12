@@ -2,97 +2,113 @@ use crate::error::StakingError;
 use crate::traits::cw_staking::CwStaking;
 use crate::traits::identify::Identify;
 
-use cosmwasm_std::{to_binary, Addr, CosmosMsg, Deps, QuerierWrapper, StdResult, Uint128, WasmMsg};
+use abstract_sdk::{
+    feature_objects::AnsHost,
+    os::objects::{AssetEntry, LpToken},
+    Resolve,
+};
+use cosmwasm_std::{
+    to_binary, Addr, CosmosMsg, Deps, QuerierWrapper, StdError, StdResult, Uint128, WasmMsg,
+};
 use cw20::Cw20ExecuteMsg;
 
 use cw20_stake::msg::{ExecuteMsg as StakeCw20ExecuteMsg, ReceiveMsg};
-use cw_asset::{Asset, AssetInfo};
+use cw_asset::{AssetInfo, AssetInfoBase};
 use forty_two::cw_staking::{Claim, StakingInfoResponse};
 
 pub const JUNOSWAP: &str = "junoswap";
 // Source https://github.com/wasmswap/wasmswap-contracts
-pub struct JunoSwap {}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct JunoSwap {
+    lp_token: LpToken,
+    lp_token_address: Addr,
+    staking_contract_address: Addr,
+}
+
+impl Default for JunoSwap {
+    fn default() -> Self {
+        Self {
+            lp_token: Default::default(),
+            lp_token_address: Addr::unchecked(""),
+            staking_contract_address: Addr::unchecked(""),
+        }
+    }
+}
 
 impl Identify for JunoSwap {
-    fn over_ibc(&self) -> bool {
-        false
-    }
     fn name(&self) -> &'static str {
         JUNOSWAP
     }
 }
 
 impl CwStaking for JunoSwap {
-    fn stake(
-        &self,
-        _deps: Deps,
-        staking_address: Addr,
-        asset: Asset,
-    ) -> Result<Vec<CosmosMsg>, StakingError> {
+    // get the relevant data for Junoswap staking
+    fn fetch_data(
+        &mut self,
+        deps: Deps,
+        ans_host: &AnsHost,
+        lp_token: AssetEntry,
+    ) -> StdResult<()> {
+        self.staking_contract_address =
+            self.staking_contract_address(deps, ans_host, &lp_token.clone().into())?;
+
+        let AssetInfoBase::Cw20(token_addr) = lp_token.resolve(&deps.querier, ans_host)? else {
+                return Err(StdError::generic_err("expected CW20 as LP token for staking."));
+            };
+        self.lp_token_address = token_addr;
+        self.lp_token = LpToken::try_from(lp_token)?;
+        Ok(())
+    }
+
+    fn stake(&self, _deps: Deps, amount: Uint128) -> Result<Vec<CosmosMsg>, StakingError> {
         let msg = to_binary(&ReceiveMsg::Stake {})?;
         Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: asset.info.to_string(),
+            contract_addr: self.lp_token_address.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
-                contract: staking_address.into(),
-                amount: asset.amount,
+                contract: self.staking_contract_address.to_string(),
+                amount: amount,
                 msg,
             })?,
             funds: vec![],
         })])
     }
 
-    fn unstake(
-        &self,
-        _deps: Deps,
-        staking_address: Addr,
-        amount: Asset,
-    ) -> Result<Vec<CosmosMsg>, StakingError> {
-        let msg = StakeCw20ExecuteMsg::Unstake {
-            amount: amount.amount,
-        };
+    fn unstake(&self, _deps: Deps, amount: Uint128) -> Result<Vec<CosmosMsg>, StakingError> {
+        let msg = StakeCw20ExecuteMsg::Unstake { amount };
         Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: staking_address.to_string(),
+            contract_addr: self.staking_contract_address.to_string(),
             msg: to_binary(&msg)?,
             funds: vec![],
         })])
     }
 
-    fn claim(&self, _deps: Deps, staking_address: Addr) -> Result<Vec<CosmosMsg>, StakingError> {
+    fn claim(&self, _deps: Deps) -> Result<Vec<CosmosMsg>, StakingError> {
         let msg = StakeCw20ExecuteMsg::Claim {};
 
         Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: staking_address.to_string(),
+            contract_addr: self.staking_contract_address.to_string(),
             msg: to_binary(&msg)?,
             funds: vec![],
         })])
     }
 
-    fn query_info(
-        &self,
-        querier: &QuerierWrapper,
-        staking_address: Addr,
-    ) -> StdResult<StakingInfoResponse> {
+    fn query_info(&self, querier: &QuerierWrapper) -> StdResult<StakingInfoResponse> {
         let stake_info_resp: cw20_stake::state::Config = querier.query_wasm_smart(
-            staking_address.clone(),
+            self.staking_contract_address.clone(),
             &cw20_stake::msg::QueryMsg::GetConfig {},
         )?;
         Ok(StakingInfoResponse {
-            staking_contract_address: staking_address,
+            staking_contract_address: self.staking_contract_address.clone(),
             staking_token: AssetInfo::Cw20(stake_info_resp.token_address),
             unbonding_period: stake_info_resp.unstaking_duration,
             max_claims: Some(cw20_stake::state::MAX_CLAIMS as u32),
         })
     }
 
-    fn query_staked(
-        &self,
-        querier: &QuerierWrapper,
-        staking_address: Addr,
-        staker: Addr,
-    ) -> StdResult<Uint128> {
+    fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<Uint128> {
         let stake_balance: cw20_stake::msg::StakedBalanceAtHeightResponse = querier
             .query_wasm_smart(
-                staking_address,
+                self.staking_contract_address.clone(),
                 &cw20_stake::msg::QueryMsg::StakedBalanceAtHeight {
                     address: staker.into_string(),
                     height: None,
@@ -101,14 +117,9 @@ impl CwStaking for JunoSwap {
         Ok(stake_balance.balance)
     }
 
-    fn query_unbonding(
-        &self,
-        querier: &QuerierWrapper,
-        staking_address: Addr,
-        staker: Addr,
-    ) -> StdResult<Vec<Claim>> {
+    fn query_unbonding(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<Vec<Claim>> {
         let claims: cw20_stake::msg::ClaimsResponse = querier.query_wasm_smart(
-            staking_address,
+            self.staking_contract_address.clone(),
             &cw20_stake::msg::QueryMsg::Claims {
                 address: staker.into_string(),
             },
