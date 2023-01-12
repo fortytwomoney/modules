@@ -3,18 +3,19 @@ use abstract_sdk::os::objects::{
     AssetEntry, DexAssetPairing, LpToken, PoolReference, UncheckedContractEntry,
 };
 use abstract_sdk::{ModuleInterface, Resolve};
-use cosmwasm_std::{
-    to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg, WasmMsg,
-};
+use abstract_sdk::os::api;
+use cosmwasm_std::{to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg, WasmMsg, StdResult};
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use cw_utils::Duration;
+
 
 use forty_two::autocompounder::{AutocompounderInstantiateMsg, AUTOCOMPOUNDER};
 use forty_two::cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING};
 
 use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
 use crate::error::AutocompounderError;
+use crate::handlers::helpers::check_fee;
 use crate::state::{Config, FeeConfig, CONFIG};
 
 /// Initial instantiation of the contract
@@ -33,11 +34,16 @@ pub fn instantiate_handler(
         performance_fees,
         deposit_fees,
         withdrawal_fees,
+        fee_asset,
         commission_addr,
         code_id: _,
         dex,
         pool_assets,
     } = msg;
+
+    check_fee(performance_fees)?;
+    check_fee(deposit_fees)?;
+    check_fee(withdrawal_fees)?;
 
     if pool_assets.len() > 2 {
         return Err(AutocompounderError::PoolWithMoreThanTwoAssets {});
@@ -53,7 +59,7 @@ pub fn instantiate_handler(
     let lp_token_info = ans.query(&lp_token)?;
 
     // match on the info and get cw20
-    let lp_token_addr: Addr = match lp_token_info.clone() {
+    let lp_token_addr: Addr = match lp_token_info {
         cw_asset::AssetInfoBase::Cw20(addr) => Ok(addr),
         _ => Err(AutocompounderError::Std(StdError::generic_err(
             "LP token is not a cw20",
@@ -63,7 +69,10 @@ pub fn instantiate_handler(
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
     // TODO: this will be fixed in a future release
+
     let joined_assets = [pool_assets[0].as_str(), pool_assets[1].as_str()].join(",");
+    // sort pool_assets then join
+    // staking/crab,juno
     let staking_contract_name = ["staking", joined_assets.as_str()].join("/");
     let staking_contract_entry = UncheckedContractEntry::new(&dex, &staking_contract_name).check();
     let staking_contract_addr = ans.query(&staking_contract_entry)?;
@@ -72,9 +81,9 @@ pub fn instantiate_handler(
     let staking_info = query_staking_info(
         deps.as_ref(),
         &app,
-        lp_token_info.to_string().into(),
+        AssetEntry::new(&staking_contract_name),
         dex.clone(),
-    );
+    )?;
     let min_unbonding_cooldown = if let (Some(max_claims), Some(unbonding_period)) =
         (staking_info.max_claims, staking_info.unbonding_period)
     {
@@ -107,15 +116,14 @@ pub fn instantiate_handler(
             performance: performance_fees,
             deposit: deposit_fees,
             withdrawal: withdrawal_fees,
+            fee_asset: AssetEntry::from(fee_asset),
         },
         vault_token: Addr::unchecked(""),
         staking_contract: staking_contract_addr,
         liquidity_token: lp_token_addr,
         commission_addr: deps.api.addr_validate(&commission_addr)?,
-        pool_data: pool_data.clone(),
+        pool_data,
         pool_address: pool_reference.pool_address,
-        // dex_assets: pool_assets,
-        // dex: dex.clone(),
         bonding_period: staking_info.unbonding_period,
         min_unbonding_cooldown,
     };
@@ -125,8 +133,10 @@ pub fn instantiate_handler(
     // create LP token SubMsg
     let sub_msg = create_lp_token_submsg(
         env.contract.address.to_string(),
-        format!("4T2 Vault Token for {pool_data}"),
-        "4T2V".to_string(), // TODO: find a better way to define name and symbol
+        format!("4T2 Vault Token for {pairing}"),
+        // pool data is too long
+        // format!("4T2 Vault Token for {pool_data}"),
+        "FORTYTWO".to_string(), // TODO: find a better way to define name and symbol
         msg.code_id,
     )?;
 
@@ -171,14 +181,21 @@ pub fn query_staking_info(
     app: &AutocompounderApp,
     lp_token_name: AssetEntry,
     dex: String,
-) -> StakingInfoResponse {
+) -> StdResult<StakingInfoResponse> {
     let modules = app.modules(deps);
-    let staking_mod = modules.module_address(CW_STAKING).unwrap();
 
     let query = CwStakingQueryMsg::Info {
-        provider: dex,
-        staking_token: lp_token_name,
+        provider: dex.clone(),
+        staking_token: lp_token_name.clone(),
     };
-    let res: StakingInfoResponse = deps.querier.query_wasm_smart(staking_mod, &query).unwrap();
-    res
+
+    let api_msg: api::QueryMsg<_> = query.clone().into();
+
+    let res: StakingInfoResponse = modules.query_api(CW_STAKING, query).map_err(|e| {
+        StdError::generic_err(format!(
+            "Error querying staking info for {} on {}: {}...{:?}",
+            lp_token_name, dex, e, api_msg
+        ))
+    })?;
+    Ok(res)
 }
