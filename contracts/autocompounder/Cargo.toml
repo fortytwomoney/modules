@@ -50,20 +50,21 @@ cw-staking = { path = "../../contracts/cw-staking" }
 abstract-app = { workspace = true, features = ["schema"] }
 abstract-os = { workspace = true }
 cw-multi-test = { workspace = true , features = ["staking"]}
+module-factory = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"] }
+os-factory = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"] }
+ans-host = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"] }
+version-control = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"] }
+proxy = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"] }
+manager = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"]}
+dex = {git = "https://github.com/Abstract-OS/contracts.git"}
+subscription = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"]}
 abstract-boot = {workspace = true}
 boot-core = { workspace = true}
 boot-cw-plus = { workspace = true}
 anyhow = {workspace = true}
-os-factory = { workspace = true }
-module-factory = { workspace = true }
-ans-host = { workspace = true }
-version-control = { workspace = true }
-proxy = { workspace = true }
-manager = { workspace = true }
 rstest = {workspace = true }
 speculoos = { workspace = true }
 astroport = { workspace = true }
-dex = { workspace = true }
 semver = { package = "cw-semver", version = "1" }
 
 cw-astro = {package = "cw20", version = "0.15"}
