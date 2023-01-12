@@ -70,12 +70,9 @@ pub fn instantiate_handler(
 
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
-    // TODO: this will be fixed in a future release
-
-    let joined_assets = [pool_assets[0].as_str(), pool_assets[1].as_str()].join(",");
     // sort pool_assets then join
-    // staking/crab,juno
-    let staking_contract_name = ["staking", joined_assets.as_str()].join("/");
+    // staking/astroport/crab,juno
+    let staking_contract_name = ["staking", &lp_token.to_string()].join("/");
     let staking_contract_entry = UncheckedContractEntry::new(&dex, &staking_contract_name).check();
     let staking_contract_addr = ans.query(&staking_contract_entry)?;
 
