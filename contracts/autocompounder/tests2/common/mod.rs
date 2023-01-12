@@ -25,6 +25,14 @@ use semver::Version;
 
 use manager::contract::CONTRACT_VERSION;
 
+#[allow(clippy::all)]
+#[allow(dead_code)]
+pub mod controller_helper;
+pub mod delegation_helper;
+#[allow(clippy::all)]
+#[allow(dead_code)]
+pub mod escrow_helper;
+
 pub fn init_abstract_env(chain: &Mock) -> anyhow::Result<(Deployment<Mock>, OS<Mock>)> {
     let mut ans_host = AnsHost::new(ANS_HOST, chain.clone());
     let mut os_factory = OSFactory::new(OS_FACTORY, chain.clone());
