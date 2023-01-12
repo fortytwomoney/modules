@@ -1,5 +1,4 @@
 [package]
-# TODO rename
 name = "cw-staking"
 description = "Cw-staking is a Abstract api for staking tokens by 4t2 Finance."
 version.workspace = true

@@ -3,7 +3,7 @@ pub const TEST_COIN: &str = "ucoin";
 
 use abstract_boot::{DexApi, TMintStakingApi, OS};
 use abstract_os::{
-    api::InstantiateMsg, objects::gov_type::GovernanceDetails, PROXY, TENDERMINT_STAKING,
+    api::InstantiateMsg, objects::gov_type::GovernanceDetails, EXCHANGE, PROXY, TENDERMINT_STAKING,
 };
 
 use boot_core::{
@@ -19,6 +19,7 @@ use abstract_boot::{
 use abstract_os::{ANS_HOST, MANAGER, MODULE_FACTORY, OS_FACTORY, VERSION_CONTROL};
 
 use cw_multi_test::ContractWrapper;
+use forty_two::cw_staking::CW_STAKING;
 use semver::Version;
 
 pub fn init_abstract_env(chain: &Mock) -> anyhow::Result<(Deployment<Mock>, OS<Mock>)> {
@@ -107,14 +108,14 @@ pub(crate) fn create_default_os(
     Ok(os)
 }
 
-/// Instantiates the staking api and registers it with the version control
+/// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
 pub(crate) fn init_exchange(
     chain: &Mock,
     deployment: &Deployment<Mock>,
     version: Option<String>,
 ) -> anyhow::Result<DexApi<Mock>> {
-    let mut exchange = DexApi::new(TENDERMINT_STAKING, chain.clone());
+    let mut exchange = DexApi::new(EXCHANGE, chain.clone());
     exchange
         .as_instance_mut()
         .set_mock(Box::new(cw_multi_test::ContractWrapper::new_with_empty(
@@ -143,4 +144,43 @@ pub(crate) fn init_exchange(
         .version_control
         .register_apis(vec![exchange.as_instance()], &version)?;
     Ok(exchange)
+}
+
+
+/// Instantiates the dex api and registers it with the version control
+#[allow(dead_code)]
+pub(crate) fn init_staking(
+    chain: &Mock,
+    deployment: &Deployment<Mock>,
+    version: Option<String>,
+) -> anyhow::Result<DexApi<Mock>> {
+    let mut staking = DexApi::new(CW_STAKING, chain.clone());
+    staking
+        .as_instance_mut()
+        .set_mock(Box::new(cw_multi_test::ContractWrapper::new_with_empty(
+            ::cw_staking::contract::execute,
+            ::cw_staking::contract::instantiate,
+            ::cw_staking::contract::query,
+        )));
+    staking.upload()?;
+    staking.instantiate(
+        &InstantiateMsg {
+            app: Empty {},
+            base: abstract_os::api::BaseInstantiateMsg {
+                ans_host_address: deployment.ans_host.addr_str()?,
+                version_control_address: deployment.version_control.addr_str()?,
+            },
+        },
+        None,
+        None,
+    )?;
+
+    let version: semver::Version = version
+        .map(|s| s.parse().unwrap())
+        .unwrap_or(deployment.version.clone());
+
+    deployment
+        .version_control
+        .register_apis(vec![staking.as_instance()], &version)?;
+    Ok(staking)
 }

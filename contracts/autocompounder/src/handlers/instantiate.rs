@@ -80,7 +80,7 @@ pub fn instantiate_handler(
     let staking_info = query_staking_info(
         deps.as_ref(),
         &app,
-        AssetEntry::new(&staking_contract_name),
+        lp_token.into(),
         dex.clone(),
     )?;
     let min_unbonding_cooldown = if let (Some(max_claims), Some(unbonding_period)) =

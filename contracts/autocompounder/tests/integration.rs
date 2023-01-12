@@ -1,7 +1,12 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use abstract_boot::{ManagerExecFns, OsFactoryExecFns};
+use abstract_os::ans_host::ExecuteMsgFns;
+use abstract_os::objects::pool_id::PoolAddressBase;
+use abstract_os::objects::{AssetEntry, LpToken, PoolMetadata, UncheckedContractEntry};
+use abstract_os::EXCHANGE;
 use astroport::asset::{native_asset_info, token_asset_info, Asset, AssetInfo, PairInfo};
 use astroport::generator::{ExecuteMsg, QueryMsg, StakerResponse};
 use astroport_governance::utils::WEEK;
@@ -28,10 +33,11 @@ use astroport::generator_proxy::ConfigResponse;
 use astroport::pair::StablePoolParams;
 use astroport_generator::error::ContractError;
 use boot_core::MockState;
-use cosmwasm_std::{to_binary, Addr, Binary, StdResult, Uint128, Uint64};
+use cosmwasm_std::{to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
 use cw_multi_test::{next_block, App, ContractWrapper, Executor};
 use forty_two::autocompounder::AUTOCOMPOUNDER;
+use forty_two::cw_staking::CW_STAKING;
 use semver::Version;
 use test_utils::abstract_helper;
 
@@ -51,6 +57,7 @@ const USER6: &str = "user6";
 const USER7: &str = "user7";
 const USER8: &str = "user8";
 const USER9: &str = "user9";
+const ASTROPORT: &str = "astroport";
 
 struct PoolWithProxy {
     pool: (String, Uint128),
@@ -1274,8 +1281,68 @@ fn generator_without_reward_proxies() {
     let (mut deployment, mut os_core) = abstract_helper::init_abstract_env(&mock).unwrap();
     deployment.deploy(&mut os_core).unwrap();
 
-    // set up the dex
+    let eur_asset = AssetEntry::new("eur");
+    let usd_asset = AssetEntry::new("usd");
+    let eur_usd_lp_asset = LpToken::new(ASTROPORT, vec!["eur", "usd"]);
+
+    // Register addresses on ANS
+    deployment
+        .ans_host
+        .update_asset_addresses(
+            vec![
+                (
+                    eur_asset.to_string(),
+                    cw_asset::AssetInfoBase::cw20(eur_token.to_string()),
+                ),
+                (
+                    usd_asset.to_string(),
+                    cw_asset::AssetInfoBase::cw20(usd_token.to_string()),
+                ),
+                (
+                    eur_usd_lp_asset.to_string(),
+                    cw_asset::AssetInfoBase::cw20(lp_eur_usd.to_string()),
+                ),
+            ],
+            vec![],
+        )
+        .unwrap();
+
+    deployment
+        .ans_host
+        .update_contract_addresses(
+            vec![(
+                UncheckedContractEntry::new(
+                    ASTROPORT.to_string(),
+                    format!("staking/{}", eur_usd_lp_asset.to_string()),
+                ),
+                generator_instance.to_string(),
+            )],
+            vec![],
+        )
+        .unwrap();
+
+    deployment
+        .ans_host
+        .update_dexes(vec![ASTROPORT.into()], vec![])
+        .unwrap();
+    deployment
+        .ans_host
+        .update_pools(
+            vec![(
+                PoolAddressBase::contract(pair_eur_usd.to_string()),
+                PoolMetadata::constant_product(
+                    ASTROPORT,
+                    vec![eur_asset.clone(), usd_asset.clone()],
+                ),
+            )],
+            vec![],
+        )
+        .unwrap();
+
+    // set up the dex and staking contracts
     abstract_helper::init_exchange(&mock, &deployment, None).unwrap();
+    abstract_helper::init_staking(&mock, &deployment, None).unwrap();
+
     let mut auto_compounder =
         forty_two_boot::autocompounder::AutocompounderApp::new(AUTOCOMPOUNDER, mock.clone());
     auto_compounder
@@ -1284,7 +1351,7 @@ fn generator_without_reward_proxies() {
             autocompounder::contract::execute,
             autocompounder::contract::instantiate,
             autocompounder::contract::query,
-        )));
+        ).with_reply_empty(::autocompounder::contract::reply)));
 
     // upload and register autocompounder
     auto_compounder.upload().unwrap();
@@ -1302,10 +1369,36 @@ fn generator_without_reward_proxies() {
         )
         .unwrap();
 
-    // os.manager.install_module(AUTOCOMPOUNDER, Some(&forty_two::autocompounder::AutocompounderInstantiateMsg{
-    //     code_id: token_code_id,
+    // install dex
+    os.manager
+        .install_module(EXCHANGE, Some(&Empty {}))
+        .unwrap();
 
-    // })).unwrap();
+    // install staking
+    os.manager
+        .install_module(CW_STAKING, Some(&Empty {}))
+        .unwrap();
+
+    os.manager
+        .install_module(
+            AUTOCOMPOUNDER,
+            Some(&abstract_os::app::InstantiateMsg {
+                app: forty_two::autocompounder::AutocompounderInstantiateMsg {
+                    code_id: token_code_id,
+                    commission_addr: OWNER.to_string(),
+                    deposit_fees: Decimal::zero(),
+                    dex: ASTROPORT.to_string(),
+                    fee_asset: eur_asset.to_string(),
+                    performance_fees: Decimal::zero(),
+                    pool_assets: vec![eur_asset, usd_asset],
+                    withdrawal_fees: Decimal::zero(),
+                },
+                base: abstract_os::app::BaseInstantiateMsg {
+                    ans_host_address: deployment.ans_host.addr_str().unwrap(),
+                },
+            }),
+        )
+        .unwrap();
 
     // create OS and install dex
 
