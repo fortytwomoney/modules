@@ -21,8 +21,6 @@ use abstract_os::{ANS_HOST, MANAGER, MODULE_FACTORY, OS_FACTORY, VERSION_CONTROL
 use cw_multi_test::ContractWrapper;
 use semver::Version;
 
-use manager::contract::CONTRACT_VERSION;
-
 pub fn init_abstract_env(chain: &Mock) -> anyhow::Result<(Deployment<Mock>, OS<Mock>)> {
     let mut ans_host = AnsHost::new(ANS_HOST, chain.clone());
     let mut os_factory = OSFactory::new(OS_FACTORY, chain.clone());
@@ -137,9 +135,7 @@ pub(crate) fn init_exchange(
         None,
     )?;
 
-    let version: semver::Version = version
-        .unwrap_or_else(|| CONTRACT_VERSION.to_string())
-        .parse()?;
+    let version: semver::Version = version.map(|s| s.parse().unwrap()).unwrap_or(deployment.version);
 
     deployment
         .version_control

@@ -41,6 +41,8 @@ protobuf = { version = "2", features = ["with-bytes"] }
 cw-utils = {workspace = true}
 
 [dev-dependencies]
+forty-two-boot = {path = "../../packages/forty-two-boot" }
+
 abstract-app = { workspace = true, features = ["schema"] }
 abstract-os = { workspace = true }
 cw-multi-test = { workspace = true , features = ["staking"]}
