@@ -100,7 +100,7 @@ impl CwStaking for JunoSwap {
         Ok(StakingInfoResponse {
             staking_contract_address: self.staking_contract_address.clone(),
             staking_token: AssetInfo::Cw20(stake_info_resp.token_address),
-            unbonding_period: stake_info_resp.unstaking_duration,
+            unbonding_period: stake_info_resp.unstaking_duration.map(parse_duration),
             max_claims: Some(cw20_stake::state::MAX_CLAIMS as u32),
         })
     }
@@ -129,9 +129,25 @@ impl CwStaking for JunoSwap {
             .iter()
             .map(|claim| Claim {
                 amount: claim.amount,
-                claimable_at: claim.release_at,
+                claimable_at: parse_expiration(claim.release_at),
             })
             .collect();
         Ok(claims)
     }
 }
+
+
+fn parse_duration(d: dao_cw_utils::Duration) -> cw_utils::Duration {
+    match d {
+        dao_cw_utils::Duration::Height(a) => cw_utils::Duration::Height(a),
+        dao_cw_utils::Duration::Time(a) => cw_utils::Duration::Time(a),
+    }
+} 
+
+fn parse_expiration(d: dao_cw_utils::Expiration) -> cw_utils::Expiration {
+    match d {
+        dao_cw_utils::Expiration::AtHeight(a) => cw_utils::Expiration::AtHeight(a),
+        dao_cw_utils::Expiration::AtTime(a) => cw_utils::Expiration::AtTime(a),
+        _ => cw_utils::Expiration::Never {},
+    }
+} 

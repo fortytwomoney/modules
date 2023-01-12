@@ -48,11 +48,8 @@ cw-controllers = "1.0.1"
 cw-paginate = {git = "https://github.com/DA0-DA0/dao-contracts.git", tag = "v1.0.0"}
 cosmwasm-storage = { version = "1.1" }
 
-# TODO: overridden due to DaoDaoV1
-cw-utils = "0.13.4"
-cw20 = "0.13.4"
-#cw-utils = "0.16"
-#cw20 = "0.16"
+cw-utils = "0.16"
+cw20 = "0.16"
 
 cw2 = "0.16"
 cw20-base = "0.16"
