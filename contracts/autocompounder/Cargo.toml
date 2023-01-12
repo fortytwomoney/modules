@@ -57,7 +57,8 @@ ans-host = {git = "https://github.com/Abstract-OS/contracts.git",features = ["li
 version-control = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"] }
 proxy = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"] }
 manager = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"]}
-dex = {git = "https://github.com/Abstract-OS/contracts.git"}
+# requires testing flag to ensure Astroport Msg type compatibility
+dex = {git = "https://github.com/Abstract-OS/contracts.git", feature = ["testing"]}
 subscription = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"]}
 abstract-boot = {workspace = true}
 boot-core = { workspace = true}
