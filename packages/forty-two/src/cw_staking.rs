@@ -46,10 +46,13 @@ pub enum CwStakingAction {
 
 #[cosmwasm_schema::cw_serde]
 #[derive(QueryResponses)]
+#[cfg_attr(feature = "boot", derive(boot_core::QueryFns))]
+#[cfg_attr(feature = "boot", impl_into(QueryMsg))]
 pub enum CwStakingQueryMsg {
     #[returns(StakingInfoResponse)]
     Info {
         provider: ProviderName,
+        // perhaps this should take the assets? Or the resolved?
         staking_token: AssetEntry,
     },
     #[returns(StakeResponse)]

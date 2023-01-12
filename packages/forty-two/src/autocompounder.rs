@@ -37,6 +37,8 @@ use cosmwasm_std::Decimal;
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 
 /// Impls for being able to call methods on the autocompounder app directly
+pub type ExecuteMsg = app::ExecuteMsg<AutocompounderExecuteMsg>;
+pub type QueryMsg = app::QueryMsg<AutocompounderQueryMsg>;
 impl app::AppExecuteMsg for AutocompounderExecuteMsg {}
 impl app::AppQueryMsg for AutocompounderQueryMsg {}
 
@@ -64,6 +66,8 @@ pub struct AutocompounderInstantiateMsg {
 }
 
 #[cosmwasm_schema::cw_serde]
+#[cfg_attr(feature = "boot", derive(boot_core::ExecuteFns))]
+#[cfg_attr(feature = "boot", impl_into(ExecuteMsg))]
 pub enum AutocompounderExecuteMsg {
     UpdateFeeConfig {
         performance: Option<Decimal>,
@@ -82,6 +86,8 @@ pub enum AutocompounderExecuteMsg {
 
 #[cosmwasm_schema::cw_serde]
 #[derive(QueryResponses)]
+#[cfg_attr(feature = "boot", derive(boot_core::QueryFns))]
+#[cfg_attr(feature = "boot", impl_into(QueryMsg))]
 pub enum AutocompounderQueryMsg {
     /// Query the config of the autocompounder
     /// Returns [`ConfigResponse`]

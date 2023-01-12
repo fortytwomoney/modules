@@ -13,14 +13,13 @@ pub fn query_stake(
     lp_token_name: AssetEntry,
 ) -> StdResult<Uint128> {
     let modules = app.modules(deps);
-    let staking_mod = modules.module_address(CW_STAKING)?;
 
     let query = CwStakingQueryMsg::Staked {
         staking_token: lp_token_name,
         staker_address: app.proxy_address(deps)?.to_string(),
         provider: dex,
     };
-    let res: StakeResponse = deps.querier.query_wasm_smart(staking_mod, &query)?;
+    let res: StakeResponse =modules.query_api(CW_STAKING, query)?;
     Ok(res.amount)
 }
 
