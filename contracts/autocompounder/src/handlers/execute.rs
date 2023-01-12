@@ -1,3 +1,4 @@
+
 use std::ops::Add;
 
 use abstract_sdk::base::features::{AbstractNameService, Identification};
@@ -99,6 +100,7 @@ pub fn deposit(
     let config = CONFIG.load(deps.storage)?;
     let _staking_address = config.staking_contract;
     let ans_host = app.ans_host(deps.as_ref())?;
+    let mut msgs = vec![];
 
     let mut claimed_deposits: AssetList = funds.resolve(&deps.querier, &ans_host)?.into();
     // deduct all the received `Coin`s from the claimed deposit, errors if not enough funds were provided
@@ -115,10 +117,13 @@ pub fn deposit(
             asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)
         })
         .collect();
+    msgs.append(cw_20_transfer_msgs_res?.as_mut());
 
     // transfer received coins to the bank contract
-    let bank = app.bank(deps.as_ref());
-    bank.deposit_coins(msg_info.funds)?;
+    if !msg_info.funds.is_empty() {
+        let bank = app.bank(deps.as_ref());
+        msgs.push(bank.deposit_coins(msg_info.funds)?);
+    }
 
     let modules = app.modules(deps.as_ref());
     let swap_msg: CosmosMsg = modules.api_request(
@@ -142,7 +147,7 @@ pub fn deposit(
     // save the user address to the cache for later use in reply
     CACHED_USER_ADDR.save(deps.storage, &msg_info.sender)?;
     Ok(Response::new()
-        .add_messages(cw_20_transfer_msgs_res?)
+        .add_messages(msgs)
         .add_submessage(sub_msg)
         .add_attribute("action", "4T2/AC/Deposit"))
 }
