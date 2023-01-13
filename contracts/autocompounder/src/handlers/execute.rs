@@ -145,7 +145,8 @@ pub fn deposit(
             dex: config.pool_data.dex,
             action: DexAction::ProvideLiquidity {
                 assets: funds,
-                max_spread: None,
+                // TODO: let the user provide this
+                max_spread: Some(Decimal::percent(5)),
             },
         },
     )?;

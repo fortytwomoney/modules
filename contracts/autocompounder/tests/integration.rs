@@ -27,13 +27,12 @@ use astroport::{
 };
 
 use boot_core::MockState;
-use boot_cw_plus::Cw20;
+
 use cosmwasm_std::{to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_multi_test::{App, ContractWrapper, Executor};
-use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
+use forty_two::autocompounder::{AUTOCOMPOUNDER};
 use forty_two::cw_staking::CW_STAKING;
-
 use forty_two_boot::autocompounder::AutocompounderApp;
 use test_utils::abstract_helper;
 
@@ -111,20 +110,22 @@ fn generator_without_reward_proxies() {
     
     // mint tokens to pair to have some liquidity
     mint_tokens(
-        &mut mock.app.borrow_mut(),
+        &mut app,
         owner.clone(),
         &eur_token,
         &pair_eur_usd,
-        100,
+        1_000_000,
     );
 
     mint_tokens(
-        &mut mock.app.borrow_mut(),
+        &mut app,
         owner.clone(),
         &usd_token,
         &pair_eur_usd,
-        100,
+        1_000_000,
     );
+
+
 
     let mock_state = Rc::new(RefCell::new(MockState::new()));
     let app = Rc::new(RefCell::new(app));
@@ -243,7 +244,7 @@ fn generator_without_reward_proxies() {
                     dex: ASTROPORT.to_string(),
                     fee_asset: eur_asset.to_string(),
                     performance_fees: Decimal::zero(),
-                    pool_assets: vec![eur_asset.clone(), usd_asset],
+                    pool_assets: vec![eur_asset.clone(), usd_asset.clone()],
                     withdrawal_fees: Decimal::zero(),
                 },
                 base: abstract_os::app::BaseInstantiateMsg {
@@ -278,7 +279,15 @@ fn generator_without_reward_proxies() {
         owner.clone(),
         &eur_token,
         &owner,
-        100,
+        100_000,
+    );
+
+    mint_tokens(
+        &mut mock.app.borrow_mut(),
+        owner.clone(),
+        &usd_token,
+        &owner,
+        100_000,
     );
 
     // increase allowance
@@ -289,18 +298,52 @@ fn generator_without_reward_proxies() {
             eur_token.clone(),
             &cw20::Cw20ExecuteMsg::IncreaseAllowance {
                 spender: auto_compounder_addr.clone(),
-                amount: Uint128::from(100u64),
+                amount: Uint128::from(10000u64),
+                expires: None,
+            },
+            &vec![],
+        )
+        .unwrap();
+    mock.app
+        .borrow_mut()
+        .execute_contract(
+            owner.clone(),
+            usd_token.clone(),
+            &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                spender: auto_compounder_addr.clone(),
+                amount: Uint128::from(10000u64),
                 expires: None,
             },
             &vec![],
         )
         .unwrap();
 
-    // deposit
+    // initial deposit must be > 1000 (of both assets)
     auto_compounder
-        .deposit(vec![AnsAsset::new(eur_asset, 100u64)])
+        .deposit(vec![AnsAsset::new(eur_asset.clone(), 10000u64), AnsAsset::new(usd_asset.clone(), 10000u64)])
         .unwrap();
 
+    // single asset deposit
+
+    mock.app
+        .borrow_mut()
+        .execute_contract(
+            owner.clone(),
+            eur_token.clone(),
+            &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                spender: auto_compounder_addr.clone(),
+                amount: Uint128::from(1000u64),
+                expires: None,
+            },
+            &vec![],
+        )
+        .unwrap();
+
+    auto_compounder
+        .deposit(vec![AnsAsset::new(eur_asset, 1000u64)])
+        .unwrap();
+
+    let auto_compounder_config = auto_compounder.config().unwrap();
 
     // // Mint tokens, so user can deposit
     // mint_tokens(&mut app, pair_cny_eur.clone(), &lp_cny_eur, &user1, 9);

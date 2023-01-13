@@ -66,17 +66,16 @@ pub fn lp_provision_reply(
     let current_vault_supply = cw20_total_supply(deps.as_ref(), &config)?;
 
     // 2) Retrieve the number of LP tokens minted/staked.
-    let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
+    let lp_token = LpToken::from(config.pool_data.clone());
+    let received_lp = lp_token
+    .resolve(&deps.querier, &_ans_host)?
+    .query_balance(&deps.querier, proxy_address.to_string())?;
     let staked_lp = query_stake(
         deps.as_ref(),
         &app,
         config.pool_data.dex.clone(),
-        lp_token.clone(),
+        lp_token.clone().into(),
     )?;
-
-    let received_lp = lp_token
-        .resolve(&deps.querier, &_ans_host)?
-        .query_balance(&deps.querier, proxy_address.to_string())?;
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
     // 3) Calculate the number of vault tokens to mint
