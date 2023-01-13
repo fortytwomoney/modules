@@ -88,7 +88,7 @@ pub fn update_fee_config(
     Ok(Response::new().add_attribute("action", "update_fee_config"))
 }
 
-// im assuming that this is the function that will be called when the user wants to pool AND stake their funds
+// This is the function that is called when the user wants to pool AND stake their funds
 pub fn deposit(
     deps: DepsMut,
     msg_info: MessageInfo,
@@ -119,14 +119,14 @@ pub fn deposit(
         .collect();
     msgs.append(cw_20_transfer_msgs_res?.as_mut());
 
-    // transfer received coins to the bank contract
+    // transfer received coins to the vault contract
     if !msg_info.funds.is_empty() {
         let bank = app.bank(deps.as_ref());
         msgs.push(bank.deposit_coins(msg_info.funds)?);
     }
 
     let modules = app.modules(deps.as_ref());
-    let swap_msg: CosmosMsg = modules.api_request(
+    let provide_liquidity_msg: CosmosMsg = modules.api_request(
         EXCHANGE,
         DexExecuteMsg {
             dex: config.pool_data.dex,
@@ -139,7 +139,7 @@ pub fn deposit(
 
     let sub_msg = SubMsg {
         id: LP_PROVISION_REPLY_ID,
-        msg: swap_msg,
+        msg: provide_liquidity_msg,
         gas_limit: None,
         reply_on: ReplyOn::Success,
     };
