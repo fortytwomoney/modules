@@ -55,6 +55,6 @@ forty-two-boot = { workspace = true }
 
 boot-core = { workspace = true }
 abstract-boot = { workspace = true }
-abstract-app = { workspace = true, fetaures = ["schema"] }
+abstract-app = { workspace = true, features = ["schema"] }
 cw-utils = {workspace = true}
 clap =  { workspace = true }
