@@ -108,18 +108,35 @@ fn generator_without_reward_proxies() {
             proxy: None,
         }],
     );
+    
+    // mint tokens to pair to have some liquidity
+    mint_tokens(
+        &mut mock.app.borrow_mut(),
+        owner.clone(),
+        &eur_token,
+        &pair_eur_usd,
+        100,
+    );
+
+    mint_tokens(
+        &mut mock.app.borrow_mut(),
+        owner.clone(),
+        &usd_token,
+        &pair_eur_usd,
+        100,
+    );
 
     let mock_state = Rc::new(RefCell::new(MockState::new()));
     let app = Rc::new(RefCell::new(app));
     let mock = boot_core::Mock::new(&owner, &mock_state, &app).unwrap();
-
+    
     let (mut deployment, mut os_core) = abstract_helper::init_abstract_env(&mock).unwrap();
     deployment.deploy(&mut os_core).unwrap();
 
     let eur_asset = AssetEntry::new("eur");
     let usd_asset = AssetEntry::new("usd");
     let eur_usd_lp_asset = LpToken::new(ASTROPORT, vec!["eur", "usd"]);
-
+    
     // Register addresses on ANS
     deployment
         .ans_host
@@ -269,7 +286,7 @@ fn generator_without_reward_proxies() {
         .borrow_mut()
         .execute_contract(
             owner.clone(),
-            eur_token,
+            eur_token.clone(),
             &cw20::Cw20ExecuteMsg::IncreaseAllowance {
                 spender: auto_compounder_addr.clone(),
                 amount: Uint128::from(100u64),
@@ -283,6 +300,7 @@ fn generator_without_reward_proxies() {
     auto_compounder
         .deposit(vec![AnsAsset::new(eur_asset, 100u64)])
         .unwrap();
+
 
     // // Mint tokens, so user can deposit
     // mint_tokens(&mut app, pair_cny_eur.clone(), &lp_cny_eur, &user1, 9);
