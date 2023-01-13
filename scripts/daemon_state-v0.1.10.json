@@ -1,0 +1,13 @@
+{
+  "juno": {
+    "uni-5": {
+      "code_ids": {},
+      "default": {
+        "abstract:manager": "juno1envj37cgmr0zpa6njyqxl4kctv7uzd640em3fwm6w9l4h3klmakse0jk2k",
+        "abstract:os_factory": "juno1fzelxmlq5sma803g089w3909m697uj8fxrd667lxdulgjjx6fsrsml5mk7",
+        "abstract:proxy": "juno1dhvt9gatkj3kwxerz8v0gula4z9zcvwt9p8w4as7h4jurr5w2l2sqgfh3k",
+        "abstract:version_control": "juno1q8tuzav8y6aawhc4sddqnwj6q4gdvn7lyk3m9ks4uw69xp37j83ql3ck2q"
+      }
+    }
+  }
+}

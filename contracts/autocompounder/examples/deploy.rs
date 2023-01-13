@@ -47,14 +47,8 @@ fn deploy_autocompounder(args: Arguments) -> anyhow::Result<()> {
     //     version: ModuleVersion::from(CONTRACT_VERSION)
     // })?;
 
-    version_control.add_modules(vec![(
-        ModuleInfo {
-            name: "autocompounder".into(),
-            provider: "4t2".into(),
-            version: ModuleVersion::from(CONTRACT_VERSION),
-        },
-        ModuleReference::App(autocompounder.code_id()?),
-    )])?;
+    let version = CONTRACT_VERSION.parse().unwrap();
+    version_control.register_apps(vec![autocompounder.as_instance()], &version)?;
 
     Ok(())
 }
@@ -63,7 +57,7 @@ use clap::Parser;
 #[derive(Parser, Default, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Arguments {
-    /// COde ID of the already uploaded contract
+    /// Code ID of the already uploaded contract
     #[arg(short, long)]
     code_id: Option<u64>,
 }

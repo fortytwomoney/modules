@@ -72,3 +72,4 @@ boot-core = { workspace = true }
 abstract-boot = { workspace = true }
 abstract-api = { workspace = true, features = ["schema"] }
 clap = { workspace = true }
+log = { workspace = true }
