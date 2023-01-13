@@ -31,7 +31,7 @@ use boot_core::MockState;
 use cosmwasm_std::{to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_multi_test::{App, ContractWrapper, Executor};
-use forty_two::autocompounder::{AUTOCOMPOUNDER};
+use forty_two::autocompounder::AUTOCOMPOUNDER;
 use forty_two::cw_staking::CW_STAKING;
 use forty_two_boot::autocompounder::AutocompounderApp;
 use test_utils::abstract_helper;
@@ -107,7 +107,7 @@ fn generator_without_reward_proxies() {
             proxy: None,
         }],
     );
-    
+
     // mint tokens to pair to have some liquidity
     mint_tokens(
         &mut app,
@@ -125,19 +125,17 @@ fn generator_without_reward_proxies() {
         1_000_000,
     );
 
-
-
     let mock_state = Rc::new(RefCell::new(MockState::new()));
     let app = Rc::new(RefCell::new(app));
     let mock = boot_core::Mock::new(&owner, &mock_state, &app).unwrap();
-    
+
     let (mut deployment, mut os_core) = abstract_helper::init_abstract_env(&mock).unwrap();
     deployment.deploy(&mut os_core).unwrap();
 
     let eur_asset = AssetEntry::new("eur");
     let usd_asset = AssetEntry::new("usd");
     let eur_usd_lp_asset = LpToken::new(ASTROPORT, vec!["eur", "usd"]);
-    
+
     // Register addresses on ANS
     deployment
         .ans_host
@@ -224,14 +222,10 @@ fn generator_without_reward_proxies() {
         .unwrap();
 
     // install dex
-    os.manager
-        .install_module(EXCHANGE, &Empty {})
-        .unwrap();
+    os.manager.install_module(EXCHANGE, &Empty {}).unwrap();
 
     // install staking
-    os.manager
-        .install_module(CW_STAKING, &Empty {})
-        .unwrap();
+    os.manager.install_module(CW_STAKING, &Empty {}).unwrap();
 
     os.manager
         .install_module(
@@ -320,7 +314,10 @@ fn generator_without_reward_proxies() {
 
     // initial deposit must be > 1000 (of both assets)
     auto_compounder
-        .deposit(vec![AnsAsset::new(eur_asset.clone(), 10000u64), AnsAsset::new(usd_asset.clone(), 10000u64)])
+        .deposit(vec![
+            AnsAsset::new(eur_asset.clone(), 10000u64),
+            AnsAsset::new(usd_asset.clone(), 10000u64),
+        ])
         .unwrap();
 
     // single asset deposit
@@ -343,7 +340,7 @@ fn generator_without_reward_proxies() {
         .deposit(vec![AnsAsset::new(eur_asset, 1000u64)])
         .unwrap();
 
-    let auto_compounder_config = auto_compounder.config().unwrap();
+    let _auto_compounder_config = auto_compounder.config().unwrap();
 
     // // Mint tokens, so user can deposit
     // mint_tokens(&mut app, pair_cny_eur.clone(), &lp_cny_eur, &user1, 9);

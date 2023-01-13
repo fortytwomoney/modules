@@ -1,4 +1,3 @@
-
 use std::ops::Add;
 
 use abstract_sdk::base::features::{AbstractNameService, Identification};
@@ -109,8 +108,8 @@ pub fn deposit(
         .deduct_many(&msg_info.funds.clone().into())?
         .purge();
 
-     // if there is only one asset, we need to add the other asset too, but with zero amount
-     let funds = if funds.len() == 1 {
+    // if there is only one asset, we need to add the other asset too, but with zero amount
+    let funds = if funds.len() == 1 {
         let mut funds = funds;
         config.pool_data.assets.iter().for_each(|asset| {
             if !funds[0].name.eq(asset) {

@@ -1,5 +1,5 @@
 use crate::contract::AutocompounderApp;
-use crate::state::{Config, CONFIG};
+use crate::state::CONFIG;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, StdResult};
 use forty_two::autocompounder::{AutocompounderQueryMsg, ConfigResponse};
 
@@ -14,7 +14,7 @@ pub fn query_handler(
     msg: AutocompounderQueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-        AutocompounderQueryMsg::Config {} => to_binary(&query_config(deps)?)
+        AutocompounderQueryMsg::Config {} => to_binary(&query_config(deps)?),
     }
 }
 

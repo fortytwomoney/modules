@@ -1,3 +1,7 @@
+use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
+use crate::error::AutocompounderError;
+use crate::handlers::helpers::check_fee;
+use crate::state::{Config, CONFIG};
 use abstract_sdk::base::features::AbstractNameService;
 use abstract_sdk::os::api;
 use abstract_sdk::os::objects::{
@@ -11,14 +15,8 @@ use cosmwasm_std::{
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use cw_utils::Duration;
-
-use forty_two::autocompounder::{AutocompounderInstantiateMsg, AUTOCOMPOUNDER};
+use forty_two::autocompounder::{AutocompounderInstantiateMsg, FeeConfig, AUTOCOMPOUNDER};
 use forty_two::cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING};
-
-use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
-use crate::error::AutocompounderError;
-use crate::handlers::helpers::check_fee;
-use crate::state::{Config, FeeConfig, CONFIG};
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
@@ -73,7 +71,7 @@ pub fn instantiate_handler(
     // sort pool_assets then join
     // staking/astroport/crab,juno
     let staking_contract_name = ["staking", &lp_token.to_string()].join("/");
-    let staking_contract_entry = UncheckedContractEntry::new(&dex, &staking_contract_name).check();
+    let staking_contract_entry = UncheckedContractEntry::new(&dex, staking_contract_name).check();
     let staking_contract_addr = ans.query(&staking_contract_entry)?;
 
     // get staking info

@@ -68,8 +68,8 @@ pub fn lp_provision_reply(
     // 2) Retrieve the number of LP tokens minted/staked.
     let lp_token = LpToken::from(config.pool_data.clone());
     let received_lp = lp_token
-    .resolve(&deps.querier, &_ans_host)?
-    .query_balance(&deps.querier, proxy_address.to_string())?;
+        .resolve(&deps.querier, &_ans_host)?
+        .query_balance(&deps.querier, proxy_address.to_string())?;
     let staked_lp = query_stake(
         deps.as_ref(),
         &app,
