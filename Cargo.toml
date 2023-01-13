@@ -15,7 +15,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.10"
+version = "0.2.0"
 authors = []
 edition = "2021"
 
@@ -35,8 +35,8 @@ abstract-api = "0.6.0"
 abstract-app = "0.6.0"
 abstract-os = "0.6.0"
 abstract-boot = "0.6.0"
-forty-two = { version = "0.1.10", path = "packages/forty-two" }
-forty-two-boot = { version = "0.1.10", path = "packages/forty-two-boot" }
+forty-two = { version = "0.2.0", path = "packages/forty-two" }
+forty-two-boot = { version = "0.2.0", path = "packages/forty-two-boot" }
 cosmwasm-std = { version = "1.1" }
 cosmwasm-schema = { version = "1.1" }
 cw-asset = { version = "2.4" }

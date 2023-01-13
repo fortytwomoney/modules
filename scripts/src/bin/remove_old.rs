@@ -29,7 +29,7 @@ pub fn deploy_api() -> anyhow::Result<()> {
         env::var("VERSION_CONTROL").expect("VERSION_CONTROL_ADDRESS must be set");
 
     let version_control = VersionControl::load(
-        chain.clone(),
+        chain,
         &Addr::unchecked(version_control_address),
     );
 

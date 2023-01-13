@@ -14,7 +14,7 @@ use cosmwasm_std::{
 };
 use cw20::Cw20ExecuteMsg;
 use cw_asset::AssetInfo;
-use forty_two::cw_staking::{Claim, StakingInfoResponse, StakeResponse, UnbondingResponse};
+use forty_two::cw_staking::{StakingInfoResponse, StakeResponse, UnbondingResponse};
 
 pub const ASTROPORT: &str = "astroport";
 

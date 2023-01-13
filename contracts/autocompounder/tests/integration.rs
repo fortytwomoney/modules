@@ -73,7 +73,7 @@ fn generator_without_reward_proxies() {
     let pair_code_id = store_pair_code_id(&mut app);
 
     let astro_token_instance =
-        instantiate_token(&mut app, token_code_id, "ASTRO", Some(1_000_000_000_000000));
+        instantiate_token(&mut app, token_code_id, "ASTRO", Some(1_000_000_000_000_000));
     let factory_instance =
         instantiate_factory(&mut app, factory_code_id, token_code_id, pair_code_id, None);
 
@@ -164,7 +164,7 @@ fn generator_without_reward_proxies() {
             vec![(
                 UncheckedContractEntry::new(
                     ASTROPORT.to_string(),
-                    format!("staking/{}", eur_usd_lp_asset.to_string()),
+                    format!("staking/{}", eur_usd_lp_asset),
                 ),
                 generator_instance.to_string(),
             )],
@@ -295,7 +295,7 @@ fn generator_without_reward_proxies() {
                 amount: Uint128::from(10000u64),
                 expires: None,
             },
-            &vec![],
+            &[],
         )
         .unwrap();
     mock.app
@@ -308,7 +308,7 @@ fn generator_without_reward_proxies() {
                 amount: Uint128::from(10000u64),
                 expires: None,
             },
-            &vec![],
+            &[],
         )
         .unwrap();
 
@@ -316,7 +316,7 @@ fn generator_without_reward_proxies() {
     auto_compounder
         .deposit(vec![
             AnsAsset::new(eur_asset.clone(), 10000u64),
-            AnsAsset::new(usd_asset.clone(), 10000u64),
+            AnsAsset::new(usd_asset, 10000u64),
         ])
         .unwrap();
 
@@ -325,14 +325,14 @@ fn generator_without_reward_proxies() {
     mock.app
         .borrow_mut()
         .execute_contract(
-            owner.clone(),
+            owner,
             eur_token.clone(),
             &cw20::Cw20ExecuteMsg::IncreaseAllowance {
-                spender: auto_compounder_addr.clone(),
+                spender: auto_compounder_addr,
                 amount: Uint128::from(1000u64),
                 expires: None,
             },
-            &vec![],
+            &[],
         )
         .unwrap();
 
@@ -669,7 +669,7 @@ fn instantiate_token(app: &mut App, token_code_id: u64, name: &str, cap: Option<
         initial_balances: vec![],
         mint: Some(cw_astro::MinterResponse {
             minter: String::from(OWNER),
-            cap: cap.map(|v| Uint128::from(v)),
+            cap: cap.map(Uint128::from),
         }),
         marketing: None,
     };
@@ -755,11 +755,11 @@ fn instantiate_generator(
         .unwrap();
 
     mint_tokens(
-        &mut app,
+        app,
         owner.clone(),
-        &astro_token_instance,
+        astro_token_instance,
         &owner,
-        1_000_000_000_000000,
+        1_000_000_000_000_000,
     );
 
     // Generator
@@ -772,7 +772,7 @@ fn instantiate_generator(
         .with_reply_empty(astroport_generator::contract::reply),
     );
 
-    let whitelist_code_id = store_whitelist_code(&mut app);
+    let whitelist_code_id = store_whitelist_code(app);
     let generator_code_id = app.store_code(generator_contract);
 
     let init_msg = GeneratorInstantiateMsg {
@@ -803,7 +803,7 @@ fn instantiate_generator(
     // Vesting to generator:
     let current_block = app.block_info();
 
-    let amount = Uint128::new(63072000_000000);
+    let amount = Uint128::new(63_072_000_000_000);
 
     let msg = Cw20ExecuteMsg::Send {
         contract: vesting_instance.to_string(),
@@ -1036,7 +1036,7 @@ fn create_pair(
         Addr::unchecked(OWNER),
         factory.clone(),
         &FactoryExecuteMsg::CreatePair {
-            pair_type: pair_type.unwrap_or_else(|| PairType::Xyk {}),
+            pair_type: pair_type.unwrap_or(PairType::Xyk {}),
             asset_infos: assets.clone(),
             init_params: init_param,
         },

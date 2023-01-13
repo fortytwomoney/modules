@@ -185,8 +185,7 @@ pub fn query_staking_info(
 
     let res: StakingInfoResponse = modules.query_api(CW_STAKING, query).map_err(|e| {
         StdError::generic_err(format!(
-            "Error querying staking info for {} on {}: {}...{:?}",
-            lp_token_name, dex, e, api_msg
+            "Error querying staking info for {lp_token_name} on {dex}: {e}...{api_msg:?}"
         ))
     })?;
     Ok(res)

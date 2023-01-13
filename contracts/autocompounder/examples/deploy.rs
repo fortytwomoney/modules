@@ -1,4 +1,4 @@
-use abstract_boot::{VCExecFns, VersionControl};
+use abstract_boot::{VersionControl};
 use boot_core::networks::{NetworkInfo, UNI_5};
 use boot_core::prelude::instantiate_daemon_env;
 use boot_core::prelude::*;
@@ -6,8 +6,8 @@ use boot_core::DaemonOptionsBuilder;
 use cosmwasm_std::Addr;
 use std::env;
 
-use abstract_sdk::os::objects::module::{ModuleInfo, ModuleVersion};
-use abstract_sdk::os::objects::module_reference::ModuleReference;
+
+
 use forty_two::autocompounder::AUTOCOMPOUNDER;
 use std::sync::Arc;
 use tokio::runtime::Runtime;

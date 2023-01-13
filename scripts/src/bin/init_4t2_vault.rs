@@ -48,7 +48,7 @@ fn create_vault<Chain: BootEnvironment>(
             governance: governance_details,
             description: None,
             link: None,
-            name: format!("4t2 Vault ({})", assets.join("|")).to_string(),
+            name: format!("4t2 Vault ({})", assets.join("|")),
         },
         None,
     )?;
@@ -63,7 +63,7 @@ fn create_vault<Chain: BootEnvironment>(
         .set_address(PROXY, &Addr::unchecked(proxy_address));
     Ok(OS {
         manager: Manager::new(MANAGER, chain.clone()),
-        proxy: Proxy::new(PROXY, chain.clone()),
+        proxy: Proxy::new(PROXY, chain),
     })
 }
 
@@ -73,7 +73,7 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
     let daemon_options = DaemonOptionsBuilder::default().network(NETWORK).build()?;
 
     // Setup the environment
-    let (_sender, chain) = instantiate_daemon_env(&rt, daemon_options)?;
+    let (sender, chain) = instantiate_daemon_env(&rt, daemon_options)?;
 
     // // Load Abstract Version Control
     // let _version_control_address: String =
@@ -96,14 +96,13 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
     let mut assets = vec![args.paired_asset, "junox".to_string()];
     assets.sort();
 
-    let os = if args.new_vault {
-        create_vault(&os_factory,chain.clone(),GovernanceDetails::Monarchy {
-            monarch: _sender.to_string(),
-        }, assets.clone())?
+    let os = if let Some(osId) = args.os_id {
+        OS::new(&chain, Some(osId))
     } else {
-        OS::new(&chain, Some(4))
+        create_vault(&os_factory,chain,GovernanceDetails::Monarchy {
+            monarch: sender.to_string(),
+        }, assets.clone())?
     };
-
 
     // let _cw_staking = CwStakingApi::load(chain.clone(), &Addr::unchecked("juno1vgrxcupau9zr3z85rar7aq7v28v47s4tgdjm4xasxx96ap8wdzssfwfx27"));
 
@@ -134,7 +133,7 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
     os.manager.install_module_version(AUTOCOMPOUNDER, new_module_version, &app::InstantiateMsg {
         base: app::BaseInstantiateMsg {
             ans_host_address: "juno1qyetxuhvmpgan5qyjq3julmzz9g3rhn3jfp2jlgy29ftjknv0c6s0xywpp".to_string(),
-            // ans_host_address: version_control.get_api_addr(OS_FACTORY, abstract_version)?.to_string()
+            // ans_host_address: version_control.get_api_addr(ANS_HOST, abstract_version)?.to_string()
         },
         app: AutocompounderInstantiateMsg
         {
@@ -142,7 +141,7 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
             deposit_fees: Decimal::new(100u128.into()),
             withdrawal_fees: Decimal::new(100u128.into()),
             /// address that recieves the fee commissions
-            commission_addr: _sender.to_string(),
+            commission_addr: sender.to_string(),
             /// cw20 code id
             code_id: 4012,
             /// Name of the target dex
@@ -162,7 +161,7 @@ use clap::Parser;
 struct Arguments {
     /// Whether the OS is new or not (TODO: just take in OSId)
     #[arg(short, long)]
-    new_vault: bool,
+    os_id: Option<u32>,
     /// Paired asset in the pool
     #[arg(short, long)]
     paired_asset: String,
