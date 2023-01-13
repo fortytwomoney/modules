@@ -276,7 +276,9 @@ pub fn withdraw_claims(
 ) -> AutocompounderResult {
     CACHED_USER_ADDR.save(deps.storage, &address)?;
     let config = CONFIG.load(deps.storage)?;
-    let claims = CLAIMS.load(deps.storage, address.to_string())?;
+    let Some(claims) = CLAIMS.may_load(deps.storage, address.to_string())? else {
+        return Err(AutocompounderError::NoMaturedClaims {});
+    };
 
     // 1) get all matured claims for user
     let mut ongoing_claims: Vec<Claim> = vec![];
