@@ -83,11 +83,11 @@ pub fn deploy_api() -> anyhow::Result<()> {
     // Install both modules
     let new_module_version = ModuleVersion::from(MODULE_VERSION);
     os2.manager
-        .install_module_version(CW_STAKING, new_module_version.clone(), None::<&Empty>)?;
+        .install_module_version(CW_STAKING, new_module_version.clone(), &Empty{})?;
 
     // Install abstract dex
     if !is_module_installed(&os2, EXCHANGE)? {
-        os2.manager.install_module(EXCHANGE, None::<&Empty>)?;
+        os2.manager.install_module(EXCHANGE, &Empty{})?;
     }
 
     // let os2 = Os::new
@@ -95,7 +95,7 @@ pub fn deploy_api() -> anyhow::Result<()> {
     os2.manager.install_module_version(
         AUTOCOMPOUNDER,
         new_module_version,
-        Some(&app::InstantiateMsg {
+        &app::InstantiateMsg {
             base: app::BaseInstantiateMsg {
                 ans_host_address: "juno1qyetxuhvmpgan5qyjq3julmzz9g3rhn3jfp2jlgy29ftjknv0c6s0xywpp"
                     .to_string(),
@@ -116,7 +116,7 @@ pub fn deploy_api() -> anyhow::Result<()> {
                 pool_assets: vec!["crab".into(), "junox".into()],
                 // pool_assets: vec!["junox".into(), "crab".into()],
             },
-        }),
+        },
     )?;
 
     Ok(())

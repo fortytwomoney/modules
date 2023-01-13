@@ -112,6 +112,7 @@ fn generator_without_reward_proxies() {
     let mock_state = Rc::new(RefCell::new(MockState::new()));
     let app = Rc::new(RefCell::new(app));
     let mock = boot_core::Mock::new(&owner, &mock_state, &app).unwrap();
+
     let (mut deployment, mut os_core) = abstract_helper::init_abstract_env(&mock).unwrap();
     deployment.deploy(&mut os_core).unwrap();
 
@@ -206,18 +207,18 @@ fn generator_without_reward_proxies() {
 
     // install dex
     os.manager
-        .install_module(EXCHANGE, Some(&Empty {}))
+        .install_module(EXCHANGE, &Empty {})
         .unwrap();
 
     // install staking
     os.manager
-        .install_module(CW_STAKING, Some(&Empty {}))
+        .install_module(CW_STAKING, &Empty {})
         .unwrap();
 
     os.manager
         .install_module(
             AUTOCOMPOUNDER,
-            Some(&abstract_os::app::InstantiateMsg {
+            &abstract_os::app::InstantiateMsg {
                 app: forty_two::autocompounder::AutocompounderInstantiateMsg {
                     code_id: token_code_id,
                     commission_addr: OWNER.to_string(),
@@ -231,7 +232,7 @@ fn generator_without_reward_proxies() {
                 base: abstract_os::app::BaseInstantiateMsg {
                     ans_host_address: deployment.ans_host.addr_str().unwrap(),
                 },
-            }),
+            },
         )
         .unwrap();
 
@@ -246,11 +247,11 @@ fn generator_without_reward_proxies() {
 
     exchange_api
         .call_as(&os.manager.address().unwrap())
-        .update_traders(Some(vec![auto_compounder_addr.clone()]), None)
+        .update_traders(vec![auto_compounder_addr.clone()], vec![])
         .unwrap();
     staking_api
         .call_as(&os.manager.address().unwrap())
-        .update_traders(Some(vec![auto_compounder_addr.clone()]), None)
+        .update_traders(vec![auto_compounder_addr.clone()], vec![])
         .unwrap();
 
     // deposit into the auto-compounder
