@@ -109,6 +109,19 @@ pub fn deposit(
         .deduct_many(&msg_info.funds.clone().into())?
         .purge();
 
+     // if there is only one asset, we need to add the other asset too, but with zero amount
+     let funds = if funds.len() == 1 {
+        let mut funds = funds;
+        config.pool_data.assets.iter().for_each(|asset| {
+            if !funds[0].name.eq(asset) {
+                funds.push(AnsAsset::new(asset.clone(), 0u128))
+            }
+        });
+        funds
+    } else {
+        funds
+    };
+
     let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>, _> = claimed_deposits
         .into_iter()
         .map(|asset| {
