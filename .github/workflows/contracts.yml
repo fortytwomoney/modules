@@ -20,6 +20,9 @@ jobs:
     container:
         image: rust:latest
     steps:
+      - uses: de-vri-es/setup-git-credentials@v2
+        with:
+          credentials: ${{ secrets.ABSTRACT_CREDENTIALS }}
       - name: Setup | Checkout
         uses: actions/checkout@v3
       - name: Setup | Rust
@@ -46,6 +49,9 @@ jobs:
     container:
         image: rust:latest
     steps:
+      - uses: de-vri-es/setup-git-credentials@v2
+        with:
+          credentials: ${{ secrets.ABSTRACT_CREDENTIALS }}
       - name: Setup | Checkout
         uses: actions/checkout@v3
       - name: Setup | Rust
@@ -63,6 +69,9 @@ jobs:
         image: rust:latest
     needs: [compile]
     steps:
+      - uses: de-vri-es/setup-git-credentials@v2
+        with:
+          credentials: ${{ secrets.ABSTRACT_CREDENTIALS }}
       - name: Setup | Checkout
         uses: actions/checkout@v3
       - name: Setup | Rust
