@@ -1,9 +1,8 @@
-use abstract_sdk::os::objects::{PoolAddress, PoolMetadata};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Uint128;
 use cw_storage_plus::{Item, Map};
-use cw_utils::{Duration, Expiration};
+use cw_utils::Expiration;
 pub use forty_two::autocompounder::{Config, FeeConfig};
 
 #[cw_serde]

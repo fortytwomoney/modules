@@ -134,7 +134,7 @@ fn generator_without_reward_proxies() {
     let app = Rc::new(RefCell::new(app));
     let mock = boot_core::Mock::new(&owner, &mock_state, &app).unwrap();
 
-    let (mut deployment, mut os_core) = abstract_helper::init_abstract_env(&mock).unwrap();
+    let (mut deployment, mut os_core) = abstract_helper::init_abstract_env(mock.clone()).unwrap();
     deployment.deploy(&mut os_core).unwrap();
 
     let eur_asset = AssetEntry::new("eur");
