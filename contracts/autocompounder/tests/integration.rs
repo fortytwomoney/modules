@@ -28,10 +28,11 @@ use astroport::{
 
 use boot_core::MockState;
 
+use boot_cw_plus::Cw20;
 use cosmwasm_std::{to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_multi_test::{App, ContractWrapper, Executor};
-use forty_two::autocompounder::AUTOCOMPOUNDER;
+use forty_two::autocompounder::{AUTOCOMPOUNDER, Cw20HookMsg};
 use forty_two::cw_staking::CW_STAKING;
 use forty_two_boot::autocompounder::AutocompounderApp;
 use test_utils::abstract_helper;
@@ -325,10 +326,10 @@ fn generator_without_reward_proxies() {
     mock.app
         .borrow_mut()
         .execute_contract(
-            owner,
+            owner.clone(),
             eur_token.clone(),
             &cw20::Cw20ExecuteMsg::IncreaseAllowance {
-                spender: auto_compounder_addr,
+                spender: auto_compounder_addr.clone(),
                 amount: Uint128::from(1000u64),
                 expires: None,
             },
@@ -340,8 +341,18 @@ fn generator_without_reward_proxies() {
         .deposit(vec![AnsAsset::new(eur_asset, 1000u64)])
         .unwrap();
 
-    let _auto_compounder_config = auto_compounder.config().unwrap();
+    let auto_compounder_config = auto_compounder.config().unwrap();
+    let vault_token_addr = auto_compounder_config.vault_token;
+    let vault_token = Cw20::new("vault_token", mock.clone());
+    vault_token.set_address(&Addr::unchecked(vault_token_addr.clone()));
 
+    // check that the vault token is minted
+    check_token_balance(&mut mock.app.borrow_mut(), &vault_token_addr, &owner, 9004);
+    // withdraw from the auto-compounder
+    vault_token.send(to_binary(&Cw20HookMsg::Redeem {  }).unwrap(), 9004, auto_compounder_addr.clone()).unwrap();
+
+
+    
     // // Mint tokens, so user can deposit
     // mint_tokens(&mut app, pair_cny_eur.clone(), &lp_cny_eur, &user1, 9);
     // mint_tokens(&mut app, pair_eur_usd.clone(), &lp_eur_usd, &user1, 10);
