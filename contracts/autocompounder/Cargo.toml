@@ -67,7 +67,7 @@ anyhow = {workspace = true}
 rstest = {workspace = true }
 speculoos = { workspace = true }
 astroport = { workspace = true }
-semver = { package = "cw-semver", version = "1" }
+semver = { workspace = true }
 
 cw-astro = {package = "cw20", version = "0.15"}
 astroport-token = { git = "https://github.com/astroport-fi/astroport-core.git"}
