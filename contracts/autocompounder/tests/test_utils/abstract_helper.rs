@@ -6,7 +6,7 @@ use abstract_os::{api::InstantiateMsg, objects::gov_type::GovernanceDetails, EXC
 
 use boot_core::{
     prelude::{BootInstantiate, BootUpload, ContractInstance},
-    Mock,
+    BootError, Mock,
 };
 use cosmwasm_std::{Addr, Empty};
 
@@ -15,9 +15,10 @@ use abstract_boot::{Abstract, AnsHost, Manager, ModuleFactory, OSFactory, Proxy,
 use abstract_os::{ANS_HOST, MANAGER, MODULE_FACTORY, OS_FACTORY, VERSION_CONTROL};
 
 use cw_multi_test::ContractWrapper;
-use forty_two::cw_staking::CW_STAKING;
+use forty_two::{autocompounder::AUTOCOMPOUNDER, cw_staking::CW_STAKING};
+use forty_two_boot::autocompounder::AutocompounderApp;
 
-pub fn init_abstract_env(chain: Mock) -> anyhow::Result<(Abstract<Mock>, OS<Mock>)> {
+pub fn deploy_abstract(chain: Mock) -> Result<(Abstract<Mock>, OS<Mock>), BootError> {
     let mut ans_host = AnsHost::new(ANS_HOST, chain.clone());
     let mut os_factory = OSFactory::new(OS_FACTORY, chain.clone());
     let mut version_control = VersionControl::new(VERSION_CONTROL, chain.clone());
@@ -79,7 +80,7 @@ pub fn init_abstract_env(chain: Mock) -> anyhow::Result<(Abstract<Mock>, OS<Mock
 
     let deployment = Abstract {
         chain,
-        version: "1.0.0".parse()?,
+        version: "1.0.0".parse().unwrap(),
         ans_host,
         os_factory,
         version_control,
@@ -106,7 +107,7 @@ pub(crate) fn create_default_os(
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
 pub(crate) fn init_exchange(
-    chain: &Mock,
+    chain: Mock,
     deployment: &Abstract<Mock>,
     version: Option<String>,
 ) -> anyhow::Result<DexApi<Mock>> {
@@ -144,7 +145,7 @@ pub(crate) fn init_exchange(
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
 pub(crate) fn init_staking(
-    chain: &Mock,
+    chain: Mock,
     deployment: &Abstract<Mock>,
     version: Option<String>,
 ) -> anyhow::Result<forty_two_boot::cw_staking::CwStakingApi<Mock>> {
@@ -177,4 +178,33 @@ pub(crate) fn init_staking(
         .version_control
         .register_apis(vec![staking.as_instance()], &version)?;
     Ok(staking)
+}
+
+/// Instantiates the dex api and registers it with the version control
+#[allow(dead_code)]
+pub(crate) fn init_auto_compounder(
+    chain: Mock,
+    deployment: &Abstract<Mock>,
+    _version: Option<String>,
+) -> anyhow::Result<forty_two_boot::autocompounder::AutocompounderApp<Mock>> {
+    let mut auto_compounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
+
+    auto_compounder.as_instance_mut().set_mock(Box::new(
+        ContractWrapper::new_with_empty(
+            autocompounder::contract::execute,
+            autocompounder::contract::instantiate,
+            autocompounder::contract::query,
+        )
+        .with_reply_empty(::autocompounder::contract::reply),
+    ));
+
+    // upload and register autocompounder
+    auto_compounder.upload().unwrap();
+
+    deployment
+        .version_control
+        .register_apps(vec![auto_compounder.as_instance()], &deployment.version)
+        .unwrap();
+
+    Ok(auto_compounder)
 }

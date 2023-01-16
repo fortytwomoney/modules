@@ -95,8 +95,8 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
     let mut assets = vec![args.paired_asset, "junox".to_string()];
     assets.sort();
 
-    let os = if let Some(osId) = args.os_id {
-        OS::new(chain.clone(), Some(osId))
+    let os = if let Some(os_id) = args.os_id {
+        OS::new(chain, Some(os_id))
     } else {
         create_vault(
             &os_factory,
