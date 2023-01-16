@@ -13,7 +13,7 @@ use cosmwasm_std::{
 use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetList;
 use cw_utils::Duration;
-use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
+use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg };
 use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
 
 use crate::contract::{
@@ -21,8 +21,9 @@ use crate::contract::{
     LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::state::{
-    Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
+use crate::state::{ 
+    Config,
+    Claim, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
 
 use super::helpers::{check_fee, cw20_total_supply, query_stake};
@@ -403,7 +404,7 @@ fn calculate_withdrawals(
 /// Checks if the unbonding cooldown period for batch unbonding has passed or not.
 fn check_unbonding_cooldown(
     deps: &DepsMut,
-    config: &crate::state::Config,
+    config: &Config,
     env: &Env,
 ) -> Result<(), AutocompounderError> {
     let latest_unbonding = LATEST_UNBONDING.load(deps.storage)?;

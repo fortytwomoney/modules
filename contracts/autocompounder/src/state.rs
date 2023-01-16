@@ -4,29 +4,8 @@ use cosmwasm_std::Addr;
 use cosmwasm_std::Uint128;
 use cw_storage_plus::{Item, Map};
 use cw_utils::{Duration, Expiration};
-use forty_two::autocompounder::FeeConfig;
+pub use forty_two::autocompounder::{Config, FeeConfig};
 
-#[cw_serde]
-pub struct Config {
-    /// Address of the staking contract
-    pub staking_contract: Addr,
-    /// Pool address (number or Address)
-    pub pool_address: PoolAddress,
-    /// Pool metadata
-    pub pool_data: PoolMetadata,
-    /// Address of the LP token contract
-    pub liquidity_token: Addr,
-    /// Vault token
-    pub vault_token: Addr,
-    /// Address that receives the fee commissions
-    pub commission_addr: Addr,
-    /// Vault fee structure
-    pub fees: FeeConfig,
-    /// Pool bonding period
-    pub bonding_period: Option<Duration>,
-    /// minimum unbonding cooldown
-    pub min_unbonding_cooldown: Option<Duration>,
-}
 
 #[cw_serde]
 pub struct Claim {
