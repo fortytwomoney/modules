@@ -32,7 +32,7 @@ use abstract_sdk::os::app;
 use abstract_sdk::os::dex::{DexName, OfferAsset};
 use abstract_sdk::os::objects::{AssetEntry, PoolAddress, PoolMetadata};
 use cosmwasm_schema::QueryResponses;
-use cosmwasm_std::{Decimal, Addr};
+use cosmwasm_std::{Addr, Decimal};
 use cw_utils::Duration;
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";

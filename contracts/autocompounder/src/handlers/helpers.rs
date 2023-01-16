@@ -1,10 +1,10 @@
 use abstract_sdk::{base::features::Identification, os::objects::AssetEntry, ModuleInterface};
 use cosmwasm_std::{Decimal, Deps, StdResult, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
-use forty_two::cw_staking::{CwStakingQueryMsg, StakeResponse, CW_STAKING};
 use forty_two::autocompounder::{Config, FeeConfig};
+use forty_two::cw_staking::{CwStakingQueryMsg, StakeResponse, CW_STAKING};
 
-use crate::{contract::AutocompounderApp, error::AutocompounderError };
+use crate::{contract::AutocompounderApp, error::AutocompounderError};
 
 /// queries staking module for the number of staked assets of the app
 pub fn query_stake(

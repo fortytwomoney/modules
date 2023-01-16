@@ -1,12 +1,10 @@
-use abstract_boot::{VersionControl};
+use abstract_boot::VersionControl;
 use boot_core::networks::{NetworkInfo, UNI_5};
 use boot_core::prelude::instantiate_daemon_env;
 use boot_core::prelude::*;
 use boot_core::DaemonOptionsBuilder;
 use cosmwasm_std::Addr;
 use std::env;
-
-
 
 use forty_two::autocompounder::AUTOCOMPOUNDER;
 use std::sync::Arc;

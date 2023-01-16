@@ -14,7 +14,7 @@ use cw20::Cw20ExecuteMsg;
 
 use cw20_stake::msg::{ExecuteMsg as StakeCw20ExecuteMsg, ReceiveMsg};
 use cw_asset::{AssetInfo, AssetInfoBase};
-use forty_two::cw_staking::{Claim, StakingInfoResponse, UnbondingResponse, StakeResponse};
+use forty_two::cw_staking::{Claim, StakeResponse, StakingInfoResponse, UnbondingResponse};
 
 pub const JUNOSWAP: &str = "junoswap";
 // Source https://github.com/wasmswap/wasmswap-contracts
@@ -113,10 +113,16 @@ impl CwStaking for JunoSwap {
                     height: None,
                 },
             )?;
-        Ok(StakeResponse { amount: stake_balance.balance })
+        Ok(StakeResponse {
+            amount: stake_balance.balance,
+        })
     }
 
-    fn query_unbonding(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<UnbondingResponse> {
+    fn query_unbonding(
+        &self,
+        querier: &QuerierWrapper,
+        staker: Addr,
+    ) -> StdResult<UnbondingResponse> {
         let claims: cw20_stake::msg::ClaimsResponse = querier.query_wasm_smart(
             self.staking_contract_address.clone(),
             &cw20_stake::msg::QueryMsg::Claims {

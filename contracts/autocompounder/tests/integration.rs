@@ -32,7 +32,7 @@ use boot_cw_plus::Cw20;
 use cosmwasm_std::{to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_multi_test::{App, ContractWrapper, Executor};
-use forty_two::autocompounder::{AUTOCOMPOUNDER, Cw20HookMsg};
+use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
 use forty_two::cw_staking::CW_STAKING;
 use forty_two_boot::autocompounder::AutocompounderApp;
 use test_utils::abstract_helper;
@@ -73,8 +73,12 @@ fn generator_without_reward_proxies() {
     let factory_code_id = store_factory_code(&mut app);
     let pair_code_id = store_pair_code_id(&mut app);
 
-    let astro_token_instance =
-        instantiate_token(&mut app, token_code_id, "ASTRO", Some(1_000_000_000_000_000));
+    let astro_token_instance = instantiate_token(
+        &mut app,
+        token_code_id,
+        "ASTRO",
+        Some(1_000_000_000_000_000),
+    );
     let factory_instance =
         instantiate_factory(&mut app, factory_code_id, token_code_id, pair_code_id, None);
 
@@ -349,10 +353,14 @@ fn generator_without_reward_proxies() {
     // check that the vault token is minted
     check_token_balance(&mut mock.app.borrow_mut(), &vault_token_addr, &owner, 9004);
     // withdraw from the auto-compounder
-    vault_token.send(to_binary(&Cw20HookMsg::Redeem {  }).unwrap(), 9004, auto_compounder_addr.clone()).unwrap();
+    vault_token
+        .send(
+            to_binary(&Cw20HookMsg::Redeem {}).unwrap(),
+            9004,
+            auto_compounder_addr.clone(),
+        )
+        .unwrap();
 
-
-    
     // // Mint tokens, so user can deposit
     // mint_tokens(&mut app, pair_cny_eur.clone(), &lp_cny_eur, &user1, 9);
     // mint_tokens(&mut app, pair_eur_usd.clone(), &lp_eur_usd, &user1, 10);

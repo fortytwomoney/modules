@@ -14,7 +14,7 @@ pub fn query_handler(
 ) -> StdResult<Binary> {
     let name_service = app.name_service(deps);
     let ans_host = name_service.host();
-    
+
     match msg {
         CwStakingQueryMsg::Info {
             provider,

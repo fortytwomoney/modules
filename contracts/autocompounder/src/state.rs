@@ -6,7 +6,6 @@ use cw_storage_plus::{Item, Map};
 use cw_utils::{Duration, Expiration};
 pub use forty_two::autocompounder::{Config, FeeConfig};
 
-
 #[cw_serde]
 pub struct Claim {
     // timestamp of the start of the unbonding process

@@ -11,7 +11,6 @@ use semver::Version;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
-
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn deploy_cw_staking(args: Arguments) -> anyhow::Result<()> {
@@ -33,10 +32,13 @@ fn deploy_cw_staking(args: Arguments) -> anyhow::Result<()> {
     )?;
 
     if let Some(prev_version) = args.prev_version {
-        let Module {
-            info,
-            reference
-        } = deployer.version_control.module(ModuleInfo::from_id(CW_STAKING, ModuleVersion::from(prev_version))?)?.module;
+        let Module { info, reference } = deployer
+            .version_control
+            .module(ModuleInfo::from_id(
+                CW_STAKING,
+                ModuleVersion::from(prev_version),
+            )?)?
+            .module;
 
         let new_info = ModuleInfo {
             version: ModuleVersion::from(CONTRACT_VERSION),

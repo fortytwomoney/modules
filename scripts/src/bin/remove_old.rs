@@ -1,8 +1,8 @@
-use std::env;
-use std::sync::Arc;
 use abstract_boot::VersionControl;
 use abstract_os::objects::module::{ModuleInfo, ModuleVersion};
 use abstract_os::version_control::ExecuteMsgFns;
+use std::env;
+use std::sync::Arc;
 
 use boot_core::networks::NetworkInfo;
 use boot_core::prelude::instantiate_daemon_env;
@@ -28,10 +28,8 @@ pub fn deploy_api() -> anyhow::Result<()> {
     let version_control_address: String =
         env::var("VERSION_CONTROL").expect("VERSION_CONTROL_ADDRESS must be set");
 
-    let version_control = VersionControl::load(
-        chain,
-        &Addr::unchecked(version_control_address),
-    );
+    let version_control =
+        VersionControl::load(chain.clone(), &Addr::unchecked(version_control_address));
 
     let old_versions = vec!["0.1.0", "0.1.1", "0.1.2", "0.1.3", "0.1.4", "0.1.5"];
 
@@ -48,7 +46,6 @@ pub fn deploy_api() -> anyhow::Result<()> {
             version: ModuleVersion::from(version),
         })?;
     }
-
 
     Ok(())
 }

@@ -14,7 +14,7 @@ use cosmwasm_std::{
 };
 use cw20::Cw20ExecuteMsg;
 use cw_asset::AssetInfo;
-use forty_two::cw_staking::{StakingInfoResponse, StakeResponse, UnbondingResponse};
+use forty_two::cw_staking::{StakeResponse, StakingInfoResponse, UnbondingResponse};
 
 pub const ASTROPORT: &str = "astroport";
 
@@ -134,10 +134,16 @@ impl CwStaking for Astroport {
                     staker
                 ))
             })?;
-        Ok(StakeResponse { amount: stake_balance })
+        Ok(StakeResponse {
+            amount: stake_balance,
+        })
     }
 
-    fn query_unbonding(&self, _querier: &QuerierWrapper, _staker: Addr) -> Result<UnbondingResponse, StdError> {
+    fn query_unbonding(
+        &self,
+        _querier: &QuerierWrapper,
+        _staker: Addr,
+    ) -> Result<UnbondingResponse, StdError> {
         Ok(UnbondingResponse { claims: vec![] })
     }
 }

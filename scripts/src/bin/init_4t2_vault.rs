@@ -3,11 +3,10 @@ use abstract_os::{app, EXCHANGE, OS_FACTORY};
 use std::env;
 use std::sync::Arc;
 
-use abstract_boot::{Manager, OS, OSFactory, Proxy, VersionControl};
-use abstract_os::{MANAGER, os_factory, PROXY};
+use abstract_boot::{Manager, OSFactory, Proxy, VersionControl, OS};
 use abstract_os::objects::gov_type::GovernanceDetails;
+use abstract_os::{os_factory, MANAGER, PROXY};
 use boot_core::state::StateInterface;
-
 
 use abstract_os::objects::module::ModuleVersion;
 
@@ -97,18 +96,22 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
     assets.sort();
 
     let os = if let Some(osId) = args.os_id {
-        OS::new(&chain, Some(osId))
+        OS::new(chain.clone(), Some(osId))
     } else {
-        create_vault(&os_factory,chain,GovernanceDetails::Monarchy {
-            monarch: sender.to_string(),
-        }, assets.clone())?
+        create_vault(
+            &os_factory,
+            chain,
+            GovernanceDetails::Monarchy {
+                monarch: sender.to_string(),
+            },
+            assets.clone(),
+        )?
     };
 
     // let _cw_staking = CwStakingApi::load(chain.clone(), &Addr::unchecked("juno1vgrxcupau9zr3z85rar7aq7v28v47s4tgdjm4xasxx96ap8wdzssfwfx27"));
 
     // let query_res = forty_two::cw_staking::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
     // panic!("{?:}", query_res);
-
 
     // First uninstall autocompounder if found
     if is_module_installed(&os, AUTOCOMPOUNDER)? {
@@ -123,40 +126,45 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
     // Install both modules
     let new_module_version = ModuleVersion::from(MODULE_VERSION);
 
-    os.manager.install_module_version(CW_STAKING, new_module_version.clone(), &Empty {})?;
+    os.manager
+        .install_module_version(CW_STAKING, new_module_version.clone(), &Empty {})?;
 
     // Install abstract dex
     if !is_module_installed(&os, EXCHANGE)? {
         os.manager.install_module(EXCHANGE, &Empty {})?;
     }
 
-    os.manager.install_module_version(AUTOCOMPOUNDER, new_module_version, &app::InstantiateMsg {
-        base: app::BaseInstantiateMsg {
-            ans_host_address: "juno1qyetxuhvmpgan5qyjq3julmzz9g3rhn3jfp2jlgy29ftjknv0c6s0xywpp".to_string(),
-            // ans_host_address: version_control.get_api_addr(ANS_HOST, abstract_version)?.to_string()
+    os.manager.install_module_version(
+        AUTOCOMPOUNDER,
+        new_module_version,
+        &app::InstantiateMsg {
+            base: app::BaseInstantiateMsg {
+                ans_host_address: "juno1qyetxuhvmpgan5qyjq3julmzz9g3rhn3jfp2jlgy29ftjknv0c6s0xywpp"
+                    .to_string(),
+                // ans_host_address: version_control.get_api_addr(ANS_HOST, abstract_version)?.to_string()
+            },
+            app: AutocompounderInstantiateMsg {
+                performance_fees: Decimal::new(100u128.into()),
+                deposit_fees: Decimal::new(100u128.into()),
+                withdrawal_fees: Decimal::new(100u128.into()),
+                /// address that recieves the fee commissions
+                commission_addr: sender.to_string(),
+                /// cw20 code id
+                code_id: 4012,
+                /// Name of the target dex
+                dex: "junoswap".into(),
+                fee_asset: "junox".into(),
+                /// Assets in the pool
+                pool_assets: assets.into_iter().map(Into::into).collect(),
+            },
         },
-        app: AutocompounderInstantiateMsg
-        {
-            performance_fees: Decimal::new(100u128.into()),
-            deposit_fees: Decimal::new(100u128.into()),
-            withdrawal_fees: Decimal::new(100u128.into()),
-            /// address that recieves the fee commissions
-            commission_addr: sender.to_string(),
-            /// cw20 code id
-            code_id: 4012,
-            /// Name of the target dex
-            dex: "junoswap".into(),
-            fee_asset: "junox".into(),
-            /// Assets in the pool
-            pool_assets: assets.into_iter().map(Into::into).collect(),
-        },
-    })?;
+    )?;
 
     Ok(())
 }
 
 use clap::Parser;
-#[derive(Parser,Default,Debug)]
+#[derive(Parser, Default, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Arguments {
     /// Whether the OS is new or not (TODO: just take in OSId)
