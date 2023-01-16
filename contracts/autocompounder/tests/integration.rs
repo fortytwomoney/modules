@@ -82,12 +82,12 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, BootError> {
             app: forty_two::autocompounder::AutocompounderInstantiateMsg {
                 code_id: vault_toke_code_id,
                 commission_addr: COMMISSION_RECEIVER.to_string(),
-                deposit_fees: Decimal::zero(),
+                deposit_fees: Decimal::percent(3),
                 dex: ASTROPORT.to_string(),
                 fee_asset: eur_asset.to_string(),
-                performance_fees: Decimal::zero(),
+                performance_fees: Decimal::percent(3),
                 pool_assets: vec![eur_asset.clone(), usd_asset.clone()],
-                withdrawal_fees: Decimal::zero(),
+                withdrawal_fees: Decimal::percent(3),
             },
             base: abstract_os::app::BaseInstantiateMsg {
                 ans_host_address: abstrct.ans_host.addr_str()?,
@@ -206,7 +206,7 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
 
     vault
         .auto_compounder
-        .deposit(vec![AnsAsset::new(eur_asset, 1000u64)])?;
+        .deposit(vec![AnsAsset::new(eur_asset.clone(), 1000u64)])?;
 
     // check that the vault token is minted
     check_token_balance(
@@ -215,12 +215,32 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
         &owner,
         9004,
     );
-    // withdraw from the auto-compounder
+    // withdraw part from the auto-compounder
     vault.vault_token.send(
         to_binary(&Cw20HookMsg::Redeem {})?,
-        9004,
+        3004,
         auto_compounder_addr.clone(),
     )?;
+
+    // re-deposit a small amount.
+
+    // single asset deposit
+
+    mock.app.borrow_mut().execute_contract(
+        owner.clone(),
+        eur_token.clone(),
+        &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+            spender: auto_compounder_addr.clone(),
+            amount: Uint128::from(1000u64),
+            expires: None,
+        },
+        &[],
+    )?;
+
+    vault
+        .auto_compounder
+        .deposit(vec![AnsAsset::new(eur_asset, 1000u64)])?;
+
     Ok(())
 
     // // Mint tokens, so user can deposit
