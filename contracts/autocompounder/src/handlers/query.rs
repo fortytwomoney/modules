@@ -1,7 +1,7 @@
 use crate::contract::AutocompounderApp;
 use crate::state::CONFIG;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, StdResult};
-use forty_two::autocompounder::{AutocompounderQueryMsg, ConfigResponse};
+use forty_two::autocompounder::{AutocompounderQueryMsg, Config};
 
 const _DEFAULT_PAGE_SIZE: u8 = 5;
 const _MAX_PAGE_SIZE: u8 = 20;
@@ -19,18 +19,8 @@ pub fn query_handler(
 }
 
 /// Returns the current configuration.
-pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
+pub fn query_config(deps: Deps) -> StdResult<Config> {
     let config = CONFIG.load(deps.storage)?;
     // crate ConfigResponse from config
-    Ok(ConfigResponse {
-        staking_contract: config.staking_contract,
-        pool_address: config.pool_address,
-        pool_data: config.pool_data,
-        liquidity_token: config.liquidity_token,
-        vault_token: config.vault_token,
-        commission_addr: config.commission_addr,
-        fees: config.fees,
-        bonding_period: config.bonding_period,
-        min_unbonding_cooldown: config.min_unbonding_cooldown,
-    })
+    Ok(config)
 }
