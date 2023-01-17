@@ -177,11 +177,7 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
     assert_that!(eur_balance).is_equal_to(89_000u128);
 
     // withdraw part from the auto-compounder
-    vault_token.send(
-        &Cw20HookMsg::Redeem {},
-        3004,
-        auto_compounder_addr.clone(),
-    )?;
+    vault_token.send(&Cw20HookMsg::Redeem {}, 3004, auto_compounder_addr.clone())?;
     // check that the vault token decreased
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(6000u128);

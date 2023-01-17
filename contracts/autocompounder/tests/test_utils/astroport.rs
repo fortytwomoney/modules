@@ -6,7 +6,9 @@ use abstract_os::{
     },
 };
 use astroport::asset::AssetInfo;
-use boot_core::{deploy::Deploy, state::StateInterface, BootError, Mock, prelude::ContractInstance};
+use boot_core::{
+    deploy::Deploy, prelude::ContractInstance, state::StateInterface, BootError, Mock,
+};
 use boot_cw_plus::Cw20;
 use cosmwasm_std::{Addr, Empty, Uint128};
 
@@ -38,7 +40,10 @@ pub struct Astroport {
 
 impl Astroport {
     /// registers the Astroport contracts and assets on Abstract
-    pub(crate) fn register_info_on_abstract(&self, abstrct: &Abstract<Mock>) -> Result<(), BootError> {
+    pub(crate) fn register_info_on_abstract(
+        &self,
+        abstrct: &Abstract<Mock>,
+    ) -> Result<(), BootError> {
         let eur_asset = AssetEntry::new(EUR_TOKEN);
         let usd_asset = AssetEntry::new(USD_TOKEN);
         let eur_usd_lp_asset = LpToken::new(ASTROPORT, vec![EUR_TOKEN, USD_TOKEN]);
@@ -189,7 +194,7 @@ impl Deploy<Mock> for Astroport {
             &pair_eur_usd,
             1_000_000,
         );
-        
+
         // drop the mutable borrow of app
         // This allows us to pass `chain` to load Abstract
         drop(app);
