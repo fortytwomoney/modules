@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test_utils;
 
-use abstract_boot::{ManagerExecFns, ManagerQueryFns};
+use abstract_boot::{Abstract, ManagerQueryFns};
 
 use abstract_os::api::BaseExecuteMsgFns;
 
@@ -36,8 +36,9 @@ use forty_two::autocompounder::{AutocompounderExecuteMsgFns, AutocompounderQuery
 use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
 use forty_two::cw_staking::CW_STAKING;
 
+use speculoos::assert_that;
 use test_utils::abstract_helper::{self, init_auto_compounder};
-use test_utils::astroport::{Astroport, PoolWithProxy};
+use test_utils::astroport::{Astroport, PoolWithProxy, EUR_TOKEN, USD_TOKEN};
 use test_utils::vault::Vault;
 use test_utils::OWNER;
 
@@ -46,27 +47,25 @@ const COMMISSION_RECEIVER: &str = "commission_receiver";
 const VAULT_TOKEN: &str = "vault_token";
 
 fn create_vault(mock: Mock) -> Result<Vault<Mock>, BootError> {
+    let version = "1.0.0".parse().unwrap();
     // Deploy abstract
-    let (mut abstrct, mut os) = abstract_helper::deploy_abstract(mock.clone())?;
-    abstrct.deploy(&mut os)?;
+    let abstract_ = Abstract::deploy_on(mock.clone(), version)?;
     // Deploy Astroport
-    let astroport = Astroport::deploy_on(mock.clone(), "1.2")?;
-    astroport.register_info_on_abstract(&abstrct)?;
+    let astroport = Astroport::deploy_on(mock.clone(), Empty {})?;
 
-    let eur_asset = AssetEntry::new("eur");
-    let usd_asset = AssetEntry::new("usd");
-    let _eur_usd_lp_asset = LpToken::new(ASTROPORT, vec!["eur", "usd"]);
+    let eur_asset = AssetEntry::new(EUR_TOKEN);
+    let usd_asset = AssetEntry::new(USD_TOKEN);
 
     // Set up the dex and staking contracts
-    let exchange_api = abstract_helper::init_exchange(mock.clone(), &abstrct, None)?;
-    let staking_api = abstract_helper::init_staking(mock.clone(), &abstrct, None)?;
-    let auto_compounder = init_auto_compounder(mock.clone(), &abstrct, None)?;
+    let exchange_api = abstract_helper::init_exchange(mock.clone(), &abstract_, None)?;
+    let staking_api = abstract_helper::init_staking(mock.clone(), &abstract_, None)?;
+    let auto_compounder = init_auto_compounder(mock.clone(), &abstract_, None)?;
 
     let mut vault_token = Cw20::new(VAULT_TOKEN, mock.clone());
     // upload the vault token code
     let vault_toke_code_id = vault_token.upload()?.uploaded_code_id()?;
     // Create an OS that we will turn into a vault
-    let os = abstrct.os_factory.create_default_os(
+    let os = abstract_.os_factory.create_default_os(
         abstract_os::objects::gov_type::GovernanceDetails::Monarchy {
             monarch: mock.sender.to_string(),
         },
@@ -90,7 +89,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, BootError> {
                 withdrawal_fees: Decimal::percent(3),
             },
             base: abstract_os::app::BaseInstantiateMsg {
-                ans_host_address: abstrct.ans_host.addr_str()?,
+                ans_host_address: abstract_.ans_host.addr_str()?,
             },
         },
     )?;
@@ -120,7 +119,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, BootError> {
         os,
         auto_compounder,
         vault_token,
-        abstract_os: abstrct,
+        abstract_os: abstract_,
         astroport,
         dex: exchange_api,
         staking: staking_api,
@@ -140,107 +139,54 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
         usd_token,
         ..
     } = vault.astroport;
+    let vault_token = vault.vault_token;
     let auto_compounder_addr = vault.auto_compounder.addr_str()?;
     let eur_asset = AssetEntry::new("eur");
     let usd_asset = AssetEntry::new("usd");
     let _eur_usd_lp_asset = LpToken::new(ASTROPORT, vec!["eur", "usd"]);
 
-    // deposit into the auto-compounder
-    // give user some funds
-    mint_tokens(
-        &mut mock.app.borrow_mut(),
-        owner.clone(),
-        &eur_token,
-        &owner,
-        100_000,
-    );
+    // # deposit into the auto-compounder #
 
-    mint_tokens(
-        &mut mock.app.borrow_mut(),
-        owner.clone(),
-        &usd_token,
-        &owner,
-        100_000,
-    );
+    // give user some funds
+    eur_token.mint(&owner, 100_000u128)?;
+    usd_token.mint(&owner, 100_000u128)?;
 
     // increase allowance
-    mock.app.borrow_mut().execute_contract(
-        owner.clone(),
-        eur_token.clone(),
-        &cw20::Cw20ExecuteMsg::IncreaseAllowance {
-            spender: auto_compounder_addr.clone(),
-            amount: Uint128::from(10000u64),
-            expires: None,
-        },
-        &[],
-    )?;
-    mock.app.borrow_mut().execute_contract(
-        owner.clone(),
-        usd_token.clone(),
-        &cw20::Cw20ExecuteMsg::IncreaseAllowance {
-            spender: auto_compounder_addr.clone(),
-            amount: Uint128::from(10000u64),
-            expires: None,
-        },
-        &[],
-    )?;
+    eur_token.increase_allowance(&auto_compounder_addr, 10_000u128, None)?;
+    usd_token.increase_allowance(&auto_compounder_addr, 10_000u128, None)?;
 
     // initial deposit must be > 1000 (of both assets)
+    // this is set by Astroport
     vault.auto_compounder.deposit(vec![
         AnsAsset::new(eur_asset.clone(), 10000u64),
         AnsAsset::new(usd_asset, 10000u64),
     ])?;
 
     // single asset deposit
-
-    mock.app.borrow_mut().execute_contract(
-        owner.clone(),
-        eur_token.clone(),
-        &cw20::Cw20ExecuteMsg::IncreaseAllowance {
-            spender: auto_compounder_addr.clone(),
-            amount: Uint128::from(1000u64),
-            expires: None,
-        },
-        &[],
-    )?;
-
+    eur_token.increase_allowance(&auto_compounder_addr, 1_000u128, None)?;
     vault
         .auto_compounder
         .deposit(vec![AnsAsset::new(eur_asset.clone(), 1000u64)])?;
 
     // check that the vault token is minted
-    check_token_balance(
-        &mut mock.app.borrow_mut(),
-        &vault.vault_token.address()?,
-        &owner,
-        9004,
-    );
+    let vault_token_balance = vault_token.balance(&owner)?;
+    assert_that!(vault_token_balance).is_equal_to(9004u128);
+    // and eur balance decreased
+    let eur_balance = eur_token.balance(&owner)?;
+    assert_that!(eur_balance).is_equal_to(89_000u128);
+
     // withdraw part from the auto-compounder
-    vault.vault_token.send(
-        to_binary(&Cw20HookMsg::Redeem {})?,
+    vault_token.send(
+        &Cw20HookMsg::Redeem {},
         3004,
         auto_compounder_addr.clone(),
     )?;
-
-    // re-deposit a small amount.
-
-    // single asset deposit
-
-    mock.app.borrow_mut().execute_contract(
-        owner.clone(),
-        eur_token.clone(),
-        &cw20::Cw20ExecuteMsg::IncreaseAllowance {
-            spender: auto_compounder_addr.clone(),
-            amount: Uint128::from(1000u64),
-            expires: None,
-        },
-        &[],
-    )?;
-
-    vault
-        .auto_compounder
-        .deposit(vec![AnsAsset::new(eur_asset, 1000u64)])?;
-
+    // check that the vault token decreased
+    let vault_token_balance = vault_token.balance(&owner)?;
+    assert_that!(vault_token_balance).is_equal_to(6000u128);
+    // and eur balance increased
+    let eur_balance = eur_token.balance(&owner)?;
+    assert_that!(eur_balance).is_equal_to(90_000u128);
     Ok(())
 
     // // Mint tokens, so user can deposit
