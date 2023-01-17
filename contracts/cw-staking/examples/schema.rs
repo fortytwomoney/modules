@@ -1,6 +1,5 @@
 use std::env::current_dir;
 use std::fs::create_dir_all;
-
 use cosmwasm_schema::remove_schemas;
 use cw_staking::contract::CwStakingApi;
 

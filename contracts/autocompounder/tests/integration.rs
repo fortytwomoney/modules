@@ -1,10 +1,7 @@
 #[cfg(test)]
 mod test_utils;
-
 use abstract_boot::{Abstract, ManagerQueryFns};
-
 use abstract_os::api::BaseExecuteMsgFns;
-
 use abstract_os::objects::{AnsAsset, AssetEntry, LpToken};
 use abstract_os::EXCHANGE;
 use astroport::asset::{Asset, AssetInfo, PairInfo};
@@ -27,7 +24,6 @@ use astroport::{
 };
 use boot_core::deploy::Deploy;
 use boot_core::{prelude::*, TxHandler};
-
 use boot_cw_plus::Cw20;
 use cosmwasm_std::{to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
@@ -35,7 +31,6 @@ use cw_multi_test::{App, ContractWrapper, Executor};
 use forty_two::autocompounder::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns};
 use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
 use forty_two::cw_staking::CW_STAKING;
-
 use speculoos::assert_that;
 use test_utils::abstract_helper::{self, init_auto_compounder};
 use test_utils::astroport::{Astroport, PoolWithProxy, EUR_TOKEN, USD_TOKEN};

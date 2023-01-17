@@ -1,6 +1,5 @@
 use abstract_sdk::apis::modules::Modules;
 use abstract_sdk::base::features::{AbstractNameService, Identification};
-
 use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
 use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata};
 use abstract_sdk::register::EXCHANGE;
@@ -10,20 +9,15 @@ use cosmwasm_std::{
     Uint128, WasmMsg,
 };
 use cw20_base::msg::ExecuteMsg::Mint;
-
 use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
-
 use protobuf::Message;
-
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, FEE_SWAPPED_REPLY,
     SWAPPED_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
-
 use crate::response::MsgInstantiateContractResponse;
-
 use super::helpers::{cw20_total_supply, query_stake};
 
 /// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.

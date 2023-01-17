@@ -11,13 +11,11 @@ use boot_core::{
 };
 use boot_cw_plus::Cw20;
 use cosmwasm_std::{Addr, Empty, Uint128};
-
 use crate::{
     create_pair, instantiate_factory, instantiate_generator, instantiate_token, mint_tokens,
     register_lp_tokens_in_generator, store_factory_code, store_pair_code_id, store_token_code,
     ASTROPORT,
 };
-
 use super::OWNER;
 
 pub const GENERATOR: &str = "astroport:generator";

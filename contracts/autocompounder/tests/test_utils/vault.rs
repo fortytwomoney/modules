@@ -1,10 +1,7 @@
 use abstract_boot::{Abstract, DexApi, OS};
-
 use boot_core::BootEnvironment;
 use boot_cw_plus::Cw20;
-
 use forty_two_boot::{autocompounder::AutocompounderApp, cw_staking::CwStakingApi};
-
 use super::astroport::Astroport;
 
 pub struct Vault<Chain: BootEnvironment> {

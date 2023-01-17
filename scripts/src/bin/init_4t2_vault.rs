@@ -2,19 +2,15 @@ use abstract_os::manager::QueryMsgFns;
 use abstract_os::{app, EXCHANGE, OS_FACTORY};
 use std::env;
 use std::sync::Arc;
-
 use abstract_boot::{Manager, OSFactory, Proxy, VersionControl, OS};
 use abstract_os::objects::gov_type::GovernanceDetails;
 use abstract_os::{os_factory, MANAGER, PROXY};
 use boot_core::state::StateInterface;
-
 use abstract_os::objects::module::ModuleVersion;
-
 use boot_core::networks::NetworkInfo;
 use boot_core::prelude::*;
 use boot_core::{networks, DaemonOptionsBuilder};
 use cosmwasm_std::{Addr, Decimal, Empty};
-
 use forty_two::autocompounder::{AutocompounderInstantiateMsg, AUTOCOMPOUNDER};
 use forty_two::cw_staking::CW_STAKING;
 
