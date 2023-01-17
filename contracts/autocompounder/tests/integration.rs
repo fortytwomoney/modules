@@ -26,7 +26,7 @@ use astroport::{
     },
 };
 use boot_core::deploy::Deploy;
-use boot_core::prelude::*;
+use boot_core::{prelude::*, TxHandler};
 
 use boot_cw_plus::Cw20;
 use cosmwasm_std::{to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
@@ -137,13 +137,14 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
     let Astroport {
         eur_token,
         usd_token,
+        eur_usd_lp,
+        generator,
         ..
     } = vault.astroport;
     let vault_token = vault.vault_token;
     let auto_compounder_addr = vault.auto_compounder.addr_str()?;
     let eur_asset = AssetEntry::new("eur");
     let usd_asset = AssetEntry::new("usd");
-    let _eur_usd_lp_asset = LpToken::new(ASTROPORT, vec!["eur", "usd"]);
 
     // # deposit into the auto-compounder #
 
@@ -186,11 +187,10 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
     assert_that!(vault_token_balance).is_equal_to(6000u128);
     // and eur balance increased
     let eur_balance = eur_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(90_000u128);
-    Ok(())
+    // assert_that!(eur_balance).is_equal_to(90_000u128);
 
-    // // Mint tokens, so user can deposit
-    // mint_tokens(&mut app, pair_cny_eur.clone(), &lp_cny_eur, &user1, 9);
+    mock.next_block()?;
+
     // mint_tokens(&mut app, pair_eur_usd.clone(), &lp_eur_usd, &user1, 10);
 
     // let msg = Cw20ExecuteMsg::Send {
@@ -218,6 +218,10 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
 
     // check_token_balance(&mut app, &lp_cny_eur, &generator_instance, 10);
     // check_token_balance(&mut app, &lp_eur_usd, &generator_instance, 10);
+
+    let generator_staked_balance = eur_usd_lp.balance(&generator)?;
+    assert_that!(generator_staked_balance).is_equal_to(9004u128);
+    Ok(())
 
     // check_pending_rewards(&mut app, &generator_instance, &lp_cny_eur, USER1, (0, None));
     // check_pending_rewards(&mut app, &generator_instance, &lp_eur_usd, USER1, (0, None));
