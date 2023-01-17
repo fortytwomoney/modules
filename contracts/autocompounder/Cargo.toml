@@ -60,14 +60,14 @@ manager = {git = "https://github.com/Abstract-OS/contracts.git",features = ["lib
 # requires testing flag to ensure Astroport Msg type compatibility
 dex = {git = "https://github.com/Abstract-OS/contracts.git", features = ["testing"]}
 subscription = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"]}
-abstract-boot = {workspace = true}
+abstract-boot = {workspace = true, features = ["integration"]}
 boot-core = { workspace = true}
 boot-cw-plus = { workspace = true}
 anyhow = {workspace = true}
 rstest = {workspace = true }
 speculoos = { workspace = true }
 astroport = { workspace = true }
-semver = { workspace = true }
+semver = { workspace = true , features = ["serde"]}
 
 cw-astro = {package = "cw20", version = "0.15"}
 astroport-token = { git = "https://github.com/astroport-fi/astroport-core.git"}

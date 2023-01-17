@@ -64,7 +64,7 @@ astroport = {git = "https://github.com/astroport-fi/astroport-core.git"}
 
 # dev dependencies
 tokio = { version = "1.4", features = ["full"] }
-semver = { package = "cw-semver", version = "1.0", git = "https://github.com/Abstract-OS/cw-semver.git" }
+semver = { version = "1.0"}
 dotenv = "0.15.0"
 env_logger = "0.10.0"
 
