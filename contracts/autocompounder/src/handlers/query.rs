@@ -1,10 +1,13 @@
 use crate::contract::AutocompounderApp;
 use crate::state::{CONFIG, CLAIMS, PENDING_CLAIMS, LATEST_UNBONDING, Claim};
+use abstract_sdk::os::objects::LpToken;
+use abstract_sdk::ModuleInterface;
+use abstract_sdk::base::features::Identification;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, StdResult, Order, Uint128};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 use forty_two::autocompounder::{AutocompounderQueryMsg, Config};
-use forty_two::cw_staking::CwStakingQueryMsg;
+use forty_two::cw_staking::{CwStakingQueryMsg, CW_STAKING};
 
 const DEFAULT_PAGE_SIZE: u8 = 5;
 const MAX_PAGE_SIZE: u8 = 20;
@@ -13,7 +16,7 @@ const MAX_PAGE_SIZE: u8 = 20;
 pub fn query_handler(
     deps: Deps,
     _env: Env,
-    _app: &AutocompounderApp,
+    app: &AutocompounderApp,
     msg: AutocompounderQueryMsg,
 ) -> StdResult<Binary> {
     match msg {
@@ -22,6 +25,7 @@ pub fn query_handler(
         AutocompounderQueryMsg::Claims { address } => to_binary(&query_claims(deps, address)?),
         AutocompounderQueryMsg::AllClaims { start_after, limit } => to_binary(&query_all_claims(deps, start_after, limit)?),
         AutocompounderQueryMsg::LatestUnbonding {} => to_binary(&query_latest_unbonding(deps)?),
+        AutocompounderQueryMsg::TotalLpPosition {  } => to_binary(&query_total_lp_position(app, deps)?),
     }
 }
 
@@ -76,15 +80,16 @@ pub fn query_latest_unbonding(deps: Deps) -> StdResult<Expiration> {
 }
 
 
-// pub fn query_total_lp_tokens(deps: Deps) -> StdResult<Uint128> {
-//     let config = CONFIG.load(deps.storage)?;
+pub fn query_total_lp_position(app: &AutocompounderApp, deps: Deps) -> StdResult<Uint128> {
+    let config = CONFIG.load(deps.storage)?;
+    let modules = app.modules(deps);
 
-//     // query staking api for total lp tokens
+    // query staking api for total lp tokens
 
-//     let query = CwStakingQueryMsg::Staked { provider: config.pool_data.dex.clone(), staking_token: LpToken::from(config.pool_data).into() , staker_address:  }Rewards {
-//         address: app.proxy_address(deps).unwrap().to_string(),
-//         pool_data,
-//     };
-//     let res: Vec<AssetEntry> = modules.query_api(CW_STAKING, query).unwrap();
-//     Ok(total_lp_tokens)
-// }
+    let query = CwStakingQueryMsg::Staked { 
+        provider: config.pool_data.dex.clone(), 
+        staking_token: LpToken::from(config.pool_data).into() , 
+        staker_address: app.proxy_address(deps)?.to_string()  };
+    let res: forty_two::cw_staking::StakeResponse = modules.query_api(CW_STAKING, query)?;
+    Ok(res.amount)
+}

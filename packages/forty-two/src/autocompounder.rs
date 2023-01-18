@@ -110,7 +110,12 @@ pub enum AutocompounderQueryMsg {
     /// Returns [`Expiration`]
     #[returns(Expiration)]
     LatestUnbonding {},
+    /// Query the vaults total lp position
+    /// Returns [`Uint128`]
+    #[returns(Uint128)]
+    TotalLpPosition {},
 }
+
 
 #[cosmwasm_schema::cw_serde]
 pub enum Cw20HookMsg {
