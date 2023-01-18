@@ -20,11 +20,11 @@ jobs:
     container:
         image: rust:latest
     steps:
-      - uses: de-vri-es/setup-git-credentials@v2
-        with:
-          credentials: ${{ secrets.ABSTRACT_CREDENTIALS }}
       - name: Setup | Checkout
         uses: actions/checkout@v3
+      - uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.ABSTRACT_SSH_PRIVATE_KEY }}
       - name: Setup | Rust
         id: rustup
         uses: ATiltedTree/setup-rust@v1
@@ -49,11 +49,11 @@ jobs:
     container:
         image: rust:latest
     steps:
-      - uses: de-vri-es/setup-git-credentials@v2
-        with:
-          credentials: ${{ secrets.ABSTRACT_CREDENTIALS }}
       - name: Setup | Checkout
         uses: actions/checkout@v3
+      - uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.ABSTRACT_SSH_PRIVATE_KEY }}
       - name: Setup | Rust
         uses: ATiltedTree/setup-rust@v1
         with:
@@ -69,11 +69,11 @@ jobs:
         image: rust:latest
     needs: [compile]
     steps:
-      - uses: de-vri-es/setup-git-credentials@v2
-        with:
-          credentials: ${{ secrets.ABSTRACT_CREDENTIALS }}
       - name: Setup | Checkout
         uses: actions/checkout@v3
+      - uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.ABSTRACT_SSH_PRIVATE_KEY }}
       - name: Setup | Rust
         uses: ATiltedTree/setup-rust@v1
         with:
