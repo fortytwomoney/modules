@@ -1,7 +1,6 @@
 use crate::error::StakingError;
 use crate::traits::cw_staking::CwStaking;
 use crate::traits::identify::Identify;
-
 use abstract_sdk::{
     feature_objects::AnsHost,
     os::objects::{AssetEntry, LpToken},
@@ -11,10 +10,9 @@ use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, Deps, QuerierWrapper, StdError, StdResult, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
-
 use cw20_stake::msg::{ExecuteMsg as StakeCw20ExecuteMsg, ReceiveMsg};
 use cw_asset::{AssetInfo, AssetInfoBase};
-use forty_two::cw_staking::{Claim, StakingInfoResponse};
+use forty_two::cw_staking::{Claim, StakeResponse, StakingInfoResponse, UnbondingResponse};
 
 pub const JUNOSWAP: &str = "junoswap";
 // Source https://github.com/wasmswap/wasmswap-contracts
@@ -49,8 +47,7 @@ impl CwStaking for JunoSwap {
         ans_host: &AnsHost,
         lp_token: AssetEntry,
     ) -> StdResult<()> {
-        self.staking_contract_address =
-            self.staking_contract_address(deps, ans_host, &lp_token.clone().into())?;
+        self.staking_contract_address = self.staking_contract_address(deps, ans_host, &lp_token)?;
 
         let AssetInfoBase::Cw20(token_addr) = lp_token.resolve(&deps.querier, ans_host)? else {
                 return Err(StdError::generic_err("expected CW20 as LP token for staking."));
@@ -66,7 +63,7 @@ impl CwStaking for JunoSwap {
             contract_addr: self.lp_token_address.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: self.staking_contract_address.to_string(),
-                amount: amount,
+                amount,
                 msg,
             })?,
             funds: vec![],
@@ -100,12 +97,12 @@ impl CwStaking for JunoSwap {
         Ok(StakingInfoResponse {
             staking_contract_address: self.staking_contract_address.clone(),
             staking_token: AssetInfo::Cw20(stake_info_resp.token_address),
-            unbonding_period: stake_info_resp.unstaking_duration,
+            unbonding_period: stake_info_resp.unstaking_duration.map(parse_duration),
             max_claims: Some(cw20_stake::state::MAX_CLAIMS as u32),
         })
     }
 
-    fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<Uint128> {
+    fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<StakeResponse> {
         let stake_balance: cw20_stake::msg::StakedBalanceAtHeightResponse = querier
             .query_wasm_smart(
                 self.staking_contract_address.clone(),
@@ -114,10 +111,16 @@ impl CwStaking for JunoSwap {
                     height: None,
                 },
             )?;
-        Ok(stake_balance.balance)
+        Ok(StakeResponse {
+            amount: stake_balance.balance,
+        })
     }
 
-    fn query_unbonding(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<Vec<Claim>> {
+    fn query_unbonding(
+        &self,
+        querier: &QuerierWrapper,
+        staker: Addr,
+    ) -> StdResult<UnbondingResponse> {
         let claims: cw20_stake::msg::ClaimsResponse = querier.query_wasm_smart(
             self.staking_contract_address.clone(),
             &cw20_stake::msg::QueryMsg::Claims {
@@ -129,9 +132,24 @@ impl CwStaking for JunoSwap {
             .iter()
             .map(|claim| Claim {
                 amount: claim.amount,
-                claimable_at: claim.release_at,
+                claimable_at: parse_expiration(claim.release_at),
             })
             .collect();
-        Ok(claims)
+        Ok(UnbondingResponse { claims })
+    }
+}
+
+fn parse_duration(d: dao_cw_utils::Duration) -> cw_utils::Duration {
+    match d {
+        dao_cw_utils::Duration::Height(a) => cw_utils::Duration::Height(a),
+        dao_cw_utils::Duration::Time(a) => cw_utils::Duration::Time(a),
+    }
+}
+
+fn parse_expiration(d: dao_cw_utils::Expiration) -> cw_utils::Expiration {
+    match d {
+        dao_cw_utils::Expiration::AtHeight(a) => cw_utils::Expiration::AtHeight(a),
+        dao_cw_utils::Expiration::AtTime(a) => cw_utils::Expiration::AtTime(a),
+        _ => cw_utils::Expiration::Never {},
     }
 }

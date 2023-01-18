@@ -1,9 +1,7 @@
 use abstract_sdk::feature_objects::AnsHost;
 use abstract_sdk::os::objects::{AssetEntry, ContractEntry};
 use cosmwasm_std::{Addr, CosmosMsg, Deps, QuerierWrapper, StdResult, Uint128};
-
-use forty_two::cw_staking::{Claim, StakingInfoResponse};
-
+use forty_two::cw_staking::{StakeResponse, StakingInfoResponse, UnbondingResponse};
 use crate::error::StakingError;
 use crate::traits::identify::Identify;
 
@@ -14,7 +12,7 @@ pub trait CwStaking: Identify {
     fn staking_entry(&self, staking_token: &AssetEntry) -> ContractEntry {
         ContractEntry {
             protocol: self.name().to_string(),
-            contract: format!("{staking_token}"),
+            contract: format!("staking/{staking_token}"),
         }
     }
     // TODO: Move to SDK.
@@ -57,6 +55,10 @@ pub trait CwStaking: Identify {
     fn query_info(&self, querier: &QuerierWrapper) -> StdResult<StakingInfoResponse>;
     // This function queries the staked token balance of a staker
     // The staking contract is queried using the staking address
-    fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<Uint128>;
-    fn query_unbonding(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<Vec<Claim>>;
+    fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<StakeResponse>;
+    fn query_unbonding(
+        &self,
+        querier: &QuerierWrapper,
+        staker: Addr,
+    ) -> StdResult<UnbondingResponse>;
 }

@@ -3,7 +3,6 @@ use abstract_os::app::BaseExecuteMsg;
 use boot_core::prelude::{boot_contract, BootExecute};
 use boot_core::{BootEnvironment, BootError, Contract, IndexResponse, TxResponse};
 use cosmwasm_std::Coin;
-
 use forty_two::autocompounder::{
     AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg,
     AutocompounderQueryMsg,

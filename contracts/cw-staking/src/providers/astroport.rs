@@ -14,7 +14,7 @@ use cosmwasm_std::{
 };
 use cw20::Cw20ExecuteMsg;
 use cw_asset::AssetInfo;
-use forty_two::cw_staking::{Claim, StakingInfoResponse};
+use forty_two::cw_staking::{StakeResponse, StakingInfoResponse, UnbondingResponse};
 
 pub const ASTROPORT: &str = "astroport";
 
@@ -54,7 +54,7 @@ impl CwStaking for Astroport {
         lp_token: AssetEntry,
     ) -> StdResult<()> {
         self.generator_contract_address =
-            self.staking_contract_address(deps, ans_host, &lp_token.clone().into())?;
+            self.staking_contract_address(deps, ans_host, &lp_token)?;
 
         let AssetInfo::Cw20(token_addr) = lp_token.resolve(&deps.querier, ans_host)? else {
                 return Err(StdError::generic_err("expected CW20 as LP token for staking."));
@@ -118,7 +118,7 @@ impl CwStaking for Astroport {
         })
     }
 
-    fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<Uint128> {
+    fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<StakeResponse> {
         let stake_balance: Uint128 = querier
             .query_wasm_smart(
                 self.generator_contract_address.clone(),
@@ -128,13 +128,22 @@ impl CwStaking for Astroport {
                 },
             )
             .map_err(|_| {
-                StdError::generic_err(format!("Failed to query staked balance on {} for {}", self.name(), staker))
+                StdError::generic_err(format!(
+                    "Failed to query staked balance on {} for {}",
+                    self.name(),
+                    staker
+                ))
             })?;
-        Ok(stake_balance)
+        Ok(StakeResponse {
+            amount: stake_balance,
+        })
     }
 
-    fn query_unbonding(&self, _querier: &QuerierWrapper, _staker: Addr) -> StdResult<Vec<Claim>> {
-        // TODO: should we return an empty vec or error here?
-        Ok(vec![])
+    fn query_unbonding(
+        &self,
+        _querier: &QuerierWrapper,
+        _staker: Addr,
+    ) -> Result<UnbondingResponse, StdError> {
+        Ok(UnbondingResponse { claims: vec![] })
     }
 }

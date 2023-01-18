@@ -3,7 +3,6 @@ use abstract_sdk::feature_objects::AnsHost;
 use abstract_sdk::os::ibc_client::CallbackInfo;
 use abstract_sdk::{IbcInterface, Resolve};
 use cosmwasm_std::{to_binary, Coin, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-
 use crate::contract::{CwStakingApi, CwStakingResult};
 use crate::providers::resolver::{self, is_over_ibc};
 use crate::LocalCwStaking;

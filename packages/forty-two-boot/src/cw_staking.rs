@@ -1,16 +1,10 @@
 use boot_core::prelude::boot_contract;
-
 use boot_core::{BootEnvironment, Contract, IndexResponse, TxResponse};
-
-use abstract_os::api;
 use cosmwasm_std::{Addr, Empty};
-use forty_two::cw_staking::{CW_STAKING, CwStakingExecuteMsg, CwStakingQueryMsg};
-
-type ApiExecuteMsg = api::ExecuteMsg<CwStakingExecuteMsg>;
-type ApiQueryMsg = api::QueryMsg<CwStakingQueryMsg>;
+use forty_two::cw_staking::{ExecuteMsg, InstantiateMsg, QueryMsg, CW_STAKING};
 
 /// Contract wrapper for interacting with BOOT
-#[boot_contract(Empty, ApiExecuteMsg, ApiQueryMsg, Empty)]
+#[boot_contract(InstantiateMsg, ExecuteMsg, QueryMsg, Empty)]
 pub struct CwStakingApi<Chain>;
 
 /// implement chain-generic functions

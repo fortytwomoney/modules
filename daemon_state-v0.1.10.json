@@ -1,0 +1,15 @@
+{
+  "juno": {
+    "uni-5": {
+      "code_ids": {
+        "4t2:autocompounder": 4154,
+        "4t2:cw_staking": 4155
+      },
+      "default": {
+        "4t2:cw_staking": "juno1xlfw2wjt3strgzvu7x5cnggnh3xvctprd9pn7ty9gz8k903eu9esj4sf85",
+        "abstract:ans_host": "juno1qyetxuhvmpgan5qyjq3julmzz9g3rhn3jfp2jlgy29ftjknv0c6s0xywpp",
+        "abstract:version_control": "juno1q8tuzav8y6aawhc4sddqnwj6q4gdvn7lyk3m9ks4uw69xp37j83ql3ck2q"
+      }
+    }
+  }
+}

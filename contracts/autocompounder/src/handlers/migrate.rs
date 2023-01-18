@@ -1,6 +1,5 @@
 use cosmwasm_std::{DepsMut, Env, Response};
 use forty_two::autocompounder::AutocompounderMigrateMsg;
-
 use crate::contract::{AutocompounderApp, AutocompounderResult};
 
 /// Unused for now but provided here as an example

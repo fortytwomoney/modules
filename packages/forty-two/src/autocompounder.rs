@@ -30,9 +30,10 @@
 
 use abstract_sdk::os::app;
 use abstract_sdk::os::dex::{DexName, OfferAsset};
-use abstract_sdk::os::objects::AssetEntry;
+use abstract_sdk::os::objects::{AssetEntry, PoolAddress, PoolMetadata};
 use cosmwasm_schema::QueryResponses;
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Addr, Decimal};
+use cw_utils::Duration;
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 
@@ -90,8 +91,8 @@ pub enum AutocompounderExecuteMsg {
 #[cfg_attr(feature = "boot", impl_into(QueryMsg))]
 pub enum AutocompounderQueryMsg {
     /// Query the config of the autocompounder
-    /// Returns [`ConfigResponse`]
-    #[returns(ConfigResponse)]
+    /// Returns [`Config`]
+    #[returns(Config)]
     Config {},
 }
 
@@ -102,4 +103,31 @@ pub enum Cw20HookMsg {
 }
 
 #[cosmwasm_schema::cw_serde]
-pub struct ConfigResponse {}
+pub struct FeeConfig {
+    pub performance: Decimal,
+    pub deposit: Decimal,
+    pub withdrawal: Decimal,
+    pub fee_asset: AssetEntry,
+}
+
+#[cosmwasm_schema::cw_serde]
+pub struct Config {
+    /// Address of the staking contract
+    pub staking_contract: Addr,
+    /// Pool address (number or Address)
+    pub pool_address: PoolAddress,
+    /// Pool metadata
+    pub pool_data: PoolMetadata,
+    /// Address of the LP token contract
+    pub liquidity_token: Addr,
+    /// Vault token
+    pub vault_token: Addr,
+    /// Address that receives the fee commissions
+    pub commission_addr: Addr,
+    /// Vault fee structure
+    pub fees: FeeConfig,
+    /// Pool bonding period
+    pub bonding_period: Option<Duration>,
+    /// minimum unbonding cooldown
+    pub min_unbonding_cooldown: Option<Duration>,
+}

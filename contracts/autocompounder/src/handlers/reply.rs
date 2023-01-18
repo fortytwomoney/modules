@@ -1,6 +1,5 @@
 use abstract_sdk::apis::modules::Modules;
 use abstract_sdk::base::features::{AbstractNameService, Identification};
-
 use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
 use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata};
 use abstract_sdk::register::EXCHANGE;
@@ -10,20 +9,15 @@ use cosmwasm_std::{
     Uint128, WasmMsg,
 };
 use cw20_base::msg::ExecuteMsg::Mint;
-
 use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
-
 use protobuf::Message;
-
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, FEE_SWAPPED_REPLY,
     SWAPPED_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
-
 use crate::response::MsgInstantiateContractResponse;
-
 use super::helpers::{cw20_total_supply, query_stake};
 
 /// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.
@@ -66,17 +60,16 @@ pub fn lp_provision_reply(
     let current_vault_supply = cw20_total_supply(deps.as_ref(), &config)?;
 
     // 2) Retrieve the number of LP tokens minted/staked.
-    let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
+    let lp_token = LpToken::from(config.pool_data.clone());
+    let received_lp = lp_token
+        .resolve(&deps.querier, &_ans_host)?
+        .query_balance(&deps.querier, proxy_address.to_string())?;
     let staked_lp = query_stake(
         deps.as_ref(),
         &app,
         config.pool_data.dex.clone(),
-        lp_token.clone(),
+        lp_token.clone().into(),
     )?;
-
-    let received_lp = lp_token
-        .resolve(&deps.querier, &_ans_host)?
-        .query_balance(&deps.querier, proxy_address.to_string())?;
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
     // 3) Calculate the number of vault tokens to mint
@@ -99,7 +92,7 @@ pub fn lp_provision_reply(
         })?,
         funds: vec![],
     }
-        .into();
+    .into();
 
     // 5) Stake the LP tokens
     let stake_msg = stake_lp_tokens(
@@ -329,7 +322,6 @@ fn query_rewards(deps: Deps, app: &AutocompounderApp, _pool_data: PoolMetadata) 
     // query staking module for which rewards are available
     let _modules = app.modules(deps);
 
-
     // TODO: Reward query has yet to be implemented
     // let query = CwStakingQueryMsg::Rewards {
     //     address: app.proxy_address(deps).unwrap().to_string(),
@@ -349,16 +341,15 @@ fn stake_lp_tokens(
     asset: AnsAsset,
 ) -> StdResult<CosmosMsg> {
     let modules = app.modules(deps.as_ref());
-    modules
-        .api_request(
-            CW_STAKING,
-            CwStakingExecuteMsg {
-                provider,
-                action: CwStakingAction::Stake {
-                    staking_token: asset,
-                },
+    modules.api_request(
+        CW_STAKING,
+        CwStakingExecuteMsg {
+            provider,
+            action: CwStakingAction::Stake {
+                staking_token: asset,
             },
-        )
+        },
+    )
 }
 
 /// swaps all rewards that are not in the target assets and add a reply id to the latest swapmsg

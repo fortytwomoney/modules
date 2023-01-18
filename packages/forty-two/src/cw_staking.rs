@@ -5,7 +5,7 @@
 use abstract_sdk::os::api;
 use abstract_sdk::os::objects::{AnsAsset, AssetEntry};
 use cosmwasm_schema::QueryResponses;
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Addr, Empty, Uint128};
 use cw20::Expiration;
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
@@ -18,6 +18,7 @@ pub const IBC_STAKING_PROVIDER_ID: u32 = 22335;
 pub const CW_STAKING: &str = "4t2:cw_staking";
 
 pub type ExecuteMsg = api::ExecuteMsg<CwStakingExecuteMsg>;
+pub type InstantiateMsg = api::InstantiateMsg<Empty>;
 pub type QueryMsg = api::QueryMsg<CwStakingQueryMsg>;
 
 impl api::ApiExecuteMsg for CwStakingExecuteMsg {}

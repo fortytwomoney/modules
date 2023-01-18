@@ -1,7 +1,5 @@
 use cosmwasm_std::{StdError, StdResult};
-
 use crate::error::StakingError;
-
 use crate::CwStaking;
 
 #[cfg(feature = "juno")]
@@ -9,7 +7,6 @@ pub use crate::providers::junoswap::{JunoSwap, JUNOSWAP};
 
 #[cfg(any(feature = "juno", feature = "osmosis"))]
 pub use crate::providers::osmosis::{Osmosis, OSMOSIS};
-
 use super::astroport::{Astroport, ASTROPORT};
 
 pub(crate) fn is_over_ibc(provider: &str) -> StdResult<bool> {
@@ -30,11 +27,11 @@ pub(crate) fn is_over_ibc(provider: &str) -> StdResult<bool> {
 pub(crate) fn resolve_local_provider(name: &str) -> Result<Box<dyn CwStaking>, StakingError> {
     match name {
         #[cfg(feature = "juno")]
-        JUNOSWAP => Ok(Box::new(JunoSwap::default())),
+        JUNOSWAP => Ok(Box::<JunoSwap>::default()),
         #[cfg(feature = "osmosis")]
         OSMOSIS => Ok(Box::new(Osmosis::default())),
         #[cfg(feature = "terra")]
-        ASTROPORT => Ok(Box::new(Astroport::default())),
+        ASTROPORT => Ok(Box::<Astroport>::default()),
         _ => Err(StakingError::ForeignDex(name.to_owned())),
     }
 }

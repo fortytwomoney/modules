@@ -13,7 +13,6 @@ use osmosis_std::{
     },
     types::{osmosis::lockup::MsgBeginUnlocking, osmosis::lockup::MsgLockTokens},
 };
-
 use crate::traits::identify::Identify;
 
 #[cfg(feature = "osmosis")]

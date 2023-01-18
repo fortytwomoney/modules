@@ -1,16 +1,12 @@
 use abstract_app::export_endpoints;
 use abstract_app::AppContract;
-
 use cosmwasm_std::Response;
-
 use cw20::Cw20ReceiveMsg;
 use forty_two::autocompounder::{
     AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg,
     AutocompounderQueryMsg, AUTOCOMPOUNDER,
 };
-
 use crate::dependencies::AUTOCOMPOUNDER_DEPS;
-
 use crate::error::AutocompounderError;
 use crate::handlers::{self};
 

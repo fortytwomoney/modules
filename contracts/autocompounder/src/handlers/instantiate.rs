@@ -1,22 +1,22 @@
+use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
+use crate::error::AutocompounderError;
+use crate::handlers::helpers::check_fee;
+use crate::state::{Config, CONFIG};
 use abstract_sdk::base::features::AbstractNameService;
+use abstract_sdk::os::api;
 use abstract_sdk::os::objects::{
     AssetEntry, DexAssetPairing, LpToken, PoolReference, UncheckedContractEntry,
 };
 use abstract_sdk::{ModuleInterface, Resolve};
-use abstract_sdk::os::api;
-use cosmwasm_std::{to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, SubMsg, WasmMsg, StdResult};
+use cosmwasm_std::{
+    to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, StdResult,
+    SubMsg, WasmMsg,
+};
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use cw_utils::Duration;
-
-
-use forty_two::autocompounder::{AutocompounderInstantiateMsg, AUTOCOMPOUNDER};
+use forty_two::autocompounder::{AutocompounderInstantiateMsg, FeeConfig, AUTOCOMPOUNDER};
 use forty_two::cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING};
-
-use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
-use crate::error::AutocompounderError;
-use crate::handlers::helpers::check_fee;
-use crate::state::{Config, FeeConfig, CONFIG};
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
@@ -68,22 +68,14 @@ pub fn instantiate_handler(
 
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
-    // TODO: this will be fixed in a future release
-
-    let joined_assets = [pool_assets[0].as_str(), pool_assets[1].as_str()].join(",");
     // sort pool_assets then join
-    // staking/crab,juno
-    let staking_contract_name = ["staking", joined_assets.as_str()].join("/");
-    let staking_contract_entry = UncheckedContractEntry::new(&dex, &staking_contract_name).check();
+    // staking/astroport/crab,juno
+    let staking_contract_name = ["staking", &lp_token.to_string()].join("/");
+    let staking_contract_entry = UncheckedContractEntry::new(&dex, staking_contract_name).check();
     let staking_contract_addr = ans.query(&staking_contract_entry)?;
 
     // get staking info
-    let staking_info = query_staking_info(
-        deps.as_ref(),
-        &app,
-        AssetEntry::new(&staking_contract_name),
-        dex.clone(),
-    )?;
+    let staking_info = query_staking_info(deps.as_ref(), &app, lp_token.into(), dex.clone())?;
     let min_unbonding_cooldown = if let (Some(max_claims), Some(unbonding_period)) =
         (staking_info.max_claims, staking_info.unbonding_period)
     {
@@ -193,8 +185,7 @@ pub fn query_staking_info(
 
     let res: StakingInfoResponse = modules.query_api(CW_STAKING, query).map_err(|e| {
         StdError::generic_err(format!(
-            "Error querying staking info for {} on {}: {}...{:?}",
-            lp_token_name, dex, e, api_msg
+            "Error querying staking info for {lp_token_name} on {dex}: {e}...{api_msg:?}"
         ))
     })?;
     Ok(res)

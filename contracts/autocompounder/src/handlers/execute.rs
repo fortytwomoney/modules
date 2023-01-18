@@ -1,8 +1,6 @@
 use std::ops::Add;
-
 use abstract_sdk::base::features::{AbstractNameService, Identification};
 use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
-
 use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken};
 use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
@@ -15,7 +13,6 @@ use cw_asset::AssetList;
 use cw_utils::Duration;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
-
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
     LP_WITHDRAWAL_REPLY_ID,
@@ -24,7 +21,6 @@ use crate::error::AutocompounderError;
 use crate::state::{
     Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
-
 use super::helpers::{check_fee, cw20_total_supply, query_stake};
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
@@ -87,7 +83,7 @@ pub fn update_fee_config(
     Ok(Response::new().add_attribute("action", "update_fee_config"))
 }
 
-// im assuming that this is the function that will be called when the user wants to pool AND stake their funds
+// This is the function that is called when the user wants to pool AND stake their funds
 pub fn deposit(
     deps: DepsMut,
     msg_info: MessageInfo,
@@ -99,6 +95,7 @@ pub fn deposit(
     let config = CONFIG.load(deps.storage)?;
     let _staking_address = config.staking_contract;
     let ans_host = app.ans_host(deps.as_ref())?;
+    let mut msgs = vec![];
 
     let mut claimed_deposits: AssetList = funds.resolve(&deps.querier, &ans_host)?.into();
     // deduct all the received `Coin`s from the claimed deposit, errors if not enough funds were provided
@@ -106,6 +103,19 @@ pub fn deposit(
     claimed_deposits
         .deduct_many(&msg_info.funds.clone().into())?
         .purge();
+
+    // if there is only one asset, we need to add the other asset too, but with zero amount
+    let funds = if funds.len() == 1 {
+        let mut funds = funds;
+        config.pool_data.assets.iter().for_each(|asset| {
+            if !funds[0].name.eq(asset) {
+                funds.push(AnsAsset::new(asset.clone(), 0u128))
+            }
+        });
+        funds
+    } else {
+        funds
+    };
 
     let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>, _> = claimed_deposits
         .into_iter()
@@ -115,26 +125,30 @@ pub fn deposit(
             asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)
         })
         .collect();
+    msgs.append(cw_20_transfer_msgs_res?.as_mut());
 
-    // transfer received coins to the bank contract
-    let bank = app.bank(deps.as_ref());
-    bank.deposit_coins(msg_info.funds)?;
+    // transfer received coins to the vault contract
+    if !msg_info.funds.is_empty() {
+        let bank = app.bank(deps.as_ref());
+        msgs.push(bank.deposit_coins(msg_info.funds)?);
+    }
 
     let modules = app.modules(deps.as_ref());
-    let swap_msg: CosmosMsg = modules.api_request(
+    let provide_liquidity_msg: CosmosMsg = modules.api_request(
         EXCHANGE,
         DexExecuteMsg {
             dex: config.pool_data.dex,
             action: DexAction::ProvideLiquidity {
                 assets: funds,
-                max_spread: None,
+                // TODO: let the user provide this
+                max_spread: Some(Decimal::percent(5)),
             },
         },
     )?;
 
     let sub_msg = SubMsg {
         id: LP_PROVISION_REPLY_ID,
-        msg: swap_msg,
+        msg: provide_liquidity_msg,
         gas_limit: None,
         reply_on: ReplyOn::Success,
     };
@@ -142,7 +156,7 @@ pub fn deposit(
     // save the user address to the cache for later use in reply
     CACHED_USER_ADDR.save(deps.storage, &msg_info.sender)?;
     Ok(Response::new()
-        .add_messages(cw_20_transfer_msgs_res?)
+        .add_messages(msgs)
         .add_submessage(sub_msg)
         .add_attribute("action", "4T2/AC/Deposit"))
 }
@@ -271,7 +285,9 @@ pub fn withdraw_claims(
 ) -> AutocompounderResult {
     CACHED_USER_ADDR.save(deps.storage, &address)?;
     let config = CONFIG.load(deps.storage)?;
-    let claims = CLAIMS.load(deps.storage, address.to_string())?;
+    let Some(claims) = CLAIMS.may_load(deps.storage, address.to_string())? else {
+        return Err(AutocompounderError::NoMaturedClaims {});
+    };
 
     // 1) get all matured claims for user
     let mut ongoing_claims: Vec<Claim> = vec![];
@@ -383,7 +399,7 @@ fn calculate_withdrawals(
 /// Checks if the unbonding cooldown period for batch unbonding has passed or not.
 fn check_unbonding_cooldown(
     deps: &DepsMut,
-    config: &crate::state::Config,
+    config: &Config,
     env: &Env,
 ) -> Result<(), AutocompounderError> {
     let latest_unbonding = LATEST_UNBONDING.load(deps.storage)?;
