@@ -32,8 +32,8 @@ use abstract_sdk::os::app;
 use abstract_sdk::os::dex::{DexName, OfferAsset};
 use abstract_sdk::os::objects::{AssetEntry, PoolAddress, PoolMetadata};
 use cosmwasm_schema::QueryResponses;
-use cosmwasm_std::{Addr, Decimal};
-use cw_utils::Duration;
+use cosmwasm_std::{Addr, Decimal, Uint128};
+use cw_utils::{Duration, Expiration};
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 
@@ -94,6 +94,22 @@ pub enum AutocompounderQueryMsg {
     /// Returns [`Config`]
     #[returns(Config)]
     Config {},
+    /// Query the amount of pending claims
+    /// Returns [`Uint128`]
+    #[returns(Uint128)]
+    PendingClaims {address: String},
+    /// Query the amount of claims
+    /// Returns [`Vec<Claim>`]
+    #[returns(Vec<Claim>)]
+    Claims {address: String},
+    /// Query all claim accounts
+    /// Returns [`Vec<(Sting, Vec<Claim>)>`]
+    #[returns(Vec<(String, Vec<Claim>)>)]
+    AllClaims { start_after: Option<String>, limit: Option<u8> },
+    /// Query the latest unbonding
+    /// Returns [`Expiration`]
+    #[returns(Expiration)]
+    LatestUnbonding {},
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -138,3 +154,12 @@ pub enum BondingPeriodSelector {
     Longest,
     Custom(Duration),
 }
+pub struct Claim {
+    // timestamp of the start of the unbonding process
+    pub unbonding_timestamp: Expiration,
+    // amount of vault tokens to be burned
+    pub amount_of_vault_tokens_to_burn: Uint128,
+    //  amount of lp tokens being unbonded
+    pub amount_of_lp_tokens_to_unbond: Uint128,
+}
+

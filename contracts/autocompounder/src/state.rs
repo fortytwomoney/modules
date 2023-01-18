@@ -3,17 +3,7 @@ use cosmwasm_std::Addr;
 use cosmwasm_std::Uint128;
 use cw_storage_plus::{Item, Map};
 use cw_utils::Expiration;
-pub use forty_two::autocompounder::{Config, FeeConfig};
-
-#[cw_serde]
-pub struct Claim {
-    // timestamp of the start of the unbonding process
-    pub unbonding_timestamp: Expiration,
-    // amount of vault tokens to be burned
-    pub amount_of_vault_tokens_to_burn: Uint128,
-    //  amount of lp tokens being unbonded
-    pub amount_of_lp_tokens_to_unbond: Uint128,
-}
+pub use forty_two::autocompounder::{Config, FeeConfig, Claim};
 
 pub const CACHED_USER_ADDR: Item<Addr> = Item::new("cached_user_addr");
 pub const LATEST_UNBONDING: Item<Expiration> = Item::new("latest_unbonding");

@@ -126,7 +126,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, BootError> {
 
 #[test]
 fn generator_without_reward_proxies() -> Result<(), BootError> {
-    let owner = Addr::unchecked(test_utils::OWNER);
+   let owner = Addr::unchecked(test_utils::OWNER);
     // create testing environment
     let (_state, mock) = instantiate_default_mock_env(&owner)?;
 
@@ -180,275 +180,27 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(6000u128);
     // and eur balance increased
-    let _eur_balance = eur_token.balance(&owner)?;
+    
+    let pending_claims = vault.auto_compounder.pending_claims(owner.to_string())?.into();
+    assert_that!(pending_claims).is_equal_to(3004u128);
+    
+    // vault.auto_compounder.withdraw()?;
+    // let pending_claims = vault.auto_compounder.query(QueryMsg::);
+    let eur_balance = eur_token.balance(&owner)?;
     // assert_that!(eur_balance).is_equal_to(90_000u128);
 
     mock.next_block()?;
-
-    // mint_tokens(&mut app, pair_eur_usd.clone(), &lp_eur_usd, &user1, 10);
-
-    // let msg = Cw20ExecuteMsg::Send {
-    //     contract: generator_instance.to_string(),
-    //     msg: to_binary(&GeneratorHookMsg::Deposit {}).unwrap(),
-    //     amount: Uint128::new(10),
-    // };
-
-    // assert_eq!(
-    //     app.execute_contract(user1.clone(), lp_cny_eur.clone(), &msg, &[])
-    //         .unwrap_err()
-    //         .root_cause()
-    //         .to_string(),
-    //     "Cannot Sub with 9 and 10".to_string()
-    // );
-
-    // mint_tokens(&mut app, pair_cny_eur.clone(), &lp_cny_eur, &user1, 1);
-
-    // deposit_lp_tokens_to_generator(
-    //     &mut app,
-    //     &generator_instance,
-    //     USER1,
-    //     &[(&lp_cny_eur, 10), (&lp_eur_usd, 10)],
-    // );
-
-    // check_token_balance(&mut app, &lp_cny_eur, &generator_instance, 10);
-    // check_token_balance(&mut app, &lp_eur_usd, &generator_instance, 10);
 
     let generator_staked_balance = eur_usd_lp.balance(&generator)?;
     assert_that!(generator_staked_balance).is_equal_to(9004u128);
     Ok(())
 
-    // check_pending_rewards(&mut app, &generator_instance, &lp_cny_eur, USER1, (0, None));
-    // check_pending_rewards(&mut app, &generator_instance, &lp_eur_usd, USER1, (0, None));
 
-    // // User can't withdraw if they didn't deposit
-    // let msg = GeneratorExecuteMsg::Withdraw {
-    //     lp_token: lp_cny_eur.to_string(),
-    //     amount: Uint128::new(1_000000),
-    // };
-    // assert_eq!(
-    //     app.execute_contract(user2.clone(), generator_instance.clone(), &msg, &[])
-    //         .unwrap_err()
-    //         .root_cause()
-    //         .to_string(),
-    //     "Insufficient balance in contract to process claim".to_string()
-    // );
+    // test other functions:
+    // - withdraw
+    // - claim
 
-    // // User can't emergency withdraw if they didn't deposit
-    // let msg = GeneratorExecuteMsg::EmergencyWithdraw {
-    //     lp_token: lp_cny_eur.to_string(),
-    // };
-    // assert_eq!(
-    //     app.execute_contract(user2.clone(), generator_instance.clone(), &msg, &[])
-    //         .unwrap_err()
-    //         .root_cause()
-    //         .to_string(),
-    //     "astroport::generator::UserInfo not found".to_string()
-    // );
 
-    // app.update_block(|bi| next_block(bi));
-
-    // // 10 tokens per block split equally between 2 pools
-    // check_pending_rewards(
-    //     &mut app,
-    //     &generator_instance,
-    //     &lp_cny_eur,
-    //     USER1,
-    //     (5_000000, None),
-    // );
-    // check_pending_rewards(
-    //     &mut app,
-    //     &generator_instance,
-    //     &lp_eur_usd,
-    //     USER1,
-    //     (5_000000, None),
-    // );
-
-    // // User 2
-    // mint_tokens(&mut app, pair_cny_eur.clone(), &lp_cny_eur, &user2, 10);
-    // mint_tokens(&mut app, pair_eur_usd.clone(), &lp_eur_usd, &user2, 10);
-
-    // deposit_lp_tokens_to_generator(
-    //     &mut app,
-    //     &generator_instance,
-    //     USER2,
-    //     &[(&lp_cny_eur, 10), (&lp_eur_usd, 10)],
-    // );
-
-    // check_token_balance(&mut app, &lp_cny_eur, &generator_instance, 20);
-    // check_token_balance(&mut app, &lp_eur_usd, &generator_instance, 20);
-
-    // // 10 tokens have been distributed to depositors since the last deposit
-    // check_pending_rewards(
-    //     &mut app,
-    //     &generator_instance,
-    //     &lp_cny_eur,
-    //     USER1,
-    //     (5_000000, None),
-    // );
-    // check_pending_rewards(
-    //     &mut app,
-    //     &generator_instance,
-    //     &lp_eur_usd,
-    //     USER1,
-    //     (5_000000, None),
-    // );
-
-    // // New deposits can't receive already calculated rewards
-    // check_pending_rewards(&mut app, &generator_instance, &lp_cny_eur, USER2, (0, None));
-    // check_pending_rewards(&mut app, &generator_instance, &lp_eur_usd, USER2, (0, None));
-
-    // // Change pool alloc points
-    // let msg = GeneratorExecuteMsg::SetupPools {
-    //     pools: vec![
-    //         (lp_cny_eur.to_string(), Uint128::from(60u32)),
-    //         (lp_eur_usd.to_string(), Uint128::from(40u32)),
-    //     ],
-    // };
-    // app.execute_contract(owner.clone(), generator_instance.clone(), &msg, &[])
-    //     .unwrap();
-
-    // app.update_block(|bi| next_block(bi));
-
-    // // 60 to cny_eur, 40 to eur_usd. Each is divided for two users
-    // check_pending_rewards(
-    //     &mut app,
-    //     &generator_instance,
-    //     &lp_cny_eur,
-    //     USER1,
-    //     (8_000000, None),
-    // );
-    // check_pending_rewards(
-    //     &mut app,
-    //     &generator_instance,
-    //     &lp_eur_usd,
-    //     USER1,
-    //     (7_000000, None),
-    // );
-
-    // check_pending_rewards(
-    //     &mut app,
-    //     &generator_instance,
-    //     &lp_cny_eur,
-    //     USER2,
-    //     (3_000000, None),
-    // );
-    // check_pending_rewards(
-    //     &mut app,
-    //     &generator_instance,
-    //     &lp_eur_usd,
-    //     USER2,
-    //     (2_000000, None),
-    // );
-
-    // // User1 emergency withdraws and loses already accrued rewards (5).
-    // // Pending tokens (3) will be redistributed to other staked users.
-    // let msg = GeneratorExecuteMsg::EmergencyWithdraw {
-    //     lp_token: lp_cny_eur.to_string(),
-    // };
-    // app.execute_contract(user1.clone(), generator_instance.clone(), &msg, &[])
-    //     .unwrap();
-
-    // check_pending_rewards(
-    //     &mut app,
-    //     &generator_instance,
-    //     &lp_cny_eur,
-    //     USER1,
-    //     (0_000000, None),
-    // );
-    // check_pending_rewards(
-    //     &mut app,
-    //     &generator_instance,
-    //     &lp_eur_usd,
-    //     USER1,
-    //     (7_000000, None),
-    // );
-
-    // check_pending_rewards(
-    //     &mut app,
-    //     &generator_instance,
-    //     &lp_cny_eur,
-    //     USER2,
-    //     (3_000000, None),
-    // );
-    // check_pending_rewards(
-    //     &mut app,
-    //     &generator_instance,
-    //     &lp_eur_usd,
-    //     USER2,
-    //     (2_000000, None),
-    // );
-
-    // // Balance of the generator should be decreased
-    // check_token_balance(&mut app, &lp_cny_eur, &generator_instance, 10);
-
-    // // User1 can't withdraw after emergency withdraw
-    // let msg = GeneratorExecuteMsg::Withdraw {
-    //     lp_token: lp_cny_eur.to_string(),
-    //     amount: Uint128::new(1_000000),
-    // };
-    // assert_eq!(
-    //     app.execute_contract(user1.clone(), generator_instance.clone(), &msg, &[])
-    //         .unwrap_err()
-    //         .root_cause()
-    //         .to_string(),
-    //     "Insufficient balance in contract to process claim".to_string(),
-    // );
-
-    // // User2 withdraw and get rewards
-    // let msg = GeneratorExecuteMsg::Withdraw {
-    //     lp_token: lp_cny_eur.to_string(),
-    //     amount: Uint128::new(10),
-    // };
-    // app.execute_contract(user2.clone(), generator_instance.clone(), &msg, &[])
-    //     .unwrap();
-
-    // check_token_balance(&mut app, &lp_cny_eur, &generator_instance, 0);
-    // check_token_balance(&mut app, &lp_cny_eur, &user1, 10);
-    // check_token_balance(&mut app, &lp_cny_eur, &user2, 10);
-
-    // check_token_balance(&mut app, &astro_token_instance, &user1, 0);
-    // check_token_balance(&mut app, &astro_token_instance, &user2, 3_000000);
-    // // 7 + 2 distributed ASTRO (for other pools). 5 orphaned by emergency withdrawals, 6 transfered to User2
-
-    // // User1 withdraws and gets rewards
-    // let msg = GeneratorExecuteMsg::Withdraw {
-    //     lp_token: lp_eur_usd.to_string(),
-    //     amount: Uint128::new(5),
-    // };
-    // app.execute_contract(user1.clone(), generator_instance.clone(), &msg, &[])
-    //     .unwrap();
-
-    // check_token_balance(&mut app, &lp_eur_usd, &generator_instance, 15);
-    // check_token_balance(&mut app, &lp_eur_usd, &user1, 5);
-
-    // check_token_balance(&mut app, &astro_token_instance, &user1, 7_000000);
-
-    // // User1 withdraws and gets rewards
-    // let msg = GeneratorExecuteMsg::Withdraw {
-    //     lp_token: lp_eur_usd.to_string(),
-    //     amount: Uint128::new(5),
-    // };
-    // app.execute_contract(user1.clone(), generator_instance.clone(), &msg, &[])
-    //     .unwrap();
-
-    // check_token_balance(&mut app, &lp_eur_usd, &generator_instance, 10);
-    // check_token_balance(&mut app, &lp_eur_usd, &user1, 10);
-    // check_token_balance(&mut app, &astro_token_instance, &user1, 7_000000);
-
-    // // User2 withdraws and gets rewards
-    // let msg = GeneratorExecuteMsg::Withdraw {
-    //     lp_token: lp_eur_usd.to_string(),
-    //     amount: Uint128::new(10),
-    // };
-    // app.execute_contract(user2.clone(), generator_instance.clone(), &msg, &[])
-    //     .unwrap();
-
-    // check_token_balance(&mut app, &lp_eur_usd, &generator_instance, 0);
-    // check_token_balance(&mut app, &lp_eur_usd, &user1, 10);
-    // check_token_balance(&mut app, &lp_eur_usd, &user2, 10);
-
-    // check_token_balance(&mut app, &astro_token_instance, &user1, 7_000000);
-    // check_token_balance(&mut app, &astro_token_instance, &user2, 5_000000);
 }
 
 fn mock_app() -> App {

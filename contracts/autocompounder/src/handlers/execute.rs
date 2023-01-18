@@ -228,13 +228,18 @@ fn redeem(
     sender: String,
     amount_of_vault_tokens_to_be_burned: Uint128,
 ) -> AutocompounderResult {
-    let _config = CONFIG.load(deps.storage)?;
+    let config = CONFIG.load(deps.storage)?;
 
     // parse sender
     let sender = deps.api.addr_validate(&sender)?;
 
     // save the user address to the cache for later use in reply
     CACHED_USER_ADDR.save(deps.storage, &sender)?;
+
+    if config.bonding_period.is_none() {
+        // if bonding period is not set, we can just burn the tokens, and withdraw the underlying assets in the lp pool
+        
+    }
 
     if let Some(pending_claim) = PENDING_CLAIMS.may_load(deps.storage, sender.to_string())? {
         let new_pending_claim = pending_claim
