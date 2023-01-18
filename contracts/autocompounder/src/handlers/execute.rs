@@ -325,9 +325,9 @@ pub fn withdraw_claims(
     let swap_msg: CosmosMsg = modules.api_request(
         EXCHANGE,
         DexExecuteMsg {
-            dex: config.pool_data.dex,
+            dex: config.pool_data.dex.clone(),
             action: DexAction::WithdrawLiquidity {
-                lp_token: config.liquidity_token.to_string().into(),
+                lp_token: LpToken::from(config.pool_data).into(),
                 amount: lp_tokens_to_withdraw,
             },
         },
@@ -411,19 +411,21 @@ fn calculate_withdrawals(
 
 /// Checks if the unbonding cooldown period for batch unbonding has passed or not.
 fn check_unbonding_cooldown(
-    deps: &DepsMut,
+deps: &DepsMut,
     config: &Config,
     env: &Env,
 ) -> Result<(), AutocompounderError> {
-    let latest_unbonding = LATEST_UNBONDING.load(deps.storage)?;
-    if let Some(min_cooldown) = config.min_unbonding_cooldown {
-        if latest_unbonding.add(min_cooldown)?.is_expired(&env.block) {
-            return Err(AutocompounderError::UnbondingCooldownNotExpired {
-                min_cooldown,
-                latest_unbonding,
-            });
-        }
-    };
+    let latest_unbonding = LATEST_UNBONDING.may_load(deps.storage)?;
+    if let Some(latest_unbonding) = latest_unbonding {
+        if let Some(min_cooldown) = config.min_unbonding_cooldown {
+            if latest_unbonding.add(min_cooldown)?.is_expired(&env.block) {
+                return Err(AutocompounderError::UnbondingCooldownNotExpired {
+                    min_cooldown,
+                    latest_unbonding,
+                });
+            }
+        };
+    }
     Ok(())
 }
 
