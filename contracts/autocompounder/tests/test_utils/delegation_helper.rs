@@ -1,8 +1,8 @@
 use anyhow::Result;
 use astroport_governance::voting_escrow_delegation as escrow_delegation;
 use cosmwasm_std::{to_binary, Addr, Empty, QueryRequest, StdResult, Uint128, WasmQuery};
-use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 use cw721_base::helpers::Cw721Contract;
+use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 
 pub struct DelegationHelper {
     pub delegation_instance: Addr,

@@ -137,6 +137,12 @@ impl CwStaking for JunoSwap {
             .collect();
         Ok(UnbondingResponse { claims })
     }
+    fn query_reward_tokens(
+        &self,
+        _querier: &QuerierWrapper,
+    ) -> StdResult<forty_two::cw_staking::RewardTokensResponse> {
+        todo!()
+    }
 }
 
 fn parse_duration(d: dao_cw_utils::Duration) -> cw_utils::Duration {

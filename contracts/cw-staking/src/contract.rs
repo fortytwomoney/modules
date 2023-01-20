@@ -1,7 +1,7 @@
+use crate::{error::StakingError, handlers};
 use abstract_api::{export_endpoints, ApiContract};
 use cosmwasm_std::{Empty, Response};
 use forty_two::cw_staking::{CwStakingExecuteMsg, CwStakingQueryMsg, CW_STAKING};
-use crate::{error::StakingError, handlers};
 
 const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 

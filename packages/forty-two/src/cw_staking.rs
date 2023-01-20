@@ -68,6 +68,11 @@ pub enum CwStakingQueryMsg {
         staking_token: AssetEntry,
         staker_address: String,
     },
+    #[returns(RewardTokensResponse)]
+    RewardTokens {
+        provider: ProviderName,
+        staking_token: AssetEntry,
+    },
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -81,6 +86,11 @@ pub struct StakingInfoResponse {
 #[cosmwasm_schema::cw_serde]
 pub struct StakeResponse {
     pub amount: Uint128,
+}
+
+#[cosmwasm_schema::cw_serde]
+pub struct RewardTokensResponse {
+    pub tokens: Vec<AssetInfo>,
 }
 
 #[cosmwasm_schema::cw_serde]

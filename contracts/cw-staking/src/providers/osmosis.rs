@@ -1,5 +1,6 @@
 use cosmwasm_std::Addr;
 
+use crate::traits::identify::Identify;
 #[cfg(feature = "osmosis")]
 use osmosis_std::{
     shim::Duration,
@@ -13,7 +14,6 @@ use osmosis_std::{
     },
     types::{osmosis::lockup::MsgBeginUnlocking, osmosis::lockup::MsgLockTokens},
 };
-use crate::traits::identify::Identify;
 
 #[cfg(feature = "osmosis")]
 const FORTEEN_DAYS: i64 = 60 * 60 * 24 * 14;

@@ -1,4 +1,12 @@
-use std::ops::Add;
+use super::helpers::{check_fee, cw20_total_supply, query_stake};
+use crate::contract::{
+    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
+    LP_WITHDRAWAL_REPLY_ID,
+};
+use crate::error::AutocompounderError;
+use crate::state::{
+    Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
+};
 use abstract_sdk::base::features::{AbstractNameService, Identification};
 use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
 use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken};
@@ -13,15 +21,7 @@ use cw_asset::AssetList;
 use cw_utils::Duration;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
-use crate::contract::{
-    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
-    LP_WITHDRAWAL_REPLY_ID,
-};
-use crate::error::AutocompounderError;
-use crate::state::{
-    Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
-};
-use super::helpers::{check_fee, cw20_total_supply, query_stake};
+use std::ops::Add;
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
