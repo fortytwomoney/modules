@@ -44,4 +44,7 @@ pub enum AutocompounderError {
         min_cooldown: cw_utils::Duration,
         latest_unbonding: Expiration,
     },
+
+    #[error("Unbonding is not enabled for this pool")]
+    UnbondingNotEnabled {},
 }

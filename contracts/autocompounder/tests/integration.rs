@@ -22,6 +22,7 @@ use astroport::{
         VestingSchedule, VestingSchedulePoint,
     },
 };
+use autocompounder::error::AutocompounderError;
 use boot_core::deploy::Deploy;
 use boot_core::{prelude::*, TxHandler};
 use boot_cw_plus::Cw20;
@@ -148,8 +149,6 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
     let config = vault.auto_compounder.config()?;
     assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
 
-    // # deposit into the auto-compounder #
-
     // give user some funds
     eur_token.mint(&owner, 100_000u128)?;
     usd_token.mint(&owner, 100_000u128)?;
@@ -186,10 +185,11 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
     // and eur balance increased
     
     let pending_claims = vault.auto_compounder.pending_claims(owner.to_string())?.into();
-    assert_that!(pending_claims).is_equal_to(3004u128);
+    assert_that!(pending_claims).is_equal_to(0u128); // no unbonding period, so no pending claims
 
-    vault.auto_compounder.batch_unbond()?;
-    vault.auto_compounder.withdraw()?;
+    vault.auto_compounder.batch_unbond().unwrap_err(); // batch unbonding not enabled
+    // .is_equal_to(AutocompounderError::UnbondingNotEnabled {  }); // not neccessary, but to test the function
+    vault.auto_compounder.withdraw().unwrap_err(); // withdraw wont have any effect, because there are no pending claims
     // let pending_claims = vault.auto_compounder.query(QueryMsg::);
     let eur_balance = eur_token.balance(&owner)?;
     assert_that!(eur_balance).is_equal_to(90_000u128);

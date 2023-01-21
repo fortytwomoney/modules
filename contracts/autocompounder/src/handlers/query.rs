@@ -39,10 +39,10 @@ pub fn query_config(deps: Deps) -> StdResult<Config> {
 // write query functions for all State const variables: Claims, PendingClaims, LatestUnbonding
 
 pub fn query_pending_claims(deps: Deps, address: String) -> StdResult<Uint128> {
-    // let bonding_period = CONFIG.load(deps.storage)?.bonding_period;
-    // if bonding_period.is_none() {
-    //     return Ok(Uint128::zero());
-    // }
+    let bonding_period = CONFIG.load(deps.storage)?.bonding_period;
+    if bonding_period.is_none() {
+        return Ok(Uint128::zero());
+    }
 
     let pending_claims = PENDING_CLAIMS.load(deps.storage, address)?;
     Ok(pending_claims)
@@ -54,10 +54,10 @@ pub fn query_claims(deps: Deps, address: String) -> StdResult<Vec<Claim>> {
 }
 
 pub fn query_all_claims(deps: Deps, start_after: Option<String>, limit: Option<u8>) -> StdResult<Vec<(String,Vec<Claim>)>> {
-    // let bonding_period = CONFIG.load(deps.storage)?.bonding_period;
-    // if bonding_period.is_none() {
-    //     return Ok(vec![]);
-    // }
+    let bonding_period = CONFIG.load(deps.storage)?.bonding_period;
+    if bonding_period.is_none() {
+        return Ok(vec![]);
+    }
 
     let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE).min(MAX_PAGE_SIZE) as usize;
     let start = start_after.map(|s| Bound::ExclusiveRaw(s.into_bytes()));
