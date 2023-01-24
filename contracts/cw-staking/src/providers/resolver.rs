@@ -3,9 +3,9 @@ use crate::CwStaking;
 use cosmwasm_std::{StdError, StdResult};
 
 #[cfg(feature = "juno")]
-pub use crate::providers::junoswap::{JunoSwap, JUNOSWAP};
-
-use super::astroport::{Astroport, ASTROPORT};
+pub use crate::providers::{junoswap::{JunoSwap, JUNOSWAP},wyndex::{WynDex,WYNDEX}};
+#[cfg(feature = "terra")]
+use super::{astroport::{Astroport, ASTROPORT}};
 #[cfg(any(feature = "juno", feature = "osmosis"))]
 pub use crate::providers::osmosis::{Osmosis, OSMOSIS};
 
@@ -13,6 +13,8 @@ pub(crate) fn is_over_ibc(provider: &str) -> StdResult<bool> {
     match provider {
         #[cfg(feature = "juno")]
         JUNOSWAP => Ok(false),
+        #[cfg(feature = "juno")]
+        WYNDEX => Ok(false),
         #[cfg(feature = "terra")]
         ASTROPORT => Ok(false),
         #[cfg(feature = "juno")]
@@ -28,6 +30,8 @@ pub(crate) fn resolve_local_provider(name: &str) -> Result<Box<dyn CwStaking>, S
     match name {
         #[cfg(feature = "juno")]
         JUNOSWAP => Ok(Box::<JunoSwap>::default()),
+        #[cfg(feature = "juno")]
+        WYNDEX => Ok(Box::<WynDex>::default()),
         #[cfg(feature = "osmosis")]
         OSMOSIS => Ok(Box::new(Osmosis::default())),
         #[cfg(feature = "terra")]
