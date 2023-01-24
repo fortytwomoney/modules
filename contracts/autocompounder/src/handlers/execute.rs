@@ -189,7 +189,7 @@ pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> Autocomp
         config.pool_data.dex.clone(),
         AssetEntry::from(LpToken::from(config.pool_data.clone())),
         total_lp_amount_to_unbond,
-        config.bonding_period,
+        config.unbonding_period,
     );
 
     let burn_msg = get_burn_msg(&config.vault_token, total_vault_tokens_to_burn)?;
@@ -344,7 +344,7 @@ fn calculate_withdrawals(
 ) -> Result<(Uint128, Uint128, Vec<(String, Vec<Claim>)>), AutocompounderError> {
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
     let unbonding_timestamp = config
-        .bonding_period
+        .unbonding_period
         .unwrap_or(Duration::Height(0))
         .after(&env.block);
 

@@ -79,7 +79,7 @@ pub fn instantiate_handler(
 
     // get staking info
     let staking_info = query_staking_info(deps.as_ref(), &app, lp_token.into(), dex.clone())?;
-    let (bonding_period, min_unbonding_cooldown) =
+    let (unbonding_period, min_unbonding_cooldown) =
         if let (max_claims, Some(mut unbonding_periods)) =
             (staking_info.max_claims, staking_info.unbonding_periods)
         {
@@ -142,7 +142,7 @@ pub fn instantiate_handler(
         commission_addr: deps.api.addr_validate(&commission_addr)?,
         pool_data,
         pool_address: pool_reference.pool_address,
-        bonding_period,
+        unbonding_period,
         min_unbonding_cooldown,
     };
 

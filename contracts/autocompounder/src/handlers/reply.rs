@@ -18,6 +18,7 @@ use cosmwasm_std::{
 };
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw_asset::{Asset, AssetInfo};
+use cw_utils::Duration;
 use forty_two::cw_staking::{
     CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse, CW_STAKING,
 };
@@ -103,6 +104,7 @@ pub fn lp_provision_reply(
         app,
         config.pool_data.dex,
         AnsAsset::new(lp_token, received_lp),
+        config.unbonding_period
     )?;
 
     Ok(Response::new()
@@ -291,6 +293,7 @@ pub fn compound_lp_provision_reply(
         app,
         config.pool_data.dex,
         AnsAsset::new(lp_token, lp_balance),
+        config.unbonding_period
     )?;
 
     Ok(Response::new()
@@ -342,6 +345,7 @@ fn stake_lp_tokens(
     app: AutocompounderApp,
     provider: String,
     asset: AnsAsset,
+    unbonding_period: Option<Duration>,
 ) -> StdResult<CosmosMsg> {
     let modules = app.modules(deps.as_ref());
     modules.api_request(
@@ -350,6 +354,7 @@ fn stake_lp_tokens(
             provider,
             action: CwStakingAction::Stake {
                 staking_token: asset,
+                unbonding_period,
             },
         },
     )

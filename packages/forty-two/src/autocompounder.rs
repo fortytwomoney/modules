@@ -127,7 +127,7 @@ pub struct Config {
     /// Vault fee structure
     pub fees: FeeConfig,
     /// Pool bonding period
-    pub bonding_period: Option<Duration>,
+    pub unbonding_period: Option<Duration>,
     /// minimum unbonding cooldown
     pub min_unbonding_cooldown: Option<Duration>,
 }
