@@ -68,7 +68,7 @@ env_logger = {  workspace = true }
 
 forty-two-boot = { workspace = true }
 
-boot-core = { workspace = true }
+boot-core = { workspace = true , features = ["daemon"] }
 abstract-boot = { workspace = true }
 abstract-api = { workspace = true, features = ["schema"] }
 clap = { workspace = true }

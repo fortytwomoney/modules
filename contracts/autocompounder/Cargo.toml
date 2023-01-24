@@ -61,7 +61,7 @@ manager = {git = "https://github.com/Abstract-OS/contracts.git",features = ["lib
 dex = {git = "https://github.com/Abstract-OS/contracts.git", features = ["testing"]}
 subscription = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"]}
 abstract-boot = {workspace = true, features = ["integration"]}
-boot-core = { workspace = true}
+boot-core = { workspace = true, features = ["daemon"]}
 boot-cw-plus = { workspace = true}
 anyhow = {workspace = true}
 rstest = {workspace = true }

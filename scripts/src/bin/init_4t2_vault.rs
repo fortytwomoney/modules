@@ -9,7 +9,7 @@ use boot_core::prelude::*;
 use boot_core::state::StateInterface;
 use boot_core::{networks, DaemonOptionsBuilder};
 use cosmwasm_std::{Addr, Decimal, Empty};
-use forty_two::autocompounder::{AutocompounderInstantiateMsg, AUTOCOMPOUNDER};
+use forty_two::autocompounder::{AutocompounderInstantiateMsg, AUTOCOMPOUNDER, BondingPeriodSelector};
 use forty_two::cw_staking::CW_STAKING;
 use std::env;
 use std::sync::Arc;
@@ -152,6 +152,7 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
                 fee_asset: "junox".into(),
                 /// Assets in the pool
                 pool_assets: assets.into_iter().map(Into::into).collect(),
+                preferred_bonding_period: BondingPeriodSelector::Shortest,
             },
         },
     )?;
