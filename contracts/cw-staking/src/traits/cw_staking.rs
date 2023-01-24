@@ -3,6 +3,7 @@ use crate::traits::identify::Identify;
 use abstract_sdk::feature_objects::AnsHost;
 use abstract_sdk::os::objects::{AssetEntry, ContractEntry};
 use cosmwasm_std::{Addr, CosmosMsg, Deps, QuerierWrapper, StdResult, Uint128};
+use cw_utils::Duration;
 use forty_two::cw_staking::{
     RewardTokensResponse, StakeResponse, StakingInfoResponse, UnbondingResponse,
 };
@@ -41,13 +42,25 @@ pub trait CwStaking: Identify {
     ///
     /// * `deps` - the dependencies
     /// * `asset` - the asset to stake
-    fn stake(&self, deps: Deps, amount: Uint128) -> Result<Vec<CosmosMsg>, StakingError>;
+    /// * `unbonding_period` - the unbonding period to use for the stake
+    fn stake(
+        &self,
+        deps: Deps,
+        amount: Uint128,
+        unbonding_period: Option<Duration>,
+    ) -> Result<Vec<CosmosMsg>, StakingError>;
 
     /// Stake the provided asset into the staking contract
     ///
     /// * `deps` - the dependencies
     /// * `asset` - the asset to stake
-    fn unstake(&self, deps: Deps, amount: Uint128) -> Result<Vec<CosmosMsg>, StakingError>;
+    /// * `unbonding_period` - the unbonding period to use for the unstake
+    fn unstake(
+        &self,
+        deps: Deps,
+        amount: Uint128,
+        unbonding_period: Option<Duration>,
+    ) -> Result<Vec<CosmosMsg>, StakingError>;
 
     /// Claim rewards on the staking contract
     ///

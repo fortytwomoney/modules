@@ -15,6 +15,7 @@ use cosmwasm_std::{
 };
 use cw20::Cw20ExecuteMsg;
 use cw_asset::AssetInfo;
+use cw_utils::Duration;
 use forty_two::cw_staking::{
     RewardTokensResponse, StakeResponse, StakingInfoResponse, UnbondingResponse,
 };
@@ -67,7 +68,12 @@ impl CwStaking for Astroport {
         Ok(())
     }
 
-    fn stake(&self, _deps: Deps, amount: Uint128) -> Result<Vec<CosmosMsg>, StakingError> {
+    fn stake(
+        &self,
+        _deps: Deps,
+        amount: Uint128,
+        _unbonding_period: Option<Duration>,
+    ) -> Result<Vec<CosmosMsg>, StakingError> {
         let msg = to_binary(&Cw20HookMsg::Deposit {})?;
         Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.lp_token_address.to_string(),
@@ -80,7 +86,12 @@ impl CwStaking for Astroport {
         })])
     }
 
-    fn unstake(&self, _deps: Deps, amount: Uint128) -> Result<Vec<CosmosMsg>, StakingError> {
+    fn unstake(
+        &self,
+        _deps: Deps,
+        amount: Uint128,
+        _unbonding_period: Option<Duration>,
+    ) -> Result<Vec<CosmosMsg>, StakingError> {
         let msg = GeneratorExecuteMsg::Withdraw {
             lp_token: self.lp_token_address.to_string(),
             amount,
@@ -116,7 +127,7 @@ impl CwStaking for Astroport {
         Ok(StakingInfoResponse {
             staking_contract_address: self.generator_contract_address.clone(),
             staking_token: AssetInfo::Cw20(stake_info_resp.astro_token),
-            unbonding_period: None,
+            unbonding_periods: None,
             max_claims: None,
         })
     }

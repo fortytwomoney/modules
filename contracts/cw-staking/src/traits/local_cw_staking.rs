@@ -22,12 +22,14 @@ pub trait LocalCwStaking: AbstractNameService + Execution {
         provider.fetch_data(deps.as_ref(), &self.ans_host(deps.as_ref())?, staking_asset)?;
 
         let msgs = match action {
-            CwStakingAction::Stake { staking_token } => {
-                provider.stake(deps.as_ref(), staking_token.amount)?
-            }
-            CwStakingAction::Unstake { staking_token } => {
-                provider.unstake(deps.as_ref(), staking_token.amount)?
-            }
+            CwStakingAction::Stake {
+                staking_token,
+                unbonding_period,
+            } => provider.stake(deps.as_ref(), staking_token.amount, unbonding_period)?,
+            CwStakingAction::Unstake {
+                staking_token,
+                unbonding_period,
+            } => provider.unstake(deps.as_ref(), staking_token.amount, unbonding_period)?,
             CwStakingAction::ClaimRewards { staking_token: _ } => provider.claim(deps.as_ref())?,
         };
 
@@ -41,8 +43,8 @@ pub trait LocalCwStaking: AbstractNameService + Execution {
 #[inline(always)]
 fn staking_asset_from_action(action: &CwStakingAction) -> AssetEntry {
     match action {
-        CwStakingAction::Stake { staking_token } => staking_token.name.clone(),
-        CwStakingAction::Unstake { staking_token } => staking_token.name.clone(),
+        CwStakingAction::Stake { staking_token, .. } => staking_token.name.clone(),
+        CwStakingAction::Unstake { staking_token, .. } => staking_token.name.clone(),
         CwStakingAction::ClaimRewards { staking_token } => staking_token.clone(),
     }
 }

@@ -38,9 +38,15 @@ pub struct CwStakingExecuteMsg {
 /// All provide the staking token information
 pub enum CwStakingAction {
     /// Stakes/bonds a given token
-    Stake { staking_token: AnsAsset },
+    Stake {
+        staking_token: AnsAsset,
+        unbonding_period: Option<Duration>,
+    },
     /// Unstake a given token
-    Unstake { staking_token: AnsAsset },
+    Unstake {
+        staking_token: AnsAsset,
+        unbonding_period: Option<Duration>,
+    },
     /// Claim rewards for a given token
     ClaimRewards { staking_token: AssetEntry },
 }
@@ -77,9 +83,9 @@ pub enum CwStakingQueryMsg {
 
 #[cosmwasm_schema::cw_serde]
 pub struct StakingInfoResponse {
-    pub unbonding_period: Option<Duration>,
     pub staking_contract_address: Addr,
     pub staking_token: AssetInfo,
+    pub unbonding_periods: Option<Vec<Duration>>,
     pub max_claims: Option<u32>,
 }
 

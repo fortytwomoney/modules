@@ -189,6 +189,7 @@ pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> Autocomp
         config.pool_data.dex.clone(),
         AssetEntry::from(LpToken::from(config.pool_data.clone())),
         total_lp_amount_to_unbond,
+        config.bonding_period,
     );
 
     let burn_msg = get_burn_msg(&config.vault_token, total_vault_tokens_to_burn)?;
@@ -451,6 +452,7 @@ fn unstake_lp_tokens(
     provider: String,
     lp_token_name: AssetEntry,
     amount: Uint128,
+    unbonding_period: Option<Duration>,
 ) -> CosmosMsg {
     let modules = app.modules(deps);
 
@@ -461,6 +463,7 @@ fn unstake_lp_tokens(
                 provider,
                 action: CwStakingAction::Unstake {
                     staking_token: AnsAsset::new(lp_token_name, amount),
+                    unbonding_period,
                 },
             },
         )

@@ -17,8 +17,10 @@ use cosmwasm_std::{
     Uint128, WasmMsg,
 };
 use cw20_base::msg::ExecuteMsg::Mint;
-use cw_asset::{AssetInfo, Asset};
-use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING, CwStakingQueryMsg, RewardTokensResponse};
+use cw_asset::{Asset, AssetInfo};
+use forty_two::cw_staking::{
+    CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse, CW_STAKING,
+};
 use protobuf::Message;
 
 /// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.
@@ -319,10 +321,17 @@ pub fn fee_swapped_reply(
         .add_attribute("action", "transfer_platfrom_fees"))
 }
 
-fn query_rewards(deps: Deps, app: &AutocompounderApp, pool_data: PoolMetadata) -> StdResult<Vec<AssetInfo>> {
+fn query_rewards(
+    deps: Deps,
+    app: &AutocompounderApp,
+    pool_data: PoolMetadata,
+) -> StdResult<Vec<AssetInfo>> {
     // query staking module for which rewards are available
     let modules = app.modules(deps);
-    let query = CwStakingQueryMsg::RewardTokens { provider: pool_data.dex, staking_token: LpToken::from(pool_data).into() };
+    let query = CwStakingQueryMsg::RewardTokens {
+        provider: pool_data.dex.clone(),
+        staking_token: LpToken::from(pool_data).into(),
+    };
     let res: RewardTokensResponse = modules.query_api(CW_STAKING, query)?;
     Ok(res.tokens)
 }
@@ -386,21 +395,23 @@ fn get_staking_rewards(
     deps: Deps,
     app: &AutocompounderApp,
     config: &Config,
-) -> StdResult<Vec<Asset>> {
+) -> StdResult<Vec<AnsAsset>> {
     let ans_host = app.ans_host(deps)?;
     let rewards = query_rewards(deps, app, config.pool_data.clone())?;
-    let mut rewards = rewards
+    // query balance of rewards
+    let rewards = rewards
         .into_iter()
         .map(|tkn| -> StdResult<Asset> {
             // 2) get the number of LP tokens minted in this transaction
             let balance = tkn.query_balance(&deps.querier, app.proxy_address(deps)?)?;
-
             Ok(Asset::new(tkn, balance))
         })
         .collect::<StdResult<Vec<Asset>>>()?;
-    rewards = rewards
+    // resolve rewards to AnsAssets for dynamic processing (swaps)
+    let rewards = rewards
         .into_iter()
         .filter(|reward| reward.amount != Uint128::zero())
-        .collect::<Vec<AnsAsset>>();
+        .map(|asset| asset.resolve(&deps.querier, &ans_host))
+        .collect::<Result<Vec<AnsAsset>, _>>()?;
     Ok(rewards)
 }

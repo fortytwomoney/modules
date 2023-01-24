@@ -30,16 +30,16 @@ exclude = [
 
 # Keep as is until TendermintStake updates.
 [workspace.dependencies]
-abstract-sdk = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/deployment_trait"}
-abstract-api = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/deployment_trait"}
-abstract-app = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/deployment_trait"}
-abstract-os = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/deployment_trait"}
-abstract-boot = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/deployment_trait"}
+abstract-sdk = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/reverse_asset_lookup"}
+abstract-api = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/reverse_asset_lookup"}
+abstract-app = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/reverse_asset_lookup"}
+abstract-os = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/reverse_asset_lookup"}
+abstract-boot = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/reverse_asset_lookup"}
 forty-two = { version = "0.2.0", path = "packages/forty-two" }
 forty-two-boot = { version = "0.2.0", path = "packages/forty-two-boot" }
 cosmwasm-std = { version = "1.1" }
 cosmwasm-schema = { version = "1.1" }
-cw-asset = { version = "2.4" }
+cw-asset = { version = "2.4", git = "https://github.com/CyberHoward/cw-asset.git" }
 schemars = "0.8"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0" }
@@ -72,7 +72,7 @@ log = "0.4.14"
 
 # boot-core = { version = "0.5.1" }
 # boot-cw-plus = "0.5.1"
-boot-core = { version = "0.5.1", git =  "https://github.com/Abstract-OS/BOOT.git", branch = "feature/deployment_trait"}
-boot-cw-plus = { version = "0.5.1",  git =  "https://github.com/Abstract-OS/BOOT.git", branch = "feature/deployment_trait" }
+boot-core = { version = "0.5.1", git =  "https://github.com/Abstract-OS/BOOT.git"}
+boot-cw-plus = { version = "0.5.1",  git =  "https://github.com/Abstract-OS/BOOT.git"}
 
 clap =  { version = "4.0.32", features = ["derive"] }

@@ -50,13 +50,11 @@ pub struct AutocompounderMigrateMsg {}
 /// Init msg
 #[cosmwasm_schema::cw_serde]
 pub struct AutocompounderInstantiateMsg {
-    // pub staking_contract: String,
-    // pub liquidity_token: String,
     pub performance_fees: Decimal,
     pub deposit_fees: Decimal,
     pub withdrawal_fees: Decimal,
     pub fee_asset: String,
-    /// address that recieves the fee commissions
+    /// address that receives the fee commissions
     pub commission_addr: String,
     /// cw20 code id
     pub code_id: u64,
@@ -64,6 +62,8 @@ pub struct AutocompounderInstantiateMsg {
     pub dex: DexName,
     /// Assets in the pool
     pub pool_assets: Vec<AssetEntry>,
+    /// Bonding period selector
+    pub preferred_bonding_period: BondingPeriodSelector,
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -130,4 +130,11 @@ pub struct Config {
     pub bonding_period: Option<Duration>,
     /// minimum unbonding cooldown
     pub min_unbonding_cooldown: Option<Duration>,
+}
+
+#[cosmwasm_schema::cw_serde]
+pub enum BondingPeriodSelector {
+    Shortest,
+    Longest,
+    Custom(Duration),
 }
