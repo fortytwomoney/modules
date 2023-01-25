@@ -10,7 +10,7 @@ use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, Deps, QuerierWrapper, StdError, StdResult, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
-use cw20_stake::msg::{ReceiveMsg, ExecuteMsg as StakeCw20ExecuteMsg};
+use cw20_stake::msg::{ExecuteMsg as StakeCw20ExecuteMsg, ReceiveMsg};
 use cw_asset::{AssetInfo, AssetInfoBase};
 use cw_utils::Duration;
 use forty_two::cw_staking::{Claim, StakeResponse, StakingInfoResponse, UnbondingResponse};

@@ -9,7 +9,9 @@ use boot_core::prelude::*;
 use boot_core::state::StateInterface;
 use boot_core::{networks, DaemonOptionsBuilder};
 use cosmwasm_std::{Addr, Decimal, Empty};
-use forty_two::autocompounder::{AutocompounderInstantiateMsg, AUTOCOMPOUNDER, BondingPeriodSelector};
+use forty_two::autocompounder::{
+    AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER,
+};
 use forty_two::cw_staking::CW_STAKING;
 use std::env;
 use std::sync::Arc;

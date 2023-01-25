@@ -104,7 +104,7 @@ pub fn lp_provision_reply(
         app,
         config.pool_data.dex,
         AnsAsset::new(lp_token, received_lp),
-        config.unbonding_period
+        config.unbonding_period,
     )?;
 
     Ok(Response::new()
@@ -293,7 +293,7 @@ pub fn compound_lp_provision_reply(
         app,
         config.pool_data.dex,
         AnsAsset::new(lp_token, lp_balance),
-        config.unbonding_period
+        config.unbonding_period,
     )?;
 
     Ok(Response::new()

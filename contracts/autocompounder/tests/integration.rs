@@ -28,7 +28,9 @@ use boot_cw_plus::Cw20;
 use cosmwasm_std::{to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_multi_test::{App, ContractWrapper, Executor};
-use forty_two::autocompounder::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, BondingPeriodSelector};
+use forty_two::autocompounder::{
+    AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, BondingPeriodSelector,
+};
 use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
 use forty_two::cw_staking::CW_STAKING;
 use speculoos::assert_that;

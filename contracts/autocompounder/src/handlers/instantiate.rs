@@ -93,8 +93,8 @@ pub fn instantiate_handler(
                 }
             });
             let unbonding_duration = match preferred_bonding_period {
-                BondingPeriodSelector::Shortest => unbonding_periods.first().unwrap().clone(),
-                BondingPeriodSelector::Longest => unbonding_periods.last().unwrap().clone(),
+                BondingPeriodSelector::Shortest => *unbonding_periods.first().unwrap(),
+                BondingPeriodSelector::Longest => *unbonding_periods.last().unwrap(),
                 BondingPeriodSelector::Custom(duration) => {
                     // check if the duration is in the unbonding periods
                     if unbonding_periods.contains(&duration) {
