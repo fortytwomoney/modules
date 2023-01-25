@@ -22,7 +22,7 @@ default = ["juno", "terra"]
 library = []
 # for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces"]
-juno = ["dep:wasmswap", "dep:cw20_junoswap", "dep:cw20-stake", "dep:wyndex"]
+juno = ["dep:wasmswap", "dep:cw20_junoswap", "dep:cw20-stake", "dep:wyndex", "dep:wyndex-stake"]
 osmosis = ["library", "dep:osmosis-std"]
 terra = ["dep:astroport"]
 
@@ -45,7 +45,7 @@ wasmswap = { git = "https://github.com/Wasmswap/wasmswap-contracts", tag = "v1.1
   "library",
 ], optional = true }
 wyndex = {git = "https://github.com/cosmorama/wynddex.git", optional = true}
-
+wyndex-stake = {git = "https://github.com/cosmorama/wynddex.git", optional = true}
 cw-utils = {workspace = true}
 # Terra dexes
 cw20 = { workspace = true }
