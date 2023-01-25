@@ -13,15 +13,20 @@ use cw20::Cw20ExecuteMsg;
 use cw20_stake::msg::{ExecuteMsg as StakeCw20ExecuteMsg, ReceiveMsg};
 use cw_asset::{AssetInfo, AssetInfoBase};
 use cw_utils::Duration;
-use forty_two::cw_staking::{Claim, StakeResponse, StakingInfoResponse, UnbondingResponse};
+use forty_two::cw_staking::{
+    Claim, RewardTokensResponse, StakeResponse, StakingInfoResponse, UnbondingResponse,
+};
 
 pub const WYNDEX: &str = "wyndex";
+
+pub const WYND_TOKEN: &str = "juno>wynd";
 // Source https://github.com/wasmswap/wasmswap-contracts
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WynDex {
     lp_token: LpToken,
     lp_token_address: Addr,
     staking_contract_address: Addr,
+    ans_host: Addr,
 }
 
 impl Default for WynDex {
@@ -30,6 +35,7 @@ impl Default for WynDex {
             lp_token: Default::default(),
             lp_token_address: Addr::unchecked(""),
             staking_contract_address: Addr::unchecked(""),
+            ans_host: Addr::unchecked(""),
         }
     }
 }
@@ -151,11 +157,17 @@ impl CwStaking for WynDex {
             .collect();
         Ok(UnbondingResponse { claims })
     }
-    fn query_reward_tokens(
-        &self,
-        _querier: &QuerierWrapper,
-    ) -> StdResult<forty_two::cw_staking::RewardTokensResponse> {
-        todo!()
+    fn query_reward_tokens(&self, querier: &QuerierWrapper) -> StdResult<RewardTokensResponse> {
+        // hardcode as wynd token for now.
+        let token = AssetEntry::new(WYND_TOKEN).resolve(
+            querier,
+            &AnsHost {
+                address: self.ans_host.clone(),
+            },
+        )?;
+        Ok(RewardTokensResponse {
+            tokens: vec![token],
+        })
     }
 }
 
