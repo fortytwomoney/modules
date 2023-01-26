@@ -35,6 +35,7 @@ use forty_two::autocompounder::{
 use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
 use forty_two::cw_staking::CW_STAKING;
 use speculoos::assert_that;
+use speculoos::prelude::OrderedAssertions;
 use test_utils::abstract_helper::{self, init_auto_compounder};
 use test_utils::astroport::{Astroport, PoolWithProxy, EUR_TOKEN, USD_TOKEN};
 use test_utils::vault::Vault;
@@ -221,8 +222,14 @@ fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
 
 
 }
+
 #[test]
-fn generator_without_reward_proxies() -> Result<(), BootError> {
+/// This test covers:
+/// - depositing and withdrawing with a single sided asset
+/// - querying the state of the auto-compounder 
+/// - querying the balance of a users position in the auto-compounder
+/// - querying the total lp balance of the auto-compounder
+fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
    let owner = Addr::unchecked(test_utils::OWNER);
 
     // create testing environment
@@ -244,6 +251,9 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
 
     // check config setup
     let config = vault.auto_compounder.config()?;
+    let position = vault.auto_compounder.total_lp_position()?;
+    assert_that!(position).is_equal_to(Uint128::zero());
+
     assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
 
     // give user some funds
@@ -258,27 +268,48 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
     // this is set by Astroport
     vault.auto_compounder.deposit(vec![
         AnsAsset::new(eur_asset.clone(), 10000u128),
-        AnsAsset::new(usd_asset, 10000u128),
+        AnsAsset::new(usd_asset.clone(), 10000u128),
     ])?;
+
+    let position = vault.auto_compounder.total_lp_position()?;
+    assert_that!(position).is_greater_than(Uint128::zero());
 
     // single asset deposit
     eur_token.increase_allowance(&auto_compounder_addr, 1_000u128, None)?;
     vault
         .auto_compounder
         .deposit(vec![AnsAsset::new(eur_asset.clone(), 1000u128)])?;
-
+        
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(10495u128);
+    let new_position = vault.auto_compounder.total_lp_position()?;
+    assert_that!(new_position).is_greater_than(position);
+
+    usd_token.increase_allowance(&auto_compounder_addr, 1_000u128, None)?;
+    vault
+        .auto_compounder
+        .deposit(vec![AnsAsset::new(usd_asset.clone(), 1000u128)])?;
+        
+    // check that the vault token is increased
+    let vault_token_balance = vault_token.balance(&owner)?;
+    assert_that!(vault_token_balance).is_equal_to(10989u128);
+    // check if the vault balance query functions properly:
+    let vault_balance_queried = vault.auto_compounder.balance(owner.to_string())?;
+    assert_that!(vault_balance_queried).is_equal_to(Uint128::from(vault_token_balance));
+
+    let position = new_position;
+    let new_position = vault.auto_compounder.total_lp_position()?;
+    assert_that!(new_position).is_greater_than(position);
 
     // and eur balance decreased and usd balance stayed the same
     let eur_balance = eur_token.balance(&owner)?;
     let usd_balance = usd_token.balance(&owner)?;
     assert_that!(eur_balance).is_equal_to(89_000u128);
-    assert_that!(usd_balance).is_equal_to(90_000u128);
+    assert_that!(usd_balance).is_equal_to(89_000u128);
 
     // withdraw part from the auto-compounder
-    vault_token.send(&Cw20HookMsg::Redeem {}, 4495, auto_compounder_addr.clone())?;
+    vault_token.send(&Cw20HookMsg::Redeem {}, 4989, auto_compounder_addr.clone())?;
     // check that the vault token decreased
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(6000u128);
@@ -287,15 +318,19 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
     // and eur and usd balance increased
     let eur_balance = eur_token.balance(&owner)?;
     let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(93_496u128);
-    assert_that!(usd_balance).is_equal_to(94_491u128);
+    assert_that!(eur_balance).is_equal_to(93_988u128);
+    assert_that!(usd_balance).is_equal_to(93_988u128);
+
+    let position = new_position;
+    let new_position = vault.auto_compounder.total_lp_position()?;
+    assert_that!(new_position).is_less_than(position);
     
     let generator_staked_balance = eur_usd_lp.balance(&generator)?;
     assert_that!(generator_staked_balance).is_equal_to(6000u128);
 
     // withdraw all from the auto-compounder
     vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr.clone())?;
-
+    
 
     // testing general non unbonding staking contract functionality
     let pending_claims = vault.auto_compounder.pending_claims(owner.to_string())?.into();
@@ -305,14 +340,19 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
     vault.auto_compounder.withdraw().unwrap_err(); // withdraw wont have any effect, because there are no pending claims
     // mock.next_block()?;
 
+    let eur_balance = eur_token.balance(&owner)?;
+    let usd_balance = usd_token.balance(&owner)?;
+    assert_that!(eur_balance).is_equal_to(99_988u128);
+    assert_that!(usd_balance).is_equal_to(99_988u128);
+
+    let new_position = vault.auto_compounder.total_lp_position()?;
+    assert_that!(new_position).is_equal_to(Uint128::zero());
+
     Ok(())
 
     // test other functions:
-    // - withdraw
-    // - claim
     // - fee distribution
     // deposit and withdraw in same block
-    
     // tests for unwanted scenarios:
     // - deposit with no allowance
     // - deposit with insufficient funds

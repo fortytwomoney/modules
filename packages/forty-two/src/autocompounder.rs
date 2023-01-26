@@ -114,6 +114,10 @@ pub enum AutocompounderQueryMsg {
     /// Returns [`Uint128`]
     #[returns(Uint128)]
     TotalLpPosition {},
+    /// Query the balance of vault tokens of a given address 
+    /// Returns [`Uint128`]
+    #[returns(Uint128)]
+    Balance { address: String },
 }
 
 

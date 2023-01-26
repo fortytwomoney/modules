@@ -312,5 +312,4 @@ fn provide_liquidity(app: &mut App, sender: &Addr, receiver: &Addr, pair: &Addr,
     let msg = astroport::pair::ExecuteMsg::ProvideLiquidity { assets, slippage_tolerance: None, auto_stake: Some(false), receiver: Some(receiver.to_string())};
 
     app.execute_contract(sender.clone(), pair.clone(), &msg, &[]).unwrap();
-    
 }

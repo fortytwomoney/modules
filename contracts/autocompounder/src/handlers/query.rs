@@ -4,6 +4,7 @@ use abstract_sdk::os::objects::LpToken;
 use abstract_sdk::ModuleInterface;
 use abstract_sdk::base::features::Identification;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, StdResult, Order, Uint128};
+
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 use forty_two::autocompounder::{AutocompounderQueryMsg, Config};
@@ -26,6 +27,7 @@ pub fn query_handler(
         AutocompounderQueryMsg::AllClaims { start_after, limit } => to_binary(&query_all_claims(deps, start_after, limit)?),
         AutocompounderQueryMsg::LatestUnbonding {} => to_binary(&query_latest_unbonding(deps)?),
         AutocompounderQueryMsg::TotalLpPosition {  } => to_binary(&query_total_lp_position(app, deps)?),
+        AutocompounderQueryMsg::Balance { address } => to_binary(&query_balance(app, deps, address)?),
     }
 }
 
@@ -93,4 +95,12 @@ pub fn query_total_lp_position(app: &AutocompounderApp, deps: Deps) -> StdResult
         unbonding_period: config.unbonding_period};
     let res: forty_two::cw_staking::StakeResponse = modules.query_api(CW_STAKING, query)?;
     Ok(res.amount)
+}
+
+pub fn query_balance(app: &AutocompounderApp, deps: Deps, address: String) -> StdResult<Uint128> {
+    let config = CONFIG.load(deps.storage)?;
+    let vault_balance: cw20::BalanceResponse = deps
+    .querier
+    .query_wasm_smart(config.vault_token.clone(), &cw20::Cw20QueryMsg::Balance { address })?;
+    Ok(vault_balance.balance)
 }
