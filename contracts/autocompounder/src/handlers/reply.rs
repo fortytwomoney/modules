@@ -73,6 +73,7 @@ pub fn lp_provision_reply(
         &app,
         config.pool_data.dex.clone(),
         lp_token.clone().into(),
+        config.unbonding_period,
     )?;
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.

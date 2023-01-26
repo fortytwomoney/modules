@@ -2,7 +2,7 @@
 mod test_utils;
 use abstract_boot::{Abstract, ManagerQueryFns};
 use abstract_os::api::BaseExecuteMsgFns;
-use abstract_os::objects::{AnsAsset, AssetEntry, LpToken};
+use abstract_os::objects::{AnsAsset, AssetEntry};
 use abstract_os::EXCHANGE;
 use astroport::asset::{Asset, AssetInfo, PairInfo};
 use astroport::{
@@ -180,7 +180,7 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(6000u128);
     // and eur balance increased
-    let eur_balance = eur_token.balance(&owner)?;
+    let _eur_balance = eur_token.balance(&owner)?;
     // assert_that!(eur_balance).is_equal_to(90_000u128);
 
     mock.next_block()?;

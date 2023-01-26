@@ -30,21 +30,21 @@ exclude = [
 
 # Keep as is until TendermintStake updates.
 [workspace.dependencies]
-abstract-sdk = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/reverse_asset_lookup"}
-abstract-api = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/reverse_asset_lookup"}
-abstract-app = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/reverse_asset_lookup"}
-abstract-os = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/reverse_asset_lookup"}
-abstract-boot = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git", branch = "feature/reverse_asset_lookup"}
+abstract-sdk = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git"}
+abstract-api = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git"}
+abstract-app = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git"}
+abstract-os = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git"}
+abstract-boot = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git"}
 forty-two = { version = "0.2.0", path = "packages/forty-two" }
 forty-two-boot = { version = "0.2.0", path = "packages/forty-two-boot" }
 cosmwasm-std = { version = "1.1" }
 cosmwasm-schema = { version = "1.1" }
-cw-asset = { version = "2.4", git = "https://github.com/CyberHoward/cw-asset.git" }
+cw-asset = {git = "https://github.com/CyberHoward/cw-asset.git" }
 schemars = "0.8"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0" }
 cw-storage-plus = "0.16.0"
-cw-controllers = "1.0.1"
+cw-controllers = "0.16.0"
 cw-paginate = {git = "https://github.com/DA0-DA0/dao-contracts.git", tag = "v1.0.0"}
 cosmwasm-storage = { version = "1.1" }
 

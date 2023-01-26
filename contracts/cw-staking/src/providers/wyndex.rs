@@ -7,14 +7,19 @@ use abstract_sdk::{
     Resolve,
 };
 use cosmwasm_std::{
-    to_binary, Addr, CosmosMsg, Deps, QuerierWrapper, StdError, StdResult, Uint128, WasmMsg,
+    to_binary, Addr, CosmosMsg, Deps, Env, QuerierWrapper, StdError, StdResult, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
-use wyndex_stake::msg::{ExecuteMsg as StakeCw20ExecuteMsg, ReceiveDelegationMsg as ReceiveMsg, BondingInfoResponse};
 use cw_asset::{AssetInfo, AssetInfoBase};
 use cw_utils::Duration;
 use forty_two::cw_staking::{
     Claim, RewardTokensResponse, StakeResponse, StakingInfoResponse, UnbondingResponse,
+};
+use wyndex_stake::{
+    msg::{
+        BondingInfoResponse, ExecuteMsg as StakeCw20ExecuteMsg, ReceiveDelegationMsg as ReceiveMsg,
+    },
+    state::{BondingInfo, STAKE},
 };
 
 pub const WYNDEX: &str = "wyndex";
@@ -27,6 +32,7 @@ pub struct WynDex {
     lp_token_address: Addr,
     staking_contract_address: Addr,
     ans_host: Addr,
+    env: Option<Env>,
 }
 
 impl Default for WynDex {
@@ -36,6 +42,7 @@ impl Default for WynDex {
             lp_token_address: Addr::unchecked(""),
             staking_contract_address: Addr::unchecked(""),
             ans_host: Addr::unchecked(""),
+            env: None,
         }
     }
 }
@@ -70,8 +77,11 @@ impl CwStaking for WynDex {
         amount: Uint128,
         unbonding_period: Option<Duration>,
     ) -> Result<Vec<CosmosMsg>, StakingError> {
-        let unbonding_period = unwrap_unbond(self,unbonding_period)?;
-        let msg = to_binary(&ReceiveMsg::Delegate { unbonding_period, delegate_as: None })?;
+        let unbonding_period = unwrap_unbond(self, unbonding_period)?;
+        let msg = to_binary(&ReceiveMsg::Delegate {
+            unbonding_period,
+            delegate_as: None,
+        })?;
         Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.lp_token_address.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
@@ -89,8 +99,11 @@ impl CwStaking for WynDex {
         amount: Uint128,
         unbonding_period: Option<Duration>,
     ) -> Result<Vec<CosmosMsg>, StakingError> {
-        let unbonding_period = unwrap_unbond(self,unbonding_period)?;
-        let msg = StakeCw20ExecuteMsg::Unbond { tokens: amount, unbonding_period };
+        let unbonding_period = unwrap_unbond(self, unbonding_period)?;
+        let msg = StakeCw20ExecuteMsg::Unbond {
+            tokens: amount,
+            unbonding_period,
+        };
         Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.staking_contract_address.to_string(),
             msg: to_binary(&msg)?,
@@ -109,37 +122,56 @@ impl CwStaking for WynDex {
     }
 
     fn query_info(&self, querier: &QuerierWrapper) -> StdResult<StakingInfoResponse> {
-        let stake_info_resp: BondingInfoResponse = querier.query_wasm_smart(
+        let bonding_info_resp: BondingInfoResponse = querier.query_wasm_smart(
             self.staking_contract_address.clone(),
-            &wyndex_stake::msg::QueryMsg::BondingInfo {  },
+            &wyndex_stake::msg::QueryMsg::BondingInfo {},
         )?;
 
-    
-        
+        let _distibution_info_resp: BondingInfoResponse = querier.query_wasm_smart(
+            self.staking_contract_address.clone(),
+            &wyndex_stake::msg::QueryMsg::BondingInfo {},
+        )?;
 
         Ok(StakingInfoResponse {
             staking_contract_address: self.staking_contract_address.clone(),
-            staking_token: AssetInfo::Cw20(stake_info_resp.),
-            unbonding_periods: Some(stake_info_resp
-                .bonding
-                .into_iter()
-                .map(|bond_period| Duration::Time(bond_period.unbonding_period)).collect()),
-            max_claims: Some(wyndex_stake::state::MAX_CLAIMS as u32),
+            staking_token: AssetInfo::Cw20(self.lp_token_address.clone()),
+            unbonding_periods: Some(
+                bonding_info_resp
+                    .bonding
+                    .into_iter()
+                    .map(|bond_period| Duration::Time(bond_period.unbonding_period))
+                    .collect(),
+            ),
+            max_claims: None,
         })
     }
 
-    fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<StakeResponse> {
-        let stake_balance: wyndex_stake::msg::StakedBalanceAtHeightResponse = querier
-            .query_wasm_smart(
-                self.staking_contract_address.clone(),
-                &wyndex_stake::msg::QueryMsg::StakedBalanceAtHeight {
-                    address: staker.into_string(),
-                    height: None,
-                },
-            )?;
-        Ok(StakeResponse {
-            amount: stake_balance.balance,
-        })
+    fn query_staked(
+        &self,
+        querier: &QuerierWrapper,
+        staker: Addr,
+        unbonding_period: Option<Duration>,
+    ) -> StdResult<StakeResponse> {
+        let unbonding_period = unwrap_unbond(self, unbonding_period)
+            .map_err(|e| StdError::generic_err(e.to_string()))?;
+        // Raw query because the smart-query returns staked + currently unbonding tokens, which is not what we want.
+        // we want the actual staked token balance.
+        let stake_balance_res: Result<Option<BondingInfo>, _> = STAKE.query(
+            querier,
+            self.staking_contract_address.clone(),
+            (&staker, unbonding_period),
+        );
+        let stake_balance_info = stake_balance_res
+            .map_err(|_| StdError::generic_err("Raw query for wynddex stake balance failed."))?;
+
+        let amount = if let Some(bonding_info) = stake_balance_info {
+            bonding_info.total_stake()
+                - bonding_info.total_locked(self.env.as_ref().unwrap())
+                - bonding_info.total_unlocked(self.env.as_ref().unwrap())
+        } else {
+            Uint128::zero()
+        };
+        Ok(StakeResponse { amount })
     }
 
     fn query_unbonding(
@@ -147,7 +179,7 @@ impl CwStaking for WynDex {
         querier: &QuerierWrapper,
         staker: Addr,
     ) -> StdResult<UnbondingResponse> {
-        let claims: wyndex_stake::msg::ClaimsResponse = querier.query_wasm_smart(
+        let claims: cw_controllers::ClaimsResponse = querier.query_wasm_smart(
             self.staking_contract_address.clone(),
             &wyndex_stake::msg::QueryMsg::Claims {
                 address: staker.into_string(),
@@ -158,7 +190,7 @@ impl CwStaking for WynDex {
             .iter()
             .map(|claim| Claim {
                 amount: claim.amount,
-                claimable_at: parse_expiration(claim.release_at),
+                claimable_at: claim.release_at,
             })
             .collect();
         Ok(UnbondingResponse { claims })
@@ -171,14 +203,13 @@ impl CwStaking for WynDex {
                 address: self.ans_host.clone(),
             },
         )?;
-        wyndex::stake::
         Ok(RewardTokensResponse {
             tokens: vec![token],
         })
     }
 }
 
-fn unwrap_unbond(dex: &WynDex, unbonding_period: Option<Duration>) -> Result<u64,StakingError> {
+fn unwrap_unbond(dex: &WynDex, unbonding_period: Option<Duration>) -> Result<u64, StakingError> {
     let Some(Duration::Time(unbonding_period)) = unbonding_period else {
         if unbonding_period.is_none() {
             return Err(StakingError::UnbondingPeriodNotSet(dex.name().to_owned()));
@@ -187,19 +218,4 @@ fn unwrap_unbond(dex: &WynDex, unbonding_period: Option<Duration>) -> Result<u64
         }
     };
     Ok(unbonding_period)
-}
-
-fn parse_duration(d: dao_cw_utils::Duration) -> cw_utils::Duration {
-    match d {
-        dao_cw_utils::Duration::Height(a) => cw_utils::Duration::Height(a),
-        dao_cw_utils::Duration::Time(a) => cw_utils::Duration::Time(a),
-    }
-}
-
-fn parse_expiration(d: dao_cw_utils::Expiration) -> cw_utils::Expiration {
-    match d {
-        dao_cw_utils::Expiration::AtHeight(a) => cw_utils::Expiration::AtHeight(a),
-        dao_cw_utils::Expiration::AtTime(a) => cw_utils::Expiration::AtTime(a),
-        _ => cw_utils::Expiration::Never {},
-    }
 }

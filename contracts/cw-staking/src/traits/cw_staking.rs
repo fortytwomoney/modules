@@ -70,7 +70,12 @@ pub trait CwStaking: Identify {
     fn query_info(&self, querier: &QuerierWrapper) -> StdResult<StakingInfoResponse>;
     // This function queries the staked token balance of a staker
     // The staking contract is queried using the staking address
-    fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<StakeResponse>;
+    fn query_staked(
+        &self,
+        querier: &QuerierWrapper,
+        staker: Addr,
+        unbonding_period: Option<Duration>,
+    ) -> StdResult<StakeResponse>;
     fn query_unbonding(
         &self,
         querier: &QuerierWrapper,

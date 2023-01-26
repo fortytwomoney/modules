@@ -59,7 +59,6 @@ pub enum CwStakingQueryMsg {
     #[returns(StakingInfoResponse)]
     Info {
         provider: ProviderName,
-        // perhaps this should take the assets? Or the resolved?
         staking_token: AssetEntry,
     },
     #[returns(StakeResponse)]
@@ -67,6 +66,7 @@ pub enum CwStakingQueryMsg {
         provider: ProviderName,
         staking_token: AssetEntry,
         staker_address: String,
+        unbonding_period: Option<Duration>,
     },
     #[returns(UnbondingResponse)]
     Unbonding {

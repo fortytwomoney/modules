@@ -53,7 +53,9 @@ pub fn update_fee_config(
     withdrawal: Option<Decimal>,
     deposit: Option<Decimal>,
 ) -> AutocompounderResult {
-    app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
+    app.admin
+        .assert_admin(deps.as_ref(), &msg_info.sender)
+        .unwrap();
 
     if let Some(fee) = fee {
         check_fee(fee)?;
@@ -355,8 +357,13 @@ fn calculate_withdrawals(
     let vault_tokens_total_supply = cw20_total_supply(deps, config)?;
 
     // 2) get total staked lp token
-    let total_lp_tokens_staked_in_vault =
-        query_stake(deps, app, config.pool_data.dex.clone(), lp_token)?;
+    let total_lp_tokens_staked_in_vault = query_stake(
+        deps,
+        app,
+        config.pool_data.dex.clone(),
+        lp_token,
+        config.unbonding_period,
+    )?;
 
     let mut updated_claims: Vec<(String, Vec<Claim>)> = vec![];
     for pending_claim in pending_claims {

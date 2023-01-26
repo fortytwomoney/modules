@@ -35,6 +35,7 @@ pub fn query_handler(
             provider,
             staking_token,
             staker_address,
+            unbonding_period,
         } => {
             // if provider is on an app-chain, error
             if is_over_ibc(&provider)? {
@@ -44,10 +45,11 @@ pub fn query_handler(
                 let mut provider = resolver::resolve_local_provider(&provider)
                     .map_err(|e| StdError::generic_err(e.to_string()))?;
                 provider.fetch_data(deps, ans_host, staking_token)?;
-                to_binary(
-                    &provider
-                        .query_staked(&deps.querier, deps.api.addr_validate(&staker_address)?)?,
-                )
+                to_binary(&provider.query_staked(
+                    &deps.querier,
+                    deps.api.addr_validate(&staker_address)?,
+                    unbonding_period,
+                )?)
             }
         }
         CwStakingQueryMsg::Unbonding {

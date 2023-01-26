@@ -132,7 +132,12 @@ impl CwStaking for Astroport {
         })
     }
 
-    fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<StakeResponse> {
+    fn query_staked(
+        &self,
+        querier: &QuerierWrapper,
+        staker: Addr,
+        _unbonding_period: Option<Duration>,
+    ) -> StdResult<StakeResponse> {
         let stake_balance: Uint128 = querier
             .query_wasm_smart(
                 self.generator_contract_address.clone(),
