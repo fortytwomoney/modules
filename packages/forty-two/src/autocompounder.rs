@@ -159,6 +159,8 @@ pub enum BondingPeriodSelector {
     Longest,
     Custom(Duration),
 }
+
+#[cosmwasm_schema::cw_serde]
 pub struct Claim {
     // timestamp of the start of the unbonding process
     pub unbonding_timestamp: Expiration,

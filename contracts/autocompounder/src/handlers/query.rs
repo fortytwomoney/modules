@@ -39,7 +39,7 @@ pub fn query_config(deps: Deps) -> StdResult<Config> {
 // write query functions for all State const variables: Claims, PendingClaims, LatestUnbonding
 
 pub fn query_pending_claims(deps: Deps, address: String) -> StdResult<Uint128> {
-    let bonding_period = CONFIG.load(deps.storage)?.bonding_period;
+    let bonding_period = CONFIG.load(deps.storage)?.unbonding_period;
     if bonding_period.is_none() {
         return Ok(Uint128::zero());
     }
@@ -54,7 +54,7 @@ pub fn query_claims(deps: Deps, address: String) -> StdResult<Vec<Claim>> {
 }
 
 pub fn query_all_claims(deps: Deps, start_after: Option<String>, limit: Option<u8>) -> StdResult<Vec<(String,Vec<Claim>)>> {
-    let bonding_period = CONFIG.load(deps.storage)?.bonding_period;
+    let bonding_period = CONFIG.load(deps.storage)?.unbonding_period;
     if bonding_period.is_none() {
         return Ok(vec![]);
     }
@@ -89,7 +89,8 @@ pub fn query_total_lp_position(app: &AutocompounderApp, deps: Deps) -> StdResult
     let query = CwStakingQueryMsg::Staked { 
         provider: config.pool_data.dex.clone(), 
         staking_token: LpToken::from(config.pool_data).into() , 
-        staker_address: app.proxy_address(deps)?.to_string()  };
+        staker_address: app.proxy_address(deps)?.to_string(),
+        unbonding_period: config.unbonding_period};
     let res: forty_two::cw_staking::StakeResponse = modules.query_api(CW_STAKING, query)?;
     Ok(res.amount)
 }

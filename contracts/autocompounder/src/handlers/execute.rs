@@ -165,7 +165,7 @@ pub fn deposit(
 
 pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
-    if config.bonding_period.is_none() {
+    if config.unbonding_period.is_none() {
         return Err(AutocompounderError::UnbondingNotEnabled {});
     }
 
@@ -239,7 +239,7 @@ fn redeem(
     // save the user address to the cache for later use in reply
     CACHED_USER_ADDR.save(deps.storage, &sender)?;
 
-    if config.bonding_period.is_none() {
+    if config.unbonding_period.is_none() {
     // if bonding period is not set, we can just burn the tokens, and withdraw the underlying assets in the lp pool.
     // 1) get the total supply of Vault token
         let vault_tokens_total_supply = cw20_total_supply(deps.as_ref(), &config)?;
@@ -247,7 +247,7 @@ fn redeem(
 
         // 2) get total staked lp token
         let total_lp_tokens_staked_in_vault =
-            query_stake(deps.as_ref(), &app, config.pool_data.dex.clone(), lp_token.into())?;
+            query_stake(deps.as_ref(), &app, config.pool_data.dex.clone(), lp_token.into(), None)?;
 
         let lp_tokens_withdraw_amount = Decimal::from_ratio(
             amount_of_vault_tokens_to_be_burned,
@@ -261,6 +261,7 @@ fn redeem(
             config.pool_data.dex.clone(),
             AssetEntry::from(LpToken::from(config.pool_data.clone())),
             amount_of_vault_tokens_to_be_burned,
+            None
         );
         let burn_msg = get_burn_msg(&config.vault_token, amount_of_vault_tokens_to_be_burned)?;
 
@@ -340,7 +341,7 @@ pub fn withdraw_claims(
     CACHED_USER_ADDR.save(deps.storage, &address)?;
     let config = CONFIG.load(deps.storage)?;
 
-    if config.bonding_period.is_none() {
+    if config.unbonding_period.is_none() {
         return Err(AutocompounderError::UnbondingNotEnabled {});
     }
     
