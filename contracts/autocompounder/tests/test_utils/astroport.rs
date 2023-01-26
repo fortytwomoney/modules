@@ -23,6 +23,8 @@ pub const FACTORY: &str = "astroport:factory";
 pub const ASTRO_TOKEN: &str = "astroport:token";
 pub const EUR_USD_PAIR: &str = "astroport:eur_usd_pair";
 pub const EUR_USD_LP: &str = "astroport?eur,usd";
+pub const ASTRO_USD_PAIR: &str = "astroport:astro_usd_pair";
+pub const ASTRO_USD_LP: &str = "astroport?astro,usd";
 pub const EUR_TOKEN: &str = "eur";
 pub const USD_TOKEN: &str = "usd";
 
@@ -32,6 +34,8 @@ pub struct Astroport {
     pub generator: Addr,
     pub eur_usd_pair: Addr,
     pub eur_usd_lp: Cw20<Mock>,
+    pub astro_usd_pair: Addr,
+    pub astro_usd_lp: Cw20<Mock>,
     pub astro_token: Cw20<Mock>,
     pub eur_token: Cw20<Mock>,
     pub usd_token: Cw20<Mock>,
@@ -112,6 +116,7 @@ impl Deploy<Mock> for Astroport {
 
     fn deploy_on(chain: Mock, _: Empty) -> Result<Self, Self::Error> {
         let eur_usd_lp: Cw20<Mock> = Cw20::new(EUR_USD_LP, chain.clone());
+        let astro_usd_lp: Cw20<Mock> = Cw20::new(ASTRO_USD_LP, chain.clone());
         let astro_token: Cw20<Mock> = Cw20::new(ASTRO_TOKEN, chain.clone());
         let eur_token: Cw20<Mock> = Cw20::new(EUR_TOKEN, chain.clone());
         let usd_token: Cw20<Mock> = Cw20::new(USD_TOKEN, chain.clone());
@@ -131,7 +136,7 @@ impl Deploy<Mock> for Astroport {
             &mut app,
             token_code_id,
             "ASTRO",
-            Some(1_000_000_000_000_000),
+            Some(1_000_000_001_000_000),
         );
         astro_token.set_address(&astro_token_instance);
 
@@ -159,9 +164,26 @@ impl Deploy<Mock> for Astroport {
                 },
             ],
         );
-        // save pair address and lp token address
         state.borrow_mut().set_address(EUR_USD_PAIR, &pair_eur_usd);
         eur_usd_lp.set_address(&lp_eur_usd);
+        
+        let (pair_usd_astro, lp_usd_astro) = create_pair(
+            &mut app,
+            &factory_instance,
+            None,
+            None,
+            vec![
+                AssetInfo::Token {
+                    contract_addr: astro_token_instance.clone(),
+                },
+                AssetInfo::Token {
+                    contract_addr: usd_token_addr.clone(),
+                },
+            ],
+        );
+        // save pair address and lp token address
+        state.borrow_mut().set_address(ASTRO_USD_PAIR, &pair_usd_astro);
+        astro_usd_lp.set_address(&lp_usd_astro);
 
         let generator_instance =
             instantiate_generator(&mut app, &factory_instance, &astro_token_instance, None);
@@ -177,57 +199,10 @@ impl Deploy<Mock> for Astroport {
             }],
         );
 
+        // give user some funds
         let astro_user = Addr::unchecked("astro_user");
-            // give user some funds
-        
-        mint_tokens(
-            &mut app,
-            owner.clone(),
-            &eur_token_addr,
-            &owner,
-            1_000_000,
-        );
-
-        mint_tokens(
-            &mut app,
-            owner.clone(),
-            &usd_token_addr,
-            &owner,
-            1_000_000,
-        );
-
-        increase_allowance(
-            &mut app,
-            owner.clone(),
-            &eur_token_addr,
-            &pair_eur_usd,
-            1_000_000,
-        );
-
-        increase_allowance(
-            &mut app,
-            owner.clone(),
-            &usd_token_addr,
-            &pair_eur_usd,
-            1_000_000,
-        );
-        
-
-        // add liquidity and mint the liquidity tokens to the astro user, so that the owner has no funds.
-        provide_liquidity(&mut app, &owner, &astro_user, &pair_eur_usd, vec![
-            Asset{
-                info: AssetInfo::Token {
-                    contract_addr: eur_token_addr.clone(),
-                },
-                amount: Uint128::from(1_000_000u128),
-            },
-            Asset{
-                info: AssetInfo::Token {
-                    contract_addr: usd_token_addr.clone(),
-                },
-                amount: Uint128::from(1_000_000u128),
-            },
-        ]);
+        provide_initial_liquidlity(&mut app, &owner, &eur_token_addr, &usd_token_addr, &pair_eur_usd, &astro_user);
+        provide_initial_liquidlity(&mut app, &owner, &astro_token_instance, &usd_token_addr, &pair_usd_astro, &astro_user);
 
         // drop the mutable borrow of app
         // This allows us to pass `chain` to load Abstract
@@ -236,6 +211,8 @@ impl Deploy<Mock> for Astroport {
         let astroport = Self {
             generator: generator_instance,
             eur_usd_pair: pair_eur_usd,
+            astro_usd_pair: pair_usd_astro,
+            astro_usd_lp,
             eur_usd_lp,
             astro_token,
             eur_token,
@@ -256,6 +233,8 @@ impl Deploy<Mock> for Astroport {
         let generator_instance = state.get_address(GENERATOR)?;
         let eur_usd_pair = state.get_address(EUR_USD_PAIR)?;
         let eur_usd_lp: Cw20<Mock> = Cw20::new(EUR_USD_LP, chain.clone());
+        let astro_usd_pair = state.get_address(ASTRO_USD_PAIR)?;
+        let astro_usd_lp: Cw20<Mock> = Cw20::new(ASTRO_USD_LP, chain.clone());
         let astro_token: Cw20<Mock> = Cw20::new(ASTRO_TOKEN, chain.clone());
         let eur_token: Cw20<Mock> = Cw20::new(EUR_TOKEN, chain.clone());
         let usd_token: Cw20<Mock> = Cw20::new(USD_TOKEN, chain.clone());
@@ -264,11 +243,64 @@ impl Deploy<Mock> for Astroport {
             generator: generator_instance,
             eur_usd_pair,
             eur_usd_lp,
+            astro_usd_pair,
+            astro_usd_lp,
             astro_token,
             eur_token,
             usd_token,
         })
     }
+}
+
+fn provide_initial_liquidlity(app: &mut std::cell::RefMut<App>, owner: &Addr, asset1: &Addr, asset2: &Addr, pair_addr: &Addr, receiver: &Addr) {
+    mint_tokens(
+        app,
+        owner.clone(),
+        &asset1,
+        &owner,
+        1_000_000,
+    );
+
+    mint_tokens(
+        app,
+        owner.clone(),
+        &asset2,
+        &owner,
+        1_000_000,
+    );
+
+    increase_allowance(
+        app,
+        owner.clone(),
+        &asset1,
+        pair_addr,
+        1_000_000,
+    );
+
+    increase_allowance(
+        app,
+        owner.clone(),
+        &asset2,
+        pair_addr,
+        1_000_000,
+    );
+        
+
+    // add liquidity and mint the liquidity tokens to the astro user, so that the owner has no funds.
+    provide_liquidity(app, &owner, &receiver, pair_addr, vec![
+        Asset{
+            info: AssetInfo::Token {
+                contract_addr: asset1.clone(),
+            },
+            amount: Uint128::from(1_000_000u128),
+        },
+        Asset{
+            info: AssetInfo::Token {
+                contract_addr: asset2.clone(),
+            },
+            amount: Uint128::from(1_000_000u128),
+        },
+    ]);
 }
 
 pub struct PoolWithProxy {
