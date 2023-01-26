@@ -126,6 +126,102 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, BootError> {
 }
 
 #[test]
+fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
+   let owner = Addr::unchecked(test_utils::OWNER);
+
+    // create testing environment
+    let (_state, mock) = instantiate_default_mock_env(&owner)?;
+
+    // create a vault
+    let vault = crate::create_vault(mock.clone())?;
+    let Astroport {
+        eur_token,
+        usd_token,
+        eur_usd_lp,
+        generator,
+        ..
+    } = vault.astroport;
+    let vault_token = vault.vault_token;
+    let auto_compounder_addr = vault.auto_compounder.addr_str()?;
+    let eur_asset = AssetEntry::new("eur");
+    let usd_asset = AssetEntry::new("usd");
+
+    // check config setup
+    let config = vault.auto_compounder.config()?;
+    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
+
+    // give user some funds
+    eur_token.mint(&owner, 100_000u128)?;
+    usd_token.mint(&owner, 100_000u128)?;
+
+    // increase allowance
+    eur_token.increase_allowance(&auto_compounder_addr, 10_000u128, None)?;
+    usd_token.increase_allowance(&auto_compounder_addr, 10_000u128, None)?;
+
+    // initial deposit must be > 1000 (of both assets)
+    // this is set by Astroport
+    vault.auto_compounder.deposit(vec![
+        AnsAsset::new(eur_asset.clone(), 10000u128),
+        AnsAsset::new(usd_asset, 10000u128),
+    ])?;
+
+    // check that the vault token is minted
+    let vault_token_balance = vault_token.balance(&owner)?;
+    assert_that!(vault_token_balance).is_equal_to(10000u128);
+
+    // and eur balance decreased and usd balance stayed the same
+    let eur_balance = eur_token.balance(&owner)?;
+    let usd_balance = usd_token.balance(&owner)?;
+    assert_that!(eur_balance).is_equal_to(90_000u128);
+    assert_that!(usd_balance).is_equal_to(90_000u128);
+
+    // withdraw part from the auto-compounder
+    vault_token.send(&Cw20HookMsg::Redeem {}, 4000, auto_compounder_addr.clone())?;
+    // check that the vault token decreased
+    let vault_token_balance = vault_token.balance(&owner)?;
+    assert_that!(vault_token_balance).is_equal_to(6000u128);
+    
+    
+    // and eur and usd balance increased. Rounding error is 1 (i guess)
+    let eur_balance = eur_token.balance(&owner)?;
+    let usd_balance = usd_token.balance(&owner)?;
+    assert_that!(eur_balance).is_equal_to(93_999u128);
+    assert_that!(usd_balance).is_equal_to(93_999u128);
+    
+    let generator_staked_balance = eur_usd_lp.balance(&generator)?;
+    assert_that!(generator_staked_balance).is_equal_to(6000u128);
+
+    // withdraw all from the auto-compounder
+    vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr.clone())?;
+    
+    let eur_balance = eur_token.balance(&owner)?;
+    let usd_balance = usd_token.balance(&owner)?;
+    assert_that!(eur_balance).is_equal_to(99_999u128);
+    assert_that!(usd_balance).is_equal_to(99_999u128);
+
+    Ok(())
+
+    // test other functions:
+    // - withdraw
+    // - claim
+    // - fee distribution
+    // deposit and withdraw in same block
+    
+    // tests for unwanted scenarios:
+    // - deposit with no allowance
+    // - deposit with insufficient funds
+    // - deposit with different assets
+    // withdraw with no allowance
+    // withdraw with insufficient funds
+    // withdraw with different assets
+    // - initialize with non existing pair
+    // initialize with non existing fee token
+    // initialize with non existing reward token
+    // test multiple user deposits and withdrawals
+
+
+}
+#[test]
 fn generator_without_reward_proxies() -> Result<(), BootError> {
    let owner = Addr::unchecked(test_utils::OWNER);
 
@@ -173,41 +269,43 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
 
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(&owner)?;
-    assert_that!(vault_token_balance).is_equal_to(9004u128);
-    // and eur balance decreased
+    assert_that!(vault_token_balance).is_equal_to(10495u128);
+
+    // and eur balance decreased and usd balance stayed the same
     let eur_balance = eur_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(89_000u128);
-    // and usd balance stayed the same
     let usd_balance = usd_token.balance(&owner)?;
+    assert_that!(eur_balance).is_equal_to(89_000u128);
     assert_that!(usd_balance).is_equal_to(90_000u128);
 
     // withdraw part from the auto-compounder
-    vault_token.send(&Cw20HookMsg::Redeem {}, 3004, auto_compounder_addr.clone())?;
+    vault_token.send(&Cw20HookMsg::Redeem {}, 4495, auto_compounder_addr.clone())?;
     // check that the vault token decreased
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(6000u128);
-    // and eur balance increased
     
+    
+    // and eur and usd balance increased
+    let eur_balance = eur_token.balance(&owner)?;
+    let usd_balance = usd_token.balance(&owner)?;
+    assert_that!(eur_balance).is_equal_to(93_496u128);
+    assert_that!(usd_balance).is_equal_to(94_491u128);
+    
+    let generator_staked_balance = eur_usd_lp.balance(&generator)?;
+    assert_that!(generator_staked_balance).is_equal_to(6000u128);
+
+    // withdraw all from the auto-compounder
+    vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr.clone())?;
+
+
+    // testing general non unbonding staking contract functionality
     let pending_claims = vault.auto_compounder.pending_claims(owner.to_string())?.into();
     assert_that!(pending_claims).is_equal_to(0u128); // no unbonding period, so no pending claims
 
     vault.auto_compounder.batch_unbond().unwrap_err(); // batch unbonding not enabled
-    // .is_equal_to(AutocompounderError::UnbondingNotEnabled {  }); // not neccessary, but to test the function
     vault.auto_compounder.withdraw().unwrap_err(); // withdraw wont have any effect, because there are no pending claims
-    // let pending_claims = vault.auto_compounder.query(QueryMsg::);
+    // mock.next_block()?;
 
-    // FIXME: the following tests give a balance that does not match the expected value
-    let eur_balance = eur_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(95_000u128);
-    
-    let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(usd_balance).is_equal_to(94_000u128);
-    mock.next_block()?;
-
-    let generator_staked_balance = eur_usd_lp.balance(&generator)?;
-    assert_that!(generator_staked_balance).is_equal_to(9004u128);
     Ok(())
-
 
     // test other functions:
     // - withdraw
@@ -575,6 +673,13 @@ fn mint_tokens(app: &mut App, sender: Addr, token: &Addr, recipient: &Addr, amou
         recipient: recipient.to_string(),
         amount: Uint128::from(amount),
     };
+
+    app.execute_contract(sender, token.to_owned(), &msg, &[])
+        .unwrap();
+}
+fn increase_allowance(app: &mut App, sender: Addr, token: &Addr, spender: &Addr, amount: u128) {
+    let msg = Cw20ExecuteMsg::IncreaseAllowance { spender: spender.to_string(), amount: amount.into(), expires: None }; 
+    
 
     app.execute_contract(sender, token.to_owned(), &msg, &[])
         .unwrap();

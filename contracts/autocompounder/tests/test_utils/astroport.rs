@@ -8,10 +8,10 @@ use abstract_boot::Abstract;
 use abstract_os::{
     ans_host::ExecuteMsgFns,
     objects::{
-        pool_id::PoolAddressBase, AssetEntry, LpToken, PoolMetadata, UncheckedContractEntry,
+        pool_id::PoolAddressBase, AssetEntry, LpToken, PoolMetadata, UncheckedContractEntry, AnsAsset,
     },
 };
-use astroport::asset::AssetInfo;
+use astroport::asset::{AssetInfo, Asset};
 use boot_core::{
     deploy::Deploy, prelude::ContractInstance, state::StateInterface, BootError, Mock,
 };
@@ -26,6 +26,7 @@ pub const EUR_USD_LP: &str = "astroport?eur,usd";
 pub const EUR_TOKEN: &str = "eur";
 pub const USD_TOKEN: &str = "usd";
 
+use super::OWNER;
 #[derive(Clone)]
 pub struct Astroport {
     pub generator: Addr,
@@ -176,12 +177,14 @@ impl Deploy<Mock> for Astroport {
             }],
         );
 
-        // mint tokens to pair to have some liquidity
+        let astro_user = Addr::unchecked("astro_user");
+            // give user some funds
+        
         mint_tokens(
             &mut app,
             owner.clone(),
             &eur_token_addr,
-            &pair_eur_usd,
+            &owner,
             1_000_000,
         );
 
@@ -189,9 +192,42 @@ impl Deploy<Mock> for Astroport {
             &mut app,
             owner.clone(),
             &usd_token_addr,
+            &owner,
+            1_000_000,
+        );
+
+        increase_allowance(
+            &mut app,
+            owner.clone(),
+            &eur_token_addr,
             &pair_eur_usd,
             1_000_000,
         );
+
+        increase_allowance(
+            &mut app,
+            owner.clone(),
+            &usd_token_addr,
+            &pair_eur_usd,
+            1_000_000,
+        );
+        
+
+        // add liquidity and mint the liquidity tokens to the astro user, so that the owner has no funds.
+        provide_liquidity(&mut app, &owner, &astro_user, &pair_eur_usd, vec![
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: eur_token_addr.clone(),
+                },
+                amount: Uint128::from(1_000_000u128),
+            },
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: usd_token_addr.clone(),
+                },
+                amount: Uint128::from(1_000_000u128),
+            },
+        ]);
 
         // drop the mutable borrow of app
         // This allows us to pass `chain` to load Abstract
@@ -238,4 +274,11 @@ impl Deploy<Mock> for Astroport {
 pub struct PoolWithProxy {
     pub pool: (String, Uint128),
     pub proxy: Option<Addr>,
+}
+
+fn provide_liquidity(app: &mut App, sender: &Addr, receiver: &Addr, pair: &Addr, assets: Vec<Asset>){
+    let msg = astroport::pair::ExecuteMsg::ProvideLiquidity { assets, slippage_tolerance: None, auto_stake: Some(false), receiver: Some(receiver.to_string())};
+
+    app.execute_contract(sender.clone(), pair.clone(), &msg, &[]).unwrap();
+    
 }
