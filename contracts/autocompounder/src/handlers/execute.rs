@@ -1,4 +1,12 @@
-use std::ops::Add;
+use super::helpers::{check_fee, cw20_total_supply, query_stake};
+use crate::contract::{
+    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
+    LP_WITHDRAWAL_REPLY_ID,
+};
+use crate::error::AutocompounderError;
+use crate::state::{
+    Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
+};
 use abstract_sdk::base::features::{AbstractNameService, Identification};
 use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
 use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken};
@@ -13,15 +21,7 @@ use cw_asset::AssetList;
 use cw_utils::Duration;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
-use crate::contract::{
-    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
-    LP_WITHDRAWAL_REPLY_ID,
-};
-use crate::error::AutocompounderError;
-use crate::state::{
-    Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
-};
-use super::helpers::{check_fee, cw20_total_supply, query_stake};
+use std::ops::Add;
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
@@ -53,7 +53,9 @@ pub fn update_fee_config(
     withdrawal: Option<Decimal>,
     deposit: Option<Decimal>,
 ) -> AutocompounderResult {
-    app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
+    app.admin
+        .assert_admin(deps.as_ref(), &msg_info.sender)
+        .unwrap();
 
     if let Some(fee) = fee {
         check_fee(fee)?;
@@ -189,6 +191,7 @@ pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> Autocomp
         config.pool_data.dex.clone(),
         AssetEntry::from(LpToken::from(config.pool_data.clone())),
         total_lp_amount_to_unbond,
+        config.unbonding_period,
     );
 
     let burn_msg = get_burn_msg(&config.vault_token, total_vault_tokens_to_burn)?;
@@ -343,7 +346,7 @@ fn calculate_withdrawals(
 ) -> Result<(Uint128, Uint128, Vec<(String, Vec<Claim>)>), AutocompounderError> {
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
     let unbonding_timestamp = config
-        .bonding_period
+        .unbonding_period
         .unwrap_or(Duration::Height(0))
         .after(&env.block);
 
@@ -354,8 +357,13 @@ fn calculate_withdrawals(
     let vault_tokens_total_supply = cw20_total_supply(deps, config)?;
 
     // 2) get total staked lp token
-    let total_lp_tokens_staked_in_vault =
-        query_stake(deps, app, config.pool_data.dex.clone(), lp_token)?;
+    let total_lp_tokens_staked_in_vault = query_stake(
+        deps,
+        app,
+        config.pool_data.dex.clone(),
+        lp_token,
+        config.unbonding_period,
+    )?;
 
     let mut updated_claims: Vec<(String, Vec<Claim>)> = vec![];
     for pending_claim in pending_claims {
@@ -451,6 +459,7 @@ fn unstake_lp_tokens(
     provider: String,
     lp_token_name: AssetEntry,
     amount: Uint128,
+    unbonding_period: Option<Duration>,
 ) -> CosmosMsg {
     let modules = app.modules(deps);
 
@@ -461,6 +470,7 @@ fn unstake_lp_tokens(
                 provider,
                 action: CwStakingAction::Unstake {
                     staking_token: AnsAsset::new(lp_token_name, amount),
+                    unbonding_period,
                 },
             },
         )

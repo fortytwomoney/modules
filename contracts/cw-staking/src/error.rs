@@ -39,4 +39,10 @@ pub enum StakingError {
 
     #[error("Maximum spread {0} exceeded for dex {1}")]
     MaxSlippageAssertion(String, String),
+
+    #[error("Unbonding period must be set for staking {0}")]
+    UnbondingPeriodNotSet(String),
+
+    #[error("Unbonding period {0} not supported for staking {1}")]
+    UnbondingPeriodNotSupported(String, String),
 }

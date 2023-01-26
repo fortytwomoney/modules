@@ -1,3 +1,11 @@
+use super::helpers::{cw20_total_supply, query_stake};
+use crate::contract::{
+    AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, FEE_SWAPPED_REPLY,
+    SWAPPED_REPLY_ID,
+};
+use crate::error::AutocompounderError;
+use crate::response::MsgInstantiateContractResponse;
+use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
 use abstract_sdk::apis::modules::Modules;
 use abstract_sdk::base::features::{AbstractNameService, Identification};
 use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
@@ -9,16 +17,12 @@ use cosmwasm_std::{
     Uint128, WasmMsg,
 };
 use cw20_base::msg::ExecuteMsg::Mint;
-use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
-use protobuf::Message;
-use crate::contract::{
-    AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, FEE_SWAPPED_REPLY,
-    SWAPPED_REPLY_ID,
+use cw_asset::{Asset, AssetInfo};
+use cw_utils::Duration;
+use forty_two::cw_staking::{
+    CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse, CW_STAKING,
 };
-use crate::error::AutocompounderError;
-use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
-use crate::response::MsgInstantiateContractResponse;
-use super::helpers::{cw20_total_supply, query_stake};
+use protobuf::Message;
 
 /// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.
 pub fn instantiate_reply(
@@ -69,6 +73,7 @@ pub fn lp_provision_reply(
         &app,
         config.pool_data.dex.clone(),
         lp_token.clone().into(),
+        config.unbonding_period,
     )?;
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
@@ -100,6 +105,7 @@ pub fn lp_provision_reply(
         app,
         config.pool_data.dex,
         AnsAsset::new(lp_token, received_lp),
+        config.unbonding_period,
     )?;
 
     Ok(Response::new()
@@ -288,6 +294,7 @@ pub fn compound_lp_provision_reply(
         app,
         config.pool_data.dex,
         AnsAsset::new(lp_token, lp_balance),
+        config.unbonding_period,
     )?;
 
     Ok(Response::new()
@@ -318,19 +325,19 @@ pub fn fee_swapped_reply(
         .add_attribute("action", "transfer_platfrom_fees"))
 }
 
-fn query_rewards(deps: Deps, app: &AutocompounderApp, _pool_data: PoolMetadata) -> Vec<AssetEntry> {
+fn query_rewards(
+    deps: Deps,
+    app: &AutocompounderApp,
+    pool_data: PoolMetadata,
+) -> StdResult<Vec<AssetInfo>> {
     // query staking module for which rewards are available
-    let _modules = app.modules(deps);
-
-    // TODO: Reward query has yet to be implemented
-    // let query = CwStakingQueryMsg::Rewards {
-    //     address: app.proxy_address(deps).unwrap().to_string(),
-    //     pool_data,
-    // };
-    // let res: Vec<AssetEntry> = modules.query_api(CW_STAKING, query).unwrap();
-    let res: Vec<AssetEntry> = vec![];
-
-    res
+    let modules = app.modules(deps);
+    let query = CwStakingQueryMsg::RewardTokens {
+        provider: pool_data.dex.clone(),
+        staking_token: LpToken::from(pool_data).into(),
+    };
+    let res: RewardTokensResponse = modules.query_api(CW_STAKING, query)?;
+    Ok(res.tokens)
 }
 
 // TODO: move to cw_staking SDK
@@ -339,6 +346,7 @@ fn stake_lp_tokens(
     app: AutocompounderApp,
     provider: String,
     asset: AnsAsset,
+    unbonding_period: Option<Duration>,
 ) -> StdResult<CosmosMsg> {
     let modules = app.modules(deps.as_ref());
     modules.api_request(
@@ -347,6 +355,7 @@ fn stake_lp_tokens(
             provider,
             action: CwStakingAction::Stake {
                 staking_token: asset,
+                unbonding_period,
             },
         },
     )
@@ -394,20 +403,21 @@ fn get_staking_rewards(
     config: &Config,
 ) -> StdResult<Vec<AnsAsset>> {
     let ans_host = app.ans_host(deps)?;
-    let rewards = query_rewards(deps, app, config.pool_data.clone());
-    let mut rewards = rewards
-        .iter()
-        .map(|entry| -> StdResult<AnsAsset> {
+    let rewards = query_rewards(deps, app, config.pool_data.clone())?;
+    // query balance of rewards
+    let rewards = rewards
+        .into_iter()
+        .map(|tkn| -> StdResult<Asset> {
             // 2) get the number of LP tokens minted in this transaction
-            let tkn = entry.resolve(&deps.querier, &ans_host)?;
             let balance = tkn.query_balance(&deps.querier, app.proxy_address(deps)?)?;
-
-            Ok(AnsAsset::new(entry.clone(), balance))
+            Ok(Asset::new(tkn, balance))
         })
-        .collect::<StdResult<Vec<AnsAsset>>>()?;
-    rewards = rewards
+        .collect::<StdResult<Vec<Asset>>>()?;
+    // resolve rewards to AnsAssets for dynamic processing (swaps)
+    let rewards = rewards
         .into_iter()
         .filter(|reward| reward.amount != Uint128::zero())
-        .collect::<Vec<AnsAsset>>();
+        .map(|asset| asset.resolve(&deps.querier, &ans_host))
+        .collect::<Result<Vec<AnsAsset>, _>>()?;
     Ok(rewards)
 }

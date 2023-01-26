@@ -8,13 +8,17 @@ use abstract_sdk::{
 };
 use astroport::generator::{
     Cw20HookMsg, ExecuteMsg as GeneratorExecuteMsg, QueryMsg as GeneratorQueryMsg,
+    RewardInfoResponse,
 };
 use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, Deps, QuerierWrapper, StdError, StdResult, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use cw_asset::AssetInfo;
-use forty_two::cw_staking::{StakeResponse, StakingInfoResponse, UnbondingResponse};
+use cw_utils::Duration;
+use forty_two::cw_staking::{
+    RewardTokensResponse, StakeResponse, StakingInfoResponse, UnbondingResponse,
+};
 
 pub const ASTROPORT: &str = "astroport";
 
@@ -64,7 +68,12 @@ impl CwStaking for Astroport {
         Ok(())
     }
 
-    fn stake(&self, _deps: Deps, amount: Uint128) -> Result<Vec<CosmosMsg>, StakingError> {
+    fn stake(
+        &self,
+        _deps: Deps,
+        amount: Uint128,
+        _unbonding_period: Option<Duration>,
+    ) -> Result<Vec<CosmosMsg>, StakingError> {
         let msg = to_binary(&Cw20HookMsg::Deposit {})?;
         Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.lp_token_address.to_string(),
@@ -77,7 +86,12 @@ impl CwStaking for Astroport {
         })])
     }
 
-    fn unstake(&self, _deps: Deps, amount: Uint128) -> Result<Vec<CosmosMsg>, StakingError> {
+    fn unstake(
+        &self,
+        _deps: Deps,
+        amount: Uint128,
+        _unbonding_period: Option<Duration>,
+    ) -> Result<Vec<CosmosMsg>, StakingError> {
         let msg = GeneratorExecuteMsg::Withdraw {
             lp_token: self.lp_token_address.to_string(),
             amount,
@@ -113,12 +127,17 @@ impl CwStaking for Astroport {
         Ok(StakingInfoResponse {
             staking_contract_address: self.generator_contract_address.clone(),
             staking_token: AssetInfo::Cw20(stake_info_resp.astro_token),
-            unbonding_period: None,
+            unbonding_periods: None,
             max_claims: None,
         })
     }
 
-    fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<StakeResponse> {
+    fn query_staked(
+        &self,
+        querier: &QuerierWrapper,
+        staker: Addr,
+        _unbonding_period: Option<Duration>,
+    ) -> StdResult<StakeResponse> {
         let stake_balance: Uint128 = querier
             .query_wasm_smart(
                 self.generator_contract_address.clone(),
@@ -145,5 +164,31 @@ impl CwStaking for Astroport {
         _staker: Addr,
     ) -> Result<UnbondingResponse, StdError> {
         Ok(UnbondingResponse { claims: vec![] })
+    }
+
+    fn query_reward_tokens(
+        &self,
+        querier: &QuerierWrapper,
+    ) -> StdResult<forty_two::cw_staking::RewardTokensResponse> {
+        let reward_info: RewardInfoResponse = querier
+            .query_wasm_smart(
+                self.generator_contract_address.clone(),
+                &GeneratorQueryMsg::RewardInfo {
+                    lp_token: self.lp_token_address.to_string(),
+                },
+            )
+            .map_err(|_| {
+                StdError::generic_err(format!(
+                    "Failed to query reward info on {} for lp token {}",
+                    self.name(),
+                    self.lp_token
+                ))
+            })?;
+
+        let mut tokens = vec![AssetInfo::cw20(reward_info.base_reward_token)];
+        if let Some(reward_token) = reward_info.proxy_reward_token {
+            tokens.push(AssetInfo::cw20(reward_token));
+        }
+        Ok(RewardTokensResponse { tokens })
     }
 }

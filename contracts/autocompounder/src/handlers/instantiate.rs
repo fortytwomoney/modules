@@ -15,7 +15,9 @@ use cosmwasm_std::{
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use cw_utils::Duration;
-use forty_two::autocompounder::{AutocompounderInstantiateMsg, FeeConfig, AUTOCOMPOUNDER};
+use forty_two::autocompounder::{
+    AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER,
+};
 use forty_two::cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING};
 
 /// Initial instantiation of the contract
@@ -39,6 +41,7 @@ pub fn instantiate_handler(
         code_id: _,
         dex,
         pool_assets,
+        preferred_bonding_period,
     } = msg;
 
     check_fee(performance_fees)?;
@@ -76,18 +79,41 @@ pub fn instantiate_handler(
 
     // get staking info
     let staking_info = query_staking_info(deps.as_ref(), &app, lp_token.into(), dex.clone())?;
-    let min_unbonding_cooldown = if let (Some(max_claims), Some(unbonding_period)) =
-        (staking_info.max_claims, staking_info.unbonding_period)
-    {
-        match unbonding_period {
-            Duration::Height(block) => {
-                Some(Duration::Height(block.saturating_div(max_claims.into())))
-            }
-            Duration::Time(secs) => Some(Duration::Time(secs.saturating_div(max_claims.into()))),
-        }
-    } else {
-        None
-    };
+    let (unbonding_period, min_unbonding_cooldown) =
+        if let (max_claims, Some(mut unbonding_periods)) =
+            (staking_info.max_claims, staking_info.unbonding_periods)
+        {
+            unbonding_periods.sort_by(|a, b| {
+                if let (Duration::Height(a), Duration::Height(b)) = (a, b) {
+                    a.cmp(b)
+                } else if let (Duration::Time(a), Duration::Time(b)) = (a, b) {
+                    a.cmp(b)
+                } else {
+                    panic!("Unbonding periods are not all heights or all times")
+                }
+            });
+            let unbonding_duration = match preferred_bonding_period {
+                BondingPeriodSelector::Shortest => *unbonding_periods.first().unwrap(),
+                BondingPeriodSelector::Longest => *unbonding_periods.last().unwrap(),
+                BondingPeriodSelector::Custom(duration) => {
+                    // check if the duration is in the unbonding periods
+                    if unbonding_periods.contains(&duration) {
+                        duration
+                    } else {
+                        return Err(AutocompounderError::Std(StdError::generic_err(
+                            "Custom bonding period is not in the dex's unbonding periods",
+                        )));
+                    }
+                }
+            };
+            let min_unbonding_cooldown = max_claims.map(|max| match &unbonding_duration {
+                Duration::Height(block) => Duration::Height(block.saturating_div(max.into())),
+                Duration::Time(secs) => Duration::Time(secs.saturating_div(max.into())),
+            });
+            (Some(unbonding_duration), min_unbonding_cooldown)
+        } else {
+            (None, None)
+        };
 
     // TODO: Store this in the config
     let pairing = DexAssetPairing::new(
@@ -116,7 +142,7 @@ pub fn instantiate_handler(
         commission_addr: deps.api.addr_validate(&commission_addr)?,
         pool_data,
         pool_address: pool_reference.pool_address,
-        bonding_period: staking_info.unbonding_period,
+        unbonding_period,
         min_unbonding_cooldown,
     };
 

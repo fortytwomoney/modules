@@ -1,11 +1,11 @@
-use abstract_boot::{Abstract, OSFactory};
-use abstract_boot::{DexApi, OS};
-use abstract_os::{api::InstantiateMsg, objects::gov_type::GovernanceDetails, EXCHANGE};
+use abstract_boot::Abstract;
+use abstract_boot::DexApi;
+use abstract_os::{api::InstantiateMsg, EXCHANGE};
 use boot_core::{
     prelude::{BootInstantiate, BootUpload, ContractInstance},
     Mock,
 };
-use cosmwasm_std::{Addr, Empty};
+use cosmwasm_std::Empty;
 use cw_multi_test::ContractWrapper;
 use forty_two::{autocompounder::AUTOCOMPOUNDER, cw_staking::CW_STAKING};
 use forty_two_boot::autocompounder::AutocompounderApp;

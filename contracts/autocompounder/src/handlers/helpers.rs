@@ -1,9 +1,10 @@
+use crate::{contract::AutocompounderApp, error::AutocompounderError};
 use abstract_sdk::{base::features::Identification, os::objects::AssetEntry, ModuleInterface};
 use cosmwasm_std::{Decimal, Deps, StdResult, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
+use cw_utils::Duration;
 use forty_two::autocompounder::Config;
 use forty_two::cw_staking::{CwStakingQueryMsg, StakeResponse, CW_STAKING};
-use crate::{contract::AutocompounderApp, error::AutocompounderError};
 
 /// queries staking module for the number of staked assets of the app
 pub fn query_stake(
@@ -11,6 +12,7 @@ pub fn query_stake(
     app: &AutocompounderApp,
     dex: String,
     lp_token_name: AssetEntry,
+    unbonding_period: Option<Duration>,
 ) -> StdResult<Uint128> {
     let modules = app.modules(deps);
 
@@ -18,6 +20,7 @@ pub fn query_stake(
         staking_token: lp_token_name,
         staker_address: app.proxy_address(deps)?.to_string(),
         provider: dex,
+        unbonding_period,
     };
     let res: StakeResponse = modules.query_api(CW_STAKING, query)?;
     Ok(res.amount)

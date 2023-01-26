@@ -38,9 +38,15 @@ pub struct CwStakingExecuteMsg {
 /// All provide the staking token information
 pub enum CwStakingAction {
     /// Stakes/bonds a given token
-    Stake { staking_token: AnsAsset },
+    Stake {
+        staking_token: AnsAsset,
+        unbonding_period: Option<Duration>,
+    },
     /// Unstake a given token
-    Unstake { staking_token: AnsAsset },
+    Unstake {
+        staking_token: AnsAsset,
+        unbonding_period: Option<Duration>,
+    },
     /// Claim rewards for a given token
     ClaimRewards { staking_token: AssetEntry },
 }
@@ -53,7 +59,6 @@ pub enum CwStakingQueryMsg {
     #[returns(StakingInfoResponse)]
     Info {
         provider: ProviderName,
-        // perhaps this should take the assets? Or the resolved?
         staking_token: AssetEntry,
     },
     #[returns(StakeResponse)]
@@ -61,6 +66,7 @@ pub enum CwStakingQueryMsg {
         provider: ProviderName,
         staking_token: AssetEntry,
         staker_address: String,
+        unbonding_period: Option<Duration>,
     },
     #[returns(UnbondingResponse)]
     Unbonding {
@@ -68,19 +74,29 @@ pub enum CwStakingQueryMsg {
         staking_token: AssetEntry,
         staker_address: String,
     },
+    #[returns(RewardTokensResponse)]
+    RewardTokens {
+        provider: ProviderName,
+        staking_token: AssetEntry,
+    },
 }
 
 #[cosmwasm_schema::cw_serde]
 pub struct StakingInfoResponse {
-    pub unbonding_period: Option<Duration>,
     pub staking_contract_address: Addr,
     pub staking_token: AssetInfo,
+    pub unbonding_periods: Option<Vec<Duration>>,
     pub max_claims: Option<u32>,
 }
 
 #[cosmwasm_schema::cw_serde]
 pub struct StakeResponse {
     pub amount: Uint128,
+}
+
+#[cosmwasm_schema::cw_serde]
+pub struct RewardTokensResponse {
+    pub tokens: Vec<AssetInfo>,
 }
 
 #[cosmwasm_schema::cw_serde]

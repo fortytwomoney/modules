@@ -8,7 +8,7 @@ edition.workspace= true
 [dependencies]
 forty-two-boot = { workspace = true }
 
-boot-core = { workspace = true }
+boot-core = { workspace = true , features = ["daemon"]}
 abstract-boot = { workspace = true }
 
 log = {workspace = true }

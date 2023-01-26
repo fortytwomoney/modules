@@ -1,9 +1,12 @@
+use crate::error::StakingError;
+use crate::traits::identify::Identify;
 use abstract_sdk::feature_objects::AnsHost;
 use abstract_sdk::os::objects::{AssetEntry, ContractEntry};
 use cosmwasm_std::{Addr, CosmosMsg, Deps, QuerierWrapper, StdResult, Uint128};
-use forty_two::cw_staking::{StakeResponse, StakingInfoResponse, UnbondingResponse};
-use crate::error::StakingError;
-use crate::traits::identify::Identify;
+use cw_utils::Duration;
+use forty_two::cw_staking::{
+    RewardTokensResponse, StakeResponse, StakingInfoResponse, UnbondingResponse,
+};
 
 /// Trait that defines the interface for staking providers
 pub trait CwStaking: Identify {
@@ -39,13 +42,25 @@ pub trait CwStaking: Identify {
     ///
     /// * `deps` - the dependencies
     /// * `asset` - the asset to stake
-    fn stake(&self, deps: Deps, amount: Uint128) -> Result<Vec<CosmosMsg>, StakingError>;
+    /// * `unbonding_period` - the unbonding period to use for the stake
+    fn stake(
+        &self,
+        deps: Deps,
+        amount: Uint128,
+        unbonding_period: Option<Duration>,
+    ) -> Result<Vec<CosmosMsg>, StakingError>;
 
     /// Stake the provided asset into the staking contract
     ///
     /// * `deps` - the dependencies
     /// * `asset` - the asset to stake
-    fn unstake(&self, deps: Deps, amount: Uint128) -> Result<Vec<CosmosMsg>, StakingError>;
+    /// * `unbonding_period` - the unbonding period to use for the unstake
+    fn unstake(
+        &self,
+        deps: Deps,
+        amount: Uint128,
+        unbonding_period: Option<Duration>,
+    ) -> Result<Vec<CosmosMsg>, StakingError>;
 
     /// Claim rewards on the staking contract
     ///
@@ -55,10 +70,16 @@ pub trait CwStaking: Identify {
     fn query_info(&self, querier: &QuerierWrapper) -> StdResult<StakingInfoResponse>;
     // This function queries the staked token balance of a staker
     // The staking contract is queried using the staking address
-    fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<StakeResponse>;
+    fn query_staked(
+        &self,
+        querier: &QuerierWrapper,
+        staker: Addr,
+        unbonding_period: Option<Duration>,
+    ) -> StdResult<StakeResponse>;
     fn query_unbonding(
         &self,
         querier: &QuerierWrapper,
         staker: Addr,
     ) -> StdResult<UnbondingResponse>;
+    fn query_reward_tokens(&self, querier: &QuerierWrapper) -> StdResult<RewardTokensResponse>;
 }

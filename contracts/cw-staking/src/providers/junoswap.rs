@@ -12,6 +12,7 @@ use cosmwasm_std::{
 use cw20::Cw20ExecuteMsg;
 use cw20_stake::msg::{ExecuteMsg as StakeCw20ExecuteMsg, ReceiveMsg};
 use cw_asset::{AssetInfo, AssetInfoBase};
+use cw_utils::Duration;
 use forty_two::cw_staking::{Claim, StakeResponse, StakingInfoResponse, UnbondingResponse};
 
 pub const JUNOSWAP: &str = "junoswap";
@@ -57,7 +58,12 @@ impl CwStaking for JunoSwap {
         Ok(())
     }
 
-    fn stake(&self, _deps: Deps, amount: Uint128) -> Result<Vec<CosmosMsg>, StakingError> {
+    fn stake(
+        &self,
+        _deps: Deps,
+        amount: Uint128,
+        _unbonding_period: Option<Duration>,
+    ) -> Result<Vec<CosmosMsg>, StakingError> {
         let msg = to_binary(&ReceiveMsg::Stake {})?;
         Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.lp_token_address.to_string(),
@@ -70,7 +76,12 @@ impl CwStaking for JunoSwap {
         })])
     }
 
-    fn unstake(&self, _deps: Deps, amount: Uint128) -> Result<Vec<CosmosMsg>, StakingError> {
+    fn unstake(
+        &self,
+        _deps: Deps,
+        amount: Uint128,
+        _unbonding_period: Option<Duration>,
+    ) -> Result<Vec<CosmosMsg>, StakingError> {
         let msg = StakeCw20ExecuteMsg::Unstake { amount };
         Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.staking_contract_address.to_string(),
@@ -97,12 +108,20 @@ impl CwStaking for JunoSwap {
         Ok(StakingInfoResponse {
             staking_contract_address: self.staking_contract_address.clone(),
             staking_token: AssetInfo::Cw20(stake_info_resp.token_address),
-            unbonding_period: stake_info_resp.unstaking_duration.map(parse_duration),
+            unbonding_periods: stake_info_resp
+                .unstaking_duration
+                .map(parse_duration)
+                .map(|d| vec![d]),
             max_claims: Some(cw20_stake::state::MAX_CLAIMS as u32),
         })
     }
 
-    fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> StdResult<StakeResponse> {
+    fn query_staked(
+        &self,
+        querier: &QuerierWrapper,
+        staker: Addr,
+        _unbonding_period: Option<Duration>,
+    ) -> StdResult<StakeResponse> {
         let stake_balance: cw20_stake::msg::StakedBalanceAtHeightResponse = querier
             .query_wasm_smart(
                 self.staking_contract_address.clone(),
@@ -136,6 +155,12 @@ impl CwStaking for JunoSwap {
             })
             .collect();
         Ok(UnbondingResponse { claims })
+    }
+    fn query_reward_tokens(
+        &self,
+        _querier: &QuerierWrapper,
+    ) -> StdResult<forty_two::cw_staking::RewardTokensResponse> {
+        todo!()
     }
 }
 

@@ -2,7 +2,7 @@
 mod test_utils;
 use abstract_boot::{Abstract, ManagerQueryFns};
 use abstract_os::api::BaseExecuteMsgFns;
-use abstract_os::objects::{AnsAsset, AssetEntry, LpToken};
+use abstract_os::objects::{AnsAsset, AssetEntry};
 use abstract_os::EXCHANGE;
 use astroport::asset::{Asset, AssetInfo, PairInfo};
 use astroport::{
@@ -28,7 +28,9 @@ use boot_cw_plus::Cw20;
 use cosmwasm_std::{to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_multi_test::{App, ContractWrapper, Executor};
-use forty_two::autocompounder::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns};
+use forty_two::autocompounder::{
+    AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, BondingPeriodSelector,
+};
 use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
 use forty_two::cw_staking::CW_STAKING;
 use speculoos::assert_that;
@@ -82,6 +84,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, BootError> {
                 performance_fees: Decimal::percent(3),
                 pool_assets: vec![eur_asset.clone(), usd_asset.clone()],
                 withdrawal_fees: Decimal::percent(3),
+                preferred_bonding_period: BondingPeriodSelector::Shortest,
             },
             base: abstract_os::app::BaseInstantiateMsg {
                 ans_host_address: abstract_.ans_host.addr_str()?,
@@ -177,7 +180,7 @@ fn generator_without_reward_proxies() -> Result<(), BootError> {
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(6000u128);
     // and eur balance increased
-    let eur_balance = eur_token.balance(&owner)?;
+    let _eur_balance = eur_token.balance(&owner)?;
     // assert_that!(eur_balance).is_equal_to(90_000u128);
 
     mock.next_block()?;

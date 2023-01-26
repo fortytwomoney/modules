@@ -4,11 +4,11 @@ use boot_core::prelude::instantiate_daemon_env;
 use boot_core::prelude::*;
 use boot_core::DaemonOptionsBuilder;
 use cosmwasm_std::Addr;
-use std::env;
 use forty_two::autocompounder::AUTOCOMPOUNDER;
+use forty_two_boot::autocompounder::AutocompounderApp;
+use std::env;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
-use forty_two_boot::autocompounder::AutocompounderApp;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const NETWORK: NetworkInfo = UNI_5;

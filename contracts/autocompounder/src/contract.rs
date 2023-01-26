@@ -1,3 +1,6 @@
+use crate::dependencies::AUTOCOMPOUNDER_DEPS;
+use crate::error::AutocompounderError;
+use crate::handlers::{self};
 use abstract_app::export_endpoints;
 use abstract_app::AppContract;
 use cosmwasm_std::Response;
@@ -6,9 +9,6 @@ use forty_two::autocompounder::{
     AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg,
     AutocompounderQueryMsg, AUTOCOMPOUNDER,
 };
-use crate::dependencies::AUTOCOMPOUNDER_DEPS;
-use crate::error::AutocompounderError;
-use crate::handlers::{self};
 
 // As an app writer, the only changes necessary to this file are with the handlers and API dependencies on the `AUTOCOMPOUNDER_APP` const.
 pub type AutocompounderApp = AppContract<
