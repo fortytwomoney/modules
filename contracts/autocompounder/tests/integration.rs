@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod test_utils;
+use std::ops::Mul;
+
 use abstract_boot::{Abstract, ManagerQueryFns};
 use abstract_os::api::BaseExecuteMsgFns;
 use abstract_os::objects::{AnsAsset, AssetEntry};
@@ -33,7 +35,7 @@ use forty_two::autocompounder::{
     AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, BondingPeriodSelector,
 };
 use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
-use forty_two::cw_staking::CW_STAKING;
+use forty_two::cw_staking::{CW_STAKING, CwStakingQueryMsgFns};
 use speculoos::assert_that;
 use speculoos::prelude::OrderedAssertions;
 use test_utils::abstract_helper::{self, init_auto_compounder};
@@ -127,6 +129,15 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, BootError> {
 }
 
 #[test]
+fn proper_initialisation() {
+    // initialize with non existing pair
+    // initialize with non existing fee token
+    // initialize with non existing reward token
+    // initialize with no pool for the fee token and reward token
+
+}
+
+#[test]
 fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
    let owner = Addr::unchecked(test_utils::OWNER);
 
@@ -215,9 +226,6 @@ fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
     // withdraw with no allowance
     // withdraw with insufficient funds
     // withdraw with different assets
-    // - initialize with non existing pair
-    // initialize with non existing fee token
-    // initialize with non existing reward token
     // test multiple user deposits and withdrawals
 
 
@@ -330,7 +338,6 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
 
     // withdraw all from the auto-compounder
     vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr.clone())?;
-    
 
     // testing general non unbonding staking contract functionality
     let pending_claims = vault.auto_compounder.pending_claims(owner.to_string())?.into();
@@ -352,6 +359,7 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
 
     // test other functions:
     // - fee distribution
+
     // deposit and withdraw in same block
     // tests for unwanted scenarios:
     // - deposit with no allowance
@@ -364,8 +372,97 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     // initialize with non existing fee token
     // initialize with non existing reward token
     // test multiple user deposits and withdrawals
+}
+
+#[test]
+/// This test checks if the fee distribution works properly
+/// The euro/usd pair is incentivised with 10_000_000 astro tokens per block
+/// The pool already has a liquidity provider called astro_user that has provided 1_000_000 eur and 1_000_000 usd
+/// 
+fn generator_with_rewards_test_fee_distribution() -> Result<(), BootError>  {
+    let owner = Addr::unchecked(test_utils::OWNER);
+    let commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
+
+    // create testing environment
+    let (_state, mock) = instantiate_default_mock_env(&owner)?;
+
+    // create a vault
+    let vault = crate::create_vault(mock.clone())?;
+    let Astroport {
+        eur_token,
+        usd_token,
+        eur_usd_lp,
+        generator,
+        astro_token,
+        astro_eur_lp: astro_usd_lp,
+        astro_eur_pair: astro_usd_pair,
+        ..
+    } = vault.astroport;
+
+    let vault_token = vault.vault_token;
+    let auto_compounder_addr = vault.auto_compounder.addr_str()?;
+    let eur_asset = AssetEntry::new("eur");
+    let usd_asset = AssetEntry::new("usd");
+
+    // check config setup
+    let config = vault.auto_compounder.config()?;
+    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
+
+    // give user some funds
+    eur_token.mint(&owner, 100_000u128)?;
+    usd_token.mint(&owner, 100_000u128)?;
+
+    // increase allowance
+    eur_token.increase_allowance(&auto_compounder_addr, 100_000u128, None)?;
+    usd_token.increase_allowance(&auto_compounder_addr, 100_000u128, None)?;
+
+    // initial deposit must be > 1000 (of both assets)
+    // this is set by Astroport
+    vault.auto_compounder.deposit(vec![
+        AnsAsset::new(eur_asset.clone(), 100_000u128),
+        AnsAsset::new(usd_asset, 100_000u128),
+    ])?;
+
+    // check that the vault token is minted
+    let vault_token_balance = vault_token.balance(&owner)?;
+    assert_that!(vault_token_balance).is_equal_to(100_000u128);
+
+    // process block -> the AC should have pending rewards at the staking contract
+    mock.next_block()?;
+    // QUESTION: Is this the right address to query?
+    // let pending_rewards = query_pending_token(&eur_usd_lp.address()?, &vault.auto_compounder.addr_str()?, &mock.app.borrow(), &generator).pending;
+    // assert_that!(pending_rewards).is_greater_than(Uint128::zero());
+
+    vault.auto_compounder.compound()?;
+    // rewards are 10_000_000 ASTRO each block for the entire lp. It is initialised with 1M eur and 1M usd
+    // the fee received should be equal to 3% of the rewarded tokens which is then swapped using the astro/EUR pair.
+    // the rewarded tokens should be 10M * (100_000 / (100_000 + 1_000_000)) = 909_090,9
+    // the fee is 3% of 909_090,9 = 27_272,7, rewards are then 881_818,17,3
+    // the fee is then swapped using the astro/EUR pair
+    // the price of the astro/EUR pair is 10:1
+    // which will result in a 26470.45 EUR fee for the autocompounder
+    let commission_received = eur_token.balance(&commission_addr)?;
+    assert_that!(commission_received).is_equal_to(25068u128);
+
+    // The reward for the user is then 909_090,9 - 27_272,7 = 881_818,17 ASTRO which is then swapped using the astro/EUR pair
+    // this will be swapped for 44_897 EUR, which then is provided using single sided provide_liquidity
+    // This is around a quarter of the previous position, with some slippage
+    let new_vault_token_balance = vault_token.balance(&owner)?;
+    assert_that!(new_vault_token_balance).is_greater_than(vault_token_balance * 12u128 / 10u128); // 120% of the previous balance
 
 
+
+
+    
+    Ok(())
+}
+
+fn generator_with_rewards_test_rewards_distribution() -> Result<(), BootError>  {
+    todo!()
+}
+
+fn generator_with_rewards_test_rewards_distribution_with_multiple_users() -> Result<(), BootError>  {
+    todo!()
 }
 
 fn mock_app() -> App {
@@ -543,7 +640,7 @@ fn instantiate_generator(
         guardian: None,
         start_block: Uint64::from(app.block_info().height),
         astro_token: astro_token_instance.to_string(),
-        tokens_per_block: Uint128::new(10_000000),
+        tokens_per_block: Uint128::new(10_000_000),
         vesting_contract: vesting_instance.to_string(),
         generator_controller,
         voting_escrow_delegation: None,
@@ -774,15 +871,7 @@ fn check_pending_rewards(
     depositor: &str,
     (expected, expected_on_proxy): (u128, Option<Vec<u128>>),
 ) {
-    let msg = GeneratorQueryMsg::PendingToken {
-        lp_token: token.to_string(),
-        user: String::from(depositor),
-    };
-
-    let res: PendingTokenResponse = app
-        .wrap()
-        .query_wasm_smart(generator_instance.to_owned(), &msg)
-        .unwrap();
+    let res = query_pending_token(token, depositor, app, generator_instance);
 
     assert_eq!(res.pending.u128(), expected);
     let pending_on_proxy = res.pending_on_proxy.map(|rewards| {
@@ -792,6 +881,19 @@ fn check_pending_rewards(
             .collect::<Vec<_>>()
     });
     assert_eq!(pending_on_proxy, expected_on_proxy)
+}
+
+fn query_pending_token(lp_token: &Addr, depositor: &str, app: &App, generator_instance: &Addr) -> PendingTokenResponse {
+    let msg = GeneratorQueryMsg::PendingToken {
+        lp_token: lp_token.to_string(),
+        user: String::from(depositor),
+    };
+
+    let res: PendingTokenResponse = app
+        .wrap()
+        .query_wasm_smart(generator_instance.to_owned(), &msg)
+        .unwrap();
+    res
 }
 
 fn create_pair(
