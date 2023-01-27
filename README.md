@@ -16,10 +16,10 @@ If you're on mac add the following to your global git config (located at `~/.git
     helper = osxkeychain
 ```
 
-```bash
 ## Deployment
 At the root of the project, wasm the contracts using:
 ### Wasming
+```bash
 cargo build
 RUSTFLAGS='-C link-arg=-s' cargo wasm --package cw-staking
 RUSTFLAGS='-C link-arg=-s' cargo wasm --package autocompounder
