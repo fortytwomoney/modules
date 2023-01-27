@@ -23,11 +23,12 @@ At the root of the project, wasm the contracts using:
 cargo build
 RUSTFLAGS='-C link-arg=-s' cargo wasm --package cw-staking
 RUSTFLAGS='-C link-arg=-s' cargo wasm --package autocompounder
+```
 ### Deploying
 ```shell
 cargo deploy --package cw-staking
 # UPLODAD AUTOCOMPOUONDER
-cargo deploy --package autocompounder --code-id CODO_ID
+cargo deploy --package autocompounder --code-id CODE_ID
 ```
 
 ### Vaults
