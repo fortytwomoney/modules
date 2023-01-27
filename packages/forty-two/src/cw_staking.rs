@@ -15,7 +15,7 @@ pub type ProviderName = String;
 /// The callback id for staking over ibc
 pub const IBC_STAKING_PROVIDER_ID: u32 = 22335;
 
-pub const CW_STAKING: &str = "4t2:cw_staking";
+pub const CW_STAKING: &str = "4t2:cw-staking";
 
 pub type ExecuteMsg = api::ExecuteMsg<CwStakingExecuteMsg>;
 pub type InstantiateMsg = api::InstantiateMsg<Empty>;
