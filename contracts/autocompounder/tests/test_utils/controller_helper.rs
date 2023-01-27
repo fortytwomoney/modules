@@ -113,7 +113,7 @@ impl ControllerHelper {
             voting_escrow: Some(escrow_helper.escrow_instance.to_string()),
             guardian: None,
             astro_token: escrow_helper.astro_token.to_string(),
-            tokens_per_block: Uint128::new(10_000000),
+            tokens_per_block: Uint128::new(1_000),
             start_block: Uint64::from(router.block_info().height),
             vesting_contract: vesting_instance.to_string(),
             whitelist_code_id,
@@ -173,14 +173,14 @@ impl ControllerHelper {
                     schedules: vec![VestingSchedule {
                         start_point: VestingSchedulePoint {
                             time: router.block_info().time.seconds(),
-                            amount: Uint128::new(100000_000000),
+                            amount: Uint128::new(100000_000),
                         },
                         end_point: None,
                     }],
                 }],
             })
             .unwrap(),
-            amount: Uint128::new(100000_000000),
+            amount: Uint128::new(100000_000),
         };
 
         router

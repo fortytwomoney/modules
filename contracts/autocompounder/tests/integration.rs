@@ -3,6 +3,7 @@ mod test_utils;
 use std::ops::Mul;
 
 use abstract_boot::{Abstract, ManagerQueryFns};
+use abstract_os::ans_host::ExecuteMsgFns;
 use abstract_os::api::BaseExecuteMsgFns;
 use abstract_os::objects::{AnsAsset, AssetEntry};
 use abstract_os::EXCHANGE;
@@ -35,7 +36,7 @@ use forty_two::autocompounder::{
     AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, BondingPeriodSelector,
 };
 use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
-use forty_two::cw_staking::{CW_STAKING, CwStakingQueryMsgFns};
+use forty_two::cw_staking::{CwStakingQueryMsgFns, CW_STAKING};
 use speculoos::assert_that;
 use speculoos::prelude::OrderedAssertions;
 use test_utils::abstract_helper::{self, init_auto_compounder};
@@ -134,12 +135,11 @@ fn proper_initialisation() {
     // initialize with non existing fee token
     // initialize with non existing reward token
     // initialize with no pool for the fee token and reward token
-
 }
 
 #[test]
 fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
-   let owner = Addr::unchecked(test_utils::OWNER);
+    let owner = Addr::unchecked(test_utils::OWNER);
 
     // create testing environment
     let (_state, mock) = instantiate_default_mock_env(&owner)?;
@@ -192,20 +192,19 @@ fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
     // check that the vault token decreased
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(6000u128);
-    
-    
+
     // and eur and usd balance increased. Rounding error is 1 (i guess)
     let eur_balance = eur_token.balance(&owner)?;
     let usd_balance = usd_token.balance(&owner)?;
     assert_that!(eur_balance).is_equal_to(93_999u128);
     assert_that!(usd_balance).is_equal_to(93_999u128);
-    
+
     let generator_staked_balance = eur_usd_lp.balance(&generator)?;
     assert_that!(generator_staked_balance).is_equal_to(6000u128);
 
     // withdraw all from the auto-compounder
     vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr.clone())?;
-    
+
     let eur_balance = eur_token.balance(&owner)?;
     let usd_balance = usd_token.balance(&owner)?;
     assert_that!(eur_balance).is_equal_to(99_999u128);
@@ -218,7 +217,7 @@ fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
     // - claim
     // - fee distribution
     // deposit and withdraw in same block
-    
+
     // tests for unwanted scenarios:
     // - deposit with no allowance
     // - deposit with insufficient funds
@@ -227,18 +226,16 @@ fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
     // withdraw with insufficient funds
     // withdraw with different assets
     // test multiple user deposits and withdrawals
-
-
 }
 
 #[test]
 /// This test covers:
 /// - depositing and withdrawing with a single sided asset
-/// - querying the state of the auto-compounder 
+/// - querying the state of the auto-compounder
 /// - querying the balance of a users position in the auto-compounder
 /// - querying the total lp balance of the auto-compounder
 fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
-   let owner = Addr::unchecked(test_utils::OWNER);
+    let owner = Addr::unchecked(test_utils::OWNER);
 
     // create testing environment
     let (_state, mock) = instantiate_default_mock_env(&owner)?;
@@ -287,7 +284,7 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     vault
         .auto_compounder
         .deposit(vec![AnsAsset::new(eur_asset.clone(), 1000u128)])?;
-        
+
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(10495u128);
@@ -298,7 +295,7 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     vault
         .auto_compounder
         .deposit(vec![AnsAsset::new(usd_asset.clone(), 1000u128)])?;
-        
+
     // check that the vault token is increased
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(10989u128);
@@ -321,8 +318,7 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     // check that the vault token decreased
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(6000u128);
-    
-    
+
     // and eur and usd balance increased
     let eur_balance = eur_token.balance(&owner)?;
     let usd_balance = usd_token.balance(&owner)?;
@@ -332,7 +328,7 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     let position = new_position;
     let new_position = vault.auto_compounder.total_lp_position()?;
     assert_that!(new_position).is_less_than(position);
-    
+
     let generator_staked_balance = eur_usd_lp.balance(&generator)?;
     assert_that!(generator_staked_balance).is_equal_to(6000u128);
 
@@ -340,12 +336,15 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr.clone())?;
 
     // testing general non unbonding staking contract functionality
-    let pending_claims = vault.auto_compounder.pending_claims(owner.to_string())?.into();
+    let pending_claims = vault
+        .auto_compounder
+        .pending_claims(owner.to_string())?
+        .into();
     assert_that!(pending_claims).is_equal_to(0u128); // no unbonding period, so no pending claims
 
     vault.auto_compounder.batch_unbond().unwrap_err(); // batch unbonding not enabled
     vault.auto_compounder.withdraw().unwrap_err(); // withdraw wont have any effect, because there are no pending claims
-    // mock.next_block()?;
+                                                   // mock.next_block()?;
 
     let eur_balance = eur_token.balance(&owner)?;
     let usd_balance = usd_token.balance(&owner)?;
@@ -378,8 +377,8 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
 /// This test checks if the fee distribution works properly
 /// The euro/usd pair is incentivised with 10_000_000 astro tokens per block
 /// The pool already has a liquidity provider called astro_user that has provided 1_000_000 eur and 1_000_000 usd
-/// 
-fn generator_with_rewards_test_fee_distribution() -> Result<(), BootError>  {
+///
+fn generator_with_rewards_test_fee_distribution() -> Result<(), BootError> {
     let owner = Addr::unchecked(test_utils::OWNER);
     let commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
 
@@ -450,18 +449,14 @@ fn generator_with_rewards_test_fee_distribution() -> Result<(), BootError>  {
     let new_vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(new_vault_token_balance).is_greater_than(vault_token_balance * 12u128 / 10u128); // 120% of the previous balance
 
-
-
-
-    
     Ok(())
 }
 
-fn generator_with_rewards_test_rewards_distribution() -> Result<(), BootError>  {
+fn generator_with_rewards_test_rewards_distribution() -> Result<(), BootError> {
     todo!()
 }
 
-fn generator_with_rewards_test_rewards_distribution_with_multiple_users() -> Result<(), BootError>  {
+fn generator_with_rewards_test_rewards_distribution_with_multiple_users() -> Result<(), BootError> {
     todo!()
 }
 
@@ -640,7 +635,7 @@ fn instantiate_generator(
         guardian: None,
         start_block: Uint64::from(app.block_info().height),
         astro_token: astro_token_instance.to_string(),
-        tokens_per_block: Uint128::new(10_000_000),
+        tokens_per_block: Uint128::new(1_000),
         vesting_contract: vesting_instance.to_string(),
         generator_controller,
         voting_escrow_delegation: None,
@@ -815,8 +810,11 @@ fn mint_tokens(app: &mut App, sender: Addr, token: &Addr, recipient: &Addr, amou
         .unwrap();
 }
 fn increase_allowance(app: &mut App, sender: Addr, token: &Addr, spender: &Addr, amount: u128) {
-    let msg = Cw20ExecuteMsg::IncreaseAllowance { spender: spender.to_string(), amount: amount.into(), expires: None }; 
-    
+    let msg = Cw20ExecuteMsg::IncreaseAllowance {
+        spender: spender.to_string(),
+        amount: amount.into(),
+        expires: None,
+    };
 
     app.execute_contract(sender, token.to_owned(), &msg, &[])
         .unwrap();
@@ -883,7 +881,12 @@ fn check_pending_rewards(
     assert_eq!(pending_on_proxy, expected_on_proxy)
 }
 
-fn query_pending_token(lp_token: &Addr, depositor: &str, app: &App, generator_instance: &Addr) -> PendingTokenResponse {
+fn query_pending_token(
+    lp_token: &Addr,
+    depositor: &str,
+    app: &App,
+    generator_instance: &Addr,
+) -> PendingTokenResponse {
     let msg = GeneratorQueryMsg::PendingToken {
         lp_token: lp_token.to_string(),
         user: String::from(depositor),

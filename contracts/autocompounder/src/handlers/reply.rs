@@ -14,7 +14,7 @@ use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg,
-    Uint128, WasmMsg,
+    Uint128, WasmMsg, Decimal,
 };
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw_asset::{Asset, AssetInfo};
@@ -148,7 +148,6 @@ pub fn lp_compound_reply(
     _reply: Reply,
 ) -> AutocompounderResult {
     let modules = app.modules(deps.as_ref());
-
     let config = CONFIG.load(deps.storage)?;
     let base_state = app.load_state(deps.storage)?;
     let _proxy = base_state.proxy_address;
@@ -195,7 +194,7 @@ pub fn lp_compound_reply(
                 dex: config.pool_data.dex,
                 action: DexAction::ProvideLiquidity {
                     assets: rewards,
-                    max_spread: None,
+                    max_spread: Some(Decimal::percent(50)),
                 },
             },
         )?;
@@ -261,7 +260,7 @@ pub fn swapped_reply(
             dex: config.pool_data.dex,
             action: DexAction::ProvideLiquidity {
                 assets: rewards,
-                max_spread: None,
+                max_spread: Some(Decimal::percent(10)),
             },
         },
     )?;
@@ -382,7 +381,7 @@ fn swap_rewards_with_reply(
                         action: DexAction::Swap {
                             offer_asset: reward.clone(),
                             ask_asset: target_assets.get(0).unwrap().clone(),
-                            max_spread: None,
+                            max_spread: Some(Decimal::percent(50)),
                             belief_price: None,
                         },
                     },

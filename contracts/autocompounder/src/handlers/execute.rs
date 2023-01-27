@@ -240,20 +240,25 @@ fn redeem(
     CACHED_USER_ADDR.save(deps.storage, &sender)?;
 
     if config.unbonding_period.is_none() {
-    // if bonding period is not set, we can just burn the tokens, and withdraw the underlying assets in the lp pool.
-    // 1) get the total supply of Vault token
+        // if bonding period is not set, we can just burn the tokens, and withdraw the underlying assets in the lp pool.
+        // 1) get the total supply of Vault token
         let vault_tokens_total_supply = cw20_total_supply(deps.as_ref(), &config)?;
         let lp_token = LpToken::from(config.pool_data.clone());
 
         // 2) get total staked lp token
-        let total_lp_tokens_staked_in_vault =
-            query_stake(deps.as_ref(), &app, config.pool_data.dex.clone(), lp_token.into(), None)?;
+        let total_lp_tokens_staked_in_vault = query_stake(
+            deps.as_ref(),
+            &app,
+            config.pool_data.dex.clone(),
+            lp_token.into(),
+            None,
+        )?;
 
         let lp_tokens_withdraw_amount = Decimal::from_ratio(
             amount_of_vault_tokens_to_be_burned,
             vault_tokens_total_supply,
         ) * total_lp_tokens_staked_in_vault;
-        
+
         // unstake lp tokens
         let unstake_msg = unstake_lp_tokens(
             deps.as_ref(),
@@ -261,7 +266,7 @@ fn redeem(
             config.pool_data.dex.clone(),
             AssetEntry::from(LpToken::from(config.pool_data.clone())),
             amount_of_vault_tokens_to_be_burned,
-            None
+            None,
         );
         let burn_msg = get_burn_msg(&config.vault_token, amount_of_vault_tokens_to_be_burned)?;
 
@@ -277,20 +282,19 @@ fn redeem(
                 },
             },
         )?;
-        let sub_msg = SubMsg::reply_on_success(swap_msg, LP_WITHDRAWAL_REPLY_ID); 
+        let sub_msg = SubMsg::reply_on_success(swap_msg, LP_WITHDRAWAL_REPLY_ID);
 
         return Ok(Response::new()
             .add_message(unstake_msg)
             .add_message(burn_msg)
             .add_submessage(sub_msg)
             .add_attribute("action", "4T2/AC/Redeem"));
-
     } else {
         // if bonding period is set, we need to register the user's pending claim, that will be processed in the next batch unbonding
         if let Some(pending_claim) = PENDING_CLAIMS.may_load(deps.storage, sender.to_string())? {
             let new_pending_claim = pending_claim
-            .checked_add(amount_of_vault_tokens_to_be_burned)
-            .unwrap();
+                .checked_add(amount_of_vault_tokens_to_be_burned)
+                .unwrap();
             PENDING_CLAIMS.save(deps.storage, sender.to_string(), &new_pending_claim)?;
         } else {
             PENDING_CLAIMS.save(
@@ -299,7 +303,7 @@ fn redeem(
                 &amount_of_vault_tokens_to_be_burned,
             )?;
         }
-        
+
         Ok(Response::new().add_attribute("action", "4T2/AC/Register_pre_claim"))
     }
 }
@@ -311,7 +315,7 @@ fn compound(deps: DepsMut, app: AutocompounderApp) -> AutocompounderResult {
     let claim_msg = claim_lp_rewards(
         deps.as_ref(),
         &app,
-        app.proxy_address(deps.as_ref())?.into_string(),
+        config.pool_data.dex.clone(),
         AssetEntry::from(LpToken::from(config.pool_data)),
     );
     let claim_submsg = SubMsg {
@@ -344,7 +348,7 @@ pub fn withdraw_claims(
     if config.unbonding_period.is_none() {
         return Err(AutocompounderError::UnbondingNotEnabled {});
     }
-    
+
     let Some(claims) = CLAIMS.may_load(deps.storage, address.to_string())? else {
         return Err(AutocompounderError::NoMaturedClaims {});
     };
@@ -463,7 +467,7 @@ fn calculate_withdrawals(
 
 /// Checks if the unbonding cooldown period for batch unbonding has passed or not.
 fn check_unbonding_cooldown(
-deps: &DepsMut,
+    deps: &DepsMut,
     config: &Config,
     env: &Env,
 ) -> Result<(), AutocompounderError> {

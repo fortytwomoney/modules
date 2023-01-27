@@ -1,17 +1,18 @@
 use super::OWNER;
 use crate::{
-    create_pair, instantiate_factory, instantiate_generator, instantiate_token, mint_tokens,
-    register_lp_tokens_in_generator, store_factory_code, store_pair_code_id, store_token_code,
-    ASTROPORT, increase_allowance,
+    create_pair, increase_allowance, instantiate_factory, instantiate_generator, instantiate_token,
+    mint_tokens, register_lp_tokens_in_generator, store_factory_code, store_pair_code_id,
+    store_token_code, ASTROPORT,
 };
 use abstract_boot::Abstract;
 use abstract_os::{
     ans_host::ExecuteMsgFns,
     objects::{
-        pool_id::PoolAddressBase, AssetEntry, LpToken, PoolMetadata, UncheckedContractEntry, AnsAsset,
+        pool_id::PoolAddressBase, AnsAsset, AssetEntry, LpToken, PoolMetadata,
+        UncheckedContractEntry,
     },
 };
-use astroport::asset::{AssetInfo, Asset};
+use astroport::asset::{Asset, AssetInfo};
 use boot_core::{
     deploy::Deploy, prelude::ContractInstance, state::StateInterface, BootError, Mock,
 };
@@ -21,7 +22,7 @@ use cw_multi_test::{App, Executor};
 
 pub const GENERATOR: &str = "astroport:generator";
 pub const FACTORY: &str = "astroport:factory";
-pub const ASTRO_TOKEN: &str = "astroport:token";
+pub const ASTRO_TOKEN: &str = "astro";
 pub const EUR_USD_PAIR: &str = "astroport:eur_usd_pair";
 pub const EUR_USD_LP: &str = "astroport?eur,usd";
 pub const ASTRO_EUR_PAIR: &str = "astroport:astro_eur_pair";
@@ -49,6 +50,7 @@ impl Astroport {
     ) -> Result<(), BootError> {
         let eur_asset = AssetEntry::new(EUR_TOKEN);
         let usd_asset = AssetEntry::new(USD_TOKEN);
+        let astro_asset = AssetEntry::new(ASTRO_TOKEN);
         let eur_usd_lp_asset = LpToken::new(ASTROPORT, vec![EUR_TOKEN, USD_TOKEN]);
         let eur_astro_lp_asset = LpToken::new(ASTROPORT, vec![ASTRO_TOKEN, EUR_TOKEN]);
 
@@ -72,6 +74,10 @@ impl Astroport {
                     (
                         eur_astro_lp_asset.to_string(),
                         cw_asset::AssetInfoBase::cw20(self.astro_eur_lp.address()?),
+                    ),
+                    (
+                        ASTRO_TOKEN.to_string(),
+                        cw_asset::AssetInfoBase::cw20(self.astro_token.address()?),
                     ),
                 ],
                 vec![],
@@ -99,13 +105,22 @@ impl Astroport {
         abstrct
             .ans_host
             .update_pools(
-                vec![(
-                    PoolAddressBase::contract(self.eur_usd_pair.to_string()),
-                    PoolMetadata::constant_product(
-                        ASTROPORT,
-                        vec![eur_asset.clone(), usd_asset.clone()],
+                vec![
+                    (
+                        PoolAddressBase::contract(self.eur_usd_pair.to_string()),
+                        PoolMetadata::constant_product(
+                            ASTROPORT,
+                            vec![eur_asset.clone(), usd_asset.clone()],
+                        ),
                     ),
-                )],
+                    (
+                        PoolAddressBase::contract(self.astro_eur_pair.to_string()),
+                        PoolMetadata::constant_product(
+                            ASTROPORT,
+                            vec![astro_asset.clone(), eur_asset.clone()],
+                        ),
+                    ),
+                ],
                 vec![],
             )
             .unwrap();
@@ -141,7 +156,7 @@ impl Deploy<Mock> for Astroport {
             &mut app,
             token_code_id,
             "ASTRO",
-            Some(1_000_000_010_000_000),
+            None,
         );
         astro_token.set_address(&astro_token_instance);
 
@@ -171,7 +186,7 @@ impl Deploy<Mock> for Astroport {
         );
         state.borrow_mut().set_address(EUR_USD_PAIR, &pair_eur_usd);
         eur_usd_lp.set_address(&lp_eur_usd);
-        
+
         let (pair_astro_eur, lp_astro_eur) = create_pair(
             &mut app,
             &factory_instance,
@@ -187,7 +202,9 @@ impl Deploy<Mock> for Astroport {
             ],
         );
         // save pair address and lp token address
-        state.borrow_mut().set_address(ASTRO_EUR_PAIR, &pair_astro_eur);
+        state
+            .borrow_mut()
+            .set_address(ASTRO_EUR_PAIR, &pair_astro_eur);
         astro_eur_lp.set_address(&lp_astro_eur);
 
         let generator_instance =
@@ -207,7 +224,7 @@ impl Deploy<Mock> for Astroport {
         // give user some funds
         let astro_user = Addr::unchecked("astro_user");
         provide_initial_liquidlity(&mut app, &owner, &eur_token_addr, 1_000_000, &usd_token_addr,1_000_000, &pair_eur_usd, &astro_user);
-        provide_initial_liquidlity(&mut app, &owner, &astro_token_instance, 10_000_000, &eur_token_addr, 1_000_000, &pair_astro_eur, &astro_user);
+        provide_initial_liquidlity(&mut app, &owner, &astro_token_instance, 10_000_000, &eur_token_addr, 10_000_000, &pair_astro_eur, &astro_user);
 
         // drop the mutable borrow of app
         // This allows us to pass `chain` to load Abstract
@@ -257,55 +274,45 @@ impl Deploy<Mock> for Astroport {
     }
 }
 
-fn provide_initial_liquidlity(app: &mut std::cell::RefMut<App>, owner: &Addr, asset1: &Addr, amount1: u128, asset2: &Addr, amount2: u128, pair_addr: &Addr, receiver: &Addr) {
-    mint_tokens(
-        app,
-        owner.clone(),
-        &asset1,
-        &owner,
-        amount1,
-    );
+fn provide_initial_liquidlity(
+    app: &mut std::cell::RefMut<App>,
+    owner: &Addr,
+    asset1: &Addr,
+    amount1: u128,
+    asset2: &Addr,
+    amount2: u128,
+    pair_addr: &Addr,
+    receiver: &Addr,
+) {
+    mint_tokens(app, owner.clone(), &asset1, &owner, amount1);
 
-    mint_tokens(
-        app,
-        owner.clone(),
-        &asset2,
-        &owner,
-        amount2,
-    );
+    mint_tokens(app, owner.clone(), &asset2, &owner, amount2);
 
-    increase_allowance(
-        app,
-        owner.clone(),
-        &asset1,
-        pair_addr,
-        amount1,
-    );
+    increase_allowance(app, owner.clone(), &asset1, pair_addr, amount1);
 
-    increase_allowance(
-        app,
-        owner.clone(),
-        &asset2,
-        pair_addr,
-        amount2,
-    );
-        
+    increase_allowance(app, owner.clone(), &asset2, pair_addr, amount2);
 
     // add liquidity and mint the liquidity tokens to the astro user, so that the owner has no funds.
-    provide_liquidity(app, &owner, &receiver, pair_addr, vec![
-        Asset{
-            info: AssetInfo::Token {
-                contract_addr: asset1.clone(),
+    provide_liquidity(
+        app,
+        &owner,
+        &receiver,
+        pair_addr,
+        vec![
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: asset1.clone(),
+                },
+                amount: Uint128::from(amount1),
             },
-            amount: Uint128::from(amount1),
-        },
-        Asset{
-            info: AssetInfo::Token {
-                contract_addr: asset2.clone(),
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: asset2.clone(),
+                },
+                amount: Uint128::from(amount2),
             },
-            amount: Uint128::from(amount2),
-        },
-    ]);
+        ],
+    );
 }
 
 pub struct PoolWithProxy {
@@ -313,8 +320,20 @@ pub struct PoolWithProxy {
     pub proxy: Option<Addr>,
 }
 
-fn provide_liquidity(app: &mut App, sender: &Addr, receiver: &Addr, pair: &Addr, assets: Vec<Asset>){
-    let msg = astroport::pair::ExecuteMsg::ProvideLiquidity { assets, slippage_tolerance: None, auto_stake: Some(false), receiver: Some(receiver.to_string())};
+fn provide_liquidity(
+    app: &mut App,
+    sender: &Addr,
+    receiver: &Addr,
+    pair: &Addr,
+    assets: Vec<Asset>,
+) {
+    let msg = astroport::pair::ExecuteMsg::ProvideLiquidity {
+        assets,
+        slippage_tolerance: None,
+        auto_stake: Some(false),
+        receiver: Some(receiver.to_string()),
+    };
 
-    app.execute_contract(sender.clone(), pair.clone(), &msg, &[]).unwrap();
+    app.execute_contract(sender.clone(), pair.clone(), &msg, &[])
+        .unwrap();
 }

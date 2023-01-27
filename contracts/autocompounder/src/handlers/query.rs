@@ -1,9 +1,9 @@
 use crate::contract::AutocompounderApp;
-use crate::state::{CONFIG, CLAIMS, PENDING_CLAIMS, LATEST_UNBONDING, Claim};
+use crate::state::{Claim, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS};
+use abstract_sdk::base::features::Identification;
 use abstract_sdk::os::objects::LpToken;
 use abstract_sdk::ModuleInterface;
-use abstract_sdk::base::features::Identification;
-use cosmwasm_std::{to_binary, Binary, Deps, Env, StdResult, Order, Uint128};
+use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
@@ -22,12 +22,20 @@ pub fn query_handler(
 ) -> StdResult<Binary> {
     match msg {
         AutocompounderQueryMsg::Config {} => to_binary(&query_config(deps)?),
-        AutocompounderQueryMsg::PendingClaims { address } => to_binary(&query_pending_claims(deps, address)?),
+        AutocompounderQueryMsg::PendingClaims { address } => {
+            to_binary(&query_pending_claims(deps, address)?)
+        }
         AutocompounderQueryMsg::Claims { address } => to_binary(&query_claims(deps, address)?),
-        AutocompounderQueryMsg::AllClaims { start_after, limit } => to_binary(&query_all_claims(deps, start_after, limit)?),
+        AutocompounderQueryMsg::AllClaims { start_after, limit } => {
+            to_binary(&query_all_claims(deps, start_after, limit)?)
+        }
         AutocompounderQueryMsg::LatestUnbonding {} => to_binary(&query_latest_unbonding(deps)?),
-        AutocompounderQueryMsg::TotalLpPosition {  } => to_binary(&query_total_lp_position(app, deps)?),
-        AutocompounderQueryMsg::Balance { address } => to_binary(&query_balance(app, deps, address)?),
+        AutocompounderQueryMsg::TotalLpPosition {} => {
+            to_binary(&query_total_lp_position(app, deps)?)
+        }
+        AutocompounderQueryMsg::Balance { address } => {
+            to_binary(&query_balance(app, deps, address)?)
+        }
     }
 }
 
@@ -55,7 +63,11 @@ pub fn query_claims(deps: Deps, address: String) -> StdResult<Vec<Claim>> {
     Ok(claims)
 }
 
-pub fn query_all_claims(deps: Deps, start_after: Option<String>, limit: Option<u8>) -> StdResult<Vec<(String,Vec<Claim>)>> {
+pub fn query_all_claims(
+    deps: Deps,
+    start_after: Option<String>,
+    limit: Option<u8>,
+) -> StdResult<Vec<(String, Vec<Claim>)>> {
     let bonding_period = CONFIG.load(deps.storage)?.unbonding_period;
     if bonding_period.is_none() {
         return Ok(vec![]);
@@ -67,12 +79,10 @@ pub fn query_all_claims(deps: Deps, start_after: Option<String>, limit: Option<u
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
-            item.map(|(addr, claims)| -> StdResult<(String, Vec<Claim>)>{
-                Ok((addr, claims))
-        })
+            item.map(|(addr, claims)| -> StdResult<(String, Vec<Claim>)> { Ok((addr, claims)) })
         }?)
         .collect::<StdResult<Vec<(String, Vec<Claim>)>>>()?;
-    
+
     Ok(claims)
 }
 
@@ -81,26 +91,27 @@ pub fn query_latest_unbonding(deps: Deps) -> StdResult<Expiration> {
     Ok(latest_unbonding)
 }
 
-
 pub fn query_total_lp_position(app: &AutocompounderApp, deps: Deps) -> StdResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
     let modules = app.modules(deps);
 
     // query staking api for total lp tokens
 
-    let query = CwStakingQueryMsg::Staked { 
-        provider: config.pool_data.dex.clone(), 
-        staking_token: LpToken::from(config.pool_data).into() , 
+    let query = CwStakingQueryMsg::Staked {
+        provider: config.pool_data.dex.clone(),
+        staking_token: LpToken::from(config.pool_data).into(),
         staker_address: app.proxy_address(deps)?.to_string(),
-        unbonding_period: config.unbonding_period};
+        unbonding_period: config.unbonding_period,
+    };
     let res: forty_two::cw_staking::StakeResponse = modules.query_api(CW_STAKING, query)?;
     Ok(res.amount)
 }
 
 pub fn query_balance(app: &AutocompounderApp, deps: Deps, address: String) -> StdResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
-    let vault_balance: cw20::BalanceResponse = deps
-    .querier
-    .query_wasm_smart(config.vault_token.clone(), &cw20::Cw20QueryMsg::Balance { address })?;
+    let vault_balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
+        config.vault_token.clone(),
+        &cw20::Cw20QueryMsg::Balance { address },
+    )?;
     Ok(vault_balance.balance)
 }
