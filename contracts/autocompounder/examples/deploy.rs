@@ -11,13 +11,12 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-const NETWORK: NetworkInfo = UNI_5;
 
-fn deploy_autocompounder(args: Arguments) -> anyhow::Result<()> {
+fn deploy_autocompounder(network: NetworkInfo, autocompounder_code_id: Option<u64>) -> anyhow::Result<()> {
     // let version: Version = CONTRACT_VERSION.parse().unwrap();
 
     let rt = Arc::new(Runtime::new()?);
-    let options = DaemonOptionsBuilder::default().network(NETWORK).build();
+    let options = DaemonOptionsBuilder::default().network(network).build();
     let (_sender, chain) = instantiate_daemon_env(&rt, options?)?;
 
     let version_control = VersionControl::load(
@@ -25,13 +24,13 @@ fn deploy_autocompounder(args: Arguments) -> anyhow::Result<()> {
         &Addr::unchecked(std::env::var("VERSION_CONTROL").expect("VERSION_CONTROL not set")),
     );
 
-    let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
+    let mut autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
-    if args.code_id.is_none() {
-        panic!("No code id provided, and upload is broken");
-        // autocompounder.upload()?;
+    if let Some(code_id) = autocompounder_code_id {
+        autocompounder.set_code_id(code_id);
     } else {
-        autocompounder.set_code_id(args.code_id.unwrap());
+        // panic!("No code id provided, and upload is broken");
+        autocompounder.upload()?;
     }
 
     // version_control.register_apps(vec![autocompounder.as_instance()], &version)?;
@@ -56,6 +55,8 @@ struct Arguments {
     /// Code ID of the already uploaded contract
     #[arg(short, long)]
     code_id: Option<u64>,
+    #[arg(short, long)]
+    network_id: String,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -66,5 +67,7 @@ fn main() -> anyhow::Result<()> {
 
     let args = Arguments::parse();
 
-    deploy_autocompounder(args)
+    let network = forty_two_boot::parse_network(&args.network_id);
+
+    deploy_autocompounder(network, args.code_id)
 }

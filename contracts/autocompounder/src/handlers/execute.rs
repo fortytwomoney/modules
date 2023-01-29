@@ -7,11 +7,16 @@ use crate::error::AutocompounderError;
 use crate::state::{
     Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
-use abstract_sdk::base::features::{AbstractNameService, Identification};
-use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
-use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken};
-use abstract_sdk::register::EXCHANGE;
-use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
+use abstract_sdk::{
+    ModuleInterface,
+    Resolve,
+    TransferInterface,
+    register::EXCHANGE,
+    os::objects::{AnsAsset, AssetEntry, LpToken},
+    os::dex::{DexAction, DexExecuteMsg},
+    base::features::{AbstractNameService, Identification},
+    apis::dex::DexInterface
+};
 use cosmwasm_std::{
     from_binary, to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
     ReplyOn, Response, StdResult, SubMsg, Uint128, WasmMsg,
