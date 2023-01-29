@@ -4,8 +4,6 @@ use std::sync::Arc;
 use abstract_boot::{
     boot_core::{
         DaemonOptionsBuilder,
-        networks,
-        networks::NetworkInfo,
         prelude::*,
         state::StateInterface,
     },

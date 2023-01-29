@@ -11,9 +11,7 @@ use abstract_sdk::{
     ModuleInterface,
     Resolve,
     TransferInterface,
-    register::EXCHANGE,
     os::objects::{AnsAsset, AssetEntry, LpToken},
-    os::dex::{DexAction, DexExecuteMsg},
     base::features::{AbstractNameService, Identification},
     apis::dex::DexInterface,
 };

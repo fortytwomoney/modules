@@ -6,13 +6,9 @@ use crate::contract::{
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
-use abstract_sdk::apis::modules::Modules;
-use abstract_sdk::base::features::{AbstractNameService, Identification};
-use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
-use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata};
-use abstract_sdk::register::EXCHANGE;
-use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
-use abstract_sdk::apis::dex::{Dex, DexInterface};
+use abstract_sdk::{os::{
+    objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata}
+}, base::features::{AbstractNameService, Identification}, Resolve, TransferInterface, apis::dex::{Dex, DexInterface}, ModuleInterface};
 use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg,
     Uint128, WasmMsg,
@@ -148,7 +144,6 @@ pub fn lp_compound_reply(
     app: AutocompounderApp,
     _reply: Reply,
 ) -> AutocompounderResult {
-    let modules = app.modules(deps.as_ref());
     let config = CONFIG.load(deps.storage)?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
 
