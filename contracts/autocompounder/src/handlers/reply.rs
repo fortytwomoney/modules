@@ -390,7 +390,7 @@ fn swap_rewards_with_reply(
             }
             Ok(())
         })?;
-    let swap_msg = swap_msgs.pop().unwrap();
+        let swap_msg = swap_msgs.pop().unwrap();
     let submsg = SubMsg::reply_on_success(swap_msg, reply_id);
     Ok((swap_msgs, submsg))
 }

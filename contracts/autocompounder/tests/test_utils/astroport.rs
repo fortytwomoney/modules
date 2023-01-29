@@ -224,7 +224,7 @@ impl Deploy<Mock> for Astroport {
         // give user some funds
         let astro_user = Addr::unchecked("astro_user");
         provide_initial_liquidlity(&mut app, &owner, &eur_token_addr, 1_000_000, &usd_token_addr,1_000_000, &pair_eur_usd, &astro_user);
-        provide_initial_liquidlity(&mut app, &owner, &astro_token_instance, 10_000_000, &eur_token_addr, 10_000_000, &pair_astro_eur, &astro_user);
+        provide_initial_liquidlity(&mut app, &owner, &astro_token_instance, 100_000_000, &eur_token_addr, 10_000_000, &pair_astro_eur, &astro_user);
 
         // drop the mutable borrow of app
         // This allows us to pass `chain` to load Abstract
