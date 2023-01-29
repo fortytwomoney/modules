@@ -1,35 +1,45 @@
+use std::env;
+use std::sync::Arc;
+
+use abstract_boot::{
+    boot_core::{
+        DaemonOptionsBuilder,
+        networks,
+        networks::NetworkInfo,
+        prelude::*,
+        state::StateInterface,
+    },
+    Manager,
+    OS,
+    OSFactory,
+    Proxy,
+    VersionControl
+};
 use abstract_os::{
     app,
     manager::QueryMsgFns,
     objects::{
         gov_type::GovernanceDetails,
-        module::ModuleVersion
+        module::ModuleVersion,
     },
     os_factory,
     registry::{
-        MANAGER,
-        EXCHANGE,
-        OS_FACTORY,
         ANS_HOST,
-        PROXY
-    }
+        EXCHANGE,
+        MANAGER,
+        OS_FACTORY,
+        PROXY,
+    },
 };
-use std::env;
-use std::sync::Arc;
-use abstract_boot::{Manager, OSFactory, Proxy, VersionControl, OS};
-use boot_core::{
-    networks::NetworkInfo,
-    prelude::*,
-    state::StateInterface,
-    networks,
-    DaemonOptionsBuilder
-};
+use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
+use log::info;
+
 use forty_two::autocompounder::{
-    AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER,
+    AUTOCOMPOUNDER, AutocompounderInstantiateMsg, BondingPeriodSelector,
 };
 use forty_two::cw_staking::CW_STAKING;
-
+use forty_two_boot::parse_network;
 
 // To deploy the app we need to get the memory and then register it
 // We can then deploy a test OS that uses that new app
@@ -180,10 +190,6 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
 
     Ok(())
 }
-
-use clap::Parser;
-use log::info;
-use forty_two_boot::parse_network;
 
 #[derive(Parser, Default, Debug)]
 #[command(author, version, about, long_about = None)]

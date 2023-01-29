@@ -15,7 +15,7 @@ use abstract_sdk::{
     os::objects::{AnsAsset, AssetEntry, LpToken},
     os::dex::{DexAction, DexExecuteMsg},
     base::features::{AbstractNameService, Identification},
-    apis::dex::DexInterface
+    apis::dex::DexInterface,
 };
 use cosmwasm_std::{
     from_binary, to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
@@ -140,17 +140,10 @@ pub fn deposit(
         msgs.push(bank.deposit_coins(msg_info.funds)?);
     }
 
-    let modules = app.modules(deps.as_ref());
-    let provide_liquidity_msg: CosmosMsg = modules.api_request(
-        EXCHANGE,
-        DexExecuteMsg {
-            dex: config.pool_data.dex,
-            action: DexAction::ProvideLiquidity {
-                assets: funds,
-                // TODO: let the user provide this
-                max_spread: Some(Decimal::percent(5)),
-            },
-        },
+    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
+    let provide_liquidity_msg: CosmosMsg = dex.provide_liquidity(funds,
+                                                                 // TODO: let the user provide this
+                                                                 Some(Decimal::percent(5)),
     )?;
 
     let sub_msg = SubMsg {
@@ -321,16 +314,10 @@ pub fn withdraw_claims(
         });
 
     // 3) withdraw lp tokens
-    let modules = app.modules(deps.as_ref());
-    let swap_msg: CosmosMsg = modules.api_request(
-        EXCHANGE,
-        DexExecuteMsg {
-            dex: config.pool_data.dex,
-            action: DexAction::WithdrawLiquidity {
-                lp_token: config.liquidity_token.to_string().into(),
-                amount: lp_tokens_to_withdraw,
-            },
-        },
+    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
+    let swap_msg: CosmosMsg = dex.withdraw_liquidity(
+        config.liquidity_token.to_string().into(),
+        lp_tokens_to_withdraw,
     )?;
     let sub_msg = SubMsg::reply_on_success(swap_msg, LP_WITHDRAWAL_REPLY_ID);
 
@@ -455,7 +442,7 @@ fn get_burn_msg(contract: &Addr, amount: Uint128) -> StdResult<CosmosMsg> {
         msg: to_binary(&msg)?,
         funds: vec![],
     }
-    .into())
+        .into())
 }
 
 fn unstake_lp_tokens(

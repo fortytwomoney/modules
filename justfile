@@ -8,3 +8,6 @@ deploy-modules:
 
 create-vault:
   (cd scripts && cargo +nightly run --bin init_4t2_vault --  --paired-asset pood)
+
+build:
+  cargo build

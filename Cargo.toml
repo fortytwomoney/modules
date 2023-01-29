@@ -30,11 +30,11 @@ exclude = [
 
 # Keep as is until TendermintStake updates.
 [workspace.dependencies]
-abstract-sdk = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git"}
-abstract-api = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git"}
-abstract-app = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git"}
-abstract-os = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git"}
-abstract-boot = {version = "0.6.1", git =  "https://github.com/Abstract-OS/contracts.git"}
+abstract-sdk = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contracts.git"}
+abstract-api = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contracts.git"}
+abstract-app = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contracts.git"}
+abstract-os = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contracts.git"}
+abstract-boot = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contracts.git"}
 forty-two = { version = "0.2.0", path = "packages/forty-two" }
 forty-two-boot = { version = "0.2.0", path = "packages/forty-two-boot" }
 cosmwasm-std = { version = "1.1" }
@@ -70,9 +70,9 @@ env_logger = "0.10.0"
 
 log = "0.4.14"
 
-# boot-core = { version = "0.5.1" }
-# boot-cw-plus = "0.5.1"
-boot-core = { version = "0.5.1", git =  "https://github.com/Abstract-OS/BOOT.git"}
-boot-cw-plus = { version = "0.5.1",  git =  "https://github.com/Abstract-OS/BOOT.git"}
+ boot-core = { version = "0.6.0" }
+ boot-cw-plus = "0.6.0"
+#boot-core = { version = "0.5.1", git =  "https://github.com/Abstract-OS/BOOT.git"}
+#boot-cw-plus = { version = "0.5.1",  git =  "https://github.com/Abstract-OS/BOOT.git"}
 
 clap =  { version = "4.0.32", features = ["derive"] }
