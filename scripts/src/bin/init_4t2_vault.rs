@@ -1,22 +1,43 @@
-use abstract_boot::{Manager, OSFactory, Proxy, VersionControl, OS};
-use abstract_os::manager::QueryMsgFns;
-use abstract_os::objects::gov_type::GovernanceDetails;
-use abstract_os::objects::module::ModuleVersion;
-use abstract_os::{app, EXCHANGE, OS_FACTORY};
-use abstract_os::{os_factory, MANAGER, PROXY};
-use boot_core::networks::NetworkInfo;
-use boot_core::prelude::*;
-use boot_core::state::StateInterface;
-use boot_core::{networks, DaemonOptionsBuilder};
-use cosmwasm_std::{Addr, Decimal, Empty};
-use forty_two::autocompounder::{
-    AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER,
-};
-use forty_two::cw_staking::CW_STAKING;
 use std::env;
 use std::sync::Arc;
 
-const NETWORK: NetworkInfo = networks::UNI_5;
+use abstract_boot::{
+    boot_core::{
+        DaemonOptionsBuilder,
+        prelude::*,
+        state::StateInterface,
+    },
+    Manager,
+    OS,
+    OSFactory,
+    Proxy,
+    VersionControl
+};
+use abstract_os::{
+    app,
+    manager::QueryMsgFns,
+    objects::{
+        gov_type::GovernanceDetails,
+        module::ModuleVersion,
+    },
+    os_factory,
+    registry::{
+        ANS_HOST,
+        EXCHANGE,
+        MANAGER,
+        OS_FACTORY,
+        PROXY,
+    },
+};
+use clap::Parser;
+use cosmwasm_std::{Addr, Decimal, Empty};
+use log::info;
+
+use forty_two::autocompounder::{
+    AUTOCOMPOUNDER, AutocompounderInstantiateMsg, BondingPeriodSelector,
+};
+use forty_two::cw_staking::CW_STAKING;
+use forty_two_boot::parse_network;
 
 // To deploy the app we need to get the memory and then register it
 // We can then deploy a test OS that uses that new app
@@ -67,30 +88,38 @@ fn create_vault<Chain: BootEnvironment>(
 fn deploy_api(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
-    let daemon_options = DaemonOptionsBuilder::default().network(NETWORK).build()?;
+    let (dex, base_pair_asset) = match args.network_id.as_str() {
+        "uni-5" => ("junoswap", "junox"),
+        "juno-1" => ("junoswap", "juno"),
+        "pisco-1" => ("astroport", "terra2>luna"),
+        _ => panic!("Unknown network id: {}", args.network_id)
+    };
+
+    info!("Using dex: {} and base: {}", dex,base_pair_asset);
+
+    let network = parse_network(&args.network_id);
+
+    let daemon_options = DaemonOptionsBuilder::default().network(network).build()?;
 
     // Setup the environment
     let (sender, chain) = instantiate_daemon_env(&rt, daemon_options)?;
 
-    // // Load Abstract Version Control
-    // let _version_control_address: String =
-    //     env::var("VERSION_CONTROL_ADDRESS").expect("VERSION_CONTROL_ADDRESS must be set");
-    // let _version_control_address: String =
-    //     env::var("VERSION_CONTROL_ADDRESS").expect("VERSION_CONTROL_ADDRESS must be set");
+    let version_control_address: String =
+        env::var("VERSION_CONTROL").expect("VERSION_CONTROL must be set");
 
     let version_control = VersionControl::load(
         chain.clone(),
-        &Addr::unchecked("juno1q8tuzav8y6aawhc4sddqnwj6q4gdvn7lyk3m9ks4uw69xp37j83ql3ck2q"),
+        &Addr::unchecked(version_control_address),
     );
 
     let os_factory = OSFactory::new(OS_FACTORY, chain.clone());
 
-    let abstract_version = std::env::var("ABSTRACT_VERSION").expect("Missing ABSTRACT_VERSION");
+    let abstract_version = env::var("ABSTRACT_VERSION").expect("Missing ABSTRACT_VERSION");
 
     let abstract_version = ModuleVersion::from(abstract_version);
-    os_factory.set_address(&version_control.get_api_addr(OS_FACTORY, abstract_version)?);
+    os_factory.set_address(&version_control.get_api_addr(OS_FACTORY, abstract_version.clone())?);
 
-    let mut assets = vec![args.paired_asset, "junox".to_string()];
+    let mut assets = vec![args.paired_asset, base_pair_asset.to_string()];
     assets.sort();
 
     let os = if let Some(os_id) = args.os_id {
@@ -105,8 +134,6 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
             assets.clone(),
         )?
     };
-
-    // let _cw_staking = CwStakingApi::load(chain.clone(), &Addr::unchecked("juno1vgrxcupau9zr3z85rar7aq7v28v47s4tgdjm4xasxx96ap8wdzssfwfx27"));
 
     // let query_res = forty_two::cw_staking::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
     // panic!("{?:}", query_res);
@@ -137,9 +164,9 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
         new_module_version,
         &app::InstantiateMsg {
             base: app::BaseInstantiateMsg {
-                ans_host_address: "juno1qyetxuhvmpgan5qyjq3julmzz9g3rhn3jfp2jlgy29ftjknv0c6s0xywpp"
-                    .to_string(),
-                // ans_host_address: version_control.get_api_addr(ANS_HOST, abstract_version)?.to_string()
+                // ans_host_address: "juno1qyetxuhvmpgan5qyjq3julmzz9g3rhn3jfp2jlgy29ftjknv0c6s0xywpp"
+                //     .to_string(),
+                ans_host_address: version_control.get_api_addr(ANS_HOST, abstract_version)?.to_string()
             },
             app: AutocompounderInstantiateMsg {
                 performance_fees: Decimal::new(100u128.into()),
@@ -150,8 +177,8 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
                 /// cw20 code id
                 code_id: 4012,
                 /// Name of the target dex
-                dex: "junoswap".into(),
-                fee_asset: "junox".into(),
+                dex: dex.into(),
+                fee_asset: base_pair_asset.into(),
                 /// Assets in the pool
                 pool_assets: assets.into_iter().map(Into::into).collect(),
                 preferred_bonding_period: BondingPeriodSelector::Shortest,
@@ -162,16 +189,20 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
     Ok(())
 }
 
-use clap::Parser;
 #[derive(Parser, Default, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Arguments {
-    /// Whether the OS is new or not (TODO: just take in OSId)
+    /// Optionally provide an OSID to turn into a vault
     #[arg(short, long)]
     os_id: Option<u32>,
     /// Paired asset in the pool
     #[arg(short, long)]
     paired_asset: String,
+    #[arg(short, long)]
+    network_id: String,
+
+    // #[arg(short, long)]
+    // dex: String,
 }
 
 fn main() {

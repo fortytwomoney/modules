@@ -1,5 +1,5 @@
 use crate::error::StakingError;
-use crate::traits::cw_staking::CwStaking;
+use crate::traits::cw_staking_adapter::CwStakingAdapter;
 use abstract_sdk::base::features::AbstractNameService;
 use abstract_sdk::os::objects::AssetEntry;
 use abstract_sdk::Execution;
@@ -16,7 +16,7 @@ pub trait LocalCwStaking: AbstractNameService + Execution {
         &self,
         deps: DepsMut,
         action: CwStakingAction,
-        mut provider: Box<dyn CwStaking>,
+        mut provider: Box<dyn CwStakingAdapter>,
     ) -> Result<SubMsg, StakingError> {
         let staking_asset = staking_asset_from_action(&action);
         provider.fetch_data(deps.as_ref(), &self.ans_host(deps.as_ref())?, staking_asset)?;

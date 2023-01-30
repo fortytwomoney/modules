@@ -9,7 +9,7 @@ edition.workspace= true
 forty-two-boot = { workspace = true }
 
 boot-core = { workspace = true , features = ["daemon"]}
-abstract-boot = { workspace = true }
+abstract-boot = { workspace = true, features = ["daemon"] }
 
 log = {workspace = true }
 cosmwasm-std = { workspace = true }

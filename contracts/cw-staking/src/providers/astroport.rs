@@ -1,5 +1,5 @@
 use crate::error::StakingError;
-use crate::traits::cw_staking::CwStaking;
+use crate::traits::cw_staking_adapter::CwStakingAdapter;
 use crate::traits::identify::Identify;
 use abstract_sdk::{
     feature_objects::AnsHost,
@@ -49,7 +49,7 @@ impl Identify for Astroport {
     }
 }
 
-impl CwStaking for Astroport {
+impl CwStakingAdapter for Astroport {
     // get the relevant data for Astroport staking
     fn fetch_data(
         &mut self,
