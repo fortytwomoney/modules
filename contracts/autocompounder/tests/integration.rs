@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod test_utils;
-use std::ops::Mul;
+
+
 
 use abstract_boot::{Abstract, ManagerQueryFns};
-use abstract_os::ans_host::ExecuteMsgFns;
+
 use abstract_os::api::BaseExecuteMsgFns;
 use abstract_os::objects::{AnsAsset, AssetEntry};
 use abstract_os::EXCHANGE;
@@ -25,7 +26,7 @@ use astroport::{
         VestingSchedule, VestingSchedulePoint,
     },
 };
-use autocompounder::error::AutocompounderError;
+
 use boot_core::deploy::Deploy;
 use boot_core::{prelude::*, TxHandler};
 use boot_cw_plus::Cw20;
@@ -36,7 +37,7 @@ use forty_two::autocompounder::{
     AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, BondingPeriodSelector,
 };
 use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
-use forty_two::cw_staking::{CwStakingQueryMsgFns, CW_STAKING};
+use forty_two::cw_staking::{CW_STAKING};
 use speculoos::assert_that;
 use speculoos::prelude::OrderedAssertions;
 use test_utils::abstract_helper::{self, init_auto_compounder};
@@ -87,7 +88,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, BootError> {
                 dex: ASTROPORT.to_string(),
                 fee_asset: eur_asset.to_string(),
                 performance_fees: Decimal::percent(3),
-                pool_assets: vec![eur_asset.clone(), usd_asset.clone()],
+                pool_assets: vec![eur_asset, usd_asset],
                 withdrawal_fees: Decimal::percent(3),
                 preferred_bonding_period: BondingPeriodSelector::Shortest,
             },
@@ -112,7 +113,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, BootError> {
         .update_traders(vec![auto_compounder_addr.clone()], vec![])?;
     staking_api
         .call_as(&os.manager.address()?)
-        .update_traders(vec![auto_compounder_addr.clone()], vec![])?;
+        .update_traders(vec![auto_compounder_addr], vec![])?;
 
     // set the vault token address
     let auto_compounder_config = auto_compounder.config()?;
@@ -145,7 +146,7 @@ fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
     let (_state, mock) = instantiate_default_mock_env(&owner)?;
 
     // create a vault
-    let vault = crate::create_vault(mock.clone())?;
+    let vault = crate::create_vault(mock)?;
     let Astroport {
         eur_token,
         usd_token,
@@ -173,7 +174,7 @@ fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
     // initial deposit must be > 1000 (of both assets)
     // this is set by Astroport
     vault.auto_compounder.deposit(vec![
-        AnsAsset::new(eur_asset.clone(), 10000u128),
+        AnsAsset::new(eur_asset, 10000u128),
         AnsAsset::new(usd_asset, 10000u128),
     ])?;
 
@@ -203,7 +204,7 @@ fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
     assert_that!(generator_staked_balance).is_equal_to(6000u128);
 
     // withdraw all from the auto-compounder
-    vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr.clone())?;
+    vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr)?;
 
     let eur_balance = eur_token.balance(&owner)?;
     let usd_balance = usd_token.balance(&owner)?;
@@ -241,7 +242,7 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     let (_state, mock) = instantiate_default_mock_env(&owner)?;
 
     // create a vault
-    let vault = crate::create_vault(mock.clone())?;
+    let vault = crate::create_vault(mock)?;
     let Astroport {
         eur_token,
         usd_token,
@@ -283,7 +284,7 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     eur_token.increase_allowance(&auto_compounder_addr, 1_000u128, None)?;
     vault
         .auto_compounder
-        .deposit(vec![AnsAsset::new(eur_asset.clone(), 1000u128)])?;
+        .deposit(vec![AnsAsset::new(eur_asset, 1000u128)])?;
 
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(&owner)?;
@@ -294,7 +295,7 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     usd_token.increase_allowance(&auto_compounder_addr, 1_000u128, None)?;
     vault
         .auto_compounder
-        .deposit(vec![AnsAsset::new(usd_asset.clone(), 1000u128)])?;
+        .deposit(vec![AnsAsset::new(usd_asset, 1000u128)])?;
 
     // check that the vault token is increased
     let vault_token_balance = vault_token.balance(&owner)?;
@@ -330,10 +331,10 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     assert_that!(new_position).is_less_than(position);
 
     let generator_staked_balance = eur_usd_lp.balance(&generator)?;
-    assert_that!(generator_staked_balance).is_equal_to(6000u128);
+    assert_that!(generator_staked_balance).is_equal_to(6001u128);
 
     // withdraw all from the auto-compounder
-    vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr.clone())?;
+    vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr)?;
 
     // testing general non unbonding staking contract functionality
     let pending_claims = vault
@@ -348,8 +349,8 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
 
     let eur_balance = eur_token.balance(&owner)?;
     let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(99_988u128);
-    assert_that!(usd_balance).is_equal_to(99_988u128);
+    assert_that!(eur_balance).is_equal_to(99_989u128);
+    assert_that!(usd_balance).is_equal_to(99_989u128);
 
     let new_position = vault.auto_compounder.total_lp_position()?;
     assert_that!(new_position).is_equal_to(Uint128::zero());
@@ -391,10 +392,6 @@ fn generator_with_rewards_test_fee_distribution() -> Result<(), BootError> {
         eur_token,
         usd_token,
         eur_usd_lp,
-        generator,
-        astro_token,
-        astro_eur_lp: astro_usd_lp,
-        astro_eur_pair: astro_usd_pair,
         ..
     } = vault.astroport;
 
@@ -418,35 +415,57 @@ fn generator_with_rewards_test_fee_distribution() -> Result<(), BootError> {
     // initial deposit must be > 1000 (of both assets)
     // this is set by Astroport
     vault.auto_compounder.deposit(vec![
-        AnsAsset::new(eur_asset.clone(), 100_000u128),
+        AnsAsset::new(eur_asset, 100_000u128),
         AnsAsset::new(usd_asset, 100_000u128),
     ])?;
+
+    // let vault_lp_balance = eur_usd_lp.balance(&vault.auto_compounder.address()?)?;
+    let vault_lp_balance = vault.auto_compounder.total_lp_position()? as Uint128;
 
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(100_000u128);
 
+    assert_that!(eur_token.balance(&owner)?).is_equal_to(0u128);
+
     // process block -> the AC should have pending rewards at the staking contract
     mock.next_block()?;
-    // QUESTION: Is this the right address to query?
+
+    // QUESTION: Is this the right address to query? @HOWARD
     // let pending_rewards = query_pending_token(&eur_usd_lp.address()?, &vault.auto_compounder.addr_str()?, &mock.app.borrow(), &generator).pending;
     // assert_that!(pending_rewards).is_greater_than(Uint128::zero());
 
-    vault.auto_compounder.compound()?;
+    vault.auto_compounder.compound()?; // no rewards yet
     // rewards are 1_000_000 ASTRO each block for the entire lp. It is initialised with 1M eur and 1M usd EDIT: This is not staked though!
     // the fee received should be equal to 3% of the rewarded tokens which is then swapped using the astro/EUR pair.
-    // the fee is 3% of 1M = 30_000, rewards are then 70_000
+    // the fee is 3% of 1M = 30_000, rewards are then 970_000
     // the fee is then swapped using the astro/EUR pair
     // the price of the astro/EUR pair is 10:1
-    // which will result in a 2990 EUR fee for the autocompounder. #TODO: check this: bit different:
+    // which will result in a 2990 EUR fee for the autocompounder. #TODO: check this: bit less then expected
     let commission_received = eur_token.balance(&commission_addr)?;
     assert_that!(commission_received).is_equal_to(2970u128);
 
-    // The reward for the user is then 90_909,09 -2_727,27 = 88_181,817 ASTRO which is then swapped using the astro/EUR pair
-    // this will be swapped for 4_489,7 EUR, which then is provided using single sided provide_liquidity
+    // The reward for the user is then 70_000 ASTRO which is then swapped using the astro/EUR pair
+    // this will be swapped for 95_116 EUR, which then is provided using single sided provide_liquidity (this is a bit less then 50% of the initial deposit)
     // This is around a quarter of the previous position, with some slippage
-    let new_vault_token_balance = vault_token.balance(&owner)?;
-    assert_that!(new_vault_token_balance).is_greater_than(vault_token_balance * 102u128 / 100u128); // 120% of the previous balance
+    let new_vault_lp_balance = vault.auto_compounder.total_lp_position()?;
+    let new_lp: Uint128 = new_vault_lp_balance - vault_lp_balance;
+    let expected_new_value = Uint128::from(vault_lp_balance.u128() * 4u128 / 10u128); // 40% of the previous position
+    assert_that!(new_lp).is_greater_than(expected_new_value);
+
+
+    let owner_eur_balance = eur_token.balance(&owner)?;
+    let owner_usd_balance = usd_token.balance(&owner)?;
+
+    // withdraw the vault token to see if the user actually received more of EUR and USD then they deposited
+    vault_token.send(&Cw20HookMsg::Redeem {}, vault_token_balance, auto_compounder_addr)?;
+    let eur_diff = eur_token.balance(&owner)? - owner_eur_balance;
+    let usd_diff = usd_token.balance(&owner)? - owner_usd_balance;
+
+    // the user should have received more of EUR and USD then they deposited
+    assert_that!(eur_diff).is_greater_than(140_000u128); // estimated value
+    assert_that!(usd_diff).is_greater_than(130_000u128);
+
 
     Ok(())
 }

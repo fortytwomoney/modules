@@ -17,7 +17,7 @@ pub(crate) fn init_exchange(
     deployment: &Abstract<Mock>,
     version: Option<String>,
 ) -> anyhow::Result<DexApi<Mock>> {
-    let mut exchange = DexApi::new(EXCHANGE, chain.clone());
+    let mut exchange = DexApi::new(EXCHANGE, chain);
     exchange
         .as_instance_mut()
         .set_mock(Box::new(cw_multi_test::ContractWrapper::new_with_empty(
@@ -40,7 +40,7 @@ pub(crate) fn init_exchange(
 
     let version: semver::Version = version
         .map(|s| s.parse().unwrap())
-        .unwrap_or(deployment.version.clone());
+        .unwrap_or_else(|| deployment.version.clone());
 
     deployment
         .version_control
@@ -55,7 +55,7 @@ pub(crate) fn init_staking(
     deployment: &Abstract<Mock>,
     version: Option<String>,
 ) -> anyhow::Result<forty_two_boot::cw_staking::CwStakingApi<Mock>> {
-    let mut staking = forty_two_boot::cw_staking::CwStakingApi::new(CW_STAKING, chain.clone());
+    let mut staking = forty_two_boot::cw_staking::CwStakingApi::new(CW_STAKING, chain);
     staking
         .as_instance_mut()
         .set_mock(Box::new(cw_multi_test::ContractWrapper::new_with_empty(
@@ -78,7 +78,7 @@ pub(crate) fn init_staking(
 
     let version: semver::Version = version
         .map(|s| s.parse().unwrap())
-        .unwrap_or(deployment.version.clone());
+        .unwrap_or_else(|| deployment.version.clone());
 
     deployment
         .version_control
@@ -93,7 +93,7 @@ pub(crate) fn init_auto_compounder(
     deployment: &Abstract<Mock>,
     _version: Option<String>,
 ) -> anyhow::Result<forty_two_boot::autocompounder::AutocompounderApp<Mock>> {
-    let mut auto_compounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
+    let mut auto_compounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
     auto_compounder.as_instance_mut().set_mock(Box::new(
         ContractWrapper::new_with_empty(

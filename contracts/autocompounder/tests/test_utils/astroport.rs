@@ -8,7 +8,7 @@ use abstract_boot::Abstract;
 use abstract_os::{
     ans_host::ExecuteMsgFns,
     objects::{
-        pool_id::PoolAddressBase, AnsAsset, AssetEntry, LpToken, PoolMetadata,
+        pool_id::PoolAddressBase, AssetEntry, LpToken, PoolMetadata,
         UncheckedContractEntry,
     },
 };
@@ -90,7 +90,7 @@ impl Astroport {
                 vec![(
                     UncheckedContractEntry::new(
                         ASTROPORT.to_string(),
-                        format!("staking/{}", eur_usd_lp_asset),
+                        format!("staking/{eur_usd_lp_asset}"),
                     ),
                     self.generator.to_string(),
                 )],
@@ -110,14 +110,14 @@ impl Astroport {
                         PoolAddressBase::contract(self.eur_usd_pair.to_string()),
                         PoolMetadata::constant_product(
                             ASTROPORT,
-                            vec![eur_asset.clone(), usd_asset.clone()],
+                            vec![eur_asset.clone(), usd_asset],
                         ),
                     ),
                     (
                         PoolAddressBase::contract(self.astro_eur_pair.to_string()),
                         PoolMetadata::constant_product(
                             ASTROPORT,
-                            vec![astro_asset.clone(), eur_asset.clone()],
+                            vec![astro_asset, eur_asset],
                         ),
                     ),
                 ],
@@ -284,19 +284,19 @@ fn provide_initial_liquidlity(
     pair_addr: &Addr,
     receiver: &Addr,
 ) {
-    mint_tokens(app, owner.clone(), &asset1, &owner, amount1);
+    mint_tokens(app, owner.clone(), asset1, owner, amount1);
 
-    mint_tokens(app, owner.clone(), &asset2, &owner, amount2);
+    mint_tokens(app, owner.clone(), asset2, owner, amount2);
 
-    increase_allowance(app, owner.clone(), &asset1, pair_addr, amount1);
+    increase_allowance(app, owner.clone(), asset1, pair_addr, amount1);
 
-    increase_allowance(app, owner.clone(), &asset2, pair_addr, amount2);
+    increase_allowance(app, owner.clone(), asset2, pair_addr, amount2);
 
     // add liquidity and mint the liquidity tokens to the astro user, so that the owner has no funds.
     provide_liquidity(
         app,
-        &owner,
-        &receiver,
+        owner,
+        receiver,
         pair_addr,
         vec![
             Asset {

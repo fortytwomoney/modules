@@ -68,6 +68,7 @@ pub fn lp_provision_reply(
     let received_lp = lp_token
         .resolve(&deps.querier, &_ans_host)?
         .query_balance(&deps.querier, proxy_address.to_string())?;
+
     let staked_lp = query_stake(
         deps.as_ref(),
         &app,
@@ -78,31 +79,15 @@ pub fn lp_provision_reply(
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
     // 3) Calculate the number of vault tokens to mint
-    let mint_amount = if !staked_lp.is_zero() {
-        // will zero if first deposit
-        current_vault_supply
-            .checked_multiply_ratio(received_lp, staked_lp)
-            .unwrap()
-    } else {
-        // if first deposit, mint the same amount of tokens as the LP tokens received
-        received_lp
-    };
+    let mint_amount = compute_mint_amount(staked_lp, current_vault_supply, received_lp);
 
     // 4) Mint vault tokens to the user
-    let mint_msg: CosmosMsg = WasmMsg::Execute {
-        contract_addr: config.vault_token.to_string(),
-        msg: to_binary(&Mint {
-            recipient: user_address.to_string(),
-            amount: mint_amount,
-        })?,
-        funds: vec![],
-    }
-    .into();
+    let mint_msg = mint_vault_tokens(&config, user_address, mint_amount)?;
 
     // 5) Stake the LP tokens
     let stake_msg = stake_lp_tokens(
-        deps,
-        app,
+        deps.as_ref(),
+        &app,
         config.pool_data.dex,
         AnsAsset::new(lp_token, received_lp),
         config.unbonding_period,
@@ -112,6 +97,31 @@ pub fn lp_provision_reply(
         .add_message(mint_msg)
         .add_message(stake_msg)
         .add_attribute("vault_token_minted", mint_amount))
+}
+
+fn mint_vault_tokens(config: &Config, user_address: Addr, mint_amount: Uint128) -> Result<CosmosMsg, AutocompounderError> {
+    let mint_msg: CosmosMsg = WasmMsg::Execute {
+        contract_addr: config.vault_token.to_string(),
+        msg: to_binary(&Mint {
+            recipient: user_address.to_string(),
+            amount: mint_amount,
+        })?,
+        funds: vec![],
+    }
+    .into();
+    Ok(mint_msg)
+}
+
+fn compute_mint_amount(staked_lp: Uint128, current_vault_supply: Uint128, received_lp: Uint128) -> Uint128 {
+    if !staked_lp.is_zero() {
+        // will zero if first deposit
+        current_vault_supply
+            .checked_multiply_ratio(received_lp, staked_lp)
+            .unwrap()
+    } else {
+        // if first deposit, mint the same amount of tokens as the LP tokens received
+        received_lp
+    }
 }
 
 pub fn lp_withdrawal_reply(
@@ -176,9 +186,6 @@ pub fn lp_compound_reply(
         &config.pool_data.dex,
         FEE_SWAPPED_REPLY,
     )?;
-    // - if we want to swap, we should just create swap msgs with the last one containing a reply id
-    //   and then send the fees to the treasury in the reply
-    // let fee_transfer_msg = bank.transfer(fees, &config.commission_addr)?;
 
     // 3) Swap rewards to token in pool
     // 3.1) check if asset is not in pool assets
@@ -280,6 +287,7 @@ pub fn compound_lp_provision_reply(
     let config = CONFIG.load(deps.storage)?;
     let ans_host = app.ans_host(deps.as_ref())?;
     let proxy = app.proxy_address(deps.as_ref())?;
+
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
 
     // 1) query balance of lp tokens
@@ -289,9 +297,9 @@ pub fn compound_lp_provision_reply(
 
     // 2) stake lp tokens
     let stake_msg = stake_lp_tokens(
-        deps,
-        app,
-        config.pool_data.dex,
+        deps.as_ref(),
+        &app,
+        config.pool_data.dex.clone(),
         AnsAsset::new(lp_token, lp_balance),
         config.unbonding_period,
     )?;
@@ -341,13 +349,13 @@ fn query_rewards(
 
 // TODO: move to cw_staking SDK
 fn stake_lp_tokens(
-    deps: DepsMut,
-    app: AutocompounderApp,
+    deps: Deps,
+    app: &AutocompounderApp,
     provider: String,
     asset: AnsAsset,
     unbonding_period: Option<Duration>,
 ) -> StdResult<CosmosMsg> {
-    let modules = app.modules(deps.as_ref());
+    let modules = app.modules(deps);
     modules.api_request(
         CW_STAKING,
         CwStakingExecuteMsg {

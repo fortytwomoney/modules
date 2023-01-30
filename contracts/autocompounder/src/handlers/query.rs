@@ -34,7 +34,7 @@ pub fn query_handler(
             to_binary(&query_total_lp_position(app, deps)?)
         }
         AutocompounderQueryMsg::Balance { address } => {
-            to_binary(&query_balance(app, deps, address)?)
+            to_binary(&query_balance(deps, address)?)
         }
     }
 }
@@ -107,10 +107,10 @@ pub fn query_total_lp_position(app: &AutocompounderApp, deps: Deps) -> StdResult
     Ok(res.amount)
 }
 
-pub fn query_balance(app: &AutocompounderApp, deps: Deps, address: String) -> StdResult<Uint128> {
+pub fn query_balance(deps: Deps, address: String) -> StdResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
     let vault_balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
-        config.vault_token.clone(),
+        config.vault_token,
         &cw20::Cw20QueryMsg::Balance { address },
     )?;
     Ok(vault_balance.balance)
