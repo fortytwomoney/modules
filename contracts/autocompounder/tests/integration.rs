@@ -210,21 +210,6 @@ fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
     assert_that!(usd_balance).is_equal_to(99_999u128);
 
     Ok(())
-
-    // test other functions:
-    // - withdraw
-    // - claim
-    // - fee distribution
-    // deposit and withdraw in same block
-
-    // tests for unwanted scenarios:
-    // - deposit with no allowance
-    // - deposit with insufficient funds
-    // - deposit with different assets
-    // withdraw with no allowance
-    // withdraw with insufficient funds
-    // withdraw with different assets
-    // test multiple user deposits and withdrawals
 }
 
 #[test]
@@ -354,30 +339,16 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     assert_that!(new_position).is_equal_to(Uint128::zero());
 
     Ok(())
-
-    // test other functions:
-    // - fee distribution
-
-    // deposit and withdraw in same block
-    // tests for unwanted scenarios:
-    // - deposit with no allowance
-    // - deposit with insufficient funds
-    // - deposit with different assets
-    // withdraw with no allowance
-    // withdraw with insufficient funds
-    // withdraw with different assets
-    // - initialize with non existing pair
-    // initialize with non existing fee token
-    // initialize with non existing reward token
-    // test multiple user deposits and withdrawals
 }
 
 #[test]
-/// This test checks if the fee distribution works properly
-/// The euro/usd pair is incentivised with 10_000_000 astro tokens per block
-/// The pool already has a liquidity provider called astro_user that has provided 1_000_000 eur and 1_000_000 usd
-///
-fn generator_with_rewards_test_fee_distribution() -> Result<(), BootError> {
+/// This test covers the following scenario:
+/// - create a pool with rewards
+/// - deposit into the pool in-balance
+/// - compound rewards
+/// - checks if the fee distribution is correct
+/// - checks if the rewards are distributed correctly
+fn generator_with_rewards_test_fee_and_reward_distribution() -> Result<(), BootError> {
     let owner = Addr::unchecked(test_utils::OWNER);
     let commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
 
@@ -417,13 +388,12 @@ fn generator_with_rewards_test_fee_distribution() -> Result<(), BootError> {
         AnsAsset::new(usd_asset, 100_000u128),
     ])?;
 
-    // let vault_lp_balance = eur_usd_lp.balance(&vault.auto_compounder.address()?)?;
+    // query how much lp tokens are in the vault
     let vault_lp_balance = vault.auto_compounder.total_lp_position()? as Uint128;
 
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(100_000u128);
-
     assert_that!(eur_token.balance(&owner)?).is_equal_to(0u128);
 
     // process block -> the AC should have pending rewards at the staking contract
@@ -433,17 +403,17 @@ fn generator_with_rewards_test_fee_distribution() -> Result<(), BootError> {
     // let pending_rewards = query_pending_token(&eur_usd_lp.address()?, &vault.auto_compounder.addr_str()?, &mock.app.borrow(), &generator).pending;
     // assert_that!(pending_rewards).is_greater_than(Uint128::zero());
 
-    vault.auto_compounder.compound()?; // no rewards yet
-                                       // rewards are 1_000_000 ASTRO each block for the entire lp. It is initialised with 1M eur and 1M usd EDIT: This is not staked though!
-                                       // the fee received should be equal to 3% of the rewarded tokens which is then swapped using the astro/EUR pair.
-                                       // the fee is 3% of 1M = 30_000, rewards are then 970_000
-                                       // the fee is then swapped using the astro/EUR pair
-                                       // the price of the astro/EUR pair is 10:1
-                                       // which will result in a 2990 EUR fee for the autocompounder. #TODO: check this: bit less then expected
+    // rewards are 1_000_000 ASTRO each block for the entire amount of staked lp.
+    // the fee received should be equal to 3% of the rewarded tokens which is then swapped using the astro/EUR pair.
+    // the fee is 3% of 1M = 30_000, rewards are then 970_000
+    // the fee is then swapped using the astro/EUR pair
+    // the price of the astro/EUR pair is 100M:10M
+    // which will result in a 2990 EUR fee for the autocompounder. #TODO: check this: bit less then expected
+    vault.auto_compounder.compound()?; 
     let commission_received = eur_token.balance(&commission_addr)?;
     assert_that!(commission_received).is_equal_to(2970u128);
 
-    // The reward for the user is then 70_000 ASTRO which is then swapped using the astro/EUR pair
+    // The reward for the user is then 970_000 ASTRO which is then swapped using the astro/EUR pair
     // this will be swapped for 95_116 EUR, which then is provided using single sided provide_liquidity (this is a bit less then 50% of the initial deposit)
     // This is around a quarter of the previous position, with some slippage
     let new_vault_lp_balance = vault.auto_compounder.total_lp_position()?;
@@ -470,11 +440,8 @@ fn generator_with_rewards_test_fee_distribution() -> Result<(), BootError> {
     Ok(())
 }
 
-fn generator_with_rewards_test_rewards_distribution() -> Result<(), BootError> {
-    todo!()
-}
-
 fn generator_with_rewards_test_rewards_distribution_with_multiple_users() -> Result<(), BootError> {
+    // test multiple user deposits and withdrawals
     todo!()
 }
 
