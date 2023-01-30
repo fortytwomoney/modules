@@ -1,7 +1,7 @@
 use crate::contract::{CwStakingApi, CwStakingResult};
 use crate::providers::resolver::{self, is_over_ibc};
 use crate::LocalCwStaking;
-use abstract_sdk::base::features::AbstractNameService;
+use abstract_sdk::base::features::{AbstractNameService, AbstractResponse};
 use abstract_sdk::feature_objects::AnsHost;
 use abstract_sdk::os::ibc_client::CallbackInfo;
 use abstract_sdk::{IbcInterface, Resolve};
@@ -39,10 +39,11 @@ fn handle_local_request(
     _info: MessageInfo,
     api: CwStakingApi,
     action: CwStakingAction,
-    provider: String,
+    provider_name: String,
 ) -> CwStakingResult {
-    let provider = resolver::resolve_local_provider(&provider)?;
-    Ok(Response::new().add_submessage(api.resolve_staking_action(deps, action, provider)?))
+    let provider = resolver::resolve_local_provider(&provider_name)?;
+    let response = Response::new().add_submessage(api.resolve_staking_action(deps, action, provider)?);
+    Ok(api.custom_tag_response(response, "handle_local_request", vec![("provider", provider_name)]))
 }
 
 /// Handle a request that needs to be executed on a remote chain
@@ -53,7 +54,7 @@ fn handle_ibc_request(
     provider_name: ProviderName,
     action: &CwStakingAction,
 ) -> CwStakingResult {
-    let host_chain = provider_name;
+    let host_chain = provider_name.clone();
     let ans = api.name_service(deps.as_ref());
     let ibc_client = api.ibc_client(deps.as_ref());
     // get the to-be-sent assets from the action
@@ -76,7 +77,8 @@ fn handle_ibc_request(
     let ibc_action_msg = ibc_client.host_action(host_chain, action, callback, ACTION_RETRIES)?;
 
     // call both messages on the proxy
-    Ok(Response::new().add_messages(vec![ics20_transfer_msg, ibc_action_msg]))
+    let response = Response::new().add_messages(vec![ics20_transfer_msg, ibc_action_msg]);
+    Ok(api.custom_tag_response(response, "handle_ibc_request", vec![("provider", provider_name)]))
 }
 
 /// Resolve the assets to be transferred to the host chain for the given action

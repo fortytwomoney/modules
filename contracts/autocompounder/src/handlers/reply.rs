@@ -9,6 +9,7 @@ use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
 use abstract_sdk::{os::{
     objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata}
 }, base::features::{AbstractNameService, Identification}, Resolve, TransferInterface, apis::dex::{Dex, DexInterface}, ModuleInterface};
+use abstract_sdk::base::features::AbstractResponse;
 use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg,
     Uint128, WasmMsg,
@@ -25,7 +26,7 @@ use protobuf::Message;
 pub fn instantiate_reply(
     deps: DepsMut,
     _env: Env,
-    _app: AutocompounderApp,
+    app: AutocompounderApp,
     reply: Reply,
 ) -> AutocompounderResult {
     // Logic to execute on example reply
@@ -42,7 +43,7 @@ pub fn instantiate_reply(
         Ok(config)
     })?;
 
-    Ok(Response::new().add_attribute("vault_token_addr", vault_token_addr))
+    Ok(app.custom_tag_response(Response::new(), "instantiate", vec![("vault_token_addr", vault_token_addr)]))
 }
 
 pub fn lp_provision_reply(
@@ -99,27 +100,27 @@ pub fn lp_provision_reply(
     // 5) Stake the LP tokens
     let stake_msg = stake_lp_tokens(
         deps,
-        app,
+        &app,
         config.pool_data.dex,
         AnsAsset::new(lp_token, received_lp),
         config.unbonding_period,
     )?;
 
-    Ok(Response::new()
+    let res = Response::new()
         .add_message(mint_msg)
-        .add_message(stake_msg)
-        .add_attribute("vault_token_minted", mint_amount))
+        .add_message(stake_msg);
+    Ok(app.custom_tag_response(res, "lp_provision_reply", vec![("vault_token_minted", mint_amount)]))
 }
 
 pub fn lp_withdrawal_reply(
     deps: DepsMut,
     _env: Env,
-    dapp: AutocompounderApp,
+    app: AutocompounderApp,
     _reply: Reply,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
-    let ans_host = dapp.ans_host(deps.as_ref())?;
-    let proxy_address = dapp.proxy_address(deps.as_ref())?;
+    let ans_host = app.ans_host(deps.as_ref())?;
+    let proxy_address = app.proxy_address(deps.as_ref())?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     CACHED_USER_ADDR.remove(deps.storage);
 
@@ -131,11 +132,12 @@ pub fn lp_withdrawal_reply(
         funds.push(AnsAsset::new(asset, amount));
     }
 
-    let bank = dapp.bank(deps.as_ref());
+    let bank = app.bank(deps.as_ref());
     let transfer_msg = bank.transfer(funds, &user_address)?;
     messages.push(transfer_msg);
 
-    Ok(Response::new().add_messages(messages))
+    let response = Response::new().add_messages(messages);
+    Ok(app.tag_response(response, "lp_withdrawal_reply"))
 }
 
 pub fn lp_compound_reply(
@@ -208,12 +210,12 @@ pub fn lp_compound_reply(
 
         // adds all swap messages to the response and the submsg -> the submsg will be executed after the last swap message
         // and will trigger the reply SWAPPED_REPLY_ID
-        Ok(Response::new()
+        let response = Response::new()
             .add_messages(fee_swap_msgs)
             .add_submessage(fee_swap_submsg)
             .add_messages(swap_msgs)
-            .add_submessage(submsg)
-            .add_attribute("action", "swap_rewards"))
+            .add_submessage(submsg);
+        Ok(app.tag_response(response, "swap_rewards"))
     }
     // TODO: stake lp tokens
 }
@@ -252,9 +254,9 @@ pub fn swapped_reply(
     )?;
     let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
-    Ok(Response::new()
-        .add_submessage(submsg)
-        .add_attribute("action", "provide_liquidity"))
+    let response = Response::new()
+        .add_submessage(submsg);
+    Ok(app.tag_response(response, "provide_liquidity"))
 }
 
 pub fn compound_lp_provision_reply(
@@ -276,15 +278,16 @@ pub fn compound_lp_provision_reply(
     // 2) stake lp tokens
     let stake_msg = stake_lp_tokens(
         deps,
-        app,
+       &app,
         config.pool_data.dex,
         AnsAsset::new(lp_token, lp_balance),
         config.unbonding_period,
     )?;
 
-    Ok(Response::new()
-        .add_message(stake_msg)
-        .add_attribute("action", "stake"))
+    let response = Response::new()
+        .add_message(stake_msg);
+
+    Ok(app.tag_response(response, "stake"))
 }
 
 pub fn fee_swapped_reply(
@@ -305,9 +308,9 @@ pub fn fee_swapped_reply(
         &config.commission_addr,
     )?;
 
-    Ok(Response::new()
-        .add_message(transfer_msg)
-        .add_attribute("action", "transfer_platfrom_fees"))
+    let response = Response::new()
+        .add_message(transfer_msg);
+    Ok(app.tag_response(response, "transfer_platform_fees"))
 }
 
 fn query_rewards(
@@ -321,14 +324,17 @@ fn query_rewards(
         provider: pool_data.dex.clone(),
         staking_token: LpToken::from(pool_data).into(),
     };
-    let res: RewardTokensResponse = modules.query_api(CW_STAKING, query)?;
-    Ok(res.tokens)
+    let RewardTokensResponse {
+        tokens
+    } = modules.query_api(CW_STAKING, query)?;
+
+    Ok(tokens)
 }
 
 // TODO: move to cw_staking SDK
 fn stake_lp_tokens(
     deps: DepsMut,
-    app: AutocompounderApp,
+    app: &AutocompounderApp,
     provider: String,
     asset: AnsAsset,
     unbonding_period: Option<Duration>,
