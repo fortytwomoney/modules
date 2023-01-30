@@ -6,13 +6,16 @@ use crate::contract::{
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
-use abstract_sdk::{os::{
-    objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata}
-}, base::features::{AbstractNameService, Identification}, Resolve, TransferInterface, apis::dex::{Dex, DexInterface}, ModuleInterface};
 use abstract_sdk::base::features::AbstractResponse;
+use abstract_sdk::{
+    apis::dex::{Dex, DexInterface},
+    base::features::{AbstractNameService, Identification},
+    os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
+    ModuleInterface, Resolve, TransferInterface,
+};
 use cosmwasm_std::{
-    to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg,
-    Uint128, WasmMsg,
+    to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult,
+    SubMsg, Uint128, WasmMsg,
 };
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw_asset::{Asset, AssetInfo};
@@ -43,7 +46,11 @@ pub fn instantiate_reply(
         Ok(config)
     })?;
 
-    Ok(app.custom_tag_response(Response::new(), "instantiate", vec![("vault_token_addr", vault_token_addr)]))
+    Ok(app.custom_tag_response(
+        Response::new(),
+        "instantiate",
+        vec![("vault_token_addr", vault_token_addr)],
+    ))
 }
 
 pub fn lp_provision_reply(
@@ -66,6 +73,7 @@ pub fn lp_provision_reply(
     let received_lp = lp_token
         .resolve(&deps.querier, &_ans_host)?
         .query_balance(&deps.querier, proxy_address.to_string())?;
+
     let staked_lp = query_stake(
         deps.as_ref(),
         &app,
@@ -76,17 +84,33 @@ pub fn lp_provision_reply(
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
     // 3) Calculate the number of vault tokens to mint
-    let mint_amount = if !staked_lp.is_zero() {
-        // will zero if first deposit
-        current_vault_supply
-            .checked_multiply_ratio(received_lp, staked_lp)
-            .unwrap()
-    } else {
-        // if first deposit, mint the same amount of tokens as the LP tokens received
-        received_lp
-    };
+    let mint_amount = compute_mint_amount(staked_lp, current_vault_supply, received_lp);
 
     // 4) Mint vault tokens to the user
+    let mint_msg = mint_vault_tokens(&config, user_address, mint_amount)?;
+
+    // 5) Stake the LP tokens
+    let stake_msg = stake_lp_tokens(
+        deps.as_ref(),
+        &app,
+        config.pool_data.dex,
+        AnsAsset::new(lp_token, received_lp),
+        config.unbonding_period,
+    )?;
+
+    let res = Response::new().add_message(mint_msg).add_message(stake_msg);
+    Ok(app.custom_tag_response(
+        res,
+        "lp_provision_reply",
+        vec![("vault_token_minted", mint_amount)],
+    ))
+}
+
+fn mint_vault_tokens(
+    config: &Config,
+    user_address: Addr,
+    mint_amount: Uint128,
+) -> Result<CosmosMsg, AutocompounderError> {
     let mint_msg: CosmosMsg = WasmMsg::Execute {
         contract_addr: config.vault_token.to_string(),
         msg: to_binary(&Mint {
@@ -95,21 +119,24 @@ pub fn lp_provision_reply(
         })?,
         funds: vec![],
     }
-        .into();
+    .into();
+    Ok(mint_msg)
+}
 
-    // 5) Stake the LP tokens
-    let stake_msg = stake_lp_tokens(
-        deps,
-        &app,
-        config.pool_data.dex,
-        AnsAsset::new(lp_token, received_lp),
-        config.unbonding_period,
-    )?;
-
-    let res = Response::new()
-        .add_message(mint_msg)
-        .add_message(stake_msg);
-    Ok(app.custom_tag_response(res, "lp_provision_reply", vec![("vault_token_minted", mint_amount)]))
+fn compute_mint_amount(
+    staked_lp: Uint128,
+    current_vault_supply: Uint128,
+    received_lp: Uint128,
+) -> Uint128 {
+    if !staked_lp.is_zero() {
+        // will zero if first deposit
+        current_vault_supply
+            .checked_multiply_ratio(received_lp, staked_lp)
+            .unwrap()
+    } else {
+        // if first deposit, mint the same amount of tokens as the LP tokens received
+        received_lp
+    }
 }
 
 pub fn lp_withdrawal_reply(
@@ -169,15 +196,8 @@ pub fn lp_compound_reply(
         .collect::<StdResult<Vec<AnsAsset>>>()?;
 
     // 3) (swap and) Send fees to treasury
-    let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
-        fees,
-        vec![config.fees.fee_asset],
-        &dex,
-        FEE_SWAPPED_REPLY,
-    )?;
-    // - if we want to swap, we should just create swap msgs with the last one containing a reply id
-    //   and then send the fees to the treasury in the reply
-    // let fee_transfer_msg = bank.transfer(fees, &config.commission_addr)?;
+    let (fee_swap_msgs, fee_swap_submsg) =
+        swap_rewards_with_reply(fees, vec![config.fees.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
 
     // 3) Swap rewards to token in pool
     // 3.1) check if asset is not in pool assets
@@ -187,11 +207,7 @@ pub fn lp_compound_reply(
         //  TODO: but we might need to check the length of the rewards.
 
         // 3.1.2) provide liquidity
-        let lp_msg: CosmosMsg = dex.provide_liquidity(
-            rewards,
-            None,
-        )?;
-
+        let lp_msg: CosmosMsg = dex.provide_liquidity(rewards, Some(Decimal::percent(50)))?;
 
         let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
@@ -201,12 +217,8 @@ pub fn lp_compound_reply(
             .add_submessage(submsg)
             .add_attribute("action", "provide_liquidity"))
     } else {
-        let (swap_msgs, submsg) = swap_rewards_with_reply(
-            rewards,
-            pool_assets,
-            &dex,
-            SWAPPED_REPLY_ID,
-        )?;
+        let (swap_msgs, submsg) =
+            swap_rewards_with_reply(rewards, pool_assets, &dex, SWAPPED_REPLY_ID)?;
 
         // adds all swap messages to the response and the submsg -> the submsg will be executed after the last swap message
         // and will trigger the reply SWAPPED_REPLY_ID
@@ -234,7 +246,6 @@ pub fn swapped_reply(
     let config = CONFIG.load(deps.storage)?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex);
 
-
     // 1) query balance of pool tokens
     let rewards = config
         .pool_data
@@ -248,14 +259,10 @@ pub fn swapped_reply(
         .collect::<StdResult<Vec<AnsAsset>>>()?;
 
     // 2) provide liquidity
-    let lp_msg: CosmosMsg = dex.provide_liquidity(
-        rewards,
-        None,
-    )?;
+    let lp_msg: CosmosMsg = dex.provide_liquidity(rewards, Some(Decimal::percent(10)))?;
     let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
-    let response = Response::new()
-        .add_submessage(submsg);
+    let response = Response::new().add_submessage(submsg);
     Ok(app.tag_response(response, "provide_liquidity"))
 }
 
@@ -268,6 +275,7 @@ pub fn compound_lp_provision_reply(
     let config = CONFIG.load(deps.storage)?;
     let ans_host = app.ans_host(deps.as_ref())?;
     let proxy = app.proxy_address(deps.as_ref())?;
+
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
 
     // 1) query balance of lp tokens
@@ -277,15 +285,14 @@ pub fn compound_lp_provision_reply(
 
     // 2) stake lp tokens
     let stake_msg = stake_lp_tokens(
-        deps,
-       &app,
-        config.pool_data.dex,
+        deps.as_ref(),
+        &app,
+        config.pool_data.dex.clone(),
         AnsAsset::new(lp_token, lp_balance),
         config.unbonding_period,
     )?;
 
-    let response = Response::new()
-        .add_message(stake_msg);
+    let response = Response::new().add_message(stake_msg);
 
     Ok(app.tag_response(response, "stake"))
 }
@@ -308,8 +315,7 @@ pub fn fee_swapped_reply(
         &config.commission_addr,
     )?;
 
-    let response = Response::new()
-        .add_message(transfer_msg);
+    let response = Response::new().add_message(transfer_msg);
     Ok(app.tag_response(response, "transfer_platform_fees"))
 }
 
@@ -324,22 +330,20 @@ fn query_rewards(
         provider: pool_data.dex.clone(),
         staking_token: LpToken::from(pool_data).into(),
     };
-    let RewardTokensResponse {
-        tokens
-    } = modules.query_api(CW_STAKING, query)?;
+    let RewardTokensResponse { tokens } = modules.query_api(CW_STAKING, query)?;
 
     Ok(tokens)
 }
 
 // TODO: move to cw_staking SDK
 fn stake_lp_tokens(
-    deps: DepsMut,
+    deps: Deps,
     app: &AutocompounderApp,
     provider: String,
     asset: AnsAsset,
     unbonding_period: Option<Duration>,
 ) -> StdResult<CosmosMsg> {
-    let modules = app.modules(deps.as_ref());
+    let modules = app.modules(deps);
     modules.api_request(
         CW_STAKING,
         CwStakingExecuteMsg {
@@ -368,7 +372,7 @@ fn swap_rewards_with_reply(
                 let swap_msg = dex.swap(
                     reward.clone(),
                     target_assets.get(0).unwrap().clone(),
-                    None,
+                    Some(Decimal::percent(50)),
                     None,
                 )?;
                 swap_msgs.push(swap_msg);

@@ -2,39 +2,21 @@ use std::env;
 use std::sync::Arc;
 
 use abstract_boot::{
-    boot_core::{
-        DaemonOptionsBuilder,
-        prelude::*,
-        state::StateInterface,
-    },
-    Manager,
-    OS,
-    OSFactory,
-    Proxy,
-    VersionControl
+    boot_core::{prelude::*, state::StateInterface, DaemonOptionsBuilder},
+    Manager, ManagerQueryFns, OSFactory, Proxy, VersionControl, OS,
 };
 use abstract_os::{
     app,
-    manager::QueryMsgFns,
-    objects::{
-        gov_type::GovernanceDetails,
-        module::ModuleVersion,
-    },
+    objects::{gov_type::GovernanceDetails, module::ModuleVersion},
     os_factory,
-    registry::{
-        ANS_HOST,
-        EXCHANGE,
-        MANAGER,
-        OS_FACTORY,
-        PROXY,
-    },
+    registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY},
 };
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
 use log::info;
 
 use forty_two::autocompounder::{
-    AUTOCOMPOUNDER, AutocompounderInstantiateMsg, BondingPeriodSelector,
+    AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER,
 };
 use forty_two::cw_staking::CW_STAKING;
 use forty_two_boot::parse_network;
@@ -92,10 +74,10 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
         "uni-5" => ("junoswap", "junox"),
         "juno-1" => ("junoswap", "juno"),
         "pisco-1" => ("astroport", "terra2>luna"),
-        _ => panic!("Unknown network id: {}", args.network_id)
+        _ => panic!("Unknown network id: {}", args.network_id),
     };
 
-    info!("Using dex: {} and base: {}", dex,base_pair_asset);
+    info!("Using dex: {} and base: {}", dex, base_pair_asset);
 
     let network = parse_network(&args.network_id);
 
@@ -107,10 +89,8 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
     let version_control_address: String =
         env::var("VERSION_CONTROL").expect("VERSION_CONTROL must be set");
 
-    let version_control = VersionControl::load(
-        chain.clone(),
-        &Addr::unchecked(version_control_address),
-    );
+    let version_control =
+        VersionControl::load(chain.clone(), &Addr::unchecked(version_control_address));
 
     let os_factory = OSFactory::new(OS_FACTORY, chain.clone());
 
@@ -166,7 +146,9 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
             base: app::BaseInstantiateMsg {
                 // ans_host_address: "juno1qyetxuhvmpgan5qyjq3julmzz9g3rhn3jfp2jlgy29ftjknv0c6s0xywpp"
                 //     .to_string(),
-                ans_host_address: version_control.get_api_addr(ANS_HOST, abstract_version)?.to_string()
+                ans_host_address: version_control
+                    .get_api_addr(ANS_HOST, abstract_version)?
+                    .to_string(),
             },
             app: AutocompounderInstantiateMsg {
                 performance_fees: Decimal::new(100u128.into()),
@@ -200,7 +182,6 @@ struct Arguments {
     paired_asset: String,
     #[arg(short, long)]
     network_id: String,
-
     // #[arg(short, long)]
     // dex: String,
 }

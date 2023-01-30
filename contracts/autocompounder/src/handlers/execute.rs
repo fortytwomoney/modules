@@ -7,13 +7,12 @@ use crate::error::AutocompounderError;
 use crate::state::{
     Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
+use abstract_sdk::base::features::AbstractResponse;
 use abstract_sdk::{
-    ModuleInterface,
-    Resolve,
-    TransferInterface,
-    os::objects::{AnsAsset, AssetEntry, LpToken},
-    base::features::{AbstractNameService, Identification},
     apis::dex::DexInterface,
+    base::features::{AbstractNameService, Identification},
+    os::objects::{AnsAsset, AssetEntry, LpToken},
+    ModuleInterface, Resolve, TransferInterface,
 };
 use cosmwasm_std::{
     from_binary, to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
@@ -25,7 +24,6 @@ use cw_utils::Duration;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
 use std::ops::Add;
-use abstract_sdk::base::features::AbstractResponse;
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
@@ -86,7 +84,7 @@ pub fn update_fee_config(
         })?;
     }
 
-    Ok(app.tag_response(Response::new(),"update_fee_config"))
+    Ok(app.tag_response(Response::new(), "update_fee_config"))
 }
 
 // This is the function that is called when the user wants to pool AND stake their funds
@@ -133,16 +131,17 @@ pub fn deposit(
         .collect();
     msgs.append(cw_20_transfer_msgs_res?.as_mut());
 
-    // transfer received coins to the vault contract
+    // transfer received coins to the OS
     if !msg_info.funds.is_empty() {
         let bank = app.bank(deps.as_ref());
         msgs.push(bank.deposit_coins(msg_info.funds)?);
     }
 
     let dex = app.dex(deps.as_ref(), config.pool_data.dex);
-    let provide_liquidity_msg: CosmosMsg = dex.provide_liquidity(funds,
-                                                                 // TODO: let the user provide this
-                                                                 Some(Decimal::percent(5)),
+    let provide_liquidity_msg: CosmosMsg = dex.provide_liquidity(
+        funds,
+        // TODO: let the user provide this
+        Some(Decimal::percent(5)),
     )?;
 
     let sub_msg = SubMsg {
@@ -154,14 +153,15 @@ pub fn deposit(
 
     // save the user address to the cache for later use in reply
     CACHED_USER_ADDR.save(deps.storage, &msg_info.sender)?;
-    let response = Response::new()
-        .add_messages(msgs)
-        .add_submessage(sub_msg);
+    let response = Response::new().add_messages(msgs).add_submessage(sub_msg);
     Ok(app.custom_tag_response(response, "deposit", vec![("4t2", "/AC/Deposit")]))
 }
 
 pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
+    if config.unbonding_period.is_none() {
+        return Err(AutocompounderError::UnbondingNotEnabled {});
+    }
 
     // check if the cooldown period has passed
     check_unbonding_cooldown(&deps, &config, &env)?;
@@ -193,8 +193,7 @@ pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> Autocomp
 
     let burn_msg = get_burn_msg(&config.vault_token, total_vault_tokens_to_burn)?;
 
-    let response = Response::new()
-        .add_messages(vec![unstake_msg, burn_msg]);
+    let response = Response::new().add_messages(vec![unstake_msg, burn_msg]);
     Ok(app.custom_tag_response(response, "batch_unbond", vec![("4t2", "AC/UnbondBatch")]))
 }
 
@@ -225,7 +224,7 @@ fn redeem(
     sender: String,
     amount_of_vault_tokens_to_be_burned: Uint128,
 ) -> AutocompounderResult {
-    let _config = CONFIG.load(deps.storage)?;
+    let config = CONFIG.load(deps.storage)?;
 
     // parse sender
     let sender = deps.api.addr_validate(&sender)?;
@@ -233,20 +232,67 @@ fn redeem(
     // save the user address to the cache for later use in reply
     CACHED_USER_ADDR.save(deps.storage, &sender)?;
 
-    if let Some(pending_claim) = PENDING_CLAIMS.may_load(deps.storage, sender.to_string())? {
-        let new_pending_claim = pending_claim
-            .checked_add(amount_of_vault_tokens_to_be_burned)
-            .unwrap();
-        PENDING_CLAIMS.save(deps.storage, sender.to_string(), &new_pending_claim)?;
-    } else {
-        PENDING_CLAIMS.save(
-            deps.storage,
-            sender.to_string(),
-            &amount_of_vault_tokens_to_be_burned,
-        )?;
-    }
+    if config.unbonding_period.is_none() {
+        // if bonding period is not set, we can just burn the tokens, and withdraw the underlying assets in the lp pool.
+        // 1) get the total supply of Vault token
+        let vault_tokens_total_supply = cw20_total_supply(deps.as_ref(), &config)?;
+        let lp_token = LpToken::from(config.pool_data.clone());
 
-    Ok(app.custom_tag_response(Response::new(), "redeem", vec![("4t2", "AC/Register_pre_claim")]))
+        // 2) get total staked lp token
+        let total_lp_tokens_staked_in_vault = query_stake(
+            deps.as_ref(),
+            &app,
+            config.pool_data.dex.clone(),
+            lp_token.into(),
+            None,
+        )?;
+
+        let lp_tokens_withdraw_amount = Decimal::from_ratio(
+            amount_of_vault_tokens_to_be_burned,
+            vault_tokens_total_supply,
+        ) * total_lp_tokens_staked_in_vault;
+
+        // unstake lp tokens
+        let unstake_msg = unstake_lp_tokens(
+            deps.as_ref(),
+            &app,
+            config.pool_data.dex.clone(),
+            AssetEntry::from(LpToken::from(config.pool_data.clone())),
+            lp_tokens_withdraw_amount,
+            None,
+        );
+        let burn_msg = get_burn_msg(&config.vault_token, amount_of_vault_tokens_to_be_burned)?;
+
+        // 3) withdraw lp tokens
+        let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
+        let swap_msg: CosmosMsg = dex.withdraw_liquidity(
+            LpToken::from(config.pool_data).into(),
+            lp_tokens_withdraw_amount,
+        )?;
+        let sub_msg = SubMsg::reply_on_success(swap_msg, LP_WITHDRAWAL_REPLY_ID);
+
+        Ok(Response::new()
+            .add_message(unstake_msg)
+            .add_message(burn_msg)
+            .add_submessage(sub_msg)
+            .add_attribute("action", "4T2/AC/Redeem"))
+    } else {
+        // if bonding period is set, we need to register the user's pending claim, that will be processed in the next batch unbonding
+        if let Some(pending_claim) = PENDING_CLAIMS.may_load(deps.storage, sender.to_string())? {
+            let new_pending_claim = pending_claim
+                .checked_add(amount_of_vault_tokens_to_be_burned)
+                .unwrap();
+            PENDING_CLAIMS.save(deps.storage, sender.to_string(), &new_pending_claim)?;
+        } else {
+            PENDING_CLAIMS.save(
+                deps.storage,
+                sender.to_string(),
+                &amount_of_vault_tokens_to_be_burned,
+            )?;
+        }
+
+        Ok(app.custom_tag_response(Response::new(), "redeem", vec![("4t2", "AC/Register_pre_claim")]))
+    }
 }
 
 fn compound(deps: DepsMut, app: AutocompounderApp) -> AutocompounderResult {
@@ -256,7 +302,7 @@ fn compound(deps: DepsMut, app: AutocompounderApp) -> AutocompounderResult {
     let claim_msg = claim_lp_rewards(
         deps.as_ref(),
         &app,
-        app.proxy_address(deps.as_ref())?.into_string(),
+        config.pool_data.dex.clone(),
         AssetEntry::from(LpToken::from(config.pool_data)),
     );
     let claim_submsg = SubMsg {
@@ -271,8 +317,7 @@ fn compound(deps: DepsMut, app: AutocompounderApp) -> AutocompounderResult {
     // 3) Swap rewards to token in pool
     // 4) Provide liquidity to pool
 
-    let response = Response::new()
-        .add_submessage(claim_submsg);
+    let response = Response::new().add_submessage(claim_submsg);
     Ok(app.tag_response(response, "compound"))
 }
 
@@ -285,6 +330,11 @@ pub fn withdraw_claims(
 ) -> AutocompounderResult {
     CACHED_USER_ADDR.save(deps.storage, &address)?;
     let config = CONFIG.load(deps.storage)?;
+
+    if config.unbonding_period.is_none() {
+        return Err(AutocompounderError::UnbondingNotEnabled {});
+    }
+
     let Some(claims) = CLAIMS.may_load(deps.storage, address.to_string())? else {
         return Err(AutocompounderError::NoMaturedClaims {});
     };
@@ -313,16 +363,22 @@ pub fn withdraw_claims(
         });
 
     // 3) withdraw lp tokens
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
+    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
     let swap_msg: CosmosMsg = dex.withdraw_liquidity(
-        config.liquidity_token.to_string().into(),
+        LpToken::from(config.pool_data).into(),
         lp_tokens_to_withdraw,
     )?;
     let sub_msg = SubMsg::reply_on_success(swap_msg, LP_WITHDRAWAL_REPLY_ID);
 
-    let response = Response::new()
-        .add_submessage(sub_msg);
-    Ok(app.custom_tag_response(response, "withdraw_claims", vec![("4t2", "AC/Withdraw_claims".to_string()), ("lp_tokens_to_withdraw", lp_tokens_to_withdraw.to_string())]))
+    let response = Response::new().add_submessage(sub_msg);
+    Ok(app.custom_tag_response(
+        response,
+        "withdraw_claims",
+        vec![
+            ("4t2", "AC/Withdraw_claims".to_string()),
+            ("lp_tokens_to_withdraw", lp_tokens_to_withdraw.to_string()),
+        ],
+    ))
 }
 
 #[allow(clippy::type_complexity)]
@@ -400,15 +456,17 @@ fn check_unbonding_cooldown(
     config: &Config,
     env: &Env,
 ) -> Result<(), AutocompounderError> {
-    let latest_unbonding = LATEST_UNBONDING.load(deps.storage)?;
-    if let Some(min_cooldown) = config.min_unbonding_cooldown {
-        if latest_unbonding.add(min_cooldown)?.is_expired(&env.block) {
-            return Err(AutocompounderError::UnbondingCooldownNotExpired {
-                min_cooldown,
-                latest_unbonding,
-            });
-        }
-    };
+    let latest_unbonding = LATEST_UNBONDING.may_load(deps.storage)?;
+    if let Some(latest_unbonding) = latest_unbonding {
+        if let Some(min_cooldown) = config.min_unbonding_cooldown {
+            if latest_unbonding.add(min_cooldown)?.is_expired(&env.block) {
+                return Err(AutocompounderError::UnbondingCooldownNotExpired {
+                    min_cooldown,
+                    latest_unbonding,
+                });
+            }
+        };
+    }
     Ok(())
 }
 
@@ -440,7 +498,7 @@ fn get_burn_msg(contract: &Addr, amount: Uint128) -> StdResult<CosmosMsg> {
         msg: to_binary(&msg)?,
         funds: vec![],
     }
-        .into())
+    .into())
 }
 
 fn unstake_lp_tokens(

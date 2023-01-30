@@ -1,5 +1,5 @@
 use abstract_boot::VersionControl;
-use boot_core::networks::{NetworkInfo, UNI_5};
+use boot_core::networks::NetworkInfo;
 use boot_core::prelude::instantiate_daemon_env;
 use boot_core::prelude::*;
 use boot_core::DaemonOptionsBuilder;
@@ -12,7 +12,10 @@ use tokio::runtime::Runtime;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-fn deploy_autocompounder(network: NetworkInfo, autocompounder_code_id: Option<u64>) -> anyhow::Result<()> {
+fn deploy_autocompounder(
+    network: NetworkInfo,
+    autocompounder_code_id: Option<u64>,
+) -> anyhow::Result<()> {
     // let version: Version = CONTRACT_VERSION.parse().unwrap();
 
     let rt = Arc::new(Runtime::new()?);

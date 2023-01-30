@@ -29,7 +29,9 @@ pub(crate) fn is_over_ibc(provider: &str) -> StdResult<bool> {
 }
 
 /// Given the provider name, return the local provider implementation
-pub(crate) fn resolve_local_provider(name: &str) -> Result<Box<dyn CwStakingAdapter>, StakingError> {
+pub(crate) fn resolve_local_provider(
+    name: &str,
+) -> Result<Box<dyn CwStakingAdapter>, StakingError> {
     match name {
         #[cfg(feature = "juno")]
         JUNOSWAP => Ok(Box::<JunoSwap>::default()),

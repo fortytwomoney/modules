@@ -13,7 +13,7 @@ use tokio::runtime::Runtime;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-fn deploy_cw_staking(network: NetworkInfo, prev_version: Option<String>) -> anyhow::Result<()> {
+fn deploy_cw_staking(_network: NetworkInfo, prev_version: Option<String>) -> anyhow::Result<()> {
     let module_version: Version = CONTRACT_VERSION.parse().unwrap();
     let network = UNI_5;
 
@@ -77,8 +77,10 @@ fn main() -> anyhow::Result<()> {
 
     use dotenv::dotenv;
 
-    let Arguments
-    { network_id, prev_version } = Arguments::parse();
+    let Arguments {
+        network_id,
+        prev_version,
+    } = Arguments::parse();
 
     let network = parse_network(&network_id);
 
