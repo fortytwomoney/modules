@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod test_utils;
 
-
-
 use abstract_boot::{Abstract, ManagerQueryFns};
 
 use abstract_os::api::BaseExecuteMsgFns;
@@ -37,7 +35,7 @@ use forty_two::autocompounder::{
     AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, BondingPeriodSelector,
 };
 use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
-use forty_two::cw_staking::{CW_STAKING};
+use forty_two::cw_staking::CW_STAKING;
 use speculoos::assert_that;
 use speculoos::prelude::OrderedAssertions;
 use test_utils::abstract_helper::{self, init_auto_compounder};
@@ -436,12 +434,12 @@ fn generator_with_rewards_test_fee_distribution() -> Result<(), BootError> {
     // assert_that!(pending_rewards).is_greater_than(Uint128::zero());
 
     vault.auto_compounder.compound()?; // no rewards yet
-    // rewards are 1_000_000 ASTRO each block for the entire lp. It is initialised with 1M eur and 1M usd EDIT: This is not staked though!
-    // the fee received should be equal to 3% of the rewarded tokens which is then swapped using the astro/EUR pair.
-    // the fee is 3% of 1M = 30_000, rewards are then 970_000
-    // the fee is then swapped using the astro/EUR pair
-    // the price of the astro/EUR pair is 10:1
-    // which will result in a 2990 EUR fee for the autocompounder. #TODO: check this: bit less then expected
+                                       // rewards are 1_000_000 ASTRO each block for the entire lp. It is initialised with 1M eur and 1M usd EDIT: This is not staked though!
+                                       // the fee received should be equal to 3% of the rewarded tokens which is then swapped using the astro/EUR pair.
+                                       // the fee is 3% of 1M = 30_000, rewards are then 970_000
+                                       // the fee is then swapped using the astro/EUR pair
+                                       // the price of the astro/EUR pair is 10:1
+                                       // which will result in a 2990 EUR fee for the autocompounder. #TODO: check this: bit less then expected
     let commission_received = eur_token.balance(&commission_addr)?;
     assert_that!(commission_received).is_equal_to(2970u128);
 
@@ -453,19 +451,21 @@ fn generator_with_rewards_test_fee_distribution() -> Result<(), BootError> {
     let expected_new_value = Uint128::from(vault_lp_balance.u128() * 4u128 / 10u128); // 40% of the previous position
     assert_that!(new_lp).is_greater_than(expected_new_value);
 
-
     let owner_eur_balance = eur_token.balance(&owner)?;
     let owner_usd_balance = usd_token.balance(&owner)?;
 
     // withdraw the vault token to see if the user actually received more of EUR and USD then they deposited
-    vault_token.send(&Cw20HookMsg::Redeem {}, vault_token_balance, auto_compounder_addr)?;
+    vault_token.send(
+        &Cw20HookMsg::Redeem {},
+        vault_token_balance,
+        auto_compounder_addr,
+    )?;
     let eur_diff = eur_token.balance(&owner)? - owner_eur_balance;
     let usd_diff = usd_token.balance(&owner)? - owner_usd_balance;
 
     // the user should have received more of EUR and USD then they deposited
     assert_that!(eur_diff).is_greater_than(140_000u128); // estimated value
     assert_that!(usd_diff).is_greater_than(130_000u128);
-
 
     Ok(())
 }

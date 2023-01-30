@@ -8,8 +8,7 @@ use abstract_boot::Abstract;
 use abstract_os::{
     ans_host::ExecuteMsgFns,
     objects::{
-        pool_id::PoolAddressBase, AssetEntry, LpToken, PoolMetadata,
-        UncheckedContractEntry,
+        pool_id::PoolAddressBase, AssetEntry, LpToken, PoolMetadata, UncheckedContractEntry,
     },
 };
 use astroport::asset::{Asset, AssetInfo};
@@ -115,10 +114,7 @@ impl Astroport {
                     ),
                     (
                         PoolAddressBase::contract(self.astro_eur_pair.to_string()),
-                        PoolMetadata::constant_product(
-                            ASTROPORT,
-                            vec![astro_asset, eur_asset],
-                        ),
+                        PoolMetadata::constant_product(ASTROPORT, vec![astro_asset, eur_asset]),
                     ),
                 ],
                 vec![],
@@ -152,12 +148,7 @@ impl Deploy<Mock> for Astroport {
         let factory_code_id = store_factory_code(&mut app);
         let pair_code_id = store_pair_code_id(&mut app);
 
-        let astro_token_instance = instantiate_token(
-            &mut app,
-            token_code_id,
-            "ASTRO",
-            None,
-        );
+        let astro_token_instance = instantiate_token(&mut app, token_code_id, "ASTRO", None);
         astro_token.set_address(&astro_token_instance);
 
         let factory_instance =
@@ -223,8 +214,26 @@ impl Deploy<Mock> for Astroport {
 
         // give user some funds
         let astro_user = Addr::unchecked("astro_user");
-        provide_initial_liquidlity(&mut app, &owner, &eur_token_addr, 1_000_000, &usd_token_addr,1_000_000, &pair_eur_usd, &astro_user);
-        provide_initial_liquidlity(&mut app, &owner, &astro_token_instance, 100_000_000, &eur_token_addr, 10_000_000, &pair_astro_eur, &astro_user);
+        provide_initial_liquidlity(
+            &mut app,
+            &owner,
+            &eur_token_addr,
+            1_000_000,
+            &usd_token_addr,
+            1_000_000,
+            &pair_eur_usd,
+            &astro_user,
+        );
+        provide_initial_liquidlity(
+            &mut app,
+            &owner,
+            &astro_token_instance,
+            100_000_000,
+            &eur_token_addr,
+            10_000_000,
+            &pair_astro_eur,
+            &astro_user,
+        );
 
         // drop the mutable borrow of app
         // This allows us to pass `chain` to load Abstract

@@ -13,8 +13,8 @@ use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata};
 use abstract_sdk::register::EXCHANGE;
 use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
 use cosmwasm_std::{
-    to_binary, Addr, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg,
-    Uint128, WasmMsg, Decimal,
+    to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult,
+    SubMsg, Uint128, WasmMsg,
 };
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw_asset::{Asset, AssetInfo};
@@ -99,7 +99,11 @@ pub fn lp_provision_reply(
         .add_attribute("vault_token_minted", mint_amount))
 }
 
-fn mint_vault_tokens(config: &Config, user_address: Addr, mint_amount: Uint128) -> Result<CosmosMsg, AutocompounderError> {
+fn mint_vault_tokens(
+    config: &Config,
+    user_address: Addr,
+    mint_amount: Uint128,
+) -> Result<CosmosMsg, AutocompounderError> {
     let mint_msg: CosmosMsg = WasmMsg::Execute {
         contract_addr: config.vault_token.to_string(),
         msg: to_binary(&Mint {
@@ -112,7 +116,11 @@ fn mint_vault_tokens(config: &Config, user_address: Addr, mint_amount: Uint128) 
     Ok(mint_msg)
 }
 
-fn compute_mint_amount(staked_lp: Uint128, current_vault_supply: Uint128, received_lp: Uint128) -> Uint128 {
+fn compute_mint_amount(
+    staked_lp: Uint128,
+    current_vault_supply: Uint128,
+    received_lp: Uint128,
+) -> Uint128 {
     if !staked_lp.is_zero() {
         // will zero if first deposit
         current_vault_supply
@@ -398,7 +406,7 @@ fn swap_rewards_with_reply(
             }
             Ok(())
         })?;
-        let swap_msg = swap_msgs.pop().unwrap();
+    let swap_msg = swap_msgs.pop().unwrap();
     let submsg = SubMsg::reply_on_success(swap_msg, reply_id);
     Ok((swap_msgs, submsg))
 }

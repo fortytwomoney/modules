@@ -97,15 +97,18 @@ pub enum AutocompounderQueryMsg {
     /// Query the amount of pending claims
     /// Returns [`Uint128`]
     #[returns(Uint128)]
-    PendingClaims {address: String},
+    PendingClaims { address: String },
     /// Query the amount of claims
     /// Returns [`Vec<Claim>`]
     #[returns(Vec<Claim>)]
-    Claims {address: String},
+    Claims { address: String },
     /// Query all claim accounts
     /// Returns [`Vec<(Sting, Vec<Claim>)>`]
     #[returns(Vec<(String, Vec<Claim>)>)]
-    AllClaims { start_after: Option<String>, limit: Option<u8> },
+    AllClaims {
+        start_after: Option<String>,
+        limit: Option<u8>,
+    },
     /// Query the latest unbonding
     /// Returns [`Expiration`]
     #[returns(Expiration)]
@@ -114,12 +117,11 @@ pub enum AutocompounderQueryMsg {
     /// Returns [`Uint128`]
     #[returns(Uint128)]
     TotalLpPosition {},
-    /// Query the balance of vault tokens of a given address 
+    /// Query the balance of vault tokens of a given address
     /// Returns [`Uint128`]
     #[returns(Uint128)]
     Balance { address: String },
 }
-
 
 #[cosmwasm_schema::cw_serde]
 pub enum Cw20HookMsg {
@@ -173,4 +175,3 @@ pub struct Claim {
     //  amount of lp tokens being unbonded
     pub amount_of_lp_tokens_to_unbond: Uint128,
 }
-
