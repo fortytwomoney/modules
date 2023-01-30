@@ -77,8 +77,10 @@ fn main() -> anyhow::Result<()> {
 
     use dotenv::dotenv;
 
-    let Arguments
-    { network_id, prev_version } = Arguments::parse();
+    let Arguments {
+        network_id,
+        prev_version,
+    } = Arguments::parse();
 
     let network = parse_network(&network_id);
 

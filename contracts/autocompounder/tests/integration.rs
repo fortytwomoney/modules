@@ -409,7 +409,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> Result<(), BootE
     // the fee is then swapped using the astro/EUR pair
     // the price of the astro/EUR pair is 100M:10M
     // which will result in a 2990 EUR fee for the autocompounder. #TODO: check this: bit less then expected
-    vault.auto_compounder.compound()?; 
+    vault.auto_compounder.compound()?;
     let commission_received = eur_token.balance(&commission_addr)?;
     assert_that!(commission_received).is_equal_to(2970u128);
 

@@ -1,13 +1,10 @@
-use abstract_boot::{VersionControl,
-                    boot_core::{
-                        networks::NetworkInfo,
-                        prelude::*,
-                        networks,
-                        DaemonOptionsBuilder
-                    }};
+use abstract_boot::{
+    boot_core::{networks, networks::NetworkInfo, prelude::*, DaemonOptionsBuilder},
+    VersionControl,
+};
 use abstract_os::{
     objects::module::{ModuleInfo, ModuleVersion},
-    version_control::ExecuteMsgFns
+    version_control::ExecuteMsgFns,
 };
 use cosmwasm_std::Addr;
 use std::env;

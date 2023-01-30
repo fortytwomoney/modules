@@ -8,12 +8,10 @@ use crate::state::{
     Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
 use abstract_sdk::{
-    ModuleInterface,
-    Resolve,
-    TransferInterface,
-    os::objects::{AnsAsset, AssetEntry, LpToken},
-    base::features::{AbstractNameService, Identification},
     apis::dex::DexInterface,
+    base::features::{AbstractNameService, Identification},
+    os::objects::{AnsAsset, AssetEntry, LpToken},
+    ModuleInterface, Resolve, TransferInterface,
 };
 use cosmwasm_std::{
     from_binary, to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
@@ -139,9 +137,10 @@ pub fn deposit(
     }
 
     let dex = app.dex(deps.as_ref(), config.pool_data.dex);
-    let provide_liquidity_msg: CosmosMsg = dex.provide_liquidity(funds,
-                                                                 // TODO: let the user provide this
-                                                                 Some(Decimal::percent(5)),
+    let provide_liquidity_msg: CosmosMsg = dex.provide_liquidity(
+        funds,
+        // TODO: let the user provide this
+        Some(Decimal::percent(5)),
     )?;
 
     let sub_msg = SubMsg {
@@ -497,7 +496,7 @@ fn get_burn_msg(contract: &Addr, amount: Uint128) -> StdResult<CosmosMsg> {
         msg: to_binary(&msg)?,
         funds: vec![],
     }
-        .into())
+    .into())
 }
 
 fn unstake_lp_tokens(

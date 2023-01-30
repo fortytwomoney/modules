@@ -6,9 +6,12 @@ use crate::contract::{
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
-use abstract_sdk::{os::{
-    objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata}
-}, base::features::{AbstractNameService, Identification}, Resolve, TransferInterface, apis::dex::{Dex, DexInterface}, ModuleInterface};
+use abstract_sdk::{
+    apis::dex::{Dex, DexInterface},
+    base::features::{AbstractNameService, Identification},
+    os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
+    ModuleInterface, Resolve, TransferInterface,
+};
 use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult,
     SubMsg, Uint128, WasmMsg,
@@ -185,12 +188,8 @@ pub fn lp_compound_reply(
         .collect::<StdResult<Vec<AnsAsset>>>()?;
 
     // 3) (swap and) Send fees to treasury
-    let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
-        fees,
-        vec![config.fees.fee_asset],
-        &dex,
-        FEE_SWAPPED_REPLY,
-    )?;
+    let (fee_swap_msgs, fee_swap_submsg) =
+        swap_rewards_with_reply(fees, vec![config.fees.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
 
     // 3) Swap rewards to token in pool
     // 3.1) check if asset is not in pool assets
@@ -200,11 +199,7 @@ pub fn lp_compound_reply(
         //  TODO: but we might need to check the length of the rewards.
 
         // 3.1.2) provide liquidity
-        let lp_msg: CosmosMsg = dex.provide_liquidity(
-            rewards,
-            Some(Decimal::percent(50)),
-        )?;
-
+        let lp_msg: CosmosMsg = dex.provide_liquidity(rewards, Some(Decimal::percent(50)))?;
 
         let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
@@ -214,12 +209,8 @@ pub fn lp_compound_reply(
             .add_submessage(submsg)
             .add_attribute("action", "provide_liquidity"))
     } else {
-        let (swap_msgs, submsg) = swap_rewards_with_reply(
-            rewards,
-            pool_assets,
-            &dex,
-            SWAPPED_REPLY_ID,
-        )?;
+        let (swap_msgs, submsg) =
+            swap_rewards_with_reply(rewards, pool_assets, &dex, SWAPPED_REPLY_ID)?;
 
         // adds all swap messages to the response and the submsg -> the submsg will be executed after the last swap message
         // and will trigger the reply SWAPPED_REPLY_ID
@@ -247,7 +238,6 @@ pub fn swapped_reply(
     let config = CONFIG.load(deps.storage)?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex);
 
-
     // 1) query balance of pool tokens
     let rewards = config
         .pool_data
@@ -261,10 +251,7 @@ pub fn swapped_reply(
         .collect::<StdResult<Vec<AnsAsset>>>()?;
 
     // 2) provide liquidity
-    let lp_msg: CosmosMsg = dex.provide_liquidity(
-        rewards,
-        Some(Decimal::percent(10)),
-    )?;
+    let lp_msg: CosmosMsg = dex.provide_liquidity(rewards, Some(Decimal::percent(10)))?;
     let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
     Ok(Response::new()
