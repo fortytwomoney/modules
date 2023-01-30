@@ -291,7 +291,7 @@ fn redeem(
             )?;
         }
 
-        Ok(Response::new().add_attribute("action", "4T2/AC/Register_pre_claim"))
+        Ok(app.custom_tag_response(Response::new(), "redeem", vec![("4t2", "AC/Register_pre_claim")]))
     }
 }
 
