@@ -42,8 +42,13 @@ fn handle_local_request(
     provider_name: String,
 ) -> CwStakingResult {
     let provider = resolver::resolve_local_provider(&provider_name)?;
-    let response = Response::new().add_submessage(api.resolve_staking_action(deps, action, provider)?);
-    Ok(api.custom_tag_response(response, "handle_local_request", vec![("provider", provider_name)]))
+    let response =
+        Response::new().add_submessage(api.resolve_staking_action(deps, action, provider)?);
+    Ok(api.custom_tag_response(
+        response,
+        "handle_local_request",
+        vec![("provider", provider_name)],
+    ))
 }
 
 /// Handle a request that needs to be executed on a remote chain
@@ -78,7 +83,11 @@ fn handle_ibc_request(
 
     // call both messages on the proxy
     let response = Response::new().add_messages(vec![ics20_transfer_msg, ibc_action_msg]);
-    Ok(api.custom_tag_response(response, "handle_ibc_request", vec![("provider", provider_name)]))
+    Ok(api.custom_tag_response(
+        response,
+        "handle_ibc_request",
+        vec![("provider", provider_name)],
+    ))
 }
 
 /// Resolve the assets to be transferred to the host chain for the given action

@@ -6,6 +6,7 @@ use crate::contract::{
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
+use abstract_sdk::base::features::AbstractResponse;
 use abstract_sdk::{
     apis::dex::{Dex, DexInterface},
     base::features::{AbstractNameService, Identification},
@@ -45,7 +46,11 @@ pub fn instantiate_reply(
         Ok(config)
     })?;
 
-    Ok(app.custom_tag_response(Response::new(), "instantiate", vec![("vault_token_addr", vault_token_addr)]))
+    Ok(app.custom_tag_response(
+        Response::new(),
+        "instantiate",
+        vec![("vault_token_addr", vault_token_addr)],
+    ))
 }
 
 pub fn lp_provision_reply(
@@ -93,10 +98,12 @@ pub fn lp_provision_reply(
         config.unbonding_period,
     )?;
 
-    let res = Response::new()
-        .add_message(mint_msg)
-        .add_message(stake_msg);
-    Ok(app.custom_tag_response(res, "lp_provision_reply", vec![("vault_token_minted", mint_amount)]))
+    let res = Response::new().add_message(mint_msg).add_message(stake_msg);
+    Ok(app.custom_tag_response(
+        res,
+        "lp_provision_reply",
+        vec![("vault_token_minted", mint_amount)],
+    ))
 }
 
 fn mint_vault_tokens(
@@ -255,8 +262,7 @@ pub fn swapped_reply(
     let lp_msg: CosmosMsg = dex.provide_liquidity(rewards, Some(Decimal::percent(10)))?;
     let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
-    let response = Response::new()
-        .add_submessage(submsg);
+    let response = Response::new().add_submessage(submsg);
     Ok(app.tag_response(response, "provide_liquidity"))
 }
 
@@ -286,8 +292,7 @@ pub fn compound_lp_provision_reply(
         config.unbonding_period,
     )?;
 
-    let response = Response::new()
-        .add_message(stake_msg);
+    let response = Response::new().add_message(stake_msg);
 
     Ok(app.tag_response(response, "stake"))
 }
@@ -310,8 +315,7 @@ pub fn fee_swapped_reply(
         &config.commission_addr,
     )?;
 
-    let response = Response::new()
-        .add_message(transfer_msg);
+    let response = Response::new().add_message(transfer_msg);
     Ok(app.tag_response(response, "transfer_platform_fees"))
 }
 
@@ -326,9 +330,7 @@ fn query_rewards(
         provider: pool_data.dex.clone(),
         staking_token: LpToken::from(pool_data).into(),
     };
-    let RewardTokensResponse {
-        tokens
-    } = modules.query_api(CW_STAKING, query)?;
+    let RewardTokensResponse { tokens } = modules.query_api(CW_STAKING, query)?;
 
     Ok(tokens)
 }

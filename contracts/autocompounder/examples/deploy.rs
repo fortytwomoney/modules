@@ -1,5 +1,5 @@
 use abstract_boot::VersionControl;
-use boot_core::networks::{NetworkInfo};
+use boot_core::networks::NetworkInfo;
 use boot_core::prelude::instantiate_daemon_env;
 use boot_core::prelude::*;
 use boot_core::DaemonOptionsBuilder;
