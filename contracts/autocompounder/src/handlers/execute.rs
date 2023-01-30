@@ -23,6 +23,7 @@ use cw_utils::Duration;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
 use std::ops::Add;
+use abstract_sdk::base::features::AbstractResponse;
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
 pub fn execute_handler(
@@ -83,7 +84,7 @@ pub fn update_fee_config(
         })?;
     }
 
-    Ok(Response::new().add_attribute("action", "update_fee_config"))
+    Ok(app.tag_response(Response::new(),"update_fee_config"))
 }
 
 // This is the function that is called when the user wants to pool AND stake their funds
@@ -152,10 +153,10 @@ pub fn deposit(
 
     // save the user address to the cache for later use in reply
     CACHED_USER_ADDR.save(deps.storage, &msg_info.sender)?;
-    Ok(Response::new()
+    let response = Response::new()
         .add_messages(msgs)
-        .add_submessage(sub_msg)
-        .add_attribute("action", "4T2/AC/Deposit"))
+        .add_submessage(sub_msg);
+    Ok(app.custom_tag_response(response, "deposit", vec![("4t2", "/AC/Deposit")]))
 }
 
 pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> AutocompounderResult {
@@ -194,9 +195,9 @@ pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> Autocomp
 
     let burn_msg = get_burn_msg(&config.vault_token, total_vault_tokens_to_burn)?;
 
-    Ok(Response::new()
-        .add_messages(vec![unstake_msg, burn_msg])
-        .add_attribute("action", "4T2/AC/UnbondBatch"))
+    let response = Response::new()
+        .add_messages(vec![unstake_msg, burn_msg]);
+    Ok(app.custom_tag_response(response, "batch_unbond", vec![("4t2", "AC/UnbondBatch")]))
 }
 
 /// Handles receiving CW20 messages
@@ -319,9 +320,9 @@ fn compound(deps: DepsMut, app: AutocompounderApp) -> AutocompounderResult {
     // 3) Swap rewards to token in pool
     // 4) Provide liquidity to pool
 
-    Ok(Response::new()
-        .add_submessage(claim_submsg)
-        .add_attribute("action", "4T2🚀AC🚀Compound🤖"))
+    let response = Response::new()
+        .add_submessage(claim_submsg);
+    Ok(app.tag_response(response, "compound"))
 }
 
 /// withdraw all matured claims for a user
@@ -373,10 +374,9 @@ pub fn withdraw_claims(
     )?;
     let sub_msg = SubMsg::reply_on_success(swap_msg, LP_WITHDRAWAL_REPLY_ID);
 
-    Ok(Response::new()
-        .add_submessage(sub_msg)
-        .add_attribute("action", "4T2/AC/Withdraw_claims")
-        .add_attribute("lp_tokens_to_withdraw", lp_tokens_to_withdraw.to_string()))
+    let response = Response::new()
+        .add_submessage(sub_msg);
+    Ok(app.custom_tag_response(response, "withdraw_claims", vec![("4t2", "AC/Withdraw_claims".to_string()), ("lp_tokens_to_withdraw", lp_tokens_to_withdraw.to_string())]))
 }
 
 #[allow(clippy::type_complexity)]
