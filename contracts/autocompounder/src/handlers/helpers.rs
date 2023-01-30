@@ -27,10 +27,12 @@ pub fn query_stake(
 }
 
 pub fn cw20_total_supply(deps: Deps, config: &Config) -> StdResult<Uint128> {
-    let vault_token_info: TokenInfoResponse = deps
+    let TokenInfoResponse {
+        total_supply: vault_tokens_total_supply,
+        ..
+    } = deps
         .querier
         .query_wasm_smart(config.vault_token.clone(), &Cw20QueryMsg::TokenInfo {})?;
-    let vault_tokens_total_supply = vault_token_info.total_supply;
     Ok(vault_tokens_total_supply)
 }
 

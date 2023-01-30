@@ -6,12 +6,9 @@ use crate::contract::{
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
-use abstract_sdk::apis::modules::Modules;
-use abstract_sdk::base::features::{AbstractNameService, Identification};
-use abstract_sdk::os::dex::{DexAction, DexExecuteMsg};
-use abstract_sdk::os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata};
-use abstract_sdk::register::EXCHANGE;
-use abstract_sdk::{ModuleInterface, Resolve, TransferInterface};
+use abstract_sdk::{os::{
+    objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata}
+}, base::features::{AbstractNameService, Identification}, Resolve, TransferInterface, apis::dex::{Dex, DexInterface}, ModuleInterface};
 use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult,
     SubMsg, Uint128, WasmMsg,
@@ -165,8 +162,9 @@ pub fn lp_compound_reply(
     app: AutocompounderApp,
     _reply: Reply,
 ) -> AutocompounderResult {
-    let modules = app.modules(deps.as_ref());
     let config = CONFIG.load(deps.storage)?;
+    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
+
     let base_state = app.load_state(deps.storage)?;
     let _proxy = base_state.proxy_address;
     // 1) claim rewards (this happened in the execution before this reply)
@@ -190,8 +188,7 @@ pub fn lp_compound_reply(
     let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
         fees,
         vec![config.fees.fee_asset],
-        &modules,
-        &config.pool_data.dex,
+        &dex,
         FEE_SWAPPED_REPLY,
     )?;
 
@@ -203,16 +200,11 @@ pub fn lp_compound_reply(
         //  TODO: but we might need to check the length of the rewards.
 
         // 3.1.2) provide liquidity
-        let lp_msg: CosmosMsg = modules.api_request(
-            EXCHANGE,
-            DexExecuteMsg {
-                dex: config.pool_data.dex,
-                action: DexAction::ProvideLiquidity {
-                    assets: rewards,
-                    max_spread: Some(Decimal::percent(50)),
-                },
-            },
+        let lp_msg: CosmosMsg = dex.provide_liquidity(
+            rewards,
+            Some(Decimal::percent(50)),
         )?;
+
 
         let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
@@ -225,8 +217,7 @@ pub fn lp_compound_reply(
         let (swap_msgs, submsg) = swap_rewards_with_reply(
             rewards,
             pool_assets,
-            &modules,
-            &config.pool_data.dex,
+            &dex,
             SWAPPED_REPLY_ID,
         )?;
 
@@ -253,8 +244,9 @@ pub fn swapped_reply(
     _reply: Reply,
 ) -> AutocompounderResult {
     let ans_host = app.ans_host(deps.as_ref())?;
-    let modules = app.modules(deps.as_ref());
     let config = CONFIG.load(deps.storage)?;
+    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
+
 
     // 1) query balance of pool tokens
     let rewards = config
@@ -269,15 +261,9 @@ pub fn swapped_reply(
         .collect::<StdResult<Vec<AnsAsset>>>()?;
 
     // 2) provide liquidity
-    let lp_msg: CosmosMsg = modules.api_request(
-        EXCHANGE,
-        DexExecuteMsg {
-            dex: config.pool_data.dex,
-            action: DexAction::ProvideLiquidity {
-                assets: rewards,
-                max_spread: Some(Decimal::percent(10)),
-            },
-        },
+    let lp_msg: CosmosMsg = dex.provide_liquidity(
+        rewards,
+        Some(Decimal::percent(10)),
     )?;
     let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
@@ -380,8 +366,7 @@ fn stake_lp_tokens(
 fn swap_rewards_with_reply(
     rewards: Vec<AnsAsset>,
     target_assets: Vec<AssetEntry>,
-    modules: &Modules<AutocompounderApp>,
-    dex: &String,
+    dex: &Dex<AutocompounderApp>,
     reply_id: u64,
 ) -> Result<(Vec<CosmosMsg>, SubMsg), AutocompounderError> {
     let mut swap_msgs: Vec<CosmosMsg> = vec![];
@@ -390,17 +375,11 @@ fn swap_rewards_with_reply(
         .try_for_each(|reward: &AnsAsset| -> StdResult<_> {
             if !target_assets.contains(&reward.name) {
                 // 3.2) swap to asset in pool
-                let swap_msg = modules.api_request(
-                    EXCHANGE,
-                    DexExecuteMsg {
-                        dex: dex.to_string(),
-                        action: DexAction::Swap {
-                            offer_asset: reward.clone(),
-                            ask_asset: target_assets.get(0).unwrap().clone(),
-                            max_spread: Some(Decimal::percent(50)),
-                            belief_price: None,
-                        },
-                    },
+                let swap_msg = dex.swap(
+                    reward.clone(),
+                    target_assets.get(0).unwrap().clone(),
+                    Some(Decimal::percent(50)),
+                    None,
                 )?;
                 swap_msgs.push(swap_msg);
             }

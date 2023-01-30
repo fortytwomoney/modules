@@ -1,6 +1,6 @@
 use abstract_boot::{ModuleDeployer, VCExecFns, VCQueryFns};
 use abstract_sdk::os::objects::module::{Module, ModuleInfo, ModuleVersion};
-use boot_core::networks::UNI_5;
+use boot_core::networks::{NetworkInfo, UNI_5};
 use boot_core::prelude::instantiate_daemon_env;
 use boot_core::prelude::*;
 use boot_core::DaemonOptionsBuilder;
@@ -13,7 +13,7 @@ use tokio::runtime::Runtime;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-fn deploy_cw_staking(args: Arguments) -> anyhow::Result<()> {
+fn deploy_cw_staking(_network: NetworkInfo, prev_version: Option<String>) -> anyhow::Result<()> {
     let module_version: Version = CONTRACT_VERSION.parse().unwrap();
     let network = UNI_5;
 
@@ -31,7 +31,7 @@ fn deploy_cw_staking(args: Arguments) -> anyhow::Result<()> {
         &Addr::unchecked(std::env::var("VERSION_CONTROL").expect("VERSION_CONTROL not set")),
     )?;
 
-    if let Some(prev_version) = args.prev_version {
+    if let Some(prev_version) = prev_version {
         let Module { info, reference } = deployer
             .version_control
             .module(ModuleInfo::from_id(
@@ -59,12 +59,16 @@ fn deploy_cw_staking(args: Arguments) -> anyhow::Result<()> {
 }
 
 use clap::Parser;
+use forty_two_boot::parse_network;
+
 #[derive(Parser, Default, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Arguments {
     /// Use a previously deployed version instead of uploading the new one
     #[arg(short, long)]
     prev_version: Option<String>,
+    #[arg(short, long)]
+    network_id: String,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -73,7 +77,10 @@ fn main() -> anyhow::Result<()> {
 
     use dotenv::dotenv;
 
-    let args = Arguments::parse();
+    let Arguments
+    { network_id, prev_version } = Arguments::parse();
 
-    deploy_cw_staking(args)
+    let network = parse_network(&network_id);
+
+    deploy_cw_staking(network, prev_version)
 }
