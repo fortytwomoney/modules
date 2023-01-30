@@ -8,8 +8,8 @@ use forty_two::cw_staking::{
     RewardTokensResponse, StakeResponse, StakingInfoResponse, UnbondingResponse,
 };
 
-/// Trait that defines the interface for staking providers
-pub trait CwStaking: Identify {
+/// Trait that defines the adapter interface for staking providers
+pub trait CwStakingAdapter: Identify {
     // TODO: Move to SDK.
     /// Construct a staking contract entry from the staking token and the provider
     fn staking_entry(&self, staking_token: &AssetEntry) -> ContractEntry {

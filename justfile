@@ -11,3 +11,6 @@ create-vault:
 
 build:
   cargo build
+
+test:
+  cargo nextest run
