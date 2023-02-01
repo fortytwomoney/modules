@@ -13,10 +13,7 @@ use abstract_sdk::{
     os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
     ModuleInterface, Resolve, TransferInterface,
 };
-use cosmwasm_std::{
-    to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult,
-    SubMsg, Uint128, WasmMsg,
-};
+use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg, wasm_execute};
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw_asset::{Asset, AssetInfo};
 use cw_utils::Duration;
@@ -62,7 +59,7 @@ pub fn lp_provision_reply(
     let config = CONFIG.load(deps.storage)?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     let proxy_address = app.proxy_address(deps.as_ref())?;
-    let _ans_host = app.ans_host(deps.as_ref())?;
+    let ans_host = app.ans_host(deps.as_ref())?;
     CACHED_USER_ADDR.remove(deps.storage);
 
     // 1) get the total supply of Vault token
@@ -71,7 +68,7 @@ pub fn lp_provision_reply(
     // 2) Retrieve the number of LP tokens minted/staked.
     let lp_token = LpToken::from(config.pool_data.clone());
     let received_lp = lp_token
-        .resolve(&deps.querier, &_ans_host)?
+        .resolve(&deps.querier, &ans_host)?
         .query_balance(&deps.querier, proxy_address.to_string())?;
 
     let staked_lp = query_stake(
@@ -111,14 +108,13 @@ fn mint_vault_tokens(
     user_address: Addr,
     mint_amount: Uint128,
 ) -> Result<CosmosMsg, AutocompounderError> {
-    let mint_msg: CosmosMsg = WasmMsg::Execute {
-        contract_addr: config.vault_token.to_string(),
-        msg: to_binary(&Mint {
+    let mint_msg = wasm_execute(config.vault_token.to_string(),
+        &Mint {
             recipient: user_address.to_string(),
             amount: mint_amount,
-        })?,
-        funds: vec![],
-    }
+        },
+        vec![],
+    )?
     .into();
     Ok(mint_msg)
 }

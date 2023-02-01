@@ -14,10 +14,7 @@ use abstract_sdk::{
     os::objects::{AnsAsset, AssetEntry, LpToken},
     ModuleInterface, Resolve, TransferInterface,
 };
-use cosmwasm_std::{
-    from_binary, to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
-    ReplyOn, Response, StdResult, SubMsg, Uint128, WasmMsg,
-};
+use cosmwasm_std::{from_binary, to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response, StdResult, SubMsg, Uint128, WasmMsg, wasm_execute};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetList;
 use cw_utils::Duration;
@@ -39,7 +36,7 @@ pub fn execute_handler(
             withdrawal,
             deposit,
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
-        AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, env, app, funds),
+        AutocompounderExecuteMsg::Deposit { funds } => handle_deposit(deps, info, env, app, funds),
         AutocompounderExecuteMsg::Withdraw {} => withdraw_claims(deps, app, env, info.sender),
         AutocompounderExecuteMsg::BatchUnbond {} => batch_unbond(deps, env, app),
         AutocompounderExecuteMsg::Compound {} => compound(deps, app),
@@ -88,7 +85,7 @@ pub fn update_fee_config(
 }
 
 // This is the function that is called when the user wants to pool AND stake their funds
-pub fn deposit(
+pub fn handle_deposit(
     deps: DepsMut,
     msg_info: MessageInfo,
     _env: Env,
@@ -487,17 +484,16 @@ fn claim_lp_rewards(
                     staking_token: lp_token_name,
                 },
             },
-        )
-        .unwrap()
+        ).unwrap()
 }
 
 fn get_burn_msg(contract: &Addr, amount: Uint128) -> StdResult<CosmosMsg> {
     let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
-    Ok(WasmMsg::Execute {
-        contract_addr: contract.to_string(),
-        msg: to_binary(&msg)?,
-        funds: vec![],
-    }
+
+    Ok(wasm_execute(contract.to_string(),
+        &msg,
+         vec![],
+    )?
     .into())
 }
 

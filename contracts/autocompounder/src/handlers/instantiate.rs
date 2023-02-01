@@ -151,7 +151,7 @@ pub fn instantiate_handler(
     // create LP token SubMsg
     let sub_msg = create_lp_token_submsg(
         env.contract.address.to_string(),
-        format!("4T2 Vault Token for {pairing}"),
+        format!("4T2 {pairing}"),
         // pool data is too long
         // format!("4T2 Vault Token for {pool_data}"),
         "FORTYTWO".to_string(), // TODO: find a better way to define name and symbol
@@ -215,4 +215,30 @@ pub fn query_staking_info(
         ))
     })?;
     Ok(res)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_cw_20_init() {
+        let pairing = DexAssetPairing::new(
+            AssetEntry::from("terra2>astro"),
+            AssetEntry::from("terra2>luna"),
+            "astroport",
+        );
+        let name = format!("4T2 {pairing}");
+
+        let msg = TokenInstantiateMsg {
+            name,
+            symbol: "FORTYTWO".to_string(),
+            decimals: 6,
+            initial_balances: vec![],
+            mint: Some(MinterResponse { minter: "".to_string(), cap: None }),
+            marketing: None,
+        };
+
+        msg.validate().unwrap();
+    }
 }

@@ -46,10 +46,25 @@ publish-schemas version:
 create-pisco-1-vaults +args='':
   just create-vault pisco-1 "'terra2>astro'" {{args}}
 
-
-update-cw-staking-pisco-1 code_id:
+wasm-pisco-1:
   just wasm-module cw-staking --features terra-testnet --no-default-features
   just wasm-module autocompounder
-  just deploy-module cw-staking pisco-1 --code-id {{code_id}}
-  just deploy-module autocompounder pisco-1 --code-id 7363
+
+deploy-pisco-1: wasm-pisco-1
+  just deploy-module cw-staking pisco-1
+  just deploy-module autocompounder pisco-1
+
+full-deploy-pisco-1: deploy-pisco-1
+  just create-vault pisco-1 "'terra2>astro'" --os-id 2
+  just create-vault pisco-1 "'terra2>stb'" --os-id 3
+
+update-autocompounder-pisco-1 network='pisco-1':
+  just wasm-module autocompounder
+  just deploy-module autocompounder {{network}}
+  just deploy-module cw-staking {{network}} --code-id 7367
+
+update-cw-staking-pisco-1:
+  just wasm-module cw-staking --features terra-testnet --no-default-features
+  just deploy-module cw-staking pisco-1
+  just deploy-module autocompounder pisco-1 --code-id 7372
 #  just deploy pisco-1

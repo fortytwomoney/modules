@@ -15,7 +15,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.3.5"
+version = "0.3.8"
 authors = []
 edition = "2021"
 
@@ -36,8 +36,8 @@ abstract-app = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contra
 abstract-os = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contracts.git", rev = "7eb9d9a5cb4b067259cbb52afb8496e4c729bc34"}
 abstract-boot = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contracts.git", rev = "7eb9d9a5cb4b067259cbb52afb8496e4c729bc34"}
 #abstract-boot = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contracts.git", rev = "aa01941365621b783683fd4ef397f53170d8334e"}
-forty-two = { version = "0.3.5", path = "packages/forty-two" }
-forty-two-boot = { version = "0.3.5", path = "packages/forty-two-boot" }
+forty-two = { version = "0.3.8", path = "packages/forty-two" }
+forty-two-boot = { version = "0.3.8", path = "packages/forty-two-boot" }
 cosmwasm-std = { version = "1.1" }
 cosmwasm-schema = { version = "1.1" }
 cw-asset = {git = "https://github.com/CyberHoward/cw-asset.git" }
@@ -78,3 +78,14 @@ boot-core = { version = "0.6.0", git =  "https://github.com/Abstract-OS/BOOT.git
 boot-cw-plus = { version = "0.6.0",  git =  "https://github.com/Abstract-OS/BOOT.git"}
 
 clap =  { version = "4.0.32", features = ["derive"] }
+
+[profile.release]
+rpath = false
+lto = true
+overflow-checks = true
+opt-level = 3
+debug = false
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+incremental = false

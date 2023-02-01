@@ -5,7 +5,8 @@ use abstract_boot::{
     boot_core::{prelude::*, state::StateInterface, DaemonOptionsBuilder},
     Manager, ManagerQueryFns, OSFactory, Proxy, VersionControl, OS,
 };
-use abstract_os::{ABSTRACT_EVENT_NAME, app, objects::{gov_type::GovernanceDetails, module::ModuleVersion}, os_factory, registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY}};
+use abstract_os::{ABSTRACT_EVENT_NAME, api, app, objects::{gov_type::GovernanceDetails, module::ModuleVersion}, os_factory, registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY}};
+use abstract_os::api::BaseExecuteMsg;
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
 use log::info;
@@ -14,6 +15,7 @@ use forty_two::autocompounder::{
     AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER,
 };
 use forty_two::cw_staking::CW_STAKING;
+use forty_two_boot::cw_staking::CwStakingApi;
 use forty_two_boot::parse_network;
 
 // To deploy the app we need to get the memory and then register it
@@ -30,6 +32,18 @@ fn is_module_installed<Chain: BootEnvironment>(
     Ok(module_infos
         .iter()
         .any(|module_info| module_info.id == module_id))
+}
+
+fn get_module_address<Chain: BootEnvironment>(
+    os: &OS<Chain>,
+    module_id: &str,
+) -> anyhow::Result<Addr> {
+    let module_infos = os.manager.module_infos(None, None)?.module_infos;
+    let module_info = module_infos
+        .iter()
+        .find(|module_info| module_info.id == module_id)
+        .ok_or(anyhow::anyhow!("Module not found"))?;
+    Ok(Addr::unchecked(module_info.address.clone()))
 }
 
 fn create_vault<Chain: BootEnvironment>(
@@ -65,10 +79,10 @@ fn create_vault<Chain: BootEnvironment>(
 fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
-    let (dex, base_pair_asset) = match args.network_id.as_str() {
-        "uni-5" => ("junoswap", "junox"),
-        "juno-1" => ("junoswap", "juno"),
-        "pisco-1" => ("astroport", "terra2>luna"),
+    let (dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
+        "uni-5" => ("junoswap", "junox", 4012),
+        "juno-1" => ("junoswap", "juno", 0),
+        "pisco-1" => ("astroport", "terra2>luna", 83),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
 
@@ -139,8 +153,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         new_module_version,
         &app::InstantiateMsg {
             base: app::BaseInstantiateMsg {
-                // ans_host_address: "juno1qyetxuhvmpgan5qyjq3julmzz9g3rhn3jfp2jlgy29ftjknv0c6s0xywpp"
-                //     .to_string(),
                 ans_host_address: version_control
                     .get_api_addr(ANS_HOST, abstract_version)?
                     .to_string(),
@@ -152,7 +164,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                 /// address that recieves the fee commissions
                 commission_addr: sender.to_string(),
                 /// cw20 code id
-                code_id: 4012,
+                code_id: cw20_code_id,
                 /// Name of the target dex
                 dex: dex.into(),
                 fee_asset: base_pair_asset.into(),
@@ -162,6 +174,22 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             },
         },
     )?;
+
+    // Register the autocompounder as a trader on the cw-staking and the dex
+    let autocompounder_address = get_module_address(&os, AUTOCOMPOUNDER)?;
+
+    os.manager.execute_on_module(CW_STAKING,
+    &api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
+        to_add: vec![ autocompounder_address.to_string()],
+        to_remove: vec![],
+    }))?;
+
+    os.manager.execute_on_module(EXCHANGE,
+    &api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
+        to_add: vec![ autocompounder_address.to_string()],
+        to_remove: vec![],
+    }))?;
+
 
     Ok(())
 }

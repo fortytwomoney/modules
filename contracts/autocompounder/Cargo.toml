@@ -96,3 +96,13 @@ dotenv = {  workspace = true }
 env_logger = {  workspace = true }
 
 clap =  { workspace = true }
+
+
+[profile.release]
+lto = true
+debug = false
+debug-assertions = false
+opt-level = "s"
+overflow-checks = false
+panic = "abort"
+rpath = false
