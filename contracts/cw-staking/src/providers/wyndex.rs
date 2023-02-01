@@ -162,7 +162,7 @@ impl CwStakingAdapter for WynDex {
             (&staker, unbonding_period),
         );
         let stake_balance_info = stake_balance_res
-            .map_err(|_| StdError::generic_err("Raw query for wynddex stake balance failed."))?;
+            .map_err(|e| StdError::generic_err(format!("Raw query for wynddex stake balance failed. Error: {:?}", e)))?;
 
         let amount = if let Some(bonding_info) = stake_balance_info {
             bonding_info.total_stake()

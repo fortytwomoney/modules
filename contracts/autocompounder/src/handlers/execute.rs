@@ -271,11 +271,11 @@ fn redeem(
         )?;
         let sub_msg = SubMsg::reply_on_success(swap_msg, LP_WITHDRAWAL_REPLY_ID);
 
-        Ok(Response::new()
+        let response = Response::new()
             .add_message(unstake_msg)
             .add_message(burn_msg)
-            .add_submessage(sub_msg)
-            .add_attribute("action", "4T2/AC/Redeem"))
+            .add_submessage(sub_msg);
+        Ok(app.custom_tag_response(response, "redeem", vec![("4t2", "AC/Redeem")]))
     } else {
         // if bonding period is set, we need to register the user's pending claim, that will be processed in the next batch unbonding
         if let Some(pending_claim) = PENDING_CLAIMS.may_load(deps.storage, sender.to_string())? {

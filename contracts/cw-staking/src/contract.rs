@@ -13,4 +13,8 @@ pub const CW_STAKING_API: CwStakingApi = CwStakingApi::new(CW_STAKING, MODULE_VE
     .with_query(handlers::query_handler);
 
 // Export the endpoints for this contract
+#[cfg(not(feature = "library"))]
 export_endpoints!(CW_STAKING_API, CwStakingApi);
+
+#[cfg(all(feature = "terra", feature = "terra-testnet"))]
+compile_error!("feature \"terra\" and feature \"terra-testnet\" cannot be enabled at the same time");

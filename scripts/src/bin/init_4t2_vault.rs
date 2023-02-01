@@ -5,12 +5,7 @@ use abstract_boot::{
     boot_core::{prelude::*, state::StateInterface, DaemonOptionsBuilder},
     Manager, ManagerQueryFns, OSFactory, Proxy, VersionControl, OS,
 };
-use abstract_os::{
-    app,
-    objects::{gov_type::GovernanceDetails, module::ModuleVersion},
-    os_factory,
-    registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY},
-};
+use abstract_os::{ABSTRACT_EVENT_NAME, app, objects::{gov_type::GovernanceDetails, module::ModuleVersion}, os_factory, registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY}};
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
 use log::info;
@@ -53,11 +48,11 @@ fn create_vault<Chain: BootEnvironment>(
         None,
     )?;
 
-    let manager_address = &result.event_attr_value("wasm", "manager_address")?;
+    let manager_address = &result.event_attr_value(ABSTRACT_EVENT_NAME, "manager_address")?;
     chain
         .state()
         .set_address(MANAGER, &Addr::unchecked(manager_address));
-    let proxy_address = &result.event_attr_value("wasm", "proxy_address")?;
+    let proxy_address = &result.event_attr_value(ABSTRACT_EVENT_NAME, "proxy_address")?;
     chain
         .state()
         .set_address(PROXY, &Addr::unchecked(proxy_address));
@@ -67,7 +62,7 @@ fn create_vault<Chain: BootEnvironment>(
     })
 }
 
-fn deploy_api(args: Arguments) -> anyhow::Result<()> {
+fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
     let (dex, base_pair_asset) = match args.network_id.as_str() {
@@ -194,7 +189,7 @@ fn main() {
 
     let args = Arguments::parse();
 
-    if let Err(ref err) = deploy_api(args) {
+    if let Err(ref err) = init_vault(args) {
         log::error!("{}", err);
         err.chain()
             .skip(1)

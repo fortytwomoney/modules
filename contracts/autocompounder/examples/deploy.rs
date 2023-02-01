@@ -36,8 +36,6 @@ fn deploy_autocompounder(
         autocompounder.upload()?;
     }
 
-    // version_control.register_apps(vec![autocompounder.as_instance()], &version)?;
-
     // // Remove beforehand
     // version_control.remove_module(ModuleInfo {
     //     name: "autocompounder".into(),

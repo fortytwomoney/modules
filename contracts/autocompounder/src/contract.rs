@@ -54,4 +54,5 @@ const APP: AutocompounderApp = AutocompounderApp::new(AUTOCOMPOUNDER, MODULE_VER
     .with_dependencies(AUTOCOMPOUNDER_DEPS);
 
 // Export the endpoints for this contract
+#[cfg(not(feature = "library"))]
 export_endpoints!(APP, AutocompounderApp);

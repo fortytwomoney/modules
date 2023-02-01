@@ -6,13 +6,25 @@ use abstract_sdk::{
     os::objects::{AssetEntry, LpToken},
     Resolve,
 };
+
+#[cfg(feature = "terra")]
 use astroport::generator::{
     Cw20HookMsg, ExecuteMsg as GeneratorExecuteMsg, QueryMsg as GeneratorQueryMsg,
-    RewardInfoResponse,
+    RewardInfoResponse, Config as ConfigResponse
 };
-use cosmwasm_std::{
-    to_binary, Addr, CosmosMsg, Deps, QuerierWrapper, StdError, StdResult, Uint128, WasmMsg,
+
+#[cfg(feature = "terra-testnet")]
+use astroport_testnet::{
+    generator::{
+        Cw20HookMsg, ExecuteMsg as GeneratorExecuteMsg, QueryMsg as GeneratorQueryMsg,
+        RewardInfoResponse, ConfigResponse
+    },
+    asset::{
+        AssetInfo as AstroportAssetInfo,
+    }
 };
+
+use cosmwasm_std::{to_binary, Addr, CosmosMsg, Deps, QuerierWrapper, StdError, StdResult, Uint128, wasm_execute};
 use cw20::Cw20ExecuteMsg;
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
@@ -75,15 +87,14 @@ impl CwStakingAdapter for Astroport {
         _unbonding_period: Option<Duration>,
     ) -> Result<Vec<CosmosMsg>, StakingError> {
         let msg = to_binary(&Cw20HookMsg::Deposit {})?;
-        Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: self.lp_token_address.to_string(),
-            msg: to_binary(&Cw20ExecuteMsg::Send {
+        Ok(vec![wasm_execute(self.lp_token_address.to_string(),
+            &Cw20ExecuteMsg::Send {
                 contract: self.generator_contract_address.to_string(),
                 amount,
                 msg,
-            })?,
-            funds: vec![],
-        })])
+            },
+            vec![],
+        )?.into()])
     }
 
     fn unstake(
@@ -96,11 +107,11 @@ impl CwStakingAdapter for Astroport {
             lp_token: self.lp_token_address.to_string(),
             amount,
         };
-        Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: self.generator_contract_address.to_string(),
-            msg: to_binary(&msg)?,
-            funds: vec![],
-        })])
+        Ok(vec![wasm_execute(
+            self.generator_contract_address.to_string(),
+            &msg,
+            vec![],
+        )?.into()])
     }
 
     fn claim(&self, _deps: Deps) -> Result<Vec<CosmosMsg>, StakingError> {
@@ -108,25 +119,31 @@ impl CwStakingAdapter for Astroport {
             lp_tokens: vec![self.lp_token_address.clone().into()],
         };
 
-        Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: self.generator_contract_address.to_string(),
-            msg: to_binary(&msg)?,
-            funds: vec![],
-        })])
+        Ok(vec![wasm_execute(
+            self.generator_contract_address.to_string(),
+            &msg,
+            vec![],
+        )?.into()])
     }
 
     fn query_info(&self, querier: &QuerierWrapper) -> StdResult<StakingInfoResponse> {
-        let stake_info_resp: astroport::generator::Config = querier
-            .query_wasm_smart(
+        let ConfigResponse {
+            astro_token,
+            ..
+        } = querier
+            .query_wasm_smart::<ConfigResponse>(
                 self.generator_contract_address.clone(),
                 &GeneratorQueryMsg::Config {},
             )
-            .map_err(|_| {
-                StdError::generic_err(format!("Failed to query staking info for {}", self.name()))
+            .map_err(|e| {
+                StdError::generic_err(format!("Failed to query staking info for {} with generator: {}, {:?}", self.name(), self.generator_contract_address.clone(), e))
             })?;
+        #[cfg(feature = "terra-testnet")]
+        let astro_token = astroport_asset_info_to_addr(&astro_token);
+
         Ok(StakingInfoResponse {
             staking_contract_address: self.generator_contract_address.clone(),
-            staking_token: AssetInfo::Cw20(stake_info_resp.astro_token),
+            staking_token: AssetInfo::Cw20(astro_token),
             unbonding_periods: None,
             max_claims: None,
         })
@@ -146,11 +163,12 @@ impl CwStakingAdapter for Astroport {
                     user: staker.to_string(),
                 },
             )
-            .map_err(|_| {
+            .map_err(|e| {
                 StdError::generic_err(format!(
-                    "Failed to query staked balance on {} for {}",
+                    "Failed to query staked balance on {} for {}. Error: {:?}",
                     self.name(),
-                    staker
+                    staker,
+                    e
                 ))
             })?;
         Ok(StakeResponse {
@@ -177,18 +195,40 @@ impl CwStakingAdapter for Astroport {
                     lp_token: self.lp_token_address.to_string(),
                 },
             )
-            .map_err(|_| {
+            .map_err(|e| {
                 StdError::generic_err(format!(
-                    "Failed to query reward info on {} for lp token {}",
+                    "Failed to query reward info on {} for lp token {}. Error: {:?}",
                     self.name(),
-                    self.lp_token
+                    self.lp_token,
+                    e
                 ))
             })?;
 
-        let mut tokens = vec![AssetInfo::cw20(reward_info.base_reward_token)];
+
+        #[cfg(feature = "terra")]
+        let mut tokens = {
+            vec![AssetInfo::Cw20(reward_info.base_reward_token)]
+        };
+
+        #[cfg(feature = "terra-testnet")]
+        let mut tokens = {
+            let reward_token: AstroportAssetInfo = reward_info.base_reward_token;
+            let addr = astroport_asset_info_to_addr(&reward_token);
+            vec![AssetInfo::cw20(addr)]
+        };
+
+
         if let Some(reward_token) = reward_info.proxy_reward_token {
             tokens.push(AssetInfo::cw20(reward_token));
         }
         Ok(RewardTokensResponse { tokens })
+    }
+}
+
+#[cfg(feature = "terra-testnet")]
+fn astroport_asset_info_to_addr(asset_info: &AstroportAssetInfo) -> Addr {
+    match asset_info {
+        AstroportAssetInfo::Token { contract_addr } => contract_addr.clone(),
+        AstroportAssetInfo::NativeToken { denom } => Addr::unchecked(denom),
     }
 }
