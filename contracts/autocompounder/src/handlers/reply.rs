@@ -6,12 +6,15 @@ use crate::contract::{
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
-use abstract_sdk::base::features::AbstractResponse;
 use abstract_sdk::{
+    base::features::AbstractResponse,
     apis::dex::{Dex, DexInterface},
     base::features::{AbstractNameService, Identification},
     os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
-    ModuleInterface, Resolve, TransferInterface,
+    os::dex::OfferAsset,
+    ModuleInterface,
+    Resolve,
+    TransferInterface
 };
 use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg, wasm_execute};
 use cw20_base::msg::ExecuteMsg::Mint;
@@ -202,16 +205,31 @@ pub fn lp_compound_reply(
         // 3.1.1) if all assets are in the pool, we can just provide liquidity
         //  TODO: but we might need to check the length of the rewards.
 
+
+        // The liquditiy assets are all the pool assets with the amount of the rewards
+        let liquidity_assets = pool_assets
+            .iter()
+            .map(|pool_asset| -> AnsAsset {
+                // Get the amount of the reward or return 0
+                let amount = rewards
+                    .iter()
+                    .find(|reward| reward.name == *pool_asset)
+                    .map(|reward| reward.amount)
+                    .unwrap_or(Uint128::zero());
+                OfferAsset::new(pool_asset.clone(), amount)
+            })
+            .collect::<Vec<OfferAsset>>();
+
         // 3.1.2) provide liquidity
-        let lp_msg: CosmosMsg = dex.provide_liquidity(rewards, Some(Decimal::percent(50)))?;
+        let lp_msg: CosmosMsg = dex.provide_liquidity(liquidity_assets, Some(Decimal::percent(50)))?;
 
         let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
-        Ok(Response::new()
+        let response = Response::new()
             .add_messages(fee_swap_msgs)
             .add_submessage(fee_swap_submsg)
-            .add_submessage(submsg)
-            .add_attribute("action", "provide_liquidity"))
+            .add_submessage(submsg);
+        Ok(app.tag_response(response, "provide_liquidity"))
     } else {
         let (swap_msgs, submsg) =
             swap_rewards_with_reply(rewards, pool_assets, &dex, SWAPPED_REPLY_ID)?;
@@ -404,4 +422,16 @@ fn get_staking_rewards(
         .map(|asset| asset.resolve(&deps.querier, &ans_host))
         .collect::<Result<Vec<AnsAsset>, _>>()?;
     Ok(rewards)
+}
+
+#[cfg(test)]
+mod test {
+    use cosmwasm_std::testing::mock_dependencies;
+    use super::*;
+
+    fn get_staking_rewards() {
+        let deps = mock_dependencies();
+
+
+    }
 }

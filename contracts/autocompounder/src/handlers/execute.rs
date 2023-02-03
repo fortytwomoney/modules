@@ -36,7 +36,7 @@ pub fn execute_handler(
             withdrawal,
             deposit,
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
-        AutocompounderExecuteMsg::Deposit { funds } => handle_deposit(deps, info, env, app, funds),
+        AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, env, app, funds),
         AutocompounderExecuteMsg::Withdraw {} => withdraw_claims(deps, app, env, info.sender),
         AutocompounderExecuteMsg::BatchUnbond {} => batch_unbond(deps, env, app),
         AutocompounderExecuteMsg::Compound {} => compound(deps, app),
@@ -85,7 +85,7 @@ pub fn update_fee_config(
 }
 
 // This is the function that is called when the user wants to pool AND stake their funds
-pub fn handle_deposit(
+pub fn deposit(
     deps: DepsMut,
     msg_info: MessageInfo,
     _env: Env,

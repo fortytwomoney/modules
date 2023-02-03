@@ -57,7 +57,7 @@ pub fn query_pending_claims(deps: Deps, address: String) -> StdResult<Uint128> {
 }
 
 pub fn query_claims(deps: Deps, address: String) -> StdResult<Vec<Claim>> {
-    let claims = CLAIMS.load(deps.storage, address)?;
+    let claims = CLAIMS.may_load(deps.storage, address)?.unwrap_or_default();
     Ok(claims)
 }
 

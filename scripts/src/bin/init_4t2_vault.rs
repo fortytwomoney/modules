@@ -5,46 +5,33 @@ use abstract_boot::{
     boot_core::{prelude::*, state::StateInterface, DaemonOptionsBuilder},
     Manager, ManagerQueryFns, OSFactory, Proxy, VersionControl, OS,
 };
-use abstract_os::{ABSTRACT_EVENT_NAME, api, app, objects::{gov_type::GovernanceDetails, module::ModuleVersion}, os_factory, registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY}};
-use abstract_os::api::BaseExecuteMsg;
+use abstract_os::{
+    ABSTRACT_EVENT_NAME,
+    api,
+    app,
+    objects::{gov_type::GovernanceDetails, module::ModuleVersion},
+    os_factory,
+    registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY},
+    api::BaseExecuteMsg
+};
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
 use log::info;
 
-use forty_two::autocompounder::{
-    AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER,
+use forty_two::{
+    autocompounder::{
+        AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER,
+    },
+    cw_staking::CW_STAKING
 };
-use forty_two::cw_staking::CW_STAKING;
-use forty_two_boot::cw_staking::CwStakingApi;
-use forty_two_boot::parse_network;
+use forty_two_boot::{cw_staking::CwStakingApi, get_module_address, is_module_installed, parse_network};
 
 // To deploy the app we need to get the memory and then register it
 // We can then deploy a test OS that uses that new app
 
 const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// TODO: abstract boot
-fn is_module_installed<Chain: BootEnvironment>(
-    os: &OS<Chain>,
-    module_id: &str,
-) -> anyhow::Result<bool> {
-    let module_infos = os.manager.module_infos(None, None)?.module_infos;
-    Ok(module_infos
-        .iter()
-        .any(|module_info| module_info.id == module_id))
-}
 
-fn get_module_address<Chain: BootEnvironment>(
-    os: &OS<Chain>,
-    module_id: &str,
-) -> anyhow::Result<Addr> {
-    let module_infos = os.manager.module_infos(None, None)?.module_infos;
-    let module_info = module_infos
-        .iter()
-        .find(|module_info| module_info.id == module_id)
-        .ok_or(anyhow::anyhow!("Module not found"))?;
-    Ok(Addr::unchecked(module_info.address.clone()))
-}
 
 fn create_vault<Chain: BootEnvironment>(
     factory: &OSFactory<Chain>,

@@ -58,10 +58,11 @@ full-deploy-pisco-1: deploy-pisco-1
   just create-vault pisco-1 "'terra2>astro'" --os-id 2
   just create-vault pisco-1 "'terra2>stb'" --os-id 3
 
+# Use this to wasm and update the autocompounder code on pisco-1 while updating the cw-staking version as well
 update-autocompounder-pisco-1 network='pisco-1':
   just wasm-module autocompounder
   just deploy-module autocompounder {{network}}
-  just deploy-module cw-staking {{network}} --code-id 7367
+  just deploy-module cw-staking {{network}} --code-id 7374
 
 update-cw-staking-pisco-1:
   just wasm-module cw-staking --features terra-testnet --no-default-features

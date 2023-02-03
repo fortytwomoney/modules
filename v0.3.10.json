@@ -1,0 +1,15 @@
+{
+  "terra": {
+    "pisco-1": {
+      "code_ids": {
+        "4t2:autocompounder": 7441,
+        "4t2:cw-staking": 7374
+      },
+      "default": {
+        "4t2:cw-staking": "terra1ttp0frhzpf6vr3ujcscjlsznvdglvkkkjq5dtx6eweqvtlt2xftqpjlf4e",
+        "abstract:ans-host": "terra1faln50knus9ar2x986atp2hed003g96yktmxkry2ev498ptght4shjnp95",
+        "abstract:version-control": "terra1ngnxtz2nyukp332ptp7mqk9a9zjlsn6m2w584zt5wajclcc4cnesk9cgjq"
+      }
+    }
+  }
+}
