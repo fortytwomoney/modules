@@ -1,6 +1,6 @@
 {
   "contract_name": "module-schema",
-  "contract_version": "0.5.1",
+  "contract_version": "0.7.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -48,7 +48,7 @@
         "type": "string"
       },
       "CwStakingAction": {
-        "description": "Possible actions to perform on the staking contract",
+        "description": "Possible actions to perform on the staking contract All provide the staking token information",
         "oneOf": [
           {
             "description": "Stakes/bonds a given token",
@@ -65,6 +65,16 @@
                 "properties": {
                   "staking_token": {
                     "$ref": "#/definitions/AnsAsset"
+                  },
+                  "unbonding_period": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/Duration"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "additionalProperties": false
@@ -87,6 +97,16 @@
                 "properties": {
                   "staking_token": {
                     "$ref": "#/definitions/AnsAsset"
+                  },
+                  "unbonding_period": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/Duration"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "additionalProperties": false
@@ -112,6 +132,40 @@
                   }
                 },
                 "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Duration": {
+        "description": "Duration is a delta of time. You can add it to a BlockInfo or Expiration to move that further in the future. Note that an height-based Duration and a time-based Expiration cannot be combined",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "height"
+            ],
+            "properties": {
+              "height": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Time in seconds",
+            "type": "object",
+            "required": [
+              "time"
+            ],
+            "properties": {
+              "time": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
               }
             },
             "additionalProperties": false
@@ -175,6 +229,16 @@
               },
               "staking_token": {
                 "$ref": "#/definitions/AssetEntry"
+              },
+              "unbonding_period": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Duration"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "additionalProperties": false
@@ -210,12 +274,71 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "reward_tokens"
+        ],
+        "properties": {
+          "reward_tokens": {
+            "type": "object",
+            "required": [
+              "provider",
+              "staking_token"
+            ],
+            "properties": {
+              "provider": {
+                "type": "string"
+              },
+              "staking_token": {
+                "$ref": "#/definitions/AssetEntry"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
       "AssetEntry": {
         "description": "May key to retrieve information on an asset",
         "type": "string"
+      },
+      "Duration": {
+        "description": "Duration is a delta of time. You can add it to a BlockInfo or Expiration to move that further in the future. Note that an height-based Duration and a time-based Expiration cannot be combined",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "height"
+            ],
+            "properties": {
+              "height": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Time in seconds",
+            "type": "object",
+            "required": [
+              "time"
+            ],
+            "properties": {
+              "time": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       }
     }
   },
@@ -250,15 +373,14 @@
         "staking_token": {
           "$ref": "#/definitions/AssetInfoBase_for_Addr"
         },
-        "unbonding_period": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Duration"
-            },
-            {
-              "type": "null"
-            }
-          ]
+        "unbonding_periods": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/Duration"
+          }
         }
       },
       "additionalProperties": false,
@@ -346,6 +468,80 @@
                   "type": "integer",
                   "format": "uint64",
                   "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      }
+    },
+    "reward_tokens": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "RewardTokensResponse",
+      "type": "object",
+      "required": [
+        "tokens"
+      ],
+      "properties": {
+        "tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssetInfoBase_for_Addr"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "AssetInfoBase_for_Addr": {
+          "description": "Represents the type of an fungible asset\n\nEach **asset info** instance can be one of three variants:\n\n- Native SDK coins. To create an **asset info** instance of this type, provide the denomination. - CW20 tokens. To create an **asset info** instance of this type, provide the contract address. - CW1155 tokens. To create an **asset info** instance of this type, provide the contract address and token ID.",
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "native"
+              ],
+              "properties": {
+                "native": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "cw20"
+              ],
+              "properties": {
+                "cw20": {
+                  "$ref": "#/definitions/Addr"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "cw1155"
+              ],
+              "properties": {
+                "cw1155": {
+                  "type": "array",
+                  "items": [
+                    {
+                      "$ref": "#/definitions/Addr"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
                 }
               },
               "additionalProperties": false

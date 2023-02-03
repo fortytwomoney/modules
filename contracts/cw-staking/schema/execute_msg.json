@@ -112,21 +112,19 @@
           "properties": {
             "update_traders": {
               "type": "object",
+              "required": [
+                "to_add",
+                "to_remove"
+              ],
               "properties": {
                 "to_add": {
-                  "type": [
-                    "array",
-                    "null"
-                  ],
+                  "type": "array",
                   "items": {
                     "type": "string"
                   }
                 },
                 "to_remove": {
-                  "type": [
-                    "array",
-                    "null"
-                  ],
+                  "type": "array",
                   "items": {
                     "type": "string"
                   }
@@ -158,7 +156,7 @@
       "type": "string"
     },
     "CwStakingAction": {
-      "description": "Possible actions to perform on the staking contract",
+      "description": "Possible actions to perform on the staking contract All provide the staking token information",
       "oneOf": [
         {
           "description": "Stakes/bonds a given token",
@@ -175,6 +173,16 @@
               "properties": {
                 "staking_token": {
                   "$ref": "#/definitions/AnsAsset"
+                },
+                "unbonding_period": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/Duration"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               },
               "additionalProperties": false
@@ -197,6 +205,16 @@
               "properties": {
                 "staking_token": {
                   "$ref": "#/definitions/AnsAsset"
+                },
+                "unbonding_period": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/Duration"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               },
               "additionalProperties": false
@@ -245,6 +263,40 @@
         }
       },
       "additionalProperties": false
+    },
+    "Duration": {
+      "description": "Duration is a delta of time. You can add it to a BlockInfo or Expiration to move that further in the future. Note that an height-based Duration and a time-based Expiration cannot be combined",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "height"
+          ],
+          "properties": {
+            "height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Time in seconds",
+          "type": "object",
+          "required": [
+            "time"
+          ],
+          "properties": {
+            "time": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     },
     "Empty": {
       "description": "An empty struct that serves as a placeholder in different places, such as contracts that don't set a custom message.\n\nIt is designed to be expressable in correct JSON and JSON Schema but contains no meaningful data. Previously we used enums without cases, but those cannot represented as valid JSON Schema (https://github.com/CosmWasm/cosmwasm/issues/451)",

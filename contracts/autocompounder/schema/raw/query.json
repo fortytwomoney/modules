@@ -1,0 +1,144 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "oneOf": [
+    {
+      "description": "Query the config of the autocompounder Returns [`Config`]",
+      "type": "object",
+      "required": [
+        "config"
+      ],
+      "properties": {
+        "config": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Query the amount of pending claims Returns [`Uint128`]",
+      "type": "object",
+      "required": [
+        "pending_claims"
+      ],
+      "properties": {
+        "pending_claims": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Query the amount of claims Returns [`Vec<Claim>`]",
+      "type": "object",
+      "required": [
+        "claims"
+      ],
+      "properties": {
+        "claims": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Query all claim accounts Returns [`Vec<(Sting, Vec<Claim>)>`]",
+      "type": "object",
+      "required": [
+        "all_claims"
+      ],
+      "properties": {
+        "all_claims": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint8",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Query the latest unbonding Returns [`Expiration`]",
+      "type": "object",
+      "required": [
+        "latest_unbonding"
+      ],
+      "properties": {
+        "latest_unbonding": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Query the vaults total lp position Returns [`Uint128`]",
+      "type": "object",
+      "required": [
+        "total_lp_position"
+      ],
+      "properties": {
+        "total_lp_position": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Query the balance of vault tokens of a given address Returns [`Uint128`]",
+      "type": "object",
+      "required": [
+        "balance"
+      ],
+      "properties": {
+        "balance": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}
