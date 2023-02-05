@@ -16,7 +16,7 @@ use abstract_sdk::{
     Resolve,
     TransferInterface
 };
-use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg, wasm_execute};
+use cosmwasm_std::{Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg, Uint128, wasm_execute};
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw_asset::{Asset, AssetInfo};
 use cw_utils::Duration;
@@ -427,10 +427,10 @@ fn get_staking_rewards(
 #[cfg(test)]
 mod test {
     use cosmwasm_std::testing::mock_dependencies;
-    use super::*;
+    
 
     fn get_staking_rewards() {
-        let deps = mock_dependencies();
+        let _deps = mock_dependencies();
 
 
     }

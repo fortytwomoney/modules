@@ -1,36 +1,22 @@
-use std::env;
+
 use std::sync::Arc;
 
 use abstract_boot::{
-    boot_core::{prelude::*, state::StateInterface, DaemonOptionsBuilder},
-    Manager, ManagerQueryFns, OSFactory, Proxy, VersionControl, OS,
+    boot_core::{prelude::*, DaemonOptionsBuilder}, VersionControl,
 };
 use abstract_os::{
-    ABSTRACT_EVENT_NAME,
-    api,
-    app,
-    objects::{gov_type::GovernanceDetails, module::ModuleVersion},
-    os_factory,
-    registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY},
-    api::BaseExecuteMsg,
     objects::{AnsAsset, PoolMetadata}
 };
-use abstract_os::os_factory::ExecuteMsgFns;
-use boot_cw_plus::Cw20;
+
+
 use clap::Parser;
-use cosmwasm_std::{Addr, Decimal, Empty};
+use cosmwasm_std::{Addr};
 use log::info;
 use speculoos::prelude::*;
 
-use forty_two::{
-    autocompounder::{
-        AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER,
-    },
-    cw_staking::CW_STAKING
-};
-use forty_two::autocompounder::{AutocompounderExecuteMsg, AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns as AutocompounderQuery, Config};
+
+use forty_two::autocompounder::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns as AutocompounderQuery, Config};
 use forty_two_boot::{
-    cw_staking::CwStakingApi,
     parse_network
 };
 use forty_two_boot::vault::Vault;
@@ -64,7 +50,7 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
     // TODO: get the exchange rate
     let Config {
         pool_data: PoolMetadata {
-            assets: pool_assets,
+            assets: _pool_assets,
             ..
         },
         // liquidity_token,

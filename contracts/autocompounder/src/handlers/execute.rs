@@ -14,7 +14,7 @@ use abstract_sdk::{
     os::objects::{AnsAsset, AssetEntry, LpToken},
     ModuleInterface, Resolve, TransferInterface,
 };
-use cosmwasm_std::{from_binary, to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response, StdResult, SubMsg, Uint128, WasmMsg, wasm_execute};
+use cosmwasm_std::{from_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response, StdResult, SubMsg, Uint128, wasm_execute};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetList;
 use cw_utils::Duration;

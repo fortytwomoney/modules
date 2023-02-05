@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use abstract_boot::{
     boot_core::{prelude::*, state::StateInterface, DaemonOptionsBuilder},
-    Manager, ManagerQueryFns, OSFactory, Proxy, VersionControl, OS,
+    Manager, OSFactory, Proxy, VersionControl, OS,
 };
 use abstract_os::{
     ABSTRACT_EVENT_NAME,
@@ -11,8 +11,7 @@ use abstract_os::{
     app,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
     os_factory,
-    registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY},
-    api::BaseExecuteMsg
+    registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY}
 };
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
@@ -24,7 +23,7 @@ use forty_two::{
     },
     cw_staking::CW_STAKING
 };
-use forty_two_boot::{cw_staking::CwStakingApi, get_module_address, is_module_installed, parse_network};
+use forty_two_boot::{get_module_address, is_module_installed, parse_network};
 
 // To deploy the app we need to get the memory and then register it
 // We can then deploy a test OS that uses that new app
@@ -166,13 +165,13 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let autocompounder_address = get_module_address(&os, AUTOCOMPOUNDER)?;
 
     os.manager.execute_on_module(CW_STAKING,
-    &api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
+    api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
         to_add: vec![ autocompounder_address.to_string()],
         to_remove: vec![],
     }))?;
 
     os.manager.execute_on_module(EXCHANGE,
-    &api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
+    api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
         to_add: vec![ autocompounder_address.to_string()],
         to_remove: vec![],
     }))?;

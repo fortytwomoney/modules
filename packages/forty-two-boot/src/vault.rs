@@ -1,8 +1,8 @@
 use abstract_boot::OS;
 use abstract_os::app;
 use boot_core::BootEnvironment;
-use cosmwasm_std::{Empty, StdResult};
-use forty_two::autocompounder::{AUTOCOMPOUNDER, AutocompounderQueryMsgFns};
+use cosmwasm_std::{Empty};
+use forty_two::autocompounder::{AUTOCOMPOUNDER};
 use forty_two::cw_staking::CW_STAKING;
 use crate::autocompounder::AutocompounderApp;
 use crate::cw_staking::CwStakingApi;
@@ -19,8 +19,8 @@ pub struct Vault<Chain: BootEnvironment> {
 impl<Chain: BootEnvironment> Vault<Chain> {
     pub fn new(chain: Chain, os_id: Option<u32>) -> anyhow::Result<Self> {
         let os = OS::new(chain.clone(), os_id);
-        let mut staking = CwStakingApi::new(CW_STAKING, chain.clone());
-        let mut autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
+        let staking = CwStakingApi::new(CW_STAKING, chain.clone());
+        let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
 
         if os_id.is_some() {
             if is_module_installed(&os, CW_STAKING)? {
