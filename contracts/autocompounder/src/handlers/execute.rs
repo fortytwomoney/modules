@@ -4,9 +4,7 @@ use crate::contract::{
     LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::state::{
-    Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
-};
+use crate::state::{Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS, FEE_CONFIG};
 use abstract_sdk::base::features::AbstractResponse;
 use abstract_sdk::{
     apis::dex::DexInterface,
@@ -56,32 +54,31 @@ pub fn update_fee_config(
         .assert_admin(deps.as_ref(), &msg_info.sender)
         .unwrap();
 
+    let mut config = FEE_CONFIG.load(deps.storage)?;
+    let mut updates = vec![];
+
     if let Some(fee) = fee {
         check_fee(fee)?;
-        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
-            config.fees.performance = fee;
-            Ok(config)
-        })?;
+        updates.push(("performance", fee.to_string()));
+        config.performance = fee;
     }
 
     if let Some(withdrawal) = withdrawal {
         check_fee(withdrawal)?;
-        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
-            config.fees.withdrawal = withdrawal;
+        updates.push(("withdrawal", withdrawal.to_string()));
+        config.withdrawal = withdrawal;
 
-            Ok(config)
-        })?;
     }
 
     if let Some(deposit) = deposit {
         check_fee(deposit)?;
-        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
-            config.fees.deposit = deposit;
-            Ok(config)
-        })?;
+        updates.push(("deposit", deposit.to_string()));
+        config.deposit = deposit;
     }
 
-    Ok(app.tag_response(Response::new(), "update_fee_config"))
+    FEE_CONFIG.save(deps.storage, &config)?;
+
+    Ok(app.custom_tag_response(Response::new(), "update_fee_config", updates))
 }
 
 // This is the function that is called when the user wants to pool AND stake their funds
@@ -98,6 +95,7 @@ pub fn deposit(
     let ans_host = app.ans_host(deps.as_ref())?;
     let mut msgs = vec![];
 
+    // TODO: this resolution is probably not necessary as we should store the asset addressses for the configured pool
     let mut claimed_deposits: AssetList = funds.resolve(&deps.querier, &ans_host)?.into();
     // deduct all the received `Coin`s from the claimed deposit, errors if not enough funds were provided
     // what's left should be the remaining cw20s

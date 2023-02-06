@@ -5,13 +5,15 @@ use crate::contract::{
 };
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
-use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
+use crate::state::{Config, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
 use abstract_sdk::{
     base::features::AbstractResponse,
     apis::dex::{Dex, DexInterface},
     base::features::{AbstractNameService, Identification},
-    os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
-    os::dex::OfferAsset,
+    os::{
+        objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
+        dex::OfferAsset
+    },
     ModuleInterface,
     Resolve,
     TransferInterface
@@ -175,8 +177,8 @@ pub fn lp_compound_reply(
     let config = CONFIG.load(deps.storage)?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
 
-    let base_state = app.load_state(deps.storage)?;
-    let _proxy = base_state.proxy_address;
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
+
     // 1) claim rewards (this happened in the execution before this reply)
 
     // 2.1) query the rewards
@@ -186,7 +188,7 @@ pub fn lp_compound_reply(
     let fees = rewards
         .iter_mut()
         .map(|reward| -> StdResult<AnsAsset> {
-            let fee = reward.amount * config.fees.performance;
+            let fee = reward.amount * fee_config.performance;
 
             reward.amount -= fee;
 
@@ -196,7 +198,7 @@ pub fn lp_compound_reply(
 
     // 3) (swap and) Send fees to treasury
     let (fee_swap_msgs, fee_swap_submsg) =
-        swap_rewards_with_reply(fees, vec![config.fees.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
+        swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
 
     // 3) Swap rewards to token in pool
     // 3.1) check if asset is not in pool assets
@@ -317,8 +319,8 @@ pub fn fee_swapped_reply(
     app: AutocompounderApp,
     _reply: Reply,
 ) -> AutocompounderResult {
-    let config = CONFIG.load(deps.storage)?;
-    let fee_asset = config.fees.fee_asset;
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
+    let fee_asset = fee_config.fee_asset;
 
     let fee_balance = fee_asset
         .resolve(&deps.querier, &app.ans_host(deps.as_ref())?)?
@@ -326,7 +328,7 @@ pub fn fee_swapped_reply(
 
     let transfer_msg = app.bank(deps.as_ref()).transfer(
         vec![AnsAsset::new(fee_asset, fee_balance)],
-        &config.commission_addr,
+        &fee_config.commission_addr,
     )?;
 
     let response = Response::new().add_message(transfer_msg);
@@ -427,7 +429,7 @@ fn get_staking_rewards(
 #[cfg(test)]
 mod test {
     use cosmwasm_std::testing::mock_dependencies;
-    
+
 
     fn get_staking_rewards() {
         let _deps = mock_dependencies();
