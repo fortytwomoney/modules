@@ -16,5 +16,5 @@ pub const CW_STAKING_API: CwStakingApi = CwStakingApi::new(CW_STAKING, MODULE_VE
 #[cfg(not(feature = "library"))]
 export_endpoints!(CW_STAKING_API, CwStakingApi);
 
-#[cfg(all(feature = "terra", feature = "pisco-1"))]
-compile_error!("feature \"terra\" and feature \"pisco-1\" cannot be enabled at the same time");
+#[cfg(all(feature = "phoenix-1", feature = "pisco-1"))]
+compile_error!("feature \"phoenix-1\" and feature \"pisco-1\" cannot be enabled at the same time");

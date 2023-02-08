@@ -7,11 +7,11 @@ use abstract_sdk::{
     Resolve,
 };
 
-// #[cfg(feature = "terra")]
-// use astroport::generator::{
-//     Cw20HookMsg, ExecuteMsg as GeneratorExecuteMsg, QueryMsg as GeneratorQueryMsg,
-//     RewardInfoResponse, Config as ConfigResponse
-// };
+#[cfg(feature = "phoenix-1")]
+use astroport::generator::{
+    Cw20HookMsg, ExecuteMsg as GeneratorExecuteMsg, QueryMsg as GeneratorQueryMsg,
+    RewardInfoResponse, Config as ConfigResponse
+};
 
 #[cfg(feature = "pisco-1")]
 use astroport_testnet::{
@@ -206,7 +206,7 @@ impl CwStakingAdapter for Astroport {
             })?;
 
 
-        #[cfg(feature = "terra")]
+        #[cfg(feature = "phoenix-1")]
         let mut tokens = {
             vec![AssetInfo::Cw20(reward_info.base_reward_token)]
         };
