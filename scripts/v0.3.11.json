@@ -1,0 +1,13 @@
+{
+  "terra": {
+    "pisco-1": {
+      "code_ids": {},
+      "default": {
+        "abstract:manager": "terra1nrqv66kyc6ft9ksguqc90nhdeh7sulpe80e9rpr4e4t98kq9hk8q089nkg",
+        "abstract:os-factory": "terra1kv220d639aj4e8034j3ghra499l6jjyqhs0mg3057xesg90yrtaqnhsu20",
+        "abstract:proxy": "terra1mw0yzat06qqxfrng6x8spg8fzt6zxhff6kw6rzxrnavyczvy09lq0rqd9f",
+        "abstract:version-control": "terra1ngnxtz2nyukp332ptp7mqk9a9zjlsn6m2w584zt5wajclcc4cnesk9cgjq"
+      }
+    }
+  }
+}

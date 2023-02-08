@@ -13,6 +13,7 @@ use abstract_os::{
     os_factory,
     registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY}
 };
+use abstract_os::objects::module::ModuleInfo;
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
 use log::info;
@@ -113,6 +114,11 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     // let query_res = forty_two::cw_staking::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
     // panic!("{?:}", query_res);
 
+    // Install abstract dex
+    if !is_module_installed(&os, EXCHANGE)? {
+        os.manager.install_module(EXCHANGE, &Empty {})?;
+    }
+
     // First uninstall autocompounder if found
     if is_module_installed(&os, AUTOCOMPOUNDER)? {
         os.manager.uninstall_module(AUTOCOMPOUNDER)?;
@@ -129,10 +135,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     os.manager
         .install_module_version(CW_STAKING, new_module_version.clone(), &Empty {})?;
 
-    // Install abstract dex
-    if !is_module_installed(&os, EXCHANGE)? {
-        os.manager.install_module(EXCHANGE, &Empty {})?;
-    }
+
 
     os.manager.install_module_version(
         AUTOCOMPOUNDER,
@@ -140,7 +143,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         &app::InstantiateMsg {
             base: app::BaseInstantiateMsg {
                 ans_host_address: version_control
-                    .get_api_addr(ANS_HOST, abstract_version)?
+                    .module(ModuleInfo::from_id_latest(ANS_HOST)?)?
+                    .reference.unwrap_addr()?
                     .to_string(),
             },
             app: AutocompounderInstantiateMsg {

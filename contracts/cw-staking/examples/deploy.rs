@@ -39,8 +39,7 @@ fn deploy_cw_staking(network: NetworkInfo, prev_version: Option<String>, code_id
             .module(ModuleInfo::from_id(
                 CW_STAKING,
                 ModuleVersion::from(prev_version),
-            )?)?
-            .module;
+            )?)?;
 
         let new_info = ModuleInfo {
             version: ModuleVersion::from(CONTRACT_VERSION),
