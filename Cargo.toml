@@ -74,8 +74,8 @@ log = "0.4.14"
 
 # boot-core = { version = "0.6.0", git = "https://github.com/Abstract-OS" }
 # boot-cw-plus = "0.6.0"
-boot-core = { version = "0.6.0", git =  "https://github.com/Abstract-OS/BOOT.git"}
-boot-cw-plus = { version = "0.6.0",  git =  "https://github.com/Abstract-OS/BOOT.git"}
+boot-core = { version = "0.6.0", git =  "https://github.com/Abstract-OS/BOOT-private.git"}
+boot-cw-plus = { version = "0.6.0",  git =  "https://github.com/Abstract-OS/BOOT-private.git"}
 
 clap =  { version = "4.0.32", features = ["derive"] }
 

@@ -134,12 +134,16 @@ pub fn instantiate_handler(
     // get the pool data
     let pool_data = pool_reference.unique_id.resolve(&deps.querier, &ans_host)?;
 
+    // TODO: use ResolvedPoolMetadata
+    let resolved_pool_assets = pool_data.assets.resolve(&deps.querier, &ans_host)?;
+
 
     let config: Config = Config {
         vault_token: Addr::unchecked(""),
         staking_contract: staking_contract_addr,
         liquidity_token: lp_token_addr,
         pool_data,
+        pool_assets: resolved_pool_assets,
         pool_address: pool_reference.pool_address,
         unbonding_period,
         min_unbonding_cooldown,

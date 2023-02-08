@@ -1,9 +1,11 @@
 use abstract_boot::{ModuleDeployer, VCExecFns, VCQueryFns};
 use abstract_sdk::os::objects::module::{Module, ModuleInfo, ModuleVersion};
-use boot_core::networks::{NetworkInfo};
-use boot_core::prelude::instantiate_daemon_env;
-use boot_core::prelude::*;
-use boot_core::DaemonOptionsBuilder;
+use boot_core::{
+    networks::{NetworkInfo},
+    prelude::instantiate_daemon_env,
+    prelude::*,
+    DaemonOptionsBuilder
+};
 use cosmwasm_std::{Addr, Empty};
 use forty_two::cw_staking::CW_STAKING;
 use forty_two_boot::cw_staking::CwStakingApi;

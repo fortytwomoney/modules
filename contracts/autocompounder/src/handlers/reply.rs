@@ -26,6 +26,7 @@ use forty_two::cw_staking::{
     CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse, CW_STAKING,
 };
 use protobuf::Message;
+use forty_two::autocompounder::FeeConfig;
 
 /// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.
 pub fn instantiate_reply(
@@ -319,8 +320,11 @@ pub fn fee_swapped_reply(
     app: AutocompounderApp,
     _reply: Reply,
 ) -> AutocompounderResult {
-    let fee_config = FEE_CONFIG.load(deps.storage)?;
-    let fee_asset = fee_config.fee_asset;
+    let FeeConfig {
+        fee_asset,
+        commission_addr,
+        ..
+    } = FEE_CONFIG.load(deps.storage)?;
 
     let fee_balance = fee_asset
         .resolve(&deps.querier, &app.ans_host(deps.as_ref())?)?
@@ -328,7 +332,7 @@ pub fn fee_swapped_reply(
 
     let transfer_msg = app.bank(deps.as_ref()).transfer(
         vec![AnsAsset::new(fee_asset, fee_balance)],
-        &fee_config.commission_addr,
+        &commission_addr,
     )?;
 
     let response = Response::new().add_message(transfer_msg);
