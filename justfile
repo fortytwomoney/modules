@@ -3,7 +3,7 @@
 update:
   cargo update
 
-# `just wasm-module cw-staking --features terra-testnet --no-default-features`
+# `just wasm-module cw-staking --features pisco-1 --no-default-features`
 wasm-module module +args='':
   RUSTFLAGS='-C link-arg=-s' cargo wasm --package {{module}} {{args}}
 
@@ -47,7 +47,7 @@ create-pisco-1-vaults +args='':
   just create-vault pisco-1 "'terra2>astro'" {{args}}
 
 wasm-pisco-1:
-  just wasm-module cw-staking --features terra-testnet --no-default-features
+  just wasm-module cw-staking --features pisco-1 --no-default-features
   just wasm-module autocompounder
 
 deploy-pisco-1: wasm-pisco-1
@@ -65,7 +65,7 @@ update-autocompounder-pisco-1 network='pisco-1':
   just deploy-module cw-staking {{network}} --code-id 7374
 
 update-cw-staking-pisco-1:
-  just wasm-module cw-staking --features terra-testnet --no-default-features
+  just wasm-module cw-staking --features pisco-1 --no-default-features
   just deploy-module cw-staking pisco-1
   just deploy-module autocompounder pisco-1 --code-id 7372
 #  just deploy pisco-1

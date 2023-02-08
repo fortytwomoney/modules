@@ -22,6 +22,8 @@ crate-type = ["cdylib", "rlib"]
 # for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces"]
 library = []
+terra = ["cw-staking/terra"]
+pisco-1 = ["cw-staking/pisco-1"]
 
 [dependencies]
 cosmwasm-std = { workspace = true }

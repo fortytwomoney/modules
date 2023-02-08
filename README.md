@@ -47,5 +47,5 @@ just create-vault <chain-id> <paired-asset-id>
 ## NOTE
 Cw-staking deployment for **Terra Testnet**:
 ```shell
-just wasm-module cw-staking --features terra-testnet --no-default-features
+just wasm-module cw-staking --features pisco-1 --no-default-features
 ```

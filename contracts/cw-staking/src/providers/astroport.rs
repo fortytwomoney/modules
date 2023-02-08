@@ -7,13 +7,13 @@ use abstract_sdk::{
     Resolve,
 };
 
-#[cfg(feature = "terra")]
-use astroport::generator::{
-    Cw20HookMsg, ExecuteMsg as GeneratorExecuteMsg, QueryMsg as GeneratorQueryMsg,
-    RewardInfoResponse, Config as ConfigResponse
-};
+// #[cfg(feature = "terra")]
+// use astroport::generator::{
+//     Cw20HookMsg, ExecuteMsg as GeneratorExecuteMsg, QueryMsg as GeneratorQueryMsg,
+//     RewardInfoResponse, Config as ConfigResponse
+// };
 
-#[cfg(feature = "terra-testnet")]
+#[cfg(feature = "pisco-1")]
 use astroport_testnet::{
     generator::{
         Cw20HookMsg, ExecuteMsg as GeneratorExecuteMsg, QueryMsg as GeneratorQueryMsg,
@@ -138,7 +138,8 @@ impl CwStakingAdapter for Astroport {
             .map_err(|e| {
                 StdError::generic_err(format!("Failed to query staking info for {} with generator: {}, {:?}", self.name(), self.generator_contract_address.clone(), e))
             })?;
-        #[cfg(feature = "terra-testnet")]
+
+        #[cfg(feature = "pisco-1")]
         let astro_token = astroport_asset_info_to_addr(&astro_token);
 
         Ok(StakingInfoResponse {
@@ -210,7 +211,7 @@ impl CwStakingAdapter for Astroport {
             vec![AssetInfo::Cw20(reward_info.base_reward_token)]
         };
 
-        #[cfg(feature = "terra-testnet")]
+        #[cfg(feature = "pisco-1")]
         let mut tokens = {
             let reward_token: AstroportAssetInfo = reward_info.base_reward_token;
             let addr = astroport_asset_info_to_addr(&reward_token);
@@ -225,7 +226,7 @@ impl CwStakingAdapter for Astroport {
     }
 }
 
-#[cfg(feature = "terra-testnet")]
+#[cfg(feature = "pisco-1")]
 fn astroport_asset_info_to_addr(asset_info: &AstroportAssetInfo) -> Addr {
     match asset_info {
         AstroportAssetInfo::Token { contract_addr } => contract_addr.clone(),

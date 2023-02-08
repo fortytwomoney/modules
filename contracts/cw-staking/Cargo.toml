@@ -18,14 +18,14 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["juno", "terra"]
+default = []
 library = []
 # for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces"]
 juno = ["dep:wasmswap", "dep:cw20_junoswap", "dep:cw20-stake", "dep:wyndex", "dep:wyndex-stake", "dep:cw-controllers"]
 osmosis = ["library", "dep:osmosis-std"]
 terra = ["dep:astroport"]
-terra-testnet = ["dep:astroport-testnet"]
+pisco-1 = ["dep:astroport-testnet"]
 
 
 [dependencies]

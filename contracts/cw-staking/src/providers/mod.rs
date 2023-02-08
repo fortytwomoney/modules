@@ -3,7 +3,7 @@ pub mod junoswap;
 #[cfg(feature = "juno")]
 pub mod wyndex;
 
-#[cfg(any(feature = "terra", feature = "terra-testnet"))]
+#[cfg(any(feature = "terra", feature = "pisco-1"))]
 pub mod astroport;
 #[cfg(any(feature = "juno", feature = "osmosis"))]
 pub mod osmosis;
