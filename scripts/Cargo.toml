@@ -8,7 +8,8 @@ edition.workspace= true
 [dependencies]
 forty-two-boot = { workspace = true }
 
-boot-core = { workspace = true , features = ["daemon"]}
+boot-core = { workspace = true , features = ["daemon"] }
+boot-cw-plus = { workspace = true }
 abstract-boot = { workspace = true, features = ["daemon"] }
 
 log = {workspace = true }
@@ -21,6 +22,7 @@ env_logger = { workspace = true }
 semver = { workspace = true }
 cw-staking = { package = "cw-staking", path = "../contracts/cw-staking" }
 abstract-os = { workspace = true }
-forty-two = { workspace = true }
+forty-two = { workspace = true, features = ["boot"] }
 tokio = { workspace = true }
 clap = { workspace = true }
+speculoos = { workspace = true }

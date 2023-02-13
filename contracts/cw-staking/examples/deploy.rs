@@ -1,21 +1,23 @@
-use abstract_boot::{ModuleDeployer, VCExecFns, VCQueryFns};
+use abstract_boot::{ModuleDeployer, VCExecFns};
 use abstract_sdk::os::objects::module::{Module, ModuleInfo, ModuleVersion};
-use boot_core::networks::{NetworkInfo, UNI_5};
-use boot_core::prelude::instantiate_daemon_env;
-use boot_core::prelude::*;
-use boot_core::DaemonOptionsBuilder;
+use boot_core::{
+    networks::{NetworkInfo},
+    prelude::instantiate_daemon_env,
+    prelude::*,
+    DaemonOptionsBuilder
+};
 use cosmwasm_std::{Addr, Empty};
 use forty_two::cw_staking::CW_STAKING;
 use forty_two_boot::cw_staking::CwStakingApi;
 use semver::Version;
 use std::sync::Arc;
+use abstract_sdk::os;
 use tokio::runtime::Runtime;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-fn deploy_cw_staking(_network: NetworkInfo, prev_version: Option<String>) -> anyhow::Result<()> {
+fn deploy_cw_staking(network: NetworkInfo, prev_version: Option<String>, code_id: Option<u64>) -> anyhow::Result<()> {
     let module_version: Version = CONTRACT_VERSION.parse().unwrap();
-    let network = UNI_5;
 
     let rt = Arc::new(Runtime::new()?);
     let options = DaemonOptionsBuilder::default().network(network).build();
@@ -37,8 +39,7 @@ fn deploy_cw_staking(_network: NetworkInfo, prev_version: Option<String>) -> any
             .module(ModuleInfo::from_id(
                 CW_STAKING,
                 ModuleVersion::from(prev_version),
-            )?)?
-            .module;
+            )?)?;
 
         let new_info = ModuleInfo {
             version: ModuleVersion::from(CONTRACT_VERSION),
@@ -47,6 +48,20 @@ fn deploy_cw_staking(_network: NetworkInfo, prev_version: Option<String>) -> any
         deployer
             .version_control
             .add_modules(vec![(new_info, reference)])?;
+    } else if let Some(code_id) = code_id {
+
+        let mut cw_staking = CwStakingApi::new(CW_STAKING, chain);
+        cw_staking.set_code_id(code_id);
+        let init_msg = os::api::InstantiateMsg {
+            app: Empty {},
+            base: os::api::BaseInstantiateMsg {
+                ans_host_address: deployer.ans_host.address()?.into(),
+                version_control_address: deployer.version_control.address()?.into(),
+            },
+        };
+        cw_staking.as_instance_mut().instantiate(&init_msg, None, None)?;
+
+        deployer.version_control.register_apis(vec![cw_staking.as_instance_mut()], &module_version)?;
     } else {
         log::info!("Uploading Cw staking");
         // Upload and deploy with the version
@@ -69,6 +84,8 @@ struct Arguments {
     prev_version: Option<String>,
     #[arg(short, long)]
     network_id: String,
+    #[arg(short, long)]
+    code_id: Option<u64>
 }
 
 fn main() -> anyhow::Result<()> {
@@ -80,9 +97,10 @@ fn main() -> anyhow::Result<()> {
     let Arguments {
         network_id,
         prev_version,
+        code_id,
     } = Arguments::parse();
 
     let network = parse_network(&network_id);
 
-    deploy_cw_staking(network, prev_version)
+    deploy_cw_staking(network, prev_version, code_id)
 }

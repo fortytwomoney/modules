@@ -3,39 +3,35 @@ use std::sync::Arc;
 
 use abstract_boot::{
     boot_core::{prelude::*, state::StateInterface, DaemonOptionsBuilder},
-    Manager, ManagerQueryFns, OSFactory, Proxy, VersionControl, OS,
+    Manager, OSFactory, Proxy, VersionControl, OS,
 };
 use abstract_os::{
+    ABSTRACT_EVENT_NAME,
+    api,
     app,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
     os_factory,
-    registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY},
+    registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY}
 };
+use abstract_os::objects::module::ModuleInfo;
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
 use log::info;
 
-use forty_two::autocompounder::{
-    AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER,
+use forty_two::{
+    autocompounder::{
+        AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER,
+    },
+    cw_staking::CW_STAKING
 };
-use forty_two::cw_staking::CW_STAKING;
-use forty_two_boot::parse_network;
+use forty_two_boot::{get_module_address, is_module_installed, parse_network};
 
 // To deploy the app we need to get the memory and then register it
 // We can then deploy a test OS that uses that new app
 
 const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// TODO: abstract boot
-fn is_module_installed<Chain: BootEnvironment>(
-    os: &OS<Chain>,
-    module_id: &str,
-) -> anyhow::Result<bool> {
-    let module_infos = os.manager.module_infos(None, None)?.module_infos;
-    Ok(module_infos
-        .iter()
-        .any(|module_info| module_info.id == module_id))
-}
+
 
 fn create_vault<Chain: BootEnvironment>(
     factory: &OSFactory<Chain>,
@@ -53,11 +49,11 @@ fn create_vault<Chain: BootEnvironment>(
         None,
     )?;
 
-    let manager_address = &result.event_attr_value("wasm", "manager_address")?;
+    let manager_address = &result.event_attr_value(ABSTRACT_EVENT_NAME, "manager_address")?;
     chain
         .state()
         .set_address(MANAGER, &Addr::unchecked(manager_address));
-    let proxy_address = &result.event_attr_value("wasm", "proxy_address")?;
+    let proxy_address = &result.event_attr_value(ABSTRACT_EVENT_NAME, "proxy_address")?;
     chain
         .state()
         .set_address(PROXY, &Addr::unchecked(proxy_address));
@@ -67,13 +63,13 @@ fn create_vault<Chain: BootEnvironment>(
     })
 }
 
-fn deploy_api(args: Arguments) -> anyhow::Result<()> {
+fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
-    let (dex, base_pair_asset) = match args.network_id.as_str() {
-        "uni-5" => ("junoswap", "junox"),
-        "juno-1" => ("junoswap", "juno"),
-        "pisco-1" => ("astroport", "terra2>luna"),
+    let (dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
+        "uni-5" => ("junoswap", "junox", 4012),
+        "juno-1" => ("junoswap", "juno", 0),
+        "pisco-1" => ("astroport", "terra2>luna", 83),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
 
@@ -97,7 +93,7 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
     let abstract_version = env::var("ABSTRACT_VERSION").expect("Missing ABSTRACT_VERSION");
 
     let abstract_version = ModuleVersion::from(abstract_version);
-    os_factory.set_address(&version_control.get_api_addr(OS_FACTORY, abstract_version.clone())?);
+    os_factory.set_address(&version_control.get_api_addr(OS_FACTORY, abstract_version)?);
 
     let mut assets = vec![args.paired_asset, base_pair_asset.to_string()];
     assets.sort();
@@ -118,6 +114,11 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
     // let query_res = forty_two::cw_staking::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
     // panic!("{?:}", query_res);
 
+    // Install abstract dex
+    if !is_module_installed(&os, EXCHANGE)? {
+        os.manager.install_module(EXCHANGE, &Empty {})?;
+    }
+
     // First uninstall autocompounder if found
     if is_module_installed(&os, AUTOCOMPOUNDER)? {
         os.manager.uninstall_module(AUTOCOMPOUNDER)?;
@@ -134,20 +135,16 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
     os.manager
         .install_module_version(CW_STAKING, new_module_version.clone(), &Empty {})?;
 
-    // Install abstract dex
-    if !is_module_installed(&os, EXCHANGE)? {
-        os.manager.install_module(EXCHANGE, &Empty {})?;
-    }
+
 
     os.manager.install_module_version(
         AUTOCOMPOUNDER,
         new_module_version,
         &app::InstantiateMsg {
             base: app::BaseInstantiateMsg {
-                // ans_host_address: "juno1qyetxuhvmpgan5qyjq3julmzz9g3rhn3jfp2jlgy29ftjknv0c6s0xywpp"
-                //     .to_string(),
                 ans_host_address: version_control
-                    .get_api_addr(ANS_HOST, abstract_version)?
+                    .module(ModuleInfo::from_id_latest(ANS_HOST)?)?
+                    .reference.unwrap_addr()?
                     .to_string(),
             },
             app: AutocompounderInstantiateMsg {
@@ -157,7 +154,7 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
                 /// address that recieves the fee commissions
                 commission_addr: sender.to_string(),
                 /// cw20 code id
-                code_id: 4012,
+                code_id: cw20_code_id,
                 /// Name of the target dex
                 dex: dex.into(),
                 fee_asset: base_pair_asset.into(),
@@ -167,6 +164,22 @@ fn deploy_api(args: Arguments) -> anyhow::Result<()> {
             },
         },
     )?;
+
+    // Register the autocompounder as a trader on the cw-staking and the dex
+    let autocompounder_address = get_module_address(&os, AUTOCOMPOUNDER)?;
+
+    os.manager.execute_on_module(CW_STAKING,
+    api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
+        to_add: vec![ autocompounder_address.to_string()],
+        to_remove: vec![],
+    }))?;
+
+    os.manager.execute_on_module(EXCHANGE,
+    api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
+        to_add: vec![ autocompounder_address.to_string()],
+        to_remove: vec![],
+    }))?;
+
 
     Ok(())
 }
@@ -194,7 +207,7 @@ fn main() {
 
     let args = Arguments::parse();
 
-    if let Err(ref err) = deploy_api(args) {
+    if let Err(ref err) = init_vault(args) {
         log::error!("{}", err);
         err.chain()
             .skip(1)

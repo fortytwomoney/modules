@@ -33,6 +33,7 @@ use abstract_sdk::os::dex::{DexName, OfferAsset};
 use abstract_sdk::os::objects::{AssetEntry, PoolAddress, PoolMetadata};
 use cosmwasm_schema::QueryResponses;
 use cosmwasm_std::{Addr, Decimal, Uint128};
+use cw_asset::AssetInfo;
 use cw_utils::{Duration, Expiration};
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
@@ -129,12 +130,15 @@ pub enum Cw20HookMsg {
     Redeem {},
 }
 
+/// Vault fee structure
 #[cosmwasm_schema::cw_serde]
 pub struct FeeConfig {
     pub performance: Decimal,
     pub deposit: Decimal,
     pub withdrawal: Decimal,
     pub fee_asset: AssetEntry,
+    /// Address that receives the fee commissions
+    pub commission_addr: Addr,
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -145,14 +149,12 @@ pub struct Config {
     pub pool_address: PoolAddress,
     /// Pool metadata
     pub pool_data: PoolMetadata,
+    /// Resolved pool assets
+    pub pool_assets: Vec<AssetInfo>,
     /// Address of the LP token contract
     pub liquidity_token: Addr,
     /// Vault token
     pub vault_token: Addr,
-    /// Address that receives the fee commissions
-    pub commission_addr: Addr,
-    /// Vault fee structure
-    pub fees: FeeConfig,
     /// Pool bonding period
     pub unbonding_period: Option<Duration>,
     /// minimum unbonding cooldown

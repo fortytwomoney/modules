@@ -5,18 +5,20 @@ use crate::contract::{
 };
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
-use crate::state::{Config, CACHED_USER_ADDR, CONFIG};
-use abstract_sdk::base::features::AbstractResponse;
+use crate::state::{Config, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
 use abstract_sdk::{
+    base::features::AbstractResponse,
     apis::dex::{Dex, DexInterface},
     base::features::{AbstractNameService, Identification},
-    os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
-    ModuleInterface, Resolve, TransferInterface,
+    os::{
+        objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
+        dex::OfferAsset
+    },
+    ModuleInterface,
+    Resolve,
+    TransferInterface
 };
-use cosmwasm_std::{
-    to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult,
-    SubMsg, Uint128, WasmMsg,
-};
+use cosmwasm_std::{Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg, Uint128, wasm_execute};
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw_asset::{Asset, AssetInfo};
 use cw_utils::Duration;
@@ -24,6 +26,7 @@ use forty_two::cw_staking::{
     CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse, CW_STAKING,
 };
 use protobuf::Message;
+use forty_two::autocompounder::FeeConfig;
 
 /// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.
 pub fn instantiate_reply(
@@ -62,7 +65,7 @@ pub fn lp_provision_reply(
     let config = CONFIG.load(deps.storage)?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     let proxy_address = app.proxy_address(deps.as_ref())?;
-    let _ans_host = app.ans_host(deps.as_ref())?;
+    let ans_host = app.ans_host(deps.as_ref())?;
     CACHED_USER_ADDR.remove(deps.storage);
 
     // 1) get the total supply of Vault token
@@ -71,7 +74,7 @@ pub fn lp_provision_reply(
     // 2) Retrieve the number of LP tokens minted/staked.
     let lp_token = LpToken::from(config.pool_data.clone());
     let received_lp = lp_token
-        .resolve(&deps.querier, &_ans_host)?
+        .resolve(&deps.querier, &ans_host)?
         .query_balance(&deps.querier, proxy_address.to_string())?;
 
     let staked_lp = query_stake(
@@ -111,14 +114,13 @@ fn mint_vault_tokens(
     user_address: Addr,
     mint_amount: Uint128,
 ) -> Result<CosmosMsg, AutocompounderError> {
-    let mint_msg: CosmosMsg = WasmMsg::Execute {
-        contract_addr: config.vault_token.to_string(),
-        msg: to_binary(&Mint {
+    let mint_msg = wasm_execute(config.vault_token.to_string(),
+        &Mint {
             recipient: user_address.to_string(),
             amount: mint_amount,
-        })?,
-        funds: vec![],
-    }
+        },
+        vec![],
+    )?
     .into();
     Ok(mint_msg)
 }
@@ -176,8 +178,8 @@ pub fn lp_compound_reply(
     let config = CONFIG.load(deps.storage)?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
 
-    let base_state = app.load_state(deps.storage)?;
-    let _proxy = base_state.proxy_address;
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
+
     // 1) claim rewards (this happened in the execution before this reply)
 
     // 2.1) query the rewards
@@ -187,7 +189,7 @@ pub fn lp_compound_reply(
     let fees = rewards
         .iter_mut()
         .map(|reward| -> StdResult<AnsAsset> {
-            let fee = reward.amount * config.fees.performance;
+            let fee = reward.amount * fee_config.performance;
 
             reward.amount -= fee;
 
@@ -197,7 +199,7 @@ pub fn lp_compound_reply(
 
     // 3) (swap and) Send fees to treasury
     let (fee_swap_msgs, fee_swap_submsg) =
-        swap_rewards_with_reply(fees, vec![config.fees.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
+        swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
 
     // 3) Swap rewards to token in pool
     // 3.1) check if asset is not in pool assets
@@ -206,16 +208,31 @@ pub fn lp_compound_reply(
         // 3.1.1) if all assets are in the pool, we can just provide liquidity
         //  TODO: but we might need to check the length of the rewards.
 
+
+        // The liquditiy assets are all the pool assets with the amount of the rewards
+        let liquidity_assets = pool_assets
+            .iter()
+            .map(|pool_asset| -> AnsAsset {
+                // Get the amount of the reward or return 0
+                let amount = rewards
+                    .iter()
+                    .find(|reward| reward.name == *pool_asset)
+                    .map(|reward| reward.amount)
+                    .unwrap_or(Uint128::zero());
+                OfferAsset::new(pool_asset.clone(), amount)
+            })
+            .collect::<Vec<OfferAsset>>();
+
         // 3.1.2) provide liquidity
-        let lp_msg: CosmosMsg = dex.provide_liquidity(rewards, Some(Decimal::percent(50)))?;
+        let lp_msg: CosmosMsg = dex.provide_liquidity(liquidity_assets, Some(Decimal::percent(50)))?;
 
         let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
-        Ok(Response::new()
+        let response = Response::new()
             .add_messages(fee_swap_msgs)
             .add_submessage(fee_swap_submsg)
-            .add_submessage(submsg)
-            .add_attribute("action", "provide_liquidity"))
+            .add_submessage(submsg);
+        Ok(app.tag_response(response, "provide_liquidity"))
     } else {
         let (swap_msgs, submsg) =
             swap_rewards_with_reply(rewards, pool_assets, &dex, SWAPPED_REPLY_ID)?;
@@ -303,8 +320,11 @@ pub fn fee_swapped_reply(
     app: AutocompounderApp,
     _reply: Reply,
 ) -> AutocompounderResult {
-    let config = CONFIG.load(deps.storage)?;
-    let fee_asset = config.fees.fee_asset;
+    let FeeConfig {
+        fee_asset,
+        commission_addr,
+        ..
+    } = FEE_CONFIG.load(deps.storage)?;
 
     let fee_balance = fee_asset
         .resolve(&deps.querier, &app.ans_host(deps.as_ref())?)?
@@ -312,7 +332,7 @@ pub fn fee_swapped_reply(
 
     let transfer_msg = app.bank(deps.as_ref()).transfer(
         vec![AnsAsset::new(fee_asset, fee_balance)],
-        &config.commission_addr,
+        &commission_addr,
     )?;
 
     let response = Response::new().add_message(transfer_msg);
@@ -408,4 +428,16 @@ fn get_staking_rewards(
         .map(|asset| asset.resolve(&deps.querier, &ans_host))
         .collect::<Result<Vec<AnsAsset>, _>>()?;
     Ok(rewards)
+}
+
+#[cfg(test)]
+mod test {
+    use cosmwasm_std::testing::mock_dependencies;
+
+
+    fn get_staking_rewards() {
+        let _deps = mock_dependencies();
+
+
+    }
 }

@@ -1,13 +1,16 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
-use crate::state::{Config, CONFIG};
-use abstract_sdk::base::features::AbstractNameService;
-use abstract_sdk::os::api;
-use abstract_sdk::os::objects::{
-    AssetEntry, DexAssetPairing, LpToken, PoolReference, UncheckedContractEntry,
+use crate::state::{Config, CONFIG, FEE_CONFIG};
+use abstract_sdk::{
+    base::features::AbstractNameService,
+    os::api,
+    os::objects::{
+        AssetEntry, DexAssetPairing, LpToken, PoolReference, UncheckedContractEntry,
+    },
+    ModuleInterface,
+    Resolve
 };
-use abstract_sdk::{ModuleInterface, Resolve};
 use cosmwasm_std::{
     to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, StdResult,
     SubMsg, WasmMsg,
@@ -15,10 +18,12 @@ use cosmwasm_std::{
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use cw_utils::Duration;
-use forty_two::autocompounder::{
-    AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER,
+use forty_two::{
+    autocompounder::{
+        AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER,
+    },
+    cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING}
 };
-use forty_two::cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING};
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
@@ -129,18 +134,16 @@ pub fn instantiate_handler(
     // get the pool data
     let pool_data = pool_reference.unique_id.resolve(&deps.querier, &ans_host)?;
 
+    // TODO: use ResolvedPoolMetadata
+    let resolved_pool_assets = pool_data.assets.resolve(&deps.querier, &ans_host)?;
+
+
     let config: Config = Config {
-        fees: FeeConfig {
-            performance: performance_fees,
-            deposit: deposit_fees,
-            withdrawal: withdrawal_fees,
-            fee_asset: AssetEntry::from(fee_asset),
-        },
         vault_token: Addr::unchecked(""),
         staking_contract: staking_contract_addr,
         liquidity_token: lp_token_addr,
-        commission_addr: deps.api.addr_validate(&commission_addr)?,
         pool_data,
+        pool_assets: resolved_pool_assets,
         pool_address: pool_reference.pool_address,
         unbonding_period,
         min_unbonding_cooldown,
@@ -148,10 +151,20 @@ pub fn instantiate_handler(
 
     CONFIG.save(deps.storage, &config)?;
 
+    let fee_config = FeeConfig {
+        performance: performance_fees,
+        deposit: deposit_fees,
+        withdrawal: withdrawal_fees,
+        fee_asset: AssetEntry::from(fee_asset),
+        commission_addr: deps.api.addr_validate(&commission_addr)?,
+    };
+
+    FEE_CONFIG.save(deps.storage, &fee_config)?;
+
     // create LP token SubMsg
     let sub_msg = create_lp_token_submsg(
         env.contract.address.to_string(),
-        format!("4T2 Vault Token for {pairing}"),
+        format!("4T2 {pairing}"),
         // pool data is too long
         // format!("4T2 Vault Token for {pool_data}"),
         "FORTYTWO".to_string(), // TODO: find a better way to define name and symbol
@@ -215,4 +228,30 @@ pub fn query_staking_info(
         ))
     })?;
     Ok(res)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_cw_20_init() {
+        let pairing = DexAssetPairing::new(
+            AssetEntry::from("terra2>astro"),
+            AssetEntry::from("terra2>luna"),
+            "astroport",
+        );
+        let name = format!("4T2 {pairing}");
+
+        let msg = TokenInstantiateMsg {
+            name,
+            symbol: "FORTYTWO".to_string(),
+            decimals: 6,
+            initial_balances: vec![],
+            mint: Some(MinterResponse { minter: "".to_string(), cap: None }),
+            marketing: None,
+        };
+
+        msg.validate().unwrap();
+    }
 }

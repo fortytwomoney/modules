@@ -2,11 +2,8 @@ use abstract_os::app;
 use abstract_os::app::BaseExecuteMsg;
 use boot_core::prelude::{boot_contract, BootExecute};
 use boot_core::{BootEnvironment, BootError, Contract, IndexResponse, TxResponse};
-use cosmwasm_std::Coin;
-use forty_two::autocompounder::{
-    AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg,
-    AutocompounderQueryMsg,
-};
+use cosmwasm_std::{Addr, Coin};
+use forty_two::autocompounder::{AUTOCOMPOUNDER, AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg, AutocompounderQueryMsg};
 
 type AppInstantiateMsg = app::InstantiateMsg<AutocompounderInstantiateMsg>;
 type AppExecuteMsg = app::ExecuteMsg<AutocompounderExecuteMsg>;
@@ -23,6 +20,10 @@ where
 {
     pub fn new(name: &str, chain: Chain) -> Self {
         Self(Contract::new(name, chain).with_wasm_path("autocompounder"))
+    }
+
+    pub fn load(chain: Chain, address: &Addr) -> Self {
+        Self(Contract::new(AUTOCOMPOUNDER, chain).with_address(Some(address)))
     }
 
     /// Temporary helper to execute the app explicitly
@@ -43,3 +44,4 @@ where
         self.execute(&app::ExecuteMsg::Base(execute_msg), coins)
     }
 }
+

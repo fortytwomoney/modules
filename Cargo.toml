@@ -15,7 +15,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.11"
 authors = []
 edition = "2021"
 
@@ -30,14 +30,14 @@ exclude = [
 
 # Keep as is until TendermintStake updates.
 [workspace.dependencies]
-abstract-sdk = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contracts.git"}
-abstract-api = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contracts.git"}
-abstract-app = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contracts.git"}
-abstract-os = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contracts.git"}
-abstract-boot = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contracts.git"}
-#abstract-boot = {version = "0.6.2", git =  "https://github.com/Abstract-OS/contracts.git", rev = "aa01941365621b783683fd4ef397f53170d8334e"}
-forty-two = { version = "0.2.0", path = "packages/forty-two" }
-forty-two-boot = { version = "0.2.0", path = "packages/forty-two-boot" }
+abstract-sdk = {version = "0.8", git =  "https://github.com/Abstract-OS/contracts.git" }
+abstract-api = {version = "0.8", git =  "https://github.com/Abstract-OS/contracts.git" }
+abstract-app = {version = "0.8", git =  "https://github.com/Abstract-OS/contracts.git" }
+abstract-os = {version = "0.8", git =  "https://github.com/Abstract-OS/contracts.git" }
+abstract-boot = {version = "0.8", git =  "https://github.com/Abstract-OS/contracts.git" }
+#abstract-boot = {version = "0.8", git =  "https://github.com/Abstract-OS/contracts.git", rev = "aa01941365621b783683fd4ef397f53170d8334e"}
+forty-two = { version = "0.3.11", path = "packages/forty-two" }
+forty-two-boot = { version = "0.3.11", path = "packages/forty-two-boot" }
 cosmwasm-std = { version = "1.1" }
 cosmwasm-schema = { version = "1.1" }
 cw-asset = {git = "https://github.com/CyberHoward/cw-asset.git" }
@@ -61,7 +61,8 @@ cw-multi-test = "0.16"
 rstest = "0.16.0"
 speculoos = "0.11.0"
 
-astroport = {git = "https://github.com/astroport-fi/astroport-core.git"}
+astroport = {git = "https://github.com/astroport-fi/astroport-core.git" }
+astroport-testnet = { package = "astroport", git = "https://github.com/astroport-fi/astroport-core.git", branch = "release" }
 
 # dev dependencies
 tokio = { version = "1.4", features = ["full"] }
@@ -73,7 +74,18 @@ log = "0.4.14"
 
 # boot-core = { version = "0.6.0", git = "https://github.com/Abstract-OS" }
 # boot-cw-plus = "0.6.0"
-boot-core = { version = "0.6.0", git =  "https://github.com/Abstract-OS/BOOT.git"}
-boot-cw-plus = { version = "0.6.0",  git =  "https://github.com/Abstract-OS/BOOT.git"}
+boot-core = { version = "0.6.0", git =  "https://github.com/Abstract-OS/BOOT-private.git"}
+boot-cw-plus = { version = "0.6.0",  git =  "https://github.com/Abstract-OS/BOOT-private.git"}
 
 clap =  { version = "4.0.32", features = ["derive"] }
+
+[profile.release]
+rpath = false
+lto = true
+overflow-checks = true
+opt-level = 3
+debug = false
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+incremental = false

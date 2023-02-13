@@ -6,7 +6,7 @@ An [Abstract](https://abstract.money) api for staking tokens in CosmWasm contrac
 
 # Access to Abstract
 
-In order to pull the abstract contracts for testing you need to enable http auth in github. 
+In order to pull the abstract contracts for testing you need to enable http auth in github.
 https://doc.rust-lang.org/cargo/appendix/git-authentication.html
 
 If you're on mac add the following to your global git config (located at `~/.gitconfig`)
@@ -19,19 +19,33 @@ If you're on mac add the following to your global git config (located at `~/.git
 ## Deployment
 At the root of the project, wasm the contracts using:
 ### Wasming
+#### All
 ```bash
-cargo build
-RUSTFLAGS='-C link-arg=-s' cargo wasm --package cw-staking
-RUSTFLAGS='-C link-arg=-s' cargo wasm --package autocompounder
+just wasm
 ```
+#### Single Modules
+```bash
+just wasm-module <module> <args>
+```
+
 ### Deploying
+#### All
+Wasmed automatically! Be sure to check the default-features!
 ```shell
-cargo deploy --package cw-staking
-# UPLODAD AUTOCOMPOUONDER
-cargo deploy --package autocompounder --code-id CODE_ID
+just deploy <chain-id>
+```
+#### Individual
+```shell
+just deploy-module cw-staking <chain-id> <args>
 ```
 
 ### Vaults
 ```shell
-(cd scripts && cargo +nightly run --bin init_4t2_vault)
+just create-vault <chain-id> <paired-asset-id>
+```
+
+## NOTE
+Cw-staking deployment for **Terra Testnet**:
+```shell
+just wasm-module cw-staking --features pisco-1 --no-default-features
 ```

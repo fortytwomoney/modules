@@ -22,6 +22,8 @@ crate-type = ["cdylib", "rlib"]
 # for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces"]
 library = []
+phoenix-1 = ["cw-staking/phoenix-1"]
+pisco-1 = ["cw-staking/pisco-1"]
 
 [dependencies]
 cosmwasm-std = { workspace = true }
@@ -96,3 +98,13 @@ dotenv = {  workspace = true }
 env_logger = {  workspace = true }
 
 clap =  { workspace = true }
+
+
+[profile.release]
+lto = true
+debug = false
+debug-assertions = false
+opt-level = "s"
+overflow-checks = false
+panic = "abort"
+rpath = false
