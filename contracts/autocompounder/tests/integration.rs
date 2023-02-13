@@ -137,6 +137,7 @@ fn proper_initialisation() {
 }
 
 #[test]
+#[cfg(any(feature = "pisco-1", feature = "phoenix-1"))]
 fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
     let owner = Addr::unchecked(test_utils::OWNER);
 
@@ -212,12 +213,13 @@ fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
     Ok(())
 }
 
-#[test]
 /// This test covers:
 /// - depositing and withdrawing with a single sided asset
 /// - querying the state of the auto-compounder
 /// - querying the balance of a users position in the auto-compounder
 /// - querying the total lp balance of the auto-compounder
+#[test]
+#[cfg(any(feature = "pisco-1", feature = "phoenix-1"))]
 fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     let owner = Addr::unchecked(test_utils::OWNER);
 
@@ -341,13 +343,14 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     Ok(())
 }
 
-#[test]
 /// This test covers the following scenario:
 /// - create a pool with rewards
 /// - deposit into the pool in-balance
 /// - compound rewards
 /// - checks if the fee distribution is correct
 /// - checks if the rewards are distributed correctly
+#[test]
+#[cfg(any(feature = "pisco-1", feature = "phoenix-1"))]
 fn generator_with_rewards_test_fee_and_reward_distribution() -> Result<(), BootError> {
     let owner = Addr::unchecked(test_utils::OWNER);
     let commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
