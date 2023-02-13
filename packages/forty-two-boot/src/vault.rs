@@ -10,7 +10,6 @@ use crate::{get_module_address, is_module_installed};
 use boot_core::prelude::*;
 
 pub struct Vault<Chain: BootEnvironment> {
-    chain: Chain,
     pub os: OS<Chain>,
     pub staking: CwStakingApi<Chain>,
     pub autocompounder: AutocompounderApp<Chain>
@@ -20,7 +19,7 @@ impl<Chain: BootEnvironment> Vault<Chain> {
     pub fn new(chain: Chain, os_id: Option<u32>) -> anyhow::Result<Self> {
         let os = OS::new(chain.clone(), os_id);
         let staking = CwStakingApi::new(CW_STAKING, chain.clone());
-        let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
+        let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
         if os_id.is_some() {
             if is_module_installed(&os, CW_STAKING)? {
@@ -33,7 +32,7 @@ impl<Chain: BootEnvironment> Vault<Chain> {
             }
         }
 
-        Ok(Self { chain, os, staking, autocompounder })
+        Ok(Self { os, staking, autocompounder })
     }
 
     /// Update the vault to have the latest versions of the modules

@@ -1,4 +1,4 @@
-use abstract_boot::{ModuleDeployer, VCExecFns, VCQueryFns};
+use abstract_boot::{ModuleDeployer, VCExecFns};
 use abstract_sdk::os::objects::module::{Module, ModuleInfo, ModuleVersion};
 use boot_core::{
     networks::{NetworkInfo},

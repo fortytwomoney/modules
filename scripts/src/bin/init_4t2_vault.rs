@@ -93,7 +93,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let abstract_version = env::var("ABSTRACT_VERSION").expect("Missing ABSTRACT_VERSION");
 
     let abstract_version = ModuleVersion::from(abstract_version);
-    os_factory.set_address(&version_control.get_api_addr(OS_FACTORY, abstract_version.clone())?);
+    os_factory.set_address(&version_control.get_api_addr(OS_FACTORY, abstract_version)?);
 
     let mut assets = vec![args.paired_asset, base_pair_asset.to_string()];
     assets.sort();
