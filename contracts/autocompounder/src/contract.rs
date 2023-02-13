@@ -1,13 +1,13 @@
 use crate::dependencies::AUTOCOMPOUNDER_DEPS;
 use crate::error::AutocompounderError;
-use crate::handlers::{self};
+use crate::handlers::{self, reply};
 use abstract_app::export_endpoints;
 use abstract_app::AppContract;
 use cosmwasm_std::Response;
 use cw20::Cw20ReceiveMsg;
 use forty_two::autocompounder::{
-    AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg,
-    AutocompounderQueryMsg, AUTOCOMPOUNDER,
+    AUTOCOMPOUNDER, AutocompounderExecuteMsg, AutocompounderInstantiateMsg,
+    AutocompounderMigrateMsg, AutocompounderQueryMsg,
 };
 
 // As an app writer, the only changes necessary to this file are with the handlers and API dependencies on the `AUTOCOMPOUNDER_APP` const.
@@ -42,13 +42,13 @@ const APP: AutocompounderApp = AutocompounderApp::new(AUTOCOMPOUNDER, MODULE_VER
     .with_execute(handlers::execute_handler)
     .with_migrate(handlers::migrate_handler)
     .with_replies(&[
-        (INSTANTIATE_REPLY_ID, handlers::instantiate_reply),
-        (LP_PROVISION_REPLY_ID, handlers::lp_provision_reply),
-        (LP_WITHDRAWAL_REPLY_ID, handlers::lp_withdrawal_reply),
-        (LP_COMPOUND_REPLY_ID, handlers::lp_compound_reply),
-        (SWAPPED_REPLY_ID, handlers::swapped_reply),
-        (CP_PROVISION_REPLY_ID, handlers::compound_lp_provision_reply),
-        (FEE_SWAPPED_REPLY, handlers::fee_swapped_reply),
+        (INSTANTIATE_REPLY_ID, reply::instantiate_reply),
+        (LP_PROVISION_REPLY_ID, reply::lp_provision_reply),
+        (LP_WITHDRAWAL_REPLY_ID, reply::lp_withdrawal_reply),
+        (LP_COMPOUND_REPLY_ID, reply::lp_compound_reply),
+        (SWAPPED_REPLY_ID, reply::swapped_reply),
+        (CP_PROVISION_REPLY_ID, reply::compound_lp_provision_reply),
+        (FEE_SWAPPED_REPLY, reply::fee_swapped_reply),
     ])
     .with_receive(handlers::receive)
     .with_dependencies(AUTOCOMPOUNDER_DEPS);
