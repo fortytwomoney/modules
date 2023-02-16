@@ -1,6 +1,6 @@
+use abstract_sdk::os::cw_staking::CW_STAKING;
 use abstract_sdk::os::objects::dependency::StaticDependency;
 use abstract_sdk::os::EXCHANGE;
-use abstract_sdk::os::cw_staking::CW_STAKING;
 
 const DEX_DEP: StaticDependency = StaticDependency::new(EXCHANGE, &[">=0.3.0"]);
 

@@ -5,12 +5,9 @@ use crate::state::{Config, CONFIG, FEE_CONFIG};
 use abstract_sdk::{
     features::AbstractNameService,
     os::api,
-    os::objects::{
-        AssetEntry, DexAssetPairing, LpToken, PoolReference, UncheckedContractEntry,
-    },
     os::cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING},
-    ModuleInterface,
-    Resolve
+    os::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference, UncheckedContractEntry},
+    ModuleInterface, Resolve,
 };
 use cosmwasm_std::{
     to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, StdResult,
@@ -19,11 +16,8 @@ use cosmwasm_std::{
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use cw_utils::Duration;
-use forty_two::{
-    autocompounder::{
-        AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER,
-    },
-    
+use forty_two::autocompounder::{
+    AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER,
 };
 
 /// Initial instantiation of the contract
@@ -138,7 +132,6 @@ pub fn instantiate_handler(
     // TODO: use ResolvedPoolMetadata
     let resolved_pool_assets = pool_data.assets.resolve(&deps.querier, &ans_host)?;
 
-
     let config: Config = Config {
         vault_token: Addr::unchecked(""),
         staking_contract: staking_contract_addr,
@@ -249,7 +242,10 @@ mod test {
             symbol: "FORTYTWO".to_string(),
             decimals: 6,
             initial_balances: vec![],
-            mint: Some(MinterResponse { minter: "".to_string(), cap: None }),
+            mint: Some(MinterResponse {
+                minter: "".to_string(),
+                cap: None,
+            }),
             marketing: None,
         };
 

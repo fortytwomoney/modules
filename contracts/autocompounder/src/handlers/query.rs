@@ -5,10 +5,10 @@ use abstract_sdk::os::objects::LpToken;
 use abstract_sdk::ModuleInterface;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 
+use abstract_sdk::os::cw_staking::{CwStakingQueryMsg, CW_STAKING};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 use forty_two::autocompounder::{AutocompounderQueryMsg, Config};
-use abstract_sdk::os::cw_staking::{CwStakingQueryMsg, CW_STAKING};
 
 const DEFAULT_PAGE_SIZE: u8 = 5;
 const MAX_PAGE_SIZE: u8 = 20;
@@ -29,11 +29,15 @@ pub fn query_handler(
         AutocompounderQueryMsg::AllClaims { start_after, limit } => {
             Ok(to_binary(&query_all_claims(deps, start_after, limit)?)?)
         }
-        AutocompounderQueryMsg::LatestUnbonding {} => Ok(to_binary(&query_latest_unbonding(deps)?)?),
+        AutocompounderQueryMsg::LatestUnbonding {} => {
+            Ok(to_binary(&query_latest_unbonding(deps)?)?)
+        }
         AutocompounderQueryMsg::TotalLpPosition {} => {
             Ok(to_binary(&query_total_lp_position(app, deps)?)?)
         }
-        AutocompounderQueryMsg::Balance { address } => Ok(to_binary(&query_balance(deps, address)?)?),
+        AutocompounderQueryMsg::Balance { address } => {
+            Ok(to_binary(&query_balance(deps, address)?)?)
+        }
     }
 }
 
@@ -89,7 +93,10 @@ pub fn query_latest_unbonding(deps: Deps) -> AutocompounderResult<Expiration> {
     Ok(latest_unbonding)
 }
 
-pub fn query_total_lp_position(app: &AutocompounderApp, deps: Deps) -> AutocompounderResult<Uint128> {
+pub fn query_total_lp_position(
+    app: &AutocompounderApp,
+    deps: Deps,
+) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
     let modules = app.modules(deps);
 

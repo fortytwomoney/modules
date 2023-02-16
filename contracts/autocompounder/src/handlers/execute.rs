@@ -4,20 +4,24 @@ use crate::contract::{
     LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::state::{Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS, FEE_CONFIG};
+use crate::state::{
+    Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
+};
+use abstract_sdk::os::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use abstract_sdk::{
-    DexInterface,
     features::{AbstractNameService, Identification},
     os::objects::{AnsAsset, AssetEntry, LpToken},
-    ModuleInterface, Resolve, TransferInterface,
+    DexInterface, ModuleInterface, Resolve, TransferInterface,
 };
-use cosmwasm_std::{from_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response, StdResult, SubMsg, Uint128, wasm_execute};
+use cosmwasm_std::{
+    from_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
+    ReplyOn, Response, StdResult, SubMsg, Uint128,
+};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetList;
 use cw_utils::Duration;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
-use abstract_sdk::os::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
 use std::ops::Add;
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
@@ -67,7 +71,6 @@ pub fn update_fee_config(
         check_fee(withdrawal)?;
         updates.push(("withdrawal", withdrawal.to_string()));
         config.withdrawal = withdrawal;
-
     }
 
     if let Some(deposit) = deposit {
@@ -286,7 +289,11 @@ fn redeem(
             )?;
         }
 
-        Ok(app.custom_tag_response(Response::new(), "redeem", vec![("4t2", "AC/Register_pre_claim")]))
+        Ok(app.custom_tag_response(
+            Response::new(),
+            "redeem",
+            vec![("4t2", "AC/Register_pre_claim")],
+        ))
     }
 }
 
@@ -482,17 +489,14 @@ fn claim_lp_rewards(
                     staking_token: lp_token_name,
                 },
             },
-        ).unwrap()
+        )
+        .unwrap()
 }
 
 fn get_burn_msg(contract: &Addr, amount: Uint128) -> StdResult<CosmosMsg> {
     let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
 
-    Ok(wasm_execute(contract.to_string(),
-        &msg,
-         vec![],
-    )?
-    .into())
+    Ok(wasm_execute(contract.to_string(), &msg, vec![])?.into())
 }
 
 fn unstake_lp_tokens(

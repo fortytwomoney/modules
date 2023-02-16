@@ -3,7 +3,10 @@ use abstract_os::app::BaseExecuteMsg;
 use boot_core::prelude::{boot_contract, BootExecute};
 use boot_core::{BootEnvironment, BootError, Contract, IndexResponse, TxResponse};
 use cosmwasm_std::{Addr, Coin};
-use forty_two::autocompounder::{AUTOCOMPOUNDER, AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg, AutocompounderQueryMsg};
+use forty_two::autocompounder::{
+    AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg,
+    AutocompounderQueryMsg, AUTOCOMPOUNDER,
+};
 
 type AppInstantiateMsg = app::InstantiateMsg<AutocompounderInstantiateMsg>;
 type AppExecuteMsg = app::ExecuteMsg<AutocompounderExecuteMsg>;
@@ -44,4 +47,3 @@ where
         self.execute(&app::ExecuteMsg::Base(execute_msg), coins)
     }
 }
-

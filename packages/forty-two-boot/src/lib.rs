@@ -1,5 +1,5 @@
-use abstract_boot::{OS, ManagerQueryFns};
-use boot_core::{BootEnvironment};
+use abstract_boot::{ManagerQueryFns, OS};
+use boot_core::BootEnvironment;
 
 use cosmwasm_std::Addr;
 
@@ -18,7 +18,6 @@ pub fn get_module_address<Chain: BootEnvironment>(
         .ok_or(anyhow::anyhow!("Module not found"))?;
     Ok(Addr::unchecked(module_info.address.clone()))
 }
-
 
 // TODO: abstract boot
 pub fn is_module_installed<Chain: BootEnvironment>(

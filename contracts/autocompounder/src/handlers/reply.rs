@@ -6,27 +6,27 @@ use crate::contract::{
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{Config, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
-use abstract_sdk::{
-    features::AbstractResponse,
-    DexInterface, Dex,
-    features::{AbstractNameService, Identification},
-    os::{
-        objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
-        dex::OfferAsset
-    },
-    ModuleInterface,
-    Resolve,
-    TransferInterface, AbstractSdkResult
-};
-use cosmwasm_std::{Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg, Uint128, wasm_execute};
-use cw20_base::msg::ExecuteMsg::Mint;
-use cw_asset::{Asset, AssetInfo};
-use cw_utils::Duration;
 use abstract_sdk::os::cw_staking::{
     CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse, CW_STAKING,
 };
-use protobuf::Message;
+use abstract_sdk::{
+    features::AbstractResponse,
+    features::{AbstractNameService, Identification},
+    os::{
+        dex::OfferAsset,
+        objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
+    },
+    AbstractSdkResult, Dex, DexInterface, ModuleInterface, Resolve, TransferInterface,
+};
+use cosmwasm_std::{
+    wasm_execute, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError,
+    StdResult, SubMsg, Uint128,
+};
+use cw20_base::msg::ExecuteMsg::Mint;
+use cw_asset::{Asset, AssetInfo};
+use cw_utils::Duration;
 use forty_two::autocompounder::FeeConfig;
+use protobuf::Message;
 
 /// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.
 pub fn instantiate_reply(
@@ -114,7 +114,8 @@ fn mint_vault_tokens(
     user_address: Addr,
     mint_amount: Uint128,
 ) -> Result<CosmosMsg, AutocompounderError> {
-    let mint_msg = wasm_execute(config.vault_token.to_string(),
+    let mint_msg = wasm_execute(
+        config.vault_token.to_string(),
         &Mint {
             recipient: user_address.to_string(),
             amount: mint_amount,
@@ -208,7 +209,6 @@ pub fn lp_compound_reply(
         // 3.1.1) if all assets are in the pool, we can just provide liquidity
         //  TODO: but we might need to check the length of the rewards.
 
-
         // The liquditiy assets are all the pool assets with the amount of the rewards
         let liquidity_assets = pool_assets
             .iter()
@@ -224,7 +224,8 @@ pub fn lp_compound_reply(
             .collect::<Vec<OfferAsset>>();
 
         // 3.1.2) provide liquidity
-        let lp_msg: CosmosMsg = dex.provide_liquidity(liquidity_assets, Some(Decimal::percent(50)))?;
+        let lp_msg: CosmosMsg =
+            dex.provide_liquidity(liquidity_assets, Some(Decimal::percent(50)))?;
 
         let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
@@ -434,10 +435,7 @@ fn get_staking_rewards(
 mod test {
     use cosmwasm_std::testing::mock_dependencies;
 
-
     fn get_staking_rewards() {
         let _deps = mock_dependencies();
-
-
     }
 }

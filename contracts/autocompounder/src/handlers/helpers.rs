@@ -1,10 +1,13 @@
-use crate::{contract::{AutocompounderApp, AutocompounderResult}, error::AutocompounderError};
+use crate::{
+    contract::{AutocompounderApp, AutocompounderResult},
+    error::AutocompounderError,
+};
+use abstract_sdk::os::cw_staking::{CwStakingQueryMsg, StakeResponse, CW_STAKING};
 use abstract_sdk::{features::Identification, os::objects::AssetEntry, ModuleInterface};
 use cosmwasm_std::{Decimal, Deps, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw_utils::Duration;
 use forty_two::autocompounder::Config;
-use abstract_sdk::os::cw_staking::{CwStakingQueryMsg, StakeResponse, CW_STAKING};
 
 /// queries staking module for the number of staked assets of the app
 pub fn query_stake(
