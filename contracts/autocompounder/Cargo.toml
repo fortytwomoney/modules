@@ -72,16 +72,28 @@ astroport = { workspace = true }
 semver = { workspace = true , features = ["serde"]}
 
 cw-astro = {package = "cw20", version = "0.15"}
-astroport-token = { git = "https://github.com/astroport-fi/astroport-core.git" }
-astroport-generator = { git = "https://github.com/astroport-fi/astroport-core.git" }
-astroport-vesting = { git = "https://github.com/astroport-fi/astroport-core.git" }
-astroport-staking = { git = "https://github.com/astroport-fi/astroport-core.git" }
-astroport-factory = { git = "https://github.com/astroport-fi/astroport-core.git" }
-astroport-pair = { git = "https://github.com/astroport-fi/astroport-core.git" }
-astroport-pair-stable = { git = "https://github.com/astroport-fi/astroport-core.git" }
-astroport-whitelist = { git = "https://github.com/astroport-fi/astroport-core.git" }
+# astroport-token = { git = "https://github.com/astroport-fi/astroport-core.git" }
+# astroport-generator = { git = "https://github.com/astroport-fi/astroport-core.git" }
+# astroport-vesting = { git = "https://github.com/astroport-fi/astroport-core.git" }
+# astroport-staking = { git = "https://github.com/astroport-fi/astroport-core.git" }
+# astroport-factory = { git = "https://github.com/astroport-fi/astroport-core.git" }
+# astroport-pair = { git = "https://github.com/astroport-fi/astroport-core.git" }
+# astroport-pair-stable = { git = "https://github.com/astroport-fi/astroport-core.git" }
+# astroport-whitelist = { git = "https://github.com/astroport-fi/astroport-core.git" }
+# astroport-governance = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main"}
+# generator-controller = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main" }
+
+astroport-token = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "c216ecd4f350113316be44d06a95569f451ac681"}
+astroport-generator = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "126d43216111df786472fe2a845c1e2fadfe4a36"}
+astroport-vesting = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "c216ecd4f350113316be44d06a95569f451ac681"}
+astroport-staking = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "d67e1f5289b6ffb6a557748eca7eb1e061ce87a5"}
+astroport-factory = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "126d43216111df786472fe2a845c1e2fadfe4a36"}
+astroport-pair = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "c216ecd4f350113316be44d06a95569f451ac681"}
+astroport-pair-stable = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "c216ecd4f350113316be44d06a95569f451ac681"}
+astroport-whitelist = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "c216ecd4f350113316be44d06a95569f451ac681"}
 astroport-governance = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main"}
-generator-controller = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main" }
+generator-controller = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main"}
+
 
 voting-escrow = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main" }
 voting-escrow-delegation = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main" }
