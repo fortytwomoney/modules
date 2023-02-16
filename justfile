@@ -3,6 +3,9 @@
 update:
   cargo update
 
+watch:
+  cargo watch -x lcheck
+
 # `just wasm-module cw-staking --features pisco-1 --no-default-features`
 wasm-module module +args='':
   RUSTFLAGS='-C link-arg=-s' cargo wasm --package {{module}} {{args}}

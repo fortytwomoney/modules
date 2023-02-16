@@ -20,7 +20,7 @@ serde = { workspace = true }
 dotenv = { workspace = true }
 env_logger = { workspace = true }
 semver = { workspace = true }
-cw-staking = { package = "cw-staking", path = "../contracts/cw-staking" }
+cw-staking = { git = "https://github.com/Abstract-OS/contracts.git",features = ["library"] }
 abstract-os = { workspace = true }
 forty-two = { workspace = true, features = ["boot"] }
 tokio = { workspace = true }
