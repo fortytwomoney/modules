@@ -73,9 +73,9 @@ pub fn instantiate_handler(
 
     // sort pool_assets then join
     // staking/astroport/crab,juno
-    let staking_contract_name = ["staking", &lp_token.to_string()].join("/");
-    let staking_contract_entry = UncheckedContractEntry::new(&dex, staking_contract_name).check();
-    let staking_contract_addr = ans.query(&staking_contract_entry)?;
+    // let staking_contract_name = ["staking", &lp_token.to_string()].join("/");
+    // let staking_contract_entry = UncheckedContractEntry::new(&dex, staking_contract_name).check();
+    // let staking_contract_addr = ans.query(&staking_contract_entry)?;
 
     // get staking info
     let staking_info = query_staking_info(deps.as_ref(), &app, lp_token.into(), dex.clone())?;
@@ -134,7 +134,7 @@ pub fn instantiate_handler(
 
     let config: Config = Config {
         vault_token: Addr::unchecked(""),
-        staking_contract: staking_contract_addr,
+        staking_contract: staking_info.staking_contract_address,
         liquidity_token: lp_token_addr,
         pool_data,
         pool_assets: resolved_pool_assets,
