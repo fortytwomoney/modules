@@ -3,11 +3,12 @@ use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::state::{Config, CONFIG, FEE_CONFIG};
 use abstract_sdk::{
-    base::features::AbstractNameService,
+    features::AbstractNameService,
     os::api,
     os::objects::{
         AssetEntry, DexAssetPairing, LpToken, PoolReference, UncheckedContractEntry,
     },
+    os::cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING},
     ModuleInterface,
     Resolve
 };
@@ -22,7 +23,7 @@ use forty_two::{
     autocompounder::{
         AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER,
     },
-    cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING}
+    
 };
 
 /// Initial instantiation of the contract

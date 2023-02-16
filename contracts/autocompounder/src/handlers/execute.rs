@@ -5,10 +5,10 @@ use crate::contract::{
 };
 use crate::error::AutocompounderError;
 use crate::state::{Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS, FEE_CONFIG};
-use abstract_sdk::base::features::AbstractResponse;
+use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use abstract_sdk::{
-    apis::dex::DexInterface,
-    base::features::{AbstractNameService, Identification},
+    DexInterface,
+    features::{AbstractNameService, Identification},
     os::objects::{AnsAsset, AssetEntry, LpToken},
     ModuleInterface, Resolve, TransferInterface,
 };
@@ -17,7 +17,7 @@ use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetList;
 use cw_utils::Duration;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
-use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
+use abstract_sdk::os::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
 use std::ops::Add;
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
@@ -116,12 +116,12 @@ pub fn deposit(
         funds
     };
 
-    let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>, _> = claimed_deposits
+    let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>, AbstractSdkError> = claimed_deposits
         .into_iter()
         .map(|asset| {
             // transfer cw20 tokens to the OS
             // will fail if allowance is not set or if some other assets are sent
-            asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)
+            Ok(asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)?)
         })
         .collect();
     msgs.append(cw_20_transfer_msgs_res?.as_mut());

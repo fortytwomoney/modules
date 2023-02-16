@@ -1,10 +1,10 @@
-use crate::{contract::AutocompounderApp, error::AutocompounderError};
-use abstract_sdk::{base::features::Identification, os::objects::AssetEntry, ModuleInterface};
-use cosmwasm_std::{Decimal, Deps, StdResult, Uint128};
+use crate::{contract::{AutocompounderApp, AutocompounderResult}, error::AutocompounderError};
+use abstract_sdk::{features::Identification, os::objects::AssetEntry, ModuleInterface};
+use cosmwasm_std::{Decimal, Deps, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw_utils::Duration;
 use forty_two::autocompounder::Config;
-use forty_two::cw_staking::{CwStakingQueryMsg, StakeResponse, CW_STAKING};
+use abstract_sdk::os::cw_staking::{CwStakingQueryMsg, StakeResponse, CW_STAKING};
 
 /// queries staking module for the number of staked assets of the app
 pub fn query_stake(
@@ -13,7 +13,7 @@ pub fn query_stake(
     dex: String,
     lp_token_name: AssetEntry,
     unbonding_period: Option<Duration>,
-) -> StdResult<Uint128> {
+) -> AutocompounderResult<Uint128> {
     let modules = app.modules(deps);
 
     let query = CwStakingQueryMsg::Staked {
@@ -26,7 +26,7 @@ pub fn query_stake(
     Ok(res.amount)
 }
 
-pub fn cw20_total_supply(deps: Deps, config: &Config) -> StdResult<Uint128> {
+pub fn cw20_total_supply(deps: Deps, config: &Config) -> AutocompounderResult<Uint128> {
     let TokenInfoResponse {
         total_supply: vault_tokens_total_supply,
         ..

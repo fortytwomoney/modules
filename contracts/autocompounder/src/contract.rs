@@ -20,7 +20,7 @@ pub type AutocompounderApp = AppContract<
     Cw20ReceiveMsg,
 >;
 
-pub type AutocompounderResult = Result<Response, AutocompounderError>;
+pub type AutocompounderResult<T = Response> = Result<T, AutocompounderError>;
 
 /// The initial version of the app, which will use the package version if not altered
 const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");

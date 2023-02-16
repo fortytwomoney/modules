@@ -1,11 +1,11 @@
-use abstract_boot::OS;
+use abstract_boot::{OS};
 use abstract_os::app;
 use boot_core::BootEnvironment;
 use cosmwasm_std::{Empty};
 use forty_two::autocompounder::{AUTOCOMPOUNDER};
-use forty_two::cw_staking::CW_STAKING;
+use abstract_os::cw_staking::CW_STAKING;
 use crate::autocompounder::AutocompounderApp;
-use crate::cw_staking::CwStakingApi;
+use abstract_boot::CwStakingApi;
 use crate::{get_module_address, is_module_installed};
 use boot_core::prelude::*;
 
@@ -36,7 +36,7 @@ impl<Chain: BootEnvironment> Vault<Chain> {
     }
 
     /// Update the vault to have the latest versions of the modules
-    pub fn update(&mut self) -> Result<(), BootError> {
+    pub fn update(&mut self) -> anyhow::Result<()> {
         if is_module_installed(&self.os, CW_STAKING)? {
             self.os.manager.upgrade_module(CW_STAKING, &Empty {})?;
         }

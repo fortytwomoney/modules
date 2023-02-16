@@ -7,22 +7,22 @@ use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{Config, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
 use abstract_sdk::{
-    base::features::AbstractResponse,
-    apis::dex::{Dex, DexInterface},
-    base::features::{AbstractNameService, Identification},
+    features::AbstractResponse,
+    DexInterface, Dex,
+    features::{AbstractNameService, Identification},
     os::{
         objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
         dex::OfferAsset
     },
     ModuleInterface,
     Resolve,
-    TransferInterface
+    TransferInterface, AbstractSdkResult
 };
 use cosmwasm_std::{Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg, Uint128, wasm_execute};
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw_asset::{Asset, AssetInfo};
 use cw_utils::Duration;
-use forty_two::cw_staking::{
+use abstract_sdk::os::cw_staking::{
     CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse, CW_STAKING,
 };
 use protobuf::Message;
@@ -268,12 +268,12 @@ pub fn swapped_reply(
         .pool_data
         .assets
         .iter()
-        .map(|entry| -> StdResult<AnsAsset> {
+        .map(|entry| -> AbstractSdkResult<AnsAsset> {
             let tkn = entry.resolve(&deps.querier, &ans_host)?;
             let balance = tkn.query_balance(&deps.querier, app.proxy_address(deps.as_ref())?)?;
             Ok(AnsAsset::new(entry.clone(), balance))
         })
-        .collect::<StdResult<Vec<AnsAsset>>>()?;
+        .collect::<AbstractSdkResult<Vec<AnsAsset>>>()?;
 
     // 2) provide liquidity
     let lp_msg: CosmosMsg = dex.provide_liquidity(rewards, Some(Decimal::percent(10)))?;
@@ -331,7 +331,7 @@ pub fn fee_swapped_reply(
         .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?)?;
 
     let transfer_msg = app.bank(deps.as_ref()).transfer(
-        vec![AnsAsset::new(fee_asset, fee_balance)],
+        vec![&AnsAsset::new(fee_asset, fee_balance)],
         &commission_addr,
     )?;
 
@@ -343,7 +343,7 @@ fn query_rewards(
     deps: Deps,
     app: &AutocompounderApp,
     pool_data: PoolMetadata,
-) -> StdResult<Vec<AssetInfo>> {
+) -> AbstractSdkResult<Vec<AssetInfo>> {
     // query staking module for which rewards are available
     let modules = app.modules(deps);
     let query = CwStakingQueryMsg::RewardTokens {
@@ -362,7 +362,7 @@ fn stake_lp_tokens(
     provider: String,
     asset: AnsAsset,
     unbonding_period: Option<Duration>,
-) -> StdResult<CosmosMsg> {
+) -> AbstractSdkResult<CosmosMsg> {
     let modules = app.modules(deps);
     modules.api_request(
         CW_STAKING,
@@ -386,7 +386,7 @@ fn swap_rewards_with_reply(
     let mut swap_msgs: Vec<CosmosMsg> = vec![];
     rewards
         .iter()
-        .try_for_each(|reward: &AnsAsset| -> StdResult<_> {
+        .try_for_each(|reward: &AnsAsset| -> AbstractSdkResult<_> {
             if !target_assets.contains(&reward.name) {
                 // 3.2) swap to asset in pool
                 let swap_msg = dex.swap(
@@ -409,18 +409,18 @@ fn get_staking_rewards(
     deps: Deps,
     app: &AutocompounderApp,
     config: &Config,
-) -> StdResult<Vec<AnsAsset>> {
+) -> AbstractSdkResult<Vec<AnsAsset>> {
     let ans_host = app.ans_host(deps)?;
     let rewards = query_rewards(deps, app, config.pool_data.clone())?;
     // query balance of rewards
     let rewards = rewards
         .into_iter()
-        .map(|tkn| -> StdResult<Asset> {
+        .map(|tkn| -> AbstractSdkResult<Asset> {
             // 2) get the number of LP tokens minted in this transaction
             let balance = tkn.query_balance(&deps.querier, app.proxy_address(deps)?)?;
             Ok(Asset::new(tkn, balance))
         })
-        .collect::<StdResult<Vec<Asset>>>()?;
+        .collect::<AbstractSdkResult<Vec<Asset>>>()?;
     // resolve rewards to AnsAssets for dynamic processing (swaps)
     let rewards = rewards
         .into_iter()

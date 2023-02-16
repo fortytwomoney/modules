@@ -5,7 +5,6 @@ use boot_core::networks::NetworkInfo;
 use cosmwasm_std::Addr;
 
 pub mod autocompounder;
-pub mod cw_staking;
 pub mod vault;
 
 pub fn parse_network(net_id: &str) -> NetworkInfo {

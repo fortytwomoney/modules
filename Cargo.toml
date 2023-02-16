@@ -30,10 +30,10 @@ exclude = [
 
 # Keep as is until TendermintStake updates.
 [workspace.dependencies]
-abstract-sdk = {version = "0.10.0", git =  "https://github.com/Abstract-OS/contracts.git" }
-abstract-api = {version = "0.10.0", git =  "https://github.com/Abstract-OS/contracts.git" }
-abstract-app = {version = "0.10.0", git =  "https://github.com/Abstract-OS/contracts.git" }
-abstract-os = {version = "0.10.0", git =  "https://github.com/Abstract-OS/contracts.git" }
+abstract-sdk = {version = "0.10.2" }
+abstract-api = {version = "0.10.2"}
+abstract-app = {version = "0.10.2"}
+abstract-os = {version = "0.10.0"}
 abstract-boot = {version = "0.10.0", git =  "https://github.com/Abstract-OS/contracts.git" }
 
 forty-two = { version = "0.3.11", path = "packages/forty-two" }
@@ -44,16 +44,16 @@ cw-asset = { version = "3.0" }
 schemars = "0.8"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0" }
-cw-storage-plus = "0.16.0"
-cw-controllers = "0.16.0"
+cw-storage-plus = "1.0.1"
+cw-controllers = "1.0.1"
 cw-paginate = {git = "https://github.com/DA0-DA0/dao-contracts.git", tag = "v1.0.0"}
 cosmwasm-storage = { version = "1.1" }
 
-cw-utils = "0.16"
-cw20 = "0.16"
+cw-utils = "1.0.1"
+cw20 = "1.0.1"
 
-cw2 = "0.16"
-cw20-base = "0.16"
+cw2 = "1.0.1"
+cw20-base = "1.0.1"
 anyhow = { version = "1.0.51" }
 cw-multi-test = "0.16"
 
