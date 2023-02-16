@@ -33,13 +33,14 @@ use abstract_sdk::os::dex::{DexName, OfferAsset};
 use abstract_sdk::os::objects::{AssetEntry, PoolAddress, PoolMetadata};
 use cosmwasm_schema::QueryResponses;
 use cosmwasm_std::{Addr, Decimal, Uint128};
+use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetInfo;
 use cw_utils::{Duration, Expiration};
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 
 /// Impls for being able to call methods on the autocompounder app directly
-pub type ExecuteMsg = app::ExecuteMsg<AutocompounderExecuteMsg>;
+pub type ExecuteMsg = app::ExecuteMsg<AutocompounderExecuteMsg, Cw20ReceiveMsg>;
 pub type QueryMsg = app::QueryMsg<AutocompounderQueryMsg>;
 impl app::AppExecuteMsg for AutocompounderExecuteMsg {}
 impl app::AppQueryMsg for AutocompounderQueryMsg {}

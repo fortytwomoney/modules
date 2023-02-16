@@ -522,3 +522,54 @@ fn unstake_lp_tokens(
         )
         .unwrap()
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use crate::contract::AUTO_COMPOUNDER_APP;
+    use abstract_sdk::base::{ExecuteEndpoint, InstantiateEndpoint};
+    use abstract_testing::TEST_MANAGER;
+    use cosmwasm_std::{
+        testing::{mock_env, mock_info},
+        Addr,
+    };
+    use cw_controllers::AdminError;
+    use forty_two::autocompounder::{AutocompounderInstantiateMsg, ExecuteMsg, BondingPeriodSelector};
+
+    fn execute_as(
+        deps: DepsMut,
+        sender: &str,
+        msg: impl Into<ExecuteMsg>,
+    ) -> Result<Response, AutocompounderError> {
+        let info = mock_info(sender, &[]);
+        AUTO_COMPOUNDER_APP.execute(deps, mock_env(), info, msg.into())
+    }
+
+    fn execute_as_manager(deps: DepsMut, msg: impl Into<ExecuteMsg> ) -> Result<Response, AutocompounderError> {
+        execute_as(deps, TEST_MANAGER, msg)
+    }
+
+    mod fee_config {
+        use speculoos::{assert_that, result::ResultAssertions};
+
+        use crate::test_common::app_init;
+
+        use super::*;
+
+        #[test]
+        fn only_admin() -> anyhow::Result<()> {
+            let mut deps = app_init();
+            let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
+                performance: None,
+                deposit: None,
+                withdrawal: None,
+            };
+
+            let resp = execute_as(deps.as_mut(), "not_mananger", msg);
+            assert_that!(resp).is_err().matches(|e| matches!(e, AutocompounderError::Admin(AdminError::NotAdmin {  })));
+
+            Ok(())
+        }
+    }
+}

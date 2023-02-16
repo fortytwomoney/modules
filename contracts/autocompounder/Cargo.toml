@@ -63,6 +63,7 @@ manager = {git = "https://github.com/Abstract-OS/contracts.git",features = ["lib
 dex = {git = "https://github.com/Abstract-OS/contracts.git", features = ["testing", "terra"]}
 subscription = {git = "https://github.com/Abstract-OS/contracts.git",features = ["library"]}
 abstract-boot = {workspace = true, features = ["integration"]}
+abstract-testing ={ git = "https://github.com/Abstract-OS/contracts.git" }
 boot-core = { workspace = true, features = ["daemon"]}
 boot-cw-plus = { workspace = true}
 anyhow = {workspace = true}
@@ -94,9 +95,9 @@ astroport-whitelist = { git = "https://github.com/astroport-fi/astroport-core.gi
 # generator-controller = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main"}
 
 
-  # voting-escrow = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main" }
-  # voting-escrow-delegation = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main" }
-  # astroport-nft = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main" }
+# voting-escrow = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main" }
+# voting-escrow-delegation = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main" }
+# astroport-nft = { git = "https://github.com/astroport-fi/astroport-governance.git", branch = "main" }
 cw721-base = { version = "0.15", features = ["library"] }
 tokio = { workspace = true }
 dotenv = {  workspace = true }
