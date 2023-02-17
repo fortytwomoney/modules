@@ -55,8 +55,7 @@ pub fn update_fee_config(
     deposit: Option<Decimal>,
 ) -> AutocompounderResult {
     app.admin
-        .assert_admin(deps.as_ref(), &msg_info.sender)
-        .unwrap();
+        .assert_admin(deps.as_ref(), &msg_info.sender)?;
 
     let mut config = FEE_CONFIG.load(deps.storage)?;
     let mut updates = vec![];
@@ -535,7 +534,9 @@ mod test {
         Addr,
     };
     use cw_controllers::AdminError;
-    use forty_two::autocompounder::{AutocompounderInstantiateMsg, ExecuteMsg, BondingPeriodSelector};
+    use forty_two::autocompounder::{
+        AutocompounderInstantiateMsg, BondingPeriodSelector, ExecuteMsg,
+    };
 
     fn execute_as(
         deps: DepsMut,
@@ -546,7 +547,10 @@ mod test {
         AUTO_COMPOUNDER_APP.execute(deps, mock_env(), info, msg.into())
     }
 
-    fn execute_as_manager(deps: DepsMut, msg: impl Into<ExecuteMsg> ) -> Result<Response, AutocompounderError> {
+    fn execute_as_manager(
+        deps: DepsMut,
+        msg: impl Into<ExecuteMsg>,
+    ) -> Result<Response, AutocompounderError> {
         execute_as(deps, TEST_MANAGER, msg)
     }
 
@@ -567,7 +571,9 @@ mod test {
             };
 
             let resp = execute_as(deps.as_mut(), "not_mananger", msg);
-            assert_that!(resp).is_err().matches(|e| matches!(e, AutocompounderError::Admin(AdminError::NotAdmin {  })));
+            assert_that!(resp)
+                .is_err()
+                .matches(|e| matches!(e, AutocompounderError::Admin(AdminError::NotAdmin {})));
 
             Ok(())
         }
