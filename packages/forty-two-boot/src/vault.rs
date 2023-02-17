@@ -1,18 +1,18 @@
+use crate::autocompounder::AutocompounderApp;
+use crate::{get_module_address, is_module_installed};
+use abstract_boot::CwStakingApi;
 use abstract_boot::OS;
 use abstract_os::app;
-use boot_core::BootEnvironment;
-use cosmwasm_std::{Empty};
-use forty_two::autocompounder::{AUTOCOMPOUNDER};
-use forty_two::cw_staking::CW_STAKING;
-use crate::autocompounder::AutocompounderApp;
-use crate::cw_staking::CwStakingApi;
-use crate::{get_module_address, is_module_installed};
+use abstract_os::cw_staking::CW_STAKING;
 use boot_core::prelude::*;
+use boot_core::BootEnvironment;
+use cosmwasm_std::Empty;
+use forty_two::autocompounder::AUTOCOMPOUNDER;
 
 pub struct Vault<Chain: BootEnvironment> {
     pub os: OS<Chain>,
     pub staking: CwStakingApi<Chain>,
-    pub autocompounder: AutocompounderApp<Chain>
+    pub autocompounder: AutocompounderApp<Chain>,
 }
 
 impl<Chain: BootEnvironment> Vault<Chain> {
@@ -32,22 +32,25 @@ impl<Chain: BootEnvironment> Vault<Chain> {
             }
         }
 
-        Ok(Self { os, staking, autocompounder })
+        Ok(Self {
+            os,
+            staking,
+            autocompounder,
+        })
     }
 
     /// Update the vault to have the latest versions of the modules
-    pub fn update(&mut self) -> Result<(), BootError> {
+    pub fn update(&mut self) -> anyhow::Result<()> {
         if is_module_installed(&self.os, CW_STAKING)? {
             self.os.manager.upgrade_module(CW_STAKING, &Empty {})?;
         }
         if is_module_installed(&self.os, AUTOCOMPOUNDER)? {
             let x = app::MigrateMsg {
                 app: forty_two::autocompounder::AutocompounderMigrateMsg {},
-                base: app::BaseMigrateMsg {}
+                base: app::BaseMigrateMsg {},
             };
             self.os.manager.upgrade_module(AUTOCOMPOUNDER, &x)?;
         }
         Ok(())
     }
 }
-

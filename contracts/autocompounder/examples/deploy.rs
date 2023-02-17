@@ -1,5 +1,5 @@
 use abstract_boot::VersionControl;
-use boot_core::networks::NetworkInfo;
+use boot_core::networks::{parse_network, NetworkInfo};
 use boot_core::prelude::instantiate_daemon_env;
 use boot_core::prelude::*;
 use boot_core::DaemonOptionsBuilder;
@@ -68,7 +68,7 @@ fn main() -> anyhow::Result<()> {
 
     let args = Arguments::parse();
 
-    let network = forty_two_boot::parse_network(&args.network_id);
+    let network = parse_network(&args.network_id);
 
     deploy_autocompounder(network, args.code_id)
 }

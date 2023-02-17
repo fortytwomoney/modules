@@ -1,5 +1,7 @@
 use abstract_app::AppError;
+use abstract_sdk::AbstractSdkError;
 use cosmwasm_std::{OverflowError, StdError, Uint128};
+use cw_asset::AssetError;
 use cw_controllers::AdminError;
 use cw_utils::Expiration;
 use thiserror::Error;
@@ -11,6 +13,12 @@ pub enum AutocompounderError {
 
     #[error("{0}")]
     Admin(#[from] AdminError),
+
+    #[error("{0}")]
+    AbstractError(#[from] AbstractSdkError),
+
+    #[error("{0}")]
+    AssetError(#[from] AssetError),
 
     #[error("{0}")]
     DappError(#[from] AppError),

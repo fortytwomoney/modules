@@ -4,20 +4,24 @@ use crate::contract::{
     LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::state::{Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS, FEE_CONFIG};
-use abstract_sdk::base::features::AbstractResponse;
-use abstract_sdk::{
-    apis::dex::DexInterface,
-    base::features::{AbstractNameService, Identification},
-    os::objects::{AnsAsset, AssetEntry, LpToken},
-    ModuleInterface, Resolve, TransferInterface,
+use crate::state::{
+    Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
-use cosmwasm_std::{from_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response, StdResult, SubMsg, Uint128, wasm_execute};
+use abstract_sdk::os::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
+use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
+use abstract_sdk::{
+    features::{AbstractNameService, Identification},
+    os::objects::{AnsAsset, AssetEntry, LpToken},
+    DexInterface, ModuleInterface, Resolve, TransferInterface,
+};
+use cosmwasm_std::{
+    from_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
+    ReplyOn, Response, StdResult, SubMsg, Uint128,
+};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetList;
 use cw_utils::Duration;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
-use forty_two::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
 use std::ops::Add;
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
@@ -50,9 +54,7 @@ pub fn update_fee_config(
     withdrawal: Option<Decimal>,
     deposit: Option<Decimal>,
 ) -> AutocompounderResult {
-    app.admin
-        .assert_admin(deps.as_ref(), &msg_info.sender)
-        .unwrap();
+    app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
 
     let mut config = FEE_CONFIG.load(deps.storage)?;
     let mut updates = vec![];
@@ -67,7 +69,6 @@ pub fn update_fee_config(
         check_fee(withdrawal)?;
         updates.push(("withdrawal", withdrawal.to_string()));
         config.withdrawal = withdrawal;
-
     }
 
     if let Some(deposit) = deposit {
@@ -116,12 +117,12 @@ pub fn deposit(
         funds
     };
 
-    let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>, _> = claimed_deposits
+    let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>, AbstractSdkError> = claimed_deposits
         .into_iter()
         .map(|asset| {
             // transfer cw20 tokens to the OS
             // will fail if allowance is not set or if some other assets are sent
-            asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)
+            Ok(asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)?)
         })
         .collect();
     msgs.append(cw_20_transfer_msgs_res?.as_mut());
@@ -286,7 +287,11 @@ fn redeem(
             )?;
         }
 
-        Ok(app.custom_tag_response(Response::new(), "redeem", vec![("4t2", "AC/Register_pre_claim")]))
+        Ok(app.custom_tag_response(
+            Response::new(),
+            "redeem",
+            vec![("4t2", "AC/Register_pre_claim")],
+        ))
     }
 }
 
@@ -482,17 +487,14 @@ fn claim_lp_rewards(
                     staking_token: lp_token_name,
                 },
             },
-        ).unwrap()
+        )
+        .unwrap()
 }
 
 fn get_burn_msg(contract: &Addr, amount: Uint128) -> StdResult<CosmosMsg> {
     let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
 
-    Ok(wasm_execute(contract.to_string(),
-        &msg,
-         vec![],
-    )?
-    .into())
+    Ok(wasm_execute(contract.to_string(), &msg, vec![])?.into())
 }
 
 fn unstake_lp_tokens(
@@ -517,4 +519,66 @@ fn unstake_lp_tokens(
             },
         )
         .unwrap()
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use crate::contract::AUTO_COMPOUNDER_APP;
+    use abstract_sdk::base::ExecuteEndpoint;
+    use abstract_testing::TEST_MANAGER;
+    use cosmwasm_std::{
+        testing::{mock_env, mock_info},
+        Addr,
+    };
+    use cw_controllers::AdminError;
+    use forty_two::autocompounder::ExecuteMsg;
+
+    fn execute_as(
+        deps: DepsMut,
+        sender: &str,
+        msg: impl Into<ExecuteMsg>,
+    ) -> Result<Response, AutocompounderError> {
+        let info = mock_info(sender, &[]);
+        AUTO_COMPOUNDER_APP.execute(deps, mock_env(), info, msg.into())
+    }
+
+    fn execute_as_manager(
+        deps: DepsMut,
+        msg: impl Into<ExecuteMsg>,
+    ) -> Result<Response, AutocompounderError> {
+        execute_as(deps, TEST_MANAGER, msg)
+    }
+
+    mod fee_config {
+        use speculoos::{assert_that, result::ResultAssertions};
+
+        use crate::test_common::app_init;
+
+        use super::*;
+
+        #[test]
+        fn only_admin() -> anyhow::Result<()> {
+            let mut deps = app_init();
+            let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
+                performance: None,
+                deposit: Some(Decimal::percent(1)),
+                withdrawal: None,
+            };
+
+            let resp = execute_as(deps.as_mut(), "not_mananger", msg.clone());
+            assert_that!(resp)
+                .is_err()
+                .matches(|e| matches!(e, AutocompounderError::Admin(AdminError::NotAdmin {})));
+
+            // successfully update the fee config as the manager (also the admin)
+            execute_as_manager(deps.as_mut(), msg)?;
+
+            let new_fee = FEE_CONFIG.load(deps.as_ref().storage)?;
+
+            assert_that!(new_fee.deposit).is_equal_to(Decimal::percent(1));
+            Ok(())
+        }
+    }
 }

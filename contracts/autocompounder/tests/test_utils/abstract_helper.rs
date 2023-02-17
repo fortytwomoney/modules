@@ -1,13 +1,13 @@
-use abstract_boot::Abstract;
 use abstract_boot::DexApi;
-use abstract_os::{api::InstantiateMsg, EXCHANGE};
+use abstract_boot::{Abstract, AbstractBootError};
+use abstract_os::{api::InstantiateMsg, cw_staking::CW_STAKING, EXCHANGE};
 use boot_core::{
     prelude::{BootInstantiate, BootUpload, ContractInstance},
     Mock,
 };
 use cosmwasm_std::Empty;
 use cw_multi_test::ContractWrapper;
-use forty_two::{autocompounder::AUTOCOMPOUNDER, cw_staking::CW_STAKING};
+use forty_two::autocompounder::AUTOCOMPOUNDER;
 use forty_two_boot::autocompounder::AutocompounderApp;
 
 /// Instantiates the dex api and registers it with the version control
@@ -16,7 +16,7 @@ pub(crate) fn init_exchange(
     chain: Mock,
     deployment: &Abstract<Mock>,
     version: Option<String>,
-) -> anyhow::Result<DexApi<Mock>> {
+) -> Result<DexApi<Mock>, AbstractBootError> {
     let mut exchange = DexApi::new(EXCHANGE, chain);
     exchange
         .as_instance_mut()
@@ -54,8 +54,8 @@ pub(crate) fn init_staking(
     chain: Mock,
     deployment: &Abstract<Mock>,
     version: Option<String>,
-) -> anyhow::Result<forty_two_boot::cw_staking::CwStakingApi<Mock>> {
-    let mut staking = forty_two_boot::cw_staking::CwStakingApi::new(CW_STAKING, chain);
+) -> Result<abstract_boot::CwStakingApi<Mock>, AbstractBootError> {
+    let mut staking = abstract_boot::CwStakingApi::new(CW_STAKING, chain);
     staking
         .as_instance_mut()
         .set_mock(Box::new(cw_multi_test::ContractWrapper::new_with_empty(
@@ -92,7 +92,7 @@ pub(crate) fn init_auto_compounder(
     chain: Mock,
     deployment: &Abstract<Mock>,
     _version: Option<String>,
-) -> anyhow::Result<forty_two_boot::autocompounder::AutocompounderApp<Mock>> {
+) -> Result<forty_two_boot::autocompounder::AutocompounderApp<Mock>, AbstractBootError> {
     let mut auto_compounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
     auto_compounder.as_instance_mut().set_mock(Box::new(

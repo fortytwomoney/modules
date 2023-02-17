@@ -1,21 +1,10 @@
-use abstract_boot::OS;
-use abstract_os::manager::QueryMsgFns;
-use boot_core::{BootEnvironment, networks};
-use boot_core::networks::NetworkInfo;
+use abstract_boot::{ManagerQueryFns, OS};
+use boot_core::BootEnvironment;
+
 use cosmwasm_std::Addr;
 
 pub mod autocompounder;
-pub mod cw_staking;
 pub mod vault;
-
-pub fn parse_network(net_id: &str) -> NetworkInfo {
-    match net_id {
-        "uni-5" => networks::UNI_5,
-        "juno-1" => networks::JUNO_1,
-        "pisco-1" => networks::terra::PISCO_1,
-        _ => panic!("unknown network"),
-    }
-}
 
 /// TODO: abstract-boot
 pub fn get_module_address<Chain: BootEnvironment>(
@@ -29,7 +18,6 @@ pub fn get_module_address<Chain: BootEnvironment>(
         .ok_or(anyhow::anyhow!("Module not found"))?;
     Ok(Addr::unchecked(module_info.address.clone()))
 }
-
 
 // TODO: abstract boot
 pub fn is_module_installed<Chain: BootEnvironment>(

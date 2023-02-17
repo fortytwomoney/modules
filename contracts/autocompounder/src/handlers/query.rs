@@ -1,14 +1,14 @@
-use crate::contract::AutocompounderApp;
+use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::state::{Claim, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS};
-use abstract_sdk::base::features::Identification;
+use abstract_sdk::features::Identification;
 use abstract_sdk::os::objects::LpToken;
 use abstract_sdk::ModuleInterface;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 
+use abstract_sdk::os::cw_staking::{CwStakingQueryMsg, CW_STAKING};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 use forty_two::autocompounder::{AutocompounderQueryMsg, Config};
-use forty_two::cw_staking::{CwStakingQueryMsg, CW_STAKING};
 
 const DEFAULT_PAGE_SIZE: u8 = 5;
 const MAX_PAGE_SIZE: u8 = 20;
@@ -19,26 +19,30 @@ pub fn query_handler(
     _env: Env,
     app: &AutocompounderApp,
     msg: AutocompounderQueryMsg,
-) -> StdResult<Binary> {
+) -> AutocompounderResult<Binary> {
     match msg {
-        AutocompounderQueryMsg::Config {} => to_binary(&query_config(deps)?),
+        AutocompounderQueryMsg::Config {} => Ok(to_binary(&query_config(deps)?)?),
         AutocompounderQueryMsg::PendingClaims { address } => {
-            to_binary(&query_pending_claims(deps, address)?)
+            Ok(to_binary(&query_pending_claims(deps, address)?)?)
         }
-        AutocompounderQueryMsg::Claims { address } => to_binary(&query_claims(deps, address)?),
+        AutocompounderQueryMsg::Claims { address } => Ok(to_binary(&query_claims(deps, address)?)?),
         AutocompounderQueryMsg::AllClaims { start_after, limit } => {
-            to_binary(&query_all_claims(deps, start_after, limit)?)
+            Ok(to_binary(&query_all_claims(deps, start_after, limit)?)?)
         }
-        AutocompounderQueryMsg::LatestUnbonding {} => to_binary(&query_latest_unbonding(deps)?),
+        AutocompounderQueryMsg::LatestUnbonding {} => {
+            Ok(to_binary(&query_latest_unbonding(deps)?)?)
+        }
         AutocompounderQueryMsg::TotalLpPosition {} => {
-            to_binary(&query_total_lp_position(app, deps)?)
+            Ok(to_binary(&query_total_lp_position(app, deps)?)?)
         }
-        AutocompounderQueryMsg::Balance { address } => to_binary(&query_balance(deps, address)?),
+        AutocompounderQueryMsg::Balance { address } => {
+            Ok(to_binary(&query_balance(deps, address)?)?)
+        }
     }
 }
 
 /// Returns the current configuration.
-pub fn query_config(deps: Deps) -> StdResult<Config> {
+pub fn query_config(deps: Deps) -> AutocompounderResult<Config> {
     let config = CONFIG.load(deps.storage)?;
     // crate ConfigResponse from config
     Ok(config)
@@ -46,7 +50,7 @@ pub fn query_config(deps: Deps) -> StdResult<Config> {
 
 // write query functions for all State const variables: Claims, PendingClaims, LatestUnbonding
 
-pub fn query_pending_claims(deps: Deps, address: String) -> StdResult<Uint128> {
+pub fn query_pending_claims(deps: Deps, address: String) -> AutocompounderResult<Uint128> {
     let bonding_period = CONFIG.load(deps.storage)?.unbonding_period;
     if bonding_period.is_none() {
         return Ok(Uint128::zero());
@@ -56,7 +60,7 @@ pub fn query_pending_claims(deps: Deps, address: String) -> StdResult<Uint128> {
     Ok(pending_claims)
 }
 
-pub fn query_claims(deps: Deps, address: String) -> StdResult<Vec<Claim>> {
+pub fn query_claims(deps: Deps, address: String) -> AutocompounderResult<Vec<Claim>> {
     let claims = CLAIMS.may_load(deps.storage, address)?.unwrap_or_default();
     Ok(claims)
 }
@@ -65,7 +69,7 @@ pub fn query_all_claims(
     deps: Deps,
     start_after: Option<String>,
     limit: Option<u8>,
-) -> StdResult<Vec<(String, Vec<Claim>)>> {
+) -> AutocompounderResult<Vec<(String, Vec<Claim>)>> {
     let bonding_period = CONFIG.load(deps.storage)?.unbonding_period;
     if bonding_period.is_none() {
         return Ok(vec![]);
@@ -84,12 +88,15 @@ pub fn query_all_claims(
     Ok(claims)
 }
 
-pub fn query_latest_unbonding(deps: Deps) -> StdResult<Expiration> {
+pub fn query_latest_unbonding(deps: Deps) -> AutocompounderResult<Expiration> {
     let latest_unbonding = LATEST_UNBONDING.load(deps.storage)?;
     Ok(latest_unbonding)
 }
 
-pub fn query_total_lp_position(app: &AutocompounderApp, deps: Deps) -> StdResult<Uint128> {
+pub fn query_total_lp_position(
+    app: &AutocompounderApp,
+    deps: Deps,
+) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
     let modules = app.modules(deps);
 
@@ -101,11 +108,11 @@ pub fn query_total_lp_position(app: &AutocompounderApp, deps: Deps) -> StdResult
         staker_address: app.proxy_address(deps)?.to_string(),
         unbonding_period: config.unbonding_period,
     };
-    let res: forty_two::cw_staking::StakeResponse = modules.query_api(CW_STAKING, query)?;
+    let res: abstract_sdk::os::cw_staking::StakeResponse = modules.query_api(CW_STAKING, query)?;
     Ok(res.amount)
 }
 
-pub fn query_balance(deps: Deps, address: String) -> StdResult<Uint128> {
+pub fn query_balance(deps: Deps, address: String) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
     let vault_balance: cw20::BalanceResponse = deps
         .querier

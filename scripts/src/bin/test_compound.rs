@@ -1,20 +1,14 @@
-
 use std::sync::Arc;
-
 use abstract_boot::{
     boot_core::{prelude::*, DaemonOptionsBuilder}, VersionControl,
 };
 use abstract_os::{
     objects::{AnsAsset, PoolMetadata}
 };
-
-
 use clap::Parser;
 use cosmwasm_std::{Addr};
 use log::info;
 use speculoos::prelude::*;
-
-
 use forty_two::autocompounder::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns as AutocompounderQuery, Config};
 use forty_two_boot::{
     parse_network

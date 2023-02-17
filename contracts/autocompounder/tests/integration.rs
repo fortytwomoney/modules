@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod test_utils;
 
-use abstract_boot::{Abstract, ManagerQueryFns};
+use abstract_boot::{Abstract, AbstractBootError, ManagerQueryFns};
 
-use abstract_os::api::BaseExecuteMsgFns;
 use abstract_os::objects::{AnsAsset, AssetEntry};
 use abstract_os::EXCHANGE;
+use abstract_os::{api::BaseExecuteMsgFns, cw_staking::CW_STAKING};
 use astroport::asset::{Asset, AssetInfo, PairInfo};
 use astroport::{
     factory::{
@@ -35,7 +35,6 @@ use forty_two::autocompounder::{
     AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, BondingPeriodSelector,
 };
 use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
-use forty_two::cw_staking::CW_STAKING;
 use speculoos::assert_that;
 use speculoos::prelude::OrderedAssertions;
 use test_utils::abstract_helper::{self, init_auto_compounder};
@@ -47,7 +46,7 @@ const ASTROPORT: &str = "astroport";
 const COMMISSION_RECEIVER: &str = "commission_receiver";
 const VAULT_TOKEN: &str = "vault_token";
 
-fn create_vault(mock: Mock) -> Result<Vault<Mock>, BootError> {
+fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
     let version = "1.0.0".parse().unwrap();
     // Deploy abstract
     let abstract_ = Abstract::deploy_on(mock.clone(), version)?;
@@ -536,6 +535,7 @@ fn instantiate_factory(
             is_disabled: false,
             is_generator_disabled: false,
         }],
+        coin_registry_address: "some_addr".to_string(),
         token_code_id,
         fee_address: None,
         generator_address: None,
@@ -582,7 +582,9 @@ fn instantiate_generator(
 
     let init_msg = VestingInstantiateMsg {
         owner: owner.to_string(),
-        token_addr: astro_token_instance.to_string(),
+        vesting_token: AssetInfo::Token {
+            contract_addr: astro_token_instance.clone(),
+        },
     };
 
     let vesting_instance = app
@@ -622,7 +624,9 @@ fn instantiate_generator(
         factory: factory_instance.to_string(),
         guardian: None,
         start_block: Uint64::from(app.block_info().height),
-        astro_token: astro_token_instance.to_string(),
+        astro_token: AssetInfo::Token {
+            contract_addr: astro_token_instance.clone(),
+        },
         tokens_per_block: Uint128::new(1_000_000),
         vesting_contract: vesting_instance.to_string(),
         generator_controller,
