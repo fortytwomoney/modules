@@ -54,8 +54,7 @@ pub fn update_fee_config(
     withdrawal: Option<Decimal>,
     deposit: Option<Decimal>,
 ) -> AutocompounderResult {
-    app.admin
-        .assert_admin(deps.as_ref(), &msg_info.sender)?;
+    app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
 
     let mut config = FEE_CONFIG.load(deps.storage)?;
     let mut updates = vec![];

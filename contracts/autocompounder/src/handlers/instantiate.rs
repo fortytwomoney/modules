@@ -6,7 +6,7 @@ use abstract_sdk::{
     features::AbstractNameService,
     os::api,
     os::cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING},
-    os::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference, UncheckedContractEntry},
+    os::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
     ModuleInterface, Resolve,
 };
 use cosmwasm_std::{
