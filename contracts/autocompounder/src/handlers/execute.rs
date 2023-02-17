@@ -526,16 +526,14 @@ mod test {
     use super::*;
 
     use crate::contract::AUTO_COMPOUNDER_APP;
-    use abstract_sdk::base::{ExecuteEndpoint, InstantiateEndpoint};
+    use abstract_sdk::base::ExecuteEndpoint;
     use abstract_testing::TEST_MANAGER;
     use cosmwasm_std::{
         testing::{mock_env, mock_info},
         Addr,
     };
     use cw_controllers::AdminError;
-    use forty_two::autocompounder::{
-        AutocompounderInstantiateMsg, BondingPeriodSelector, ExecuteMsg,
-    };
+    use forty_two::autocompounder::ExecuteMsg;
 
     fn execute_as(
         deps: DepsMut,
@@ -565,15 +563,21 @@ mod test {
             let mut deps = app_init();
             let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
                 performance: None,
-                deposit: None,
+                deposit: Some(Decimal::percent(1)),
                 withdrawal: None,
             };
 
-            let resp = execute_as(deps.as_mut(), "not_mananger", msg);
+            let resp = execute_as(deps.as_mut(), "not_mananger", msg.clone());
             assert_that!(resp)
                 .is_err()
                 .matches(|e| matches!(e, AutocompounderError::Admin(AdminError::NotAdmin {})));
 
+            // successfully update the fee config as the manager (also the admin)
+            execute_as_manager(deps.as_mut(), msg)?;
+
+            let new_fee = FEE_CONFIG.load(deps.as_ref().storage)?;
+
+            assert_that!(new_fee.deposit).is_equal_to(Decimal::percent(1));
             Ok(())
         }
     }

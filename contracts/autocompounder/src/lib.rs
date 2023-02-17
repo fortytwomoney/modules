@@ -16,16 +16,16 @@ mod test_common {
     use abstract_os::{
         cw_staking::{CwStakingQueryMsg, StakingInfoResponse},
         module_factory::ContextResponse,
-        objects::{PoolMetadata, PoolReference, UniquePoolId},
+        objects::{PoolMetadata, PoolReference},
         version_control::Core,
     };
     use abstract_sdk::base::InstantiateEndpoint;
     use abstract_testing::{
         prelude::AbstractMockQuerierBuilder, MockDeps, MockQuerierBuilder, TEST_ANS_HOST,
-        TEST_MANAGER, TEST_MODULE_FACTORY, TEST_MODULE_ID, TEST_PROXY, TEST_VERSION,
+        TEST_MANAGER, TEST_MODULE_FACTORY, TEST_PROXY,
     };
     pub use cosmwasm_std::testing::*;
-    use cosmwasm_std::{from_binary, to_binary, Addr, Decimal, StdError};
+    use cosmwasm_std::{from_binary, to_binary, Addr, Decimal};
     use cw_asset::AssetInfo;
     use forty_two::autocompounder::BondingPeriodSelector;
     pub use speculoos::prelude::*;
