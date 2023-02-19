@@ -231,6 +231,29 @@ pub fn query_staking_info(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test_common::app_init;
+    use cosmwasm_std::{Addr, Decimal};
+    use cw_asset::AssetInfo;
+    use speculoos::assert_that;
+
+    #[test]
+    fn test_app_instantiation() -> anyhow::Result<()> {
+        let deps = app_init();
+        let config = CONFIG.load(deps.as_ref().storage).unwrap();
+        let fee_config = FEE_CONFIG.load(deps.as_ref().storage).unwrap();
+        assert_that!(config.pool_assets).is_equal_to(vec![
+            AssetInfo::Native("usd".into()),
+            AssetInfo::Native("eur".into()),
+        ]);
+        assert_that!(fee_config).is_equal_to(FeeConfig {
+            performance: Decimal::percent(3),
+            deposit: Decimal::percent(3),
+            withdrawal: Decimal::percent(3),
+            fee_asset: "eur".to_string().into(),
+            commission_addr: Addr::unchecked("commission_receiver".to_string()),
+        });
+        Ok(())
+    }
 
     #[test]
     fn test_cw_20_init() {
