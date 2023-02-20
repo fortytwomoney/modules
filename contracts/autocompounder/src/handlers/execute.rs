@@ -614,5 +614,21 @@ mod test {
             assert_that!(new_fee.deposit).is_equal_to(Decimal::percent(1));
             Ok(())
         }
+
+        #[test]
+        fn cannot_set_fee_above_or_equal_1() -> anyhow::Result<()> {
+            let mut deps = app_init();
+            let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
+                performance: None,
+                deposit: Some(Decimal::one()),
+                withdrawal: None,
+            };
+
+            let resp = execute_as_manager(deps.as_mut(), msg);
+            assert_that!(resp)
+                .is_err()
+                .matches(|e| matches!(e, AutocompounderError::InvalidFee {}));
+            Ok(())
+        }
     }
 }

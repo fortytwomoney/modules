@@ -231,10 +231,18 @@ pub fn query_staking_info(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::{contract::AUTO_COMPOUNDER_APP, test_common::app_base_mock_querier};
+    use abstract_sdk::base::InstantiateEndpoint;
+    use abstract_testing::{TEST_ANS_HOST, TEST_MODULE_FACTORY};
+    const ASTROPORT: &str = "astroport";
+    const COMMISSION_RECEIVER: &str = "commission_receiver";
     use crate::test_common::app_init;
-    use cosmwasm_std::{Addr, Decimal};
+    use cosmwasm_std::{
+        testing::{mock_dependencies, mock_env, mock_info},
+        Addr, Decimal,
+    };
     use cw_asset::AssetInfo;
-    use speculoos::assert_that;
+    use speculoos::{assert_that, result::ResultAssertions};
 
     #[test]
     fn test_app_instantiation() -> anyhow::Result<()> {
@@ -252,6 +260,41 @@ mod test {
             fee_asset: "eur".to_string().into(),
             commission_addr: Addr::unchecked("commission_receiver".to_string()),
         });
+        Ok(())
+    }
+
+    #[test]
+    fn pool_assets_length_cannot_be_greater_than_2() -> anyhow::Result<()> {
+        let mut deps = mock_dependencies();
+        let info = mock_info(TEST_MODULE_FACTORY, &[]);
+
+        deps.querier = app_base_mock_querier().build();
+
+        let resp = AUTO_COMPOUNDER_APP.instantiate(
+            deps.as_mut(),
+            mock_env(),
+            info,
+            abstract_os::app::InstantiateMsg {
+                app: forty_two::autocompounder::AutocompounderInstantiateMsg {
+                    code_id: 1,
+                    commission_addr: COMMISSION_RECEIVER.to_string(),
+                    deposit_fees: Decimal::percent(3),
+                    dex: ASTROPORT.to_string(),
+                    fee_asset: "eur".to_string(),
+                    performance_fees: Decimal::percent(3),
+                    pool_assets: vec!["eur".into(), "usd".into(), "juno".into()],
+                    withdrawal_fees: Decimal::percent(3),
+                    preferred_bonding_period: BondingPeriodSelector::Shortest,
+                },
+                base: abstract_os::app::BaseInstantiateMsg {
+                    ans_host_address: TEST_ANS_HOST.to_string(),
+                },
+            },
+        );
+
+        assert_that!(resp)
+            .is_err()
+            .matches(|e| matches!(e, AutocompounderError::PoolWithMoreThanTwoAssets {}));
         Ok(())
     }
 
