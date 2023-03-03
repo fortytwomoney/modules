@@ -560,6 +560,7 @@ mod test {
     use super::*;
 
     use crate::contract::AUTO_COMPOUNDER_APP;
+    use crate::test_common::app_init;
     use abstract_sdk::base::ExecuteEndpoint;
     use abstract_testing::prelude::TEST_MANAGER;
     use cosmwasm_std::{
@@ -568,6 +569,7 @@ mod test {
     };
     use cw_controllers::AdminError;
     use forty_two::autocompounder::ExecuteMsg;
+    use speculoos::{assert_that, result::ResultAssertions};
 
     fn execute_as(
         deps: DepsMut,
@@ -630,5 +632,16 @@ mod test {
                 .matches(|e| matches!(e, AutocompounderError::InvalidFee {}));
             Ok(())
         }
+    }
+
+    #[test]
+    fn cannot_batch_unbond_if_unbonding_not_enabled() -> anyhow::Result<()> {
+        let mut deps = app_init();
+        let msg = AutocompounderExecuteMsg::BatchUnbond {};
+        let resp = execute_as_manager(deps.as_mut(), msg);
+        assert_that!(resp)
+            .is_err()
+            .matches(|e| matches!(e, AutocompounderError::UnbondingNotEnabled {}));
+        Ok(())
     }
 }
