@@ -28,6 +28,7 @@ mod test_common {
     use cosmwasm_std::{from_binary, to_binary, Addr, Decimal};
     use cw_asset::AssetInfo;
     use cw_staking::msg::{CwStakingQueryMsg, StakingInfoResponse};
+    use cw_utils::Duration;
     use forty_two::autocompounder::BondingPeriodSelector;
     pub use speculoos::prelude::*;
 
@@ -117,11 +118,90 @@ mod test_common {
             )
     }
 
-    pub fn app_init() -> MockDeps {
+    // Mock Querier with a smart-query handler for the module factory which returns StakingInfo with unbonding period
+    pub fn app_base_mock_querier_with_unbonding_period() -> MockQuerierBuilder {
+        let abstract_env = AbstractMockQuerierBuilder::default().os(TEST_MANAGER, TEST_PROXY, 0);
+        abstract_env
+            .builder()
+            .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_binary(msg).unwrap() {
+                abstract_os::module_factory::QueryMsg::Context {} => {
+                    let resp = ContextResponse {
+                        core: Some(Core {
+                            manager: Addr::unchecked(TEST_MANAGER),
+                            proxy: Addr::unchecked(TEST_PROXY),
+                        }),
+                        module: None,
+                    };
+                    Ok(to_binary(&resp).unwrap())
+                }
+                _ => panic!("unexpected message"),
+            })
+            .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
+                match from_binary(msg).unwrap() {
+                    abstract_os::cw_staking::QueryMsg::App(CwStakingQueryMsg::Info {
+                        provider: _,
+                        staking_token: _,
+                    }) => {
+                        let resp = StakingInfoResponse {
+                            staking_contract_address: Addr::unchecked("staking_addr"),
+                            staking_token: AssetInfo::cw20(Addr::unchecked("usd_eur_lp")),
+                            unbonding_periods: Some(vec![Duration::Time(3600)]),
+                            max_claims: None,
+                        };
+                        Ok(to_binary(&resp).unwrap())
+                    }
+                    _ => panic!("unexpected message"),
+                }
+            })
+            .with_raw_handler(TEST_ANS_HOST, |key| match key {
+                "\0\u{6}assetseur" => Ok(to_binary(&AssetInfo::Native("eur".into())).unwrap()),
+                "\0\u{6}assetsusd" => Ok(to_binary(&AssetInfo::Native("usd".into())).unwrap()),
+                "\0\u{6}assetsastroport/eur,usd" => {
+                    Ok(to_binary(&AssetInfo::cw20(Addr::unchecked("usd_eur_lp"))).unwrap())
+                }
+                "\0\tcontracts\0\tastroportstaking/astroport/eur,usd" => {
+                    Ok(to_binary(&Addr::unchecked("staking_addr")).unwrap())
+                }
+                "\0\u{8}pool_ids\0\u{3}eur\0\u{3}usdastroport" => {
+                    Ok(to_binary(&vec![PoolReference {
+                        unique_id: 0.into(),
+                        pool_address: abstract_os::objects::pool_id::PoolAddressBase::Contract(
+                            Addr::unchecked(TEST_POOL_ADDR),
+                        ),
+                    }])
+                    .unwrap())
+                }
+                "\0\u{5}pools\0\0\0\0\0\0\0\0" => Ok(to_binary(&PoolMetadata::new(
+                    ASTROPORT,
+                    abstract_os::objects::PoolType::ConstantProduct,
+                    vec!["usd", "eur"],
+                ))
+                .unwrap()),
+                _ => {
+                    println!();
+                    panic!("Key: {:?} not matched in TEST_ANS mock querier", key);
+                }
+            })
+            // .with_raw_handler(TEST_PROXY, |key| match key {
+            //     "admin" => Ok(to_binary(&Some(Addr::unchecked(TEST_MANAGER))).unwrap()),
+            //     _ => panic!("unexpected raw key"),
+            // })
+            .with_contract_map_entry(
+                TEST_MANAGER,
+                abstract_os::manager::state::OS_MODULES,
+                ("4t2:cw-staking", &Addr::unchecked(TEST_CW_STAKING_MODULE)).into(),
+            )
+    }
+
+    pub fn app_init(is_unbonding_period_enabled: bool) -> MockDeps {
         let mut deps = mock_dependencies();
         let info = mock_info(TEST_MODULE_FACTORY, &[]);
 
-        deps.querier = app_base_mock_querier().build();
+        if is_unbonding_period_enabled == true {
+            deps.querier = app_base_mock_querier_with_unbonding_period().build();
+        } else {
+            deps.querier = app_base_mock_querier().build();
+        }
 
         AUTO_COMPOUNDER_APP
             .instantiate(

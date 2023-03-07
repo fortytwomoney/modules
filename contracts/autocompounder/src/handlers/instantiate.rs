@@ -246,7 +246,7 @@ mod test {
 
     #[test]
     fn test_app_instantiation() -> anyhow::Result<()> {
-        let deps = app_init();
+        let deps = app_init(false);
         let config = CONFIG.load(deps.as_ref().storage).unwrap();
         let fee_config = FEE_CONFIG.load(deps.as_ref().storage).unwrap();
         assert_that!(config.pool_assets).is_equal_to(vec![

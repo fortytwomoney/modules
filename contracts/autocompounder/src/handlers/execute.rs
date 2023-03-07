@@ -596,7 +596,7 @@ mod test {
 
         #[test]
         fn only_admin() -> anyhow::Result<()> {
-            let mut deps = app_init();
+            let mut deps = app_init(false);
             let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
                 performance: None,
                 deposit: Some(Decimal::percent(1)),
@@ -619,7 +619,7 @@ mod test {
 
         #[test]
         fn cannot_set_fee_above_or_equal_1() -> anyhow::Result<()> {
-            let mut deps = app_init();
+            let mut deps = app_init(false);
             let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
                 performance: None,
                 deposit: Some(Decimal::one()),
@@ -636,12 +636,23 @@ mod test {
 
     #[test]
     fn cannot_batch_unbond_if_unbonding_not_enabled() -> anyhow::Result<()> {
-        let mut deps = app_init();
+        let mut deps = app_init(false);
         let msg = AutocompounderExecuteMsg::BatchUnbond {};
         let resp = execute_as_manager(deps.as_mut(), msg);
         assert_that!(resp)
             .is_err()
             .matches(|e| matches!(e, AutocompounderError::UnbondingNotEnabled {}));
+        Ok(())
+    }
+
+    #[test]
+    fn cannot_withdraw_liquidity_if_no_matured_claims() -> anyhow::Result<()> {
+        let mut deps = app_init(true);
+        let msg = AutocompounderExecuteMsg::Withdraw {};
+        let resp = execute_as_manager(deps.as_mut(), msg);
+        assert_that!(resp)
+            .is_err()
+            .matches(|e| matches!(e, AutocompounderError::NoMaturedClaims {}));
         Ok(())
     }
 }
