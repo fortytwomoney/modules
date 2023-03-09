@@ -12,17 +12,17 @@ pub mod state;
 
 #[cfg(test)]
 mod test_common {
-    pub use abstract_os::app;
-    use abstract_os::{
-        cw_staking::{CwStakingQueryMsg, StakingInfoResponse},
+    pub use abstract_sdk::os as abstract_os;
+    use cw_staking::msg::{CwStakingQueryMsg, StakingInfoResponse};
+    use abstract_sdk::os::{
         module_factory::ContextResponse,
         objects::{PoolMetadata, PoolReference},
         version_control::Core,
     };
     use abstract_sdk::base::InstantiateEndpoint;
     use abstract_testing::{
-        prelude::AbstractMockQuerierBuilder, MockDeps, MockQuerierBuilder, TEST_ANS_HOST,
-        TEST_MANAGER, TEST_MODULE_FACTORY, TEST_PROXY,
+        prelude::{AbstractMockQuerierBuilder, TEST_ANS_HOST}, MockDeps, MockQuerierBuilder, 
+        addresses::{TEST_MANAGER, TEST_MODULE_FACTORY, TEST_PROXY}
     };
     pub use cosmwasm_std::testing::*;
     use cosmwasm_std::{from_binary, to_binary, Addr, Decimal};
@@ -57,7 +57,7 @@ mod test_common {
             })
             .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
                 match from_binary(msg).unwrap() {
-                    abstract_os::cw_staking::QueryMsg::App(CwStakingQueryMsg::Info {
+                    cw_staking::msg::QueryMsg::App(CwStakingQueryMsg::Info {
                         provider: _,
                         staking_token: _,
                     }) => {
@@ -108,7 +108,7 @@ mod test_common {
             .with_contract_map_entry(
                 TEST_MANAGER,
                 abstract_os::manager::state::OS_MODULES,
-                ("4t2:cw-staking", &Addr::unchecked(TEST_CW_STAKING_MODULE)).into(),
+                ("4t2:cw-staking", Addr::unchecked(TEST_CW_STAKING_MODULE)).into(),
             )
     }
 

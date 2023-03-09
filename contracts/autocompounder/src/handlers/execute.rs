@@ -528,7 +528,7 @@ mod test {
 
     use crate::contract::AUTO_COMPOUNDER_APP;
     use abstract_sdk::base::ExecuteEndpoint;
-    use abstract_testing::TEST_MANAGER;
+    use abstract_testing::prelude::TEST_MANAGER;
     use cosmwasm_std::{
         testing::{mock_env, mock_info},
         Addr,

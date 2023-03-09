@@ -21,7 +21,6 @@ crate-type = ["cdylib", "rlib"]
 [features]
 backtraces = ["cosmwasm-std/backtraces"]
 library = []
-terra = ["cw-staking/phoenix-1"]
 
 [dependencies]
 cosmwasm-std = { workspace = true }
@@ -49,17 +48,18 @@ forty-two = { workspace = true }
 [dev-dependencies]
 forty-two-boot = {path = "../../packages/forty-two-boot" }
 forty-two = { workspace = true, features = ["boot"] }
-cw-multi-test = { workspace = true , features = ["staking"]}
-# requires testing flag to ensure Astroport Msg type compatibility
-dex = {git = "https://github.com/Abstract-OS/Apis.git", features = ["terra"]}
+wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git"}
+dex = {workspace = true, features = ["juno", "boot"]}
+cw-staking = { workspace = true , features = ["juno", "boot"]}
 abstract-boot = {workspace = true, features = ["daemon"] }
 abstract-testing ={ workspace = true }
 boot-cw-plus = { workspace = true}
+
+cw-multi-test = { workspace = true }
 anyhow = {workspace = true}
 rstest = {workspace = true }
 speculoos = { workspace = true }
 semver = { workspace = true , features = ["serde"]}
-
 tokio = { workspace = true }
 dotenv = {  workspace = true }
 env_logger = {  workspace = true }
