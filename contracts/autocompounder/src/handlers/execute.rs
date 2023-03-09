@@ -7,12 +7,12 @@ use crate::error::AutocompounderError;
 use crate::state::{
     Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
-use abstract_sdk::os::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
+use abstract_sdk::ApiInterface;
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use abstract_sdk::{
     features::{AbstractNameService, Identification},
     os::objects::{AnsAsset, AssetEntry, LpToken},
-    DexInterface, ModuleInterface, Resolve, TransferInterface,
+    Resolve, TransferInterface,
 };
 use cosmwasm_std::{
     from_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
@@ -20,7 +20,10 @@ use cosmwasm_std::{
 };
 use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetList;
+use cw_staking::msg::{CwStakingAction, CwStakingExecuteMsg};
+use cw_staking::CW_STAKING;
 use cw_utils::Duration;
+use dex::api::DexInterface;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 use std::ops::Add;
 
@@ -476,19 +479,18 @@ fn claim_lp_rewards(
     provider: String,
     lp_token_name: AssetEntry,
 ) -> CosmosMsg {
-    let modules = app.modules(deps);
+    let apis = app.apis(deps);
 
-    modules
-        .api_request(
-            CW_STAKING,
-            CwStakingExecuteMsg {
-                provider,
-                action: CwStakingAction::ClaimRewards {
-                    staking_token: lp_token_name,
-                },
+    apis.request(
+        CW_STAKING,
+        CwStakingExecuteMsg {
+            provider,
+            action: CwStakingAction::ClaimRewards {
+                staking_token: lp_token_name,
             },
-        )
-        .unwrap()
+        },
+    )
+    .unwrap()
 }
 
 fn get_burn_msg(contract: &Addr, amount: Uint128) -> StdResult<CosmosMsg> {
@@ -505,20 +507,19 @@ fn unstake_lp_tokens(
     amount: Uint128,
     unbonding_period: Option<Duration>,
 ) -> CosmosMsg {
-    let modules = app.modules(deps);
+    let apis = app.apis(deps);
 
-    modules
-        .api_request(
-            CW_STAKING,
-            CwStakingExecuteMsg {
-                provider,
-                action: CwStakingAction::Unstake {
-                    staking_token: AnsAsset::new(lp_token_name, amount),
-                    unbonding_period,
-                },
+    apis.request(
+        CW_STAKING,
+        CwStakingExecuteMsg {
+            provider,
+            action: CwStakingAction::Unstake {
+                staking_token: AnsAsset::new(lp_token_name, amount),
+                unbonding_period,
             },
-        )
-        .unwrap()
+        },
+    )
+    .unwrap()
 }
 
 #[cfg(test)]

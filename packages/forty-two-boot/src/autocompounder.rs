@@ -1,6 +1,6 @@
 use abstract_os::app;
 use abstract_os::app::BaseExecuteMsg;
-use boot_core::prelude::{boot_contract, BootExecute};
+use boot_core::{boot_contract, BootExecute};
 use boot_core::{BootEnvironment, BootError, Contract, IndexResponse, TxResponse};
 use cosmwasm_std::{Addr, Coin};
 use forty_two::autocompounder::{

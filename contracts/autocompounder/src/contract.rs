@@ -13,8 +13,8 @@ use forty_two::autocompounder::{
 // As an app writer, the only changes necessary to this file are with the handlers and API dependencies on the `AUTOCOMPOUNDER_APP` const.
 pub type AutocompounderApp = AppContract<
     AutocompounderError,
-    AutocompounderExecuteMsg,
     AutocompounderInstantiateMsg,
+    AutocompounderExecuteMsg,
     AutocompounderQueryMsg,
     AutocompounderMigrateMsg,
     Cw20ReceiveMsg,

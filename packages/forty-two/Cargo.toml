@@ -6,16 +6,10 @@ edition = { workspace = true }
 description = "4t2 contract interfaces and storage layouts"
 readme = "README.md"
 
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [features]
 default = []
 boot = ["dep:boot-core"]
-# for quicker tests, cargo test --lib
-# for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces"]
-# ibc = ["dep:abstract-ica"]
 
 [dependencies]
 cosmwasm-std = { workspace = true, features = ["iterator"] }
@@ -25,11 +19,7 @@ serde = { workspace = true }
 cw-asset = { workspace = true }
 abstract-sdk = { workspace = true }
 cw-storage-plus = { workspace = true }
-#cw2 = {workspace = true}
-
 cw-utils = { workspace = true }
 cw20 = { workspace = true }
-
-#cw20-base = {workspace = true}
-
+dex = { workspace = true }
 boot-core = { workspace = true, optional = true }

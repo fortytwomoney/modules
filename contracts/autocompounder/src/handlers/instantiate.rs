@@ -2,12 +2,12 @@ use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::state::{Config, CONFIG, FEE_CONFIG};
+use abstract_sdk::ApiInterface;
 use abstract_sdk::{
     features::AbstractNameService,
     os::api,
-    os::cw_staking::{CwStakingQueryMsg, StakingInfoResponse, CW_STAKING},
     os::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
-    ModuleInterface, Resolve,
+    Resolve,
 };
 use cosmwasm_std::{
     to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, StdResult,
@@ -15,6 +15,10 @@ use cosmwasm_std::{
 };
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
+use cw_staking::{
+    msg::{CwStakingQueryMsg, StakingInfoResponse},
+    CW_STAKING,
+};
 use cw_utils::Duration;
 use forty_two::autocompounder::{
     AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER,
@@ -207,7 +211,7 @@ pub fn query_staking_info(
     lp_token_name: AssetEntry,
     dex: String,
 ) -> StdResult<StakingInfoResponse> {
-    let modules = app.modules(deps);
+    let apis = app.apis(deps);
 
     let query = CwStakingQueryMsg::Info {
         provider: dex.clone(),
@@ -216,7 +220,7 @@ pub fn query_staking_info(
 
     let api_msg: api::QueryMsg<_> = query.clone().into();
 
-    let res: StakingInfoResponse = modules.query_api(CW_STAKING, query).map_err(|e| {
+    let res: StakingInfoResponse = apis.query(CW_STAKING, query).map_err(|e| {
         StdError::generic_err(format!(
             "Error querying staking info for {lp_token_name} on {dex}: {e}...{api_msg:?}"
         ))
