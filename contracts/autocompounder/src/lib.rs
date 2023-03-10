@@ -189,7 +189,7 @@ mod test_common {
             .with_contract_map_entry(
                 TEST_MANAGER,
                 abstract_os::manager::state::OS_MODULES,
-                ("4t2:cw-staking", &Addr::unchecked(TEST_CW_STAKING_MODULE)).into(),
+                ("4t2:cw-staking", &Addr::unchecked(TEST_CW_STAKING_MODULE)),
             )
     }
 
@@ -197,7 +197,7 @@ mod test_common {
         let mut deps = mock_dependencies();
         let info = mock_info(TEST_MODULE_FACTORY, &[]);
 
-        if is_unbonding_period_enabled == true {
+        if is_unbonding_period_enabled {
             deps.querier = app_base_mock_querier_with_unbonding_period().build();
         } else {
             deps.querier = app_base_mock_querier().build();
