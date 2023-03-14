@@ -1,14 +1,14 @@
+use std::str::FromStr;
 
+use abstract_boot::boot_core::*;
 use abstract_boot::{Abstract, AbstractBootError};
-use abstract_sdk::os::{api::InstantiateMsg};
-use abstract_boot::boot_core::{
-    *
-};
-use cosmwasm_std::Empty;
+use abstract_sdk::os as abstract_os;
+use abstract_sdk::os::api::InstantiateMsg;
+use cosmwasm_std::{Decimal, Empty};
 use cw_multi_test::ContractWrapper;
 use cw_staking::{boot::CwStakingApi, CW_STAKING};
-use abstract_sdk::os as abstract_os;
-use dex::{EXCHANGE, boot::DexApi};
+use dex::msg::DexInstantiateMsg;
+use dex::{boot::DexApi, EXCHANGE};
 use forty_two::autocompounder::AUTOCOMPOUNDER;
 use forty_two_boot::autocompounder::AutocompounderApp;
 
@@ -30,7 +30,10 @@ pub(crate) fn init_exchange(
     exchange.upload()?;
     exchange.instantiate(
         &InstantiateMsg {
-            app: Empty {},
+            app: DexInstantiateMsg {
+                swap_fee: Decimal::from_str("0.003")?,
+                recipient_os: 0,
+            },
             base: abstract_os::api::BaseInstantiateMsg {
                 ans_host_address: deployment.ans_host.addr_str()?,
                 version_control_address: deployment.version_control.addr_str()?,

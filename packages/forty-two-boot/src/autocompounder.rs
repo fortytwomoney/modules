@@ -5,11 +5,11 @@ use boot_core::{BootEnvironment, BootError, Contract, IndexResponse, TxResponse}
 use cosmwasm_std::{Addr, Coin};
 use forty_two::autocompounder::{
     AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg,
-    AutocompounderQueryMsg, AUTOCOMPOUNDER,
+    AutocompounderQueryMsg, Cw20HookMsg, AUTOCOMPOUNDER,
 };
 
 type AppInstantiateMsg = app::InstantiateMsg<AutocompounderInstantiateMsg>;
-type AppExecuteMsg = app::ExecuteMsg<AutocompounderExecuteMsg>;
+type AppExecuteMsg = app::ExecuteMsg<AutocompounderExecuteMsg, Cw20HookMsg>;
 type AppQueryMsg = app::QueryMsg<AutocompounderQueryMsg>;
 type AppMigrateMsg = app::MigrateMsg<AutocompounderMigrateMsg>;
 

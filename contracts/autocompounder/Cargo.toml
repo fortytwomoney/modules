@@ -29,7 +29,7 @@ cw-controllers = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-storage-plus = { workspace = true }
 protobuf = { version = "2", features = ["with-bytes"] }
-cw-utils = {workspace = true}
+cw-utils = { workspace = true }
 cw2 = { workspace = true }
 cw20 = { workspace = true }
 cw20-base = { workspace = true, features = ["library"] }
@@ -46,24 +46,25 @@ cw-staking = { workspace = true }
 forty-two = { workspace = true }
 
 [dev-dependencies]
-forty-two-boot = {path = "../../packages/forty-two-boot" }
+forty-two-boot = { path = "../../packages/forty-two-boot" }
 forty-two = { workspace = true, features = ["boot"] }
-wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git"}
-dex = {workspace = true, features = ["juno", "boot"]}
-cw-staking = { workspace = true , features = ["juno", "boot"]}
-abstract-boot = {workspace = true, features = ["daemon"] }
-abstract-testing ={ workspace = true }
-boot-cw-plus = { workspace = true}
+# wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git"}
+wyndex-bundle = { path = "../../../../abstract/integration-bundles/bundles/wyndex", package = "wyndex-bundle" }
+dex = { workspace = true, features = ["juno", "boot"] }
+cw-staking = { workspace = true, features = ["juno", "boot"] }
+abstract-boot = { workspace = true, features = ["daemon"] }
+abstract-testing = { workspace = true }
+boot-cw-plus = { workspace = true }
 
 cw-multi-test = { workspace = true }
-anyhow = {workspace = true}
-rstest = {workspace = true }
+anyhow = { workspace = true }
+rstest = { workspace = true }
 speculoos = { workspace = true }
-semver = { workspace = true , features = ["serde"]}
+semver = { workspace = true, features = ["serde"] }
 tokio = { workspace = true }
-dotenv = {  workspace = true }
-env_logger = {  workspace = true }
-clap =  { workspace = true }
+dotenv = { workspace = true }
+env_logger = { workspace = true }
+clap = { workspace = true }
 
 [profile.release]
 lto = true

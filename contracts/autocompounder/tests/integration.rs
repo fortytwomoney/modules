@@ -2,27 +2,29 @@
 mod test_utils;
 
 use abstract_boot::{Abstract, AbstractBootError, ManagerQueryFns};
-use abstract_sdk::os as abstract_os;
+use abstract_os::api::{BaseExecuteMsgFns, BaseQueryMsgFns};
 use abstract_os::objects::{AnsAsset, AssetEntry};
-use abstract_os::{api::BaseExecuteMsgFns};
+use abstract_sdk::os as abstract_os;
 
 use abstract_boot::boot_core::*;
 use boot_cw_plus::Cw20;
-use cosmwasm_std::{to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
+use cosmwasm_std::{coin, to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
+use cw_asset::Asset;
 use cw_multi_test::{App, ContractWrapper, Executor};
 use cw_staking::CW_STAKING;
+use dex::msg::*;
 use dex::EXCHANGE;
 use forty_two::autocompounder::{
     AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, BondingPeriodSelector,
 };
 use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
+use forty_two_boot::autocompounder::AutocompounderApp;
 use speculoos::assert_that;
 use speculoos::prelude::OrderedAssertions;
 use test_utils::abstract_helper::{self, init_auto_compounder};
 use test_utils::vault::Vault;
-use test_utils::{OWNER, AResult};
-use dex::msg::*;
+use test_utils::{AResult, OWNER};
 
 use wyndex_bundle::*;
 
@@ -35,8 +37,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
     // Deploy abstract
     let abstract_ = Abstract::deploy_on(mock.clone(), version)?;
     // Deploy mock dex
-    let _wyndex = WynDex::deploy_on(mock.clone(), Empty {})?;
-
+    let wyndex = WynDex::deploy_on(mock.clone(), Empty {})?;
 
     let eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);
@@ -55,6 +56,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
             monarch: mock.sender.to_string(),
         },
     )?;
+
     // install dex
     os.manager.install_module(EXCHANGE, &Empty {})?;
     // install staking
@@ -140,18 +142,20 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     let auto_compounder_addr = vault.auto_compounder.addr_str()?;
     let eur_asset = AssetEntry::new("eur");
     let usd_asset = AssetEntry::new("usd");
+    let asset_infos = vec![eur_token.clone(), usd_token.clone()];
 
     // check config setup
     let config = vault.auto_compounder.config()?;
     assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
 
     // give user some funds
-    eur_token.mint(&owner, 100_000u128)?;
-    usd_token.mint(&owner, 100_000u128)?;
-
-    // increase allowance
-    eur_token.increase_allowance(&auto_compounder_addr, 10_000u128, None)?;
-    usd_token.increase_allowance(&auto_compounder_addr, 10_000u128, None)?;
+    mock.set_balances(&[(
+        &owner,
+        &[
+            coin(100_000u128, eur_token.to_string()),
+            coin(100_000u128, usd_token.to_string()),
+        ],
+    )]);
 
     // initial deposit must be > 1000 (of both assets)
     // this is set by WynDex
@@ -165,10 +169,13 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     assert_that!(vault_token_balance).is_equal_to(10000u128);
 
     // and eur balance decreased and usd balance stayed the same
-    let eur_balance = eur_token.balance(&owner)?;
-    let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(90_000u128);
-    assert_that!(usd_balance).is_equal_to(90_000u128);
+    let balances = mock.query_all_balances(&owner)?;
+
+    // .sort_by(|a, b| a.denom.cmp(&b.denom));
+    assert_that!(balances).is_equal_to(vec![
+        coin(90_000u128, eur_token.to_string()),
+        coin(100_000u128, usd_token.to_string()),
+    ]);
 
     // withdraw part from the auto-compounder
     vault_token.send(&Cw20HookMsg::Redeem {}, 4000, auto_compounder_addr.clone())?;
@@ -177,22 +184,35 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     assert_that!(vault_token_balance).is_equal_to(6000u128);
 
     // and eur and usd balance increased. Rounding error is 1 (i guess)
-    let eur_balance = eur_token.balance(&owner)?;
-    let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(93_999u128);
-    assert_that!(usd_balance).is_equal_to(93_999u128);
+    // and eur balance decreased and usd balance stayed the same
+    let balances = mock.query_all_balances(&owner)?;
 
-    let generator_staked_balance = eur_usd_lp.balance(&generator)?;
-    assert_that!(generator_staked_balance).is_equal_to(6000u128);
+    // .sort_by(|a, b| a.denom.cmp(&b.denom));
+    assert_that!(balances).is_equal_to(vec![
+        coin(93_999u128, eur_token.to_string()),
+        coin(93_999u128, usd_token.to_string()),
+    ]);
+
+    let generator_staked_balance = vault
+        .wyndex
+        .suite
+        .query_all_staked(asset_infos, &owner.to_string())?
+        .stakes
+        .first()
+        .unwrap();
+    assert_that!(generator_staked_balance.stake.u128()).is_equal_to(6000u128);
 
     // withdraw all from the auto-compounder
     vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr)?;
 
-    let eur_balance = eur_token.balance(&owner)?;
-    let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(99_999u128);
-    assert_that!(usd_balance).is_equal_to(99_999u128);
+    // and eur balance decreased and usd balance stayed the same
+    let balances = mock.query_all_balances(&owner)?;
 
+    // .sort_by(|a, b| a.denom.cmp(&b.denom));
+    assert_that!(balances).is_equal_to(vec![
+        coin(99_999u128, eur_token.to_string()),
+        coin(99_999u128, usd_token.to_string()),
+    ]);
     Ok(())
 }
 
@@ -202,7 +222,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 /// - querying the balance of a users position in the auto-compounder
 /// - querying the total lp balance of the auto-compounder
 #[test]
-fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
+fn generator_without_reward_proxies_single_sided() -> AResult {
     let owner = Addr::unchecked(test_utils::OWNER);
 
     // create testing environment
@@ -214,13 +234,13 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
         eur_token,
         usd_token,
         eur_usd_lp,
-        generator,
         ..
     } = vault.wyndex;
     let vault_token = vault.vault_token;
     let auto_compounder_addr = vault.auto_compounder.addr_str()?;
     let eur_asset = AssetEntry::new("eur");
     let usd_asset = AssetEntry::new("usd");
+    let asset_infos = vec![eur_token.clone(), usd_token.clone()];
 
     // check config setup
     let config = vault.auto_compounder.config()?;
@@ -230,12 +250,13 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
 
     // give user some funds
-    eur_token.mint(&owner, 100_000u128)?;
-    usd_token.mint(&owner, 100_000u128)?;
-
-    // increase allowance
-    eur_token.increase_allowance(&auto_compounder_addr, 10_000u128, None)?;
-    usd_token.increase_allowance(&auto_compounder_addr, 10_000u128, None)?;
+    mock.set_balances(&[(
+        &owner,
+        &[
+            coin(100_000u128, eur_token.to_string()),
+            coin(100_000u128, usd_token.to_string()),
+        ],
+    )]);
 
     // initial deposit must be > 1000 (of both assets)
     // this is set by WynDex
@@ -248,7 +269,6 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     assert_that!(position).is_greater_than(Uint128::zero());
 
     // single asset deposit
-    eur_token.increase_allowance(&auto_compounder_addr, 1_000u128, None)?;
     vault
         .auto_compounder
         .deposit(vec![AnsAsset::new(eur_asset, 1000u128)])?;
@@ -259,7 +279,6 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     let new_position = vault.auto_compounder.total_lp_position()?;
     assert_that!(new_position).is_greater_than(position);
 
-    usd_token.increase_allowance(&auto_compounder_addr, 1_000u128, None)?;
     vault
         .auto_compounder
         .deposit(vec![AnsAsset::new(usd_asset, 1000u128)])?;
@@ -276,10 +295,11 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     assert_that!(new_position).is_greater_than(position);
 
     // and eur balance decreased and usd balance stayed the same
-    let eur_balance = eur_token.balance(&owner)?;
-    let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(89_000u128);
-    assert_that!(usd_balance).is_equal_to(89_000u128);
+    let balances = mock.query_all_balances(&owner)?;
+    assert_that!(balances).is_equal_to(vec![
+        coin(89_000u128, eur_token.to_string()),
+        coin(89_000u128, usd_token.to_string()),
+    ]);
 
     // withdraw part from the auto-compounder
     vault_token.send(&Cw20HookMsg::Redeem {}, 4989, auto_compounder_addr.clone())?;
@@ -288,17 +308,23 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     assert_that!(vault_token_balance).is_equal_to(6000u128);
 
     // and eur and usd balance increased
-    let eur_balance = eur_token.balance(&owner)?;
-    let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(93_988u128);
-    assert_that!(usd_balance).is_equal_to(93_988u128);
+    let balances = mock.query_all_balances(&owner)?;
+    assert_that!(balances).is_equal_to(vec![
+        coin(93_988u128, eur_token.to_string()),
+        coin(93_988u128, usd_token.to_string()),
+    ]);
 
     let position = new_position;
     let new_position = vault.auto_compounder.total_lp_position()?;
     assert_that!(new_position).is_less_than(position);
 
-    let generator_staked_balance = eur_usd_lp.balance(&generator)?;
-    assert_that!(generator_staked_balance).is_equal_to(6001u128);
+    let generator_staked_balance = vault
+        .wyndex
+        .suite
+        .query_all_staked(asset_infos, &vault.os.proxy.addr_str()?)?
+        .stakes[0]
+        .stake;
+    assert_that!(generator_staked_balance.u128()).is_equal_to(6001u128);
 
     // withdraw all from the auto-compounder
     vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr)?;
@@ -314,10 +340,11 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     vault.auto_compounder.withdraw().unwrap_err(); // withdraw wont have any effect, because there are no pending claims
                                                    // mock.next_block()?;
 
-    let eur_balance = eur_token.balance(&owner)?;
-    let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(99_989u128);
-    assert_that!(usd_balance).is_equal_to(99_989u128);
+    let balances = mock.query_all_balances(&owner)?;
+    assert_that!(balances).is_equal_to(vec![
+        coin(99_989u128, eur_token.to_string()),
+        coin(99_989u128, usd_token.to_string()),
+    ]);
 
     let new_position = vault.auto_compounder.total_lp_position()?;
     assert_that!(new_position).is_equal_to(Uint128::zero());
@@ -332,7 +359,7 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
 /// - checks if the fee distribution is correct
 /// - checks if the rewards are distributed correctly
 #[test]
-fn generator_with_rewards_test_fee_and_reward_distribution() -> Result<(), BootError> {
+fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
     let owner = Addr::unchecked(test_utils::OWNER);
     let commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
 
@@ -358,12 +385,13 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> Result<(), BootE
     assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
 
     // give user some funds
-    eur_token.mint(&owner, 100_000u128)?;
-    usd_token.mint(&owner, 100_000u128)?;
-
-    // increase allowance
-    eur_token.increase_allowance(&auto_compounder_addr, 100_000u128, None)?;
-    usd_token.increase_allowance(&auto_compounder_addr, 100_000u128, None)?;
+    mock.set_balances(&[(
+        &owner,
+        &[
+            coin(100_000u128, eur_token.to_string()),
+            coin(100_000u128, usd_token.to_string()),
+        ],
+    )]);
 
     // initial deposit must be > 1000 (of both assets)
     // this is set by WynDex
@@ -378,7 +406,8 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> Result<(), BootE
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(100_000u128);
-    assert_that!(eur_token.balance(&owner)?).is_equal_to(0u128);
+    let ownerbalance = mock.query_balance(&owner, EUR)?;
+    assert_that!(ownerbalance.u128()).is_equal_to(0u128);
 
     // process block -> the AC should have pending rewards at the staking contract
     mock.next_block()?;
@@ -394,8 +423,9 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> Result<(), BootE
     // the price of the astro/EUR pair is 100M:10M
     // which will result in a 2990 EUR fee for the autocompounder. #TODO: check this: bit less then expected
     vault.auto_compounder.compound()?;
-    let commission_received = eur_token.balance(&commission_addr)?;
-    assert_that!(commission_received).is_equal_to(2970u128);
+
+    let commission_received = mock.query_balance(&commission_addr, EUR)?;
+    assert_that!(commission_received.u128()).is_equal_to(2970u128);
 
     // The reward for the user is then 970_000 ASTRO which is then swapped using the astro/EUR pair
     // this will be swapped for 95_116 EUR, which then is provided using single sided provide_liquidity (this is a bit less then 50% of the initial deposit)
@@ -405,8 +435,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> Result<(), BootE
     let expected_new_value = Uint128::from(vault_lp_balance.u128() * 4u128 / 10u128); // 40% of the previous position
     assert_that!(new_lp).is_greater_than(expected_new_value);
 
-    let owner_eur_balance = eur_token.balance(&owner)?;
-    let owner_usd_balance = usd_token.balance(&owner)?;
+    let owner_balance = mock.query_all_balances(&owner)?;
 
     // withdraw the vault token to see if the user actually received more of EUR and USD then they deposited
     vault_token.send(
@@ -414,8 +443,9 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> Result<(), BootE
         vault_token_balance,
         auto_compounder_addr,
     )?;
-    let eur_diff = eur_token.balance(&owner)? - owner_eur_balance;
-    let usd_diff = usd_token.balance(&owner)? - owner_usd_balance;
+    let new_owner_balance = mock.query_all_balances(&owner)?;
+    let eur_diff = new_owner_balance[0].amount.u128() - owner_balance[0].amount.u128();
+    let usd_diff = new_owner_balance[1].amount.u128() - owner_balance[1].amount.u128();
 
     // the user should have received more of EUR and USD then they deposited
     assert_that!(eur_diff).is_greater_than(140_000u128); // estimated value
@@ -424,7 +454,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> Result<(), BootE
     Ok(())
 }
 
-fn generator_with_rewards_test_rewards_distribution_with_multiple_users() -> Result<(), BootError> {
+fn generator_with_rewards_test_rewards_distribution_with_multiple_users() -> AResult {
     // test multiple user deposits and withdrawals
     todo!()
 }

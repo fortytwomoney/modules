@@ -1,8 +1,7 @@
-use abstract_boot::{Abstract
-, OS};
-use cw_staking::boot::CwStakingApi;
 use abstract_boot::boot_core::BootEnvironment;
+use abstract_boot::{Abstract, OS};
 use boot_cw_plus::Cw20;
+use cw_staking::boot::CwStakingApi;
 use dex::boot::DexApi;
 use forty_two_boot::autocompounder::AutocompounderApp;
 use wyndex_bundle::WynDex;
