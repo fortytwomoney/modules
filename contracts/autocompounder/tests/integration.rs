@@ -36,6 +36,13 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
     let version = "1.0.0".parse().unwrap();
     // Deploy abstract
     let abstract_ = Abstract::deploy_on(mock.clone(), version)?;
+    // create first OS
+    abstract_.os_factory.create_default_os(
+        abstract_os::objects::gov_type::GovernanceDetails::Monarchy {
+            monarch: mock.sender.to_string(),
+        },
+    )?;
+
     // Deploy mock dex
     let wyndex = WynDex::deploy_on(mock.clone(), Empty {})?;
 
@@ -130,7 +137,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     let (_state, mock) = instantiate_default_mock_env(&owner)?;
 
     // create a vault
-    let vault = crate::create_vault(mock)?;
+    let vault = crate::create_vault(mock.clone())?;
     let WynDex {
         eur_token,
         usd_token,
@@ -193,10 +200,11 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
         coin(93_999u128, usd_token.to_string()),
     ]);
 
-    let generator_staked_balance = vault
-        .wyndex
-        .suite
-        .query_all_staked(asset_infos, &owner.to_string())?
+    let staked = vault
+    .wyndex
+    .suite
+    .query_all_staked(asset_infos, &owner.to_string())?;
+    let generator_staked_balance = staked
         .stakes
         .first()
         .unwrap();
@@ -229,7 +237,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     let (_state, mock) = instantiate_default_mock_env(&owner)?;
 
     // create a vault
-    let vault = crate::create_vault(mock)?;
+    let vault = crate::create_vault(mock.clone())?;
     let WynDex {
         eur_token,
         usd_token,

@@ -42,6 +42,10 @@ pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 /// Impls for being able to call methods on the autocompounder app directly
 pub type ExecuteMsg = app::ExecuteMsg<AutocompounderExecuteMsg, Cw20ReceiveMsg>;
 pub type QueryMsg = app::QueryMsg<AutocompounderQueryMsg>;
+pub type InstantiateMsg = app::InstantiateMsg<AutocompounderInstantiateMsg>;
+pub type MigrateMsg = app::MigrateMsg<AutocompounderMigrateMsg>;
+
+
 impl app::AppExecuteMsg for AutocompounderExecuteMsg {}
 impl app::AppQueryMsg for AutocompounderQueryMsg {}
 
