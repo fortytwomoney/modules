@@ -45,7 +45,6 @@ pub type QueryMsg = app::QueryMsg<AutocompounderQueryMsg>;
 pub type InstantiateMsg = app::InstantiateMsg<AutocompounderInstantiateMsg>;
 pub type MigrateMsg = app::MigrateMsg<AutocompounderMigrateMsg>;
 
-
 impl app::AppExecuteMsg for AutocompounderExecuteMsg {}
 impl app::AppQueryMsg for AutocompounderQueryMsg {}
 
@@ -82,6 +81,7 @@ pub enum AutocompounderExecuteMsg {
         withdrawal: Option<Decimal>,
     },
     /// Join vault by depositing one or more funds
+    #[payable]
     Deposit { funds: Vec<OfferAsset> },
     /// Withdraw all unbonded funds
     Withdraw {},

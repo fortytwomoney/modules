@@ -16,7 +16,8 @@ use cw_staking::CW_STAKING;
 use dex::msg::*;
 use dex::EXCHANGE;
 use forty_two::autocompounder::{
-    AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, BondingPeriodSelector,
+    AutocompounderExecuteMsgFns, AutocompounderQueryMsg, AutocompounderQueryMsgFns,
+    BondingPeriodSelector,
 };
 use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
 use forty_two_boot::autocompounder::AutocompounderApp;
@@ -142,7 +143,6 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
         eur_token,
         usd_token,
         eur_usd_lp,
-        eur_usd_staking,
         ..
     } = vault.wyndex;
     let vault_token = vault.vault_token;
@@ -162,14 +162,17 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
             coin(100_000u128, eur_token.to_string()),
             coin(100_000u128, usd_token.to_string()),
         ],
-    )]);
+    )])?;
 
     // initial deposit must be > 1000 (of both assets)
     // this is set by WynDex
-    vault.auto_compounder.deposit(vec![
-        AnsAsset::new(eur_asset, 10000u128),
-        AnsAsset::new(usd_asset, 10000u128),
-    ])?;
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(eur_asset, 10000u128),
+            AnsAsset::new(usd_asset, 10000u128),
+        ],
+        &[coin(10000u128, EUR), coin(10000u128, USD)],
+    )?;
 
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(&owner)?;
@@ -181,7 +184,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     // .sort_by(|a, b| a.denom.cmp(&b.denom));
     assert_that!(balances).is_equal_to(vec![
         coin(90_000u128, eur_token.to_string()),
-        coin(100_000u128, usd_token.to_string()),
+        coin(90_000u128, usd_token.to_string()),
     ]);
 
     // withdraw part from the auto-compounder
@@ -194,6 +197,17 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     // and eur balance decreased and usd balance stayed the same
     let balances = mock.query_all_balances(&owner)?;
 
+    // # TODO: Because of the unbonding period of wyndex, the balance is not updated immediately
+    // We should check first if there is a unbonding claim in the contract for the user
+    // Then, we should check when the time is passed, if the balance is updated AND if the claim is removed from the contract
+
+    // make a todo list:
+    // - check if there is a claim for the user
+    // - check if the claim is removed after the unbonding period
+    // - check if the balance is updated after the unbonding period
+    let pending_claims = vault.auto_compounder.pending_claims(owner.to_string())?;
+    mock.next_block()?;
+    let claims = vault.auto_compounder.batch_unbond()?;
     // .sort_by(|a, b| a.denom.cmp(&b.denom));
     assert_that!(balances).is_equal_to(vec![
         coin(93_999u128, eur_token.to_string()),
@@ -201,13 +215,10 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     ]);
 
     let staked = vault
-    .wyndex
-    .suite
-    .query_all_staked(asset_infos, &owner.to_string())?;
-    let generator_staked_balance = staked
-        .stakes
-        .first()
-        .unwrap();
+        .wyndex
+        .suite
+        .query_all_staked(asset_infos, &owner.to_string())?;
+    let generator_staked_balance = staked.stakes.first().unwrap();
     assert_that!(generator_staked_balance.stake.u128()).is_equal_to(6000u128);
 
     // withdraw all from the auto-compounder
@@ -264,22 +275,26 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
             coin(100_000u128, eur_token.to_string()),
             coin(100_000u128, usd_token.to_string()),
         ],
-    )]);
+    )])?;
 
     // initial deposit must be > 1000 (of both assets)
     // this is set by WynDex
-    vault.auto_compounder.deposit(vec![
-        AnsAsset::new(eur_asset.clone(), 10000u128),
-        AnsAsset::new(usd_asset.clone(), 10000u128),
-    ])?;
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(eur_asset.clone(), 10000u128),
+            AnsAsset::new(usd_asset.clone(), 10000u128),
+        ],
+        &[coin(10_000u128, EUR), coin(10_000u128, USD)],
+    )?;
 
     let position = vault.auto_compounder.total_lp_position()?;
     assert_that!(position).is_greater_than(Uint128::zero());
 
     // single asset deposit
-    vault
-        .auto_compounder
-        .deposit(vec![AnsAsset::new(eur_asset, 1000u128)])?;
+    vault.auto_compounder.deposit(
+        vec![AnsAsset::new(eur_asset, 1000u128)],
+        &[coin(1000u128, EUR)],
+    )?;
 
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(&owner)?;
@@ -287,9 +302,10 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     let new_position = vault.auto_compounder.total_lp_position()?;
     assert_that!(new_position).is_greater_than(position);
 
-    vault
-        .auto_compounder
-        .deposit(vec![AnsAsset::new(usd_asset, 1000u128)])?;
+    vault.auto_compounder.deposit(
+        vec![AnsAsset::new(usd_asset, 1000u128)],
+        &[coin(1000u128, USD)],
+    )?;
 
     // check that the vault token is increased
     let vault_token_balance = vault_token.balance(&owner)?;
@@ -399,14 +415,17 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
             coin(100_000u128, eur_token.to_string()),
             coin(100_000u128, usd_token.to_string()),
         ],
-    )]);
+    )])?;
 
     // initial deposit must be > 1000 (of both assets)
     // this is set by WynDex
-    vault.auto_compounder.deposit(vec![
-        AnsAsset::new(eur_asset, 100_000u128),
-        AnsAsset::new(usd_asset, 100_000u128),
-    ])?;
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(eur_asset, 100_000u128),
+            AnsAsset::new(usd_asset, 100_000u128),
+        ],
+        &[coin(100_000u128, EUR), coin(100_000u128, USD)],
+    )?;
 
     // query how much lp tokens are in the vault
     let vault_lp_balance = vault.auto_compounder.total_lp_position()? as Uint128;
