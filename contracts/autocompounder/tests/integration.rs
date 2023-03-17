@@ -8,11 +8,14 @@ use abstract_sdk::os as abstract_os;
 
 use abstract_boot::boot_core::*;
 use boot_cw_plus::Cw20;
-use cosmwasm_std::{coin, to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
+use cosmwasm_std::{
+    coin, to_binary, Addr, Binary, Decimal, Empty, StdResult, Timestamp, Uint128, Uint64,
+};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_asset::Asset;
 use cw_multi_test::{App, ContractWrapper, Executor};
 use cw_staking::CW_STAKING;
+use cw_utils::Expiration;
 use dex::msg::*;
 use dex::EXCHANGE;
 use forty_two::autocompounder::{
@@ -195,7 +198,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 
     // and eur and usd balance increased. Rounding error is 1 (i guess)
     // and eur balance decreased and usd balance stayed the same
-    let balances = mock.query_all_balances(&owner)?;
+    //    let balances = mock.query_all_balances(&owner)?;
 
     // # TODO: Because of the unbonding period of wyndex, the balance is not updated immediately
     // We should check first if there is a unbonding claim in the contract for the user
@@ -206,8 +209,18 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     // - check if the claim is removed after the unbonding period
     // - check if the balance is updated after the unbonding period
     let pending_claims = vault.auto_compounder.pending_claims(owner.to_string())?;
+    let batch_unbond = vault.auto_compounder.batch_unbond()?;
     mock.next_block()?;
-    let claims = vault.auto_compounder.batch_unbond()?;
+    let claims = vault.auto_compounder.claims(owner.to_string())?;
+    let unbonding: Expiration = claims[0].unbonding_timestamp;
+    if let Expiration::AtTime(time) = unbonding {
+        mock.app.borrow_mut().update_block(|b| {
+            b.time = time.plus_seconds(10);
+        });
+    }
+    mock.next_block()?;
+    let withdraw = vault.auto_compounder.withdraw()?;
+    let balances = mock.query_all_balances(&owner)?;
     // .sort_by(|a, b| a.denom.cmp(&b.denom));
     assert_that!(balances).is_equal_to(vec![
         coin(93_999u128, eur_token.to_string()),
