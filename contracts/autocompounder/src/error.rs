@@ -44,6 +44,9 @@ pub enum AutocompounderError {
     #[error("Pools with more than 2 assets are not supported")]
     PoolWithMoreThanTwoAssets {},
 
+    #[error("No ongoing claims for address found")]
+    NoClaims {},
+
     #[error("No ongoing claims are ready for withdrawal")]
     NoMaturedClaims {},
 

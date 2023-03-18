@@ -19,9 +19,10 @@ use cosmwasm_std::{
 };
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw_asset::{Asset, AssetInfo};
-use cw_staking::{CW_STAKING, msg::{
-    CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse,
-}};
+use cw_staking::{
+    msg::{CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse},
+    CW_STAKING,
+};
 use cw_utils::Duration;
 use dex::api::{Dex, DexInterface};
 use dex::msg::OfferAsset;

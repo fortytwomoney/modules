@@ -339,7 +339,7 @@ pub fn withdraw_claims(
     }
 
     let Some(claims) = CLAIMS.may_load(deps.storage, address.to_string())? else {
-        return Err(AutocompounderError::NoMaturedClaims {});
+        return Err(AutocompounderError::NoClaims {});
     };
 
     // 1) get all matured claims for user
@@ -354,6 +354,10 @@ pub fn withdraw_claims(
     });
 
     if matured_claims.is_empty() {
+        eprintln!(
+            "No matured claims at timestamp: {:?}. ongoing claims: {:?}",
+            env.block.time, ongoing_claims
+        );
         return Err(AutocompounderError::NoMaturedClaims {});
     }
 
@@ -365,6 +369,14 @@ pub fn withdraw_claims(
             acc + claim.amount_of_lp_tokens_to_unbond
         });
 
+    // 3.1) claim all matured claims from staking contract
+    let claim_msg = claim_unbonded_tokens(
+        deps.as_ref(),
+        &app,
+        config.pool_data.dex.clone(),
+        AssetEntry::from(LpToken::from(config.pool_data.clone())),
+    );
+
     // 3) withdraw lp tokens
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
     let swap_msg: CosmosMsg = dex.withdraw_liquidity(
@@ -373,7 +385,9 @@ pub fn withdraw_claims(
     )?;
     let sub_msg = SubMsg::reply_on_success(swap_msg, LP_WITHDRAWAL_REPLY_ID);
 
-    let response = Response::new().add_submessage(sub_msg);
+    let response = Response::new()
+        .add_message(claim_msg)
+        .add_submessage(sub_msg);
     Ok(app.custom_tag_response(
         response,
         "withdraw_claims",
@@ -486,6 +500,25 @@ fn claim_lp_rewards(
         CwStakingExecuteMsg {
             provider,
             action: CwStakingAction::ClaimRewards {
+                staking_token: lp_token_name,
+            },
+        },
+    )
+    .unwrap()
+}
+fn claim_unbonded_tokens(
+    deps: Deps,
+    app: &AutocompounderApp,
+    provider: String,
+    lp_token_name: AssetEntry,
+) -> CosmosMsg {
+    let apis = app.apis(deps);
+
+    apis.request(
+        CW_STAKING,
+        CwStakingExecuteMsg {
+            provider,
+            action: CwStakingAction::Claim {
                 staking_token: lp_token_name,
             },
         },
