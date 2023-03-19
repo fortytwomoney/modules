@@ -134,6 +134,15 @@ fn proper_initialisation() {
     // initialize with no pool for the fee token and reward token
 }
 
+/// This test covers:
+/// - Create a vault and check its configuration setup.
+/// - Deposit balanced funds into the auto-compounder and check the minted vault token.
+/// - Withdraw a part from the auto-compounder and check the pending claims.
+/// - Check that the pending claims are updated after another withdraw.
+/// - Batch unbond and check the pending claims are removed.
+/// - Withdraw and check the removal of claims.
+/// - Check the balances and staked balances.
+/// - Withdraw all from the auto-compounder and check the balances again.
 #[test]
 fn generator_without_reward_proxies_balanced_assets() -> AResult {
     let owner = Addr::unchecked(test_utils::OWNER);
@@ -192,25 +201,24 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     ]);
 
     // withdraw part from the auto-compounder
-    vault_token.send(&Cw20HookMsg::Redeem {}, 4000, auto_compounder_addr.clone())?;
+    vault_token.send(&Cw20HookMsg::Redeem {}, 2000, auto_compounder_addr.clone())?;
     // check that the vault token decreased
     let vault_token_balance = vault_token.balance(&owner)?;
-    assert_that!(vault_token_balance).is_equal_to(6000u128);
+    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
+    assert_that!(vault_token_balance).is_equal_to(8000u128);
+    assert_that!(pending_claims.u128()).is_equal_to(2000u128);
 
-    // and eur and usd balance increased. Rounding error is 1 (i guess)
-    // and eur balance decreased and usd balance stayed the same
-    //    let balances = mock.query_all_balances(&owner)?;
+    // check that the pending claims are updated
+    vault_token.send(&Cw20HookMsg::Redeem {}, 2000, auto_compounder_addr.clone())?;
+    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
+    assert_that!(pending_claims.u128()).is_equal_to(4000u128);
 
-    // # TODO: Because of the unbonding period of wyndex, the balance is not updated immediately
-    // We should check first if there is a unbonding claim in the contract for the user
-    // Then, we should check when the time is passed, if the balance is updated AND if the claim is removed from the contract
+    vault.auto_compounder.batch_unbond()?;
 
-    // make a todo list:
-    // - check if there is a claim for the user
-    // - check if the claim is removed after the unbonding period
-    // - check if the balance is updated after the unbonding period
-    let pending_claims = vault.auto_compounder.pending_claims(owner.to_string())?;
-    let batch_unbond = vault.auto_compounder.batch_unbond()?;
+    // checks if the pending claims are now removed
+    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
+    assert_that!(pending_claims.u128()).is_equal_to(0u128);
+
     mock.next_block()?;
     let claims = vault.auto_compounder.claims(owner.to_string())?;
     let unbonding: Expiration = claims[0].unbonding_timestamp;
@@ -220,31 +228,40 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
         });
     }
     mock.next_block()?;
-    let withdraw = vault.auto_compounder.withdraw()?;
+    vault.auto_compounder.withdraw()?;
+
+    // check that the claim is removed
+    let claims: Vec<Claim> = vault.auto_compounder.claims(owner.to_string())?;
+    assert_that!(claims.len()).is_equal_to(0);
+
     let balances = mock.query_all_balances(&owner)?;
     // .sort_by(|a, b| a.denom.cmp(&b.denom));
     assert_that!(balances).is_equal_to(vec![
-        coin(93_999u128, eur_token.to_string()),
-        coin(93_999u128, usd_token.to_string()),
+        coin(94_000u128, eur_token.to_string()),
+        coin(94_000u128, usd_token.to_string()),
     ]);
 
     let staked = vault
         .wyndex
         .suite
-        .query_all_staked(asset_infos, &owner.to_string())?;
+        .query_all_staked(asset_infos, &vault.os.proxy.addr_str()?)?;
+
     let generator_staked_balance = staked.stakes.first().unwrap();
     assert_that!(generator_staked_balance.stake.u128()).is_equal_to(6000u128);
 
     // withdraw all from the auto-compounder
     vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr)?;
+    vault.auto_compounder.batch_unbond()?;
+    mock.wait_blocks(60 * 60 * 24 * 21)?;
+    vault.auto_compounder.withdraw()?;
 
     // and eur balance decreased and usd balance stayed the same
     let balances = mock.query_all_balances(&owner)?;
 
     // .sort_by(|a, b| a.denom.cmp(&b.denom));
     assert_that!(balances).is_equal_to(vec![
-        coin(99_999u128, eur_token.to_string()),
-        coin(99_999u128, usd_token.to_string()),
+        coin(100_000u128, eur_token.to_string()),
+        coin(100_000u128, usd_token.to_string()),
     ]);
     Ok(())
 }

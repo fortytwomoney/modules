@@ -42,7 +42,7 @@ pub fn instantiate_handler(
         withdrawal_fees,
         fee_asset,
         commission_addr,
-        code_id: _,
+        code_id,
         dex,
         pool_assets,
         preferred_bonding_period,
@@ -162,11 +162,11 @@ pub fn instantiate_handler(
     // create LP token SubMsg
     let sub_msg = create_lp_token_submsg(
         env.contract.address.to_string(),
-        format!("4T2 {pairing}"),
+        format!("4T2{pairing}"),
         // pool data is too long
         // format!("4T2 Vault Token for {pool_data}"),
-        "FORTYTWO".to_string(), // TODO: find a better way to define name and symbol
-        msg.code_id,
+        "FTTV".to_string(), // TODO: find a better way to define name and symbol
+        code_id,
     )?;
 
     Ok(Response::new()

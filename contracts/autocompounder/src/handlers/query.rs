@@ -56,8 +56,8 @@ pub fn query_pending_claims(deps: Deps, address: String) -> AutocompounderResult
         return Ok(Uint128::zero());
     }
 
-    let pending_claims = PENDING_CLAIMS.load(deps.storage, address)?;
-    Ok(pending_claims)
+    let pending_claims = PENDING_CLAIMS.may_load(deps.storage, address)?;
+    Ok(pending_claims.unwrap_or_default())
 }
 
 pub fn query_claims(deps: Deps, address: String) -> AutocompounderResult<Vec<Claim>> {
