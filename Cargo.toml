@@ -30,15 +30,16 @@ exclude = [
 
 # Keep as is until TendermintStake updates.
 [workspace.dependencies]
-abstract-sdk = {version = "0.12.0" }
-abstract-api = {version = "0.12.0" }
-abstract-app = {version = "0.12.0" }
-abstract-os = {version = "0.12.0" }
-abstract-boot = {version = "0.12.0" }
-abstract-testing = {version = "0.12.0"}
+abstract-sdk = { version = "0.12.0" }
+abstract-api = { version = "0.12.0" }
+abstract-app = { version = "0.12.0" }
+abstract-os = { version = "0.12.0" }
+abstract-boot = { version = "0.12.0" }
+abstract-testing = { version = "0.12.0" }
 
-dex = {git = "https://github.com/Abstract-OS/Apis.git"}
-cw-staking = { git = "https://github.com/Abstract-OS/Apis.git" }
+dex = { git = "https://github.com/Abstract-OS/Apis.git" }
+cw-staking = { git = "https://github.com/Abstract-OS/Apis.git", branch = "feature/claim_rewards" }
+# cw-staking = { path = "../../abstract/Apis/contracts/cw-staking" }
 
 forty-two = { version = "0.3.11", path = "packages/forty-two" }
 forty-two-boot = { version = "0.3.11", path = "packages/forty-two-boot" }
@@ -51,7 +52,7 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0" }
 cw-storage-plus = "1.0.1"
 cw-controllers = "1.0.1"
-cw-paginate = {git = "https://github.com/DA0-DA0/dao-contracts.git", tag = "v1.0.0"}
+cw-paginate = { git = "https://github.com/DA0-DA0/dao-contracts.git", tag = "v1.0.0" }
 cosmwasm-storage = { version = "1.1" }
 cw-utils = "1.0.1"
 cw20 = "1.0.1"
@@ -64,13 +65,13 @@ speculoos = "0.11.0"
 
 # dev dependencies
 tokio = { version = "1.4", features = ["full"] }
-semver = { version = "1.0"}
+semver = { version = "1.0" }
 dotenv = "0.15.0"
 env_logger = "0.10.0"
 log = "0.4.14"
-clap =  { version = "4.0.32", features = ["derive"] }
-boot-core = { version = "0.8.0"}
-boot-cw-plus = { version = "0.8.0"}
+clap = { version = "4.0.32", features = ["derive"] }
+boot-core = { version = "0.8.0" }
+boot-cw-plus = { version = "0.8.0" }
 
 [profile.release]
 rpath = false
