@@ -1,4 +1,12 @@
-- name: Upload coverage reports to Codecov
-  uses: codecov/codecov-action@v3
-  with:
-    token: ${{ secrets.CODECOV_TOKEN }}
+name: coverage
+on: [push]
+
+jobs:
+  test:
+    name: coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
