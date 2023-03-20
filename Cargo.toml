@@ -30,12 +30,12 @@ exclude = [
 
 # Keep as is until TendermintStake updates.
 [workspace.dependencies]
-abstract-sdk = { version = "0.12.0" }
-abstract-api = { version = "0.12.0" }
-abstract-app = { version = "0.12.0" }
-abstract-os = { version = "0.12.0" }
-abstract-boot = { version = "0.12.0" }
-abstract-testing = { version = "0.12.0" }
+abstract-sdk = { version = "0.12.0", git = "https://github.com/Abstract-OS/contracts.git" }
+abstract-api = { version = "0.12.0", git = "https://github.com/Abstract-OS/contracts.git" }
+abstract-app = { version = "0.12.0", git = "https://github.com/Abstract-OS/contracts.git" }
+abstract-os = { version = "0.12.0", git = "https://github.com/Abstract-OS/contracts.git" }
+abstract-boot = { version = "0.12.0", git = "https://github.com/Abstract-OS/contracts.git" }
+abstract-testing = { version = "0.12.0", git = "https://github.com/Abstract-OS/contracts.git" }
 
 dex = { git = "https://github.com/Abstract-OS/apis.git" }
 cw-staking = { git = "https://github.com/Abstract-OS/apis.git" }
