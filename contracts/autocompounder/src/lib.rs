@@ -12,26 +12,27 @@ pub mod state;
 
 #[cfg(test)]
 mod test_common {
-    pub use abstract_os::app;
-    use abstract_os::{
-        cw_staking::{CwStakingQueryMsg, StakingInfoResponse},
+    use abstract_sdk::base::InstantiateEndpoint;
+    pub use abstract_sdk::os as abstract_os;
+    use abstract_sdk::os::{
         module_factory::ContextResponse,
         objects::{PoolMetadata, PoolReference},
         version_control::Core,
     };
-    use abstract_sdk::base::InstantiateEndpoint;
     use abstract_testing::{
-        prelude::AbstractMockQuerierBuilder, MockDeps, MockQuerierBuilder, TEST_ANS_HOST,
-        TEST_MANAGER, TEST_MODULE_FACTORY, TEST_PROXY,
+        addresses::{TEST_MANAGER, TEST_MODULE_FACTORY, TEST_PROXY},
+        prelude::{AbstractMockQuerierBuilder, TEST_ANS_HOST},
+        MockDeps, MockQuerierBuilder,
     };
     pub use cosmwasm_std::testing::*;
     use cosmwasm_std::{from_binary, to_binary, Addr, Decimal};
     use cw_asset::AssetInfo;
+    use cw_staking::msg::{CwStakingQueryMsg, StakingInfoResponse};
     use forty_two::autocompounder::BondingPeriodSelector;
     pub use speculoos::prelude::*;
 
     use crate::contract::AUTO_COMPOUNDER_APP;
-    const ASTROPORT: &str = "astroport";
+    const WYNDEX: &str = "wyndex";
     const COMMISSION_RECEIVER: &str = "commission_receiver";
     const TEST_CW_STAKING_MODULE: &str = "cw_staking";
     const TEST_POOL_ADDR: &str = "test_pool";
@@ -57,7 +58,7 @@ mod test_common {
             })
             .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
                 match from_binary(msg).unwrap() {
-                    abstract_os::cw_staking::QueryMsg::App(CwStakingQueryMsg::Info {
+                    cw_staking::msg::QueryMsg::App(CwStakingQueryMsg::Info {
                         provider: _,
                         staking_token: _,
                     }) => {
@@ -75,13 +76,13 @@ mod test_common {
             .with_raw_handler(TEST_ANS_HOST, |key| match key {
                 "\0\u{6}assetseur" => Ok(to_binary(&AssetInfo::Native("eur".into())).unwrap()),
                 "\0\u{6}assetsusd" => Ok(to_binary(&AssetInfo::Native("usd".into())).unwrap()),
-                "\0\u{6}assetsastroport/eur,usd" => {
+                "\0\u{6}assetswyndex/eur,usd" => {
                     Ok(to_binary(&AssetInfo::cw20(Addr::unchecked("usd_eur_lp"))).unwrap())
                 }
-                "\0\tcontracts\0\tastroportstaking/astroport/eur,usd" => {
+                "\0\tcontracts\0\twyndexstaking/wyndex/eur,usd" => {
                     Ok(to_binary(&Addr::unchecked("staking_addr")).unwrap())
                 }
-                "\0\u{8}pool_ids\0\u{3}eur\0\u{3}usdastroport" => {
+                "\0\u{8}pool_ids\0\u{3}eur\0\u{3}usdwyndex" => {
                     Ok(to_binary(&vec![PoolReference {
                         unique_id: 0.into(),
                         pool_address: abstract_os::objects::pool_id::PoolAddressBase::Contract(
@@ -91,7 +92,7 @@ mod test_common {
                     .unwrap())
                 }
                 "\0\u{5}pools\0\0\0\0\0\0\0\0" => Ok(to_binary(&PoolMetadata::new(
-                    ASTROPORT,
+                    WYNDEX,
                     abstract_os::objects::PoolType::ConstantProduct,
                     vec!["usd", "eur"],
                 ))
@@ -108,7 +109,11 @@ mod test_common {
             .with_contract_map_entry(
                 TEST_MANAGER,
                 abstract_os::manager::state::OS_MODULES,
-                ("4t2:cw-staking", &Addr::unchecked(TEST_CW_STAKING_MODULE)).into(),
+                (
+                    "abstract:cw-staking",
+                    Addr::unchecked(TEST_CW_STAKING_MODULE),
+                )
+                    .into(),
             )
     }
 
@@ -128,7 +133,7 @@ mod test_common {
                         code_id: 1,
                         commission_addr: COMMISSION_RECEIVER.to_string(),
                         deposit_fees: Decimal::percent(3),
-                        dex: ASTROPORT.to_string(),
+                        dex: WYNDEX.to_string(),
                         fee_asset: "eur".to_string(),
                         performance_fees: Decimal::percent(3),
                         pool_assets: vec!["eur".into(), "usd".into()],

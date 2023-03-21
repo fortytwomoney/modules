@@ -2,47 +2,38 @@
 mod test_utils;
 
 use abstract_boot::{Abstract, AbstractBootError, ManagerQueryFns};
-
+use abstract_os::api::{BaseExecuteMsgFns, BaseQueryMsgFns};
 use abstract_os::objects::{AnsAsset, AssetEntry};
-use abstract_os::EXCHANGE;
-use abstract_os::{api::BaseExecuteMsgFns, cw_staking::CW_STAKING};
-use astroport::asset::{Asset, AssetInfo, PairInfo};
-use astroport::{
-    factory::{
-        ExecuteMsg as FactoryExecuteMsg, InstantiateMsg as FactoryInstantiateMsg, PairConfig,
-        PairType, QueryMsg as FactoryQueryMsg,
-    },
-    generator::{
-        Cw20HookMsg as GeneratorHookMsg, ExecuteMsg as GeneratorExecuteMsg,
-        InstantiateMsg as GeneratorInstantiateMsg, PendingTokenResponse,
-        QueryMsg as GeneratorQueryMsg,
-    },
-    generator_proxy::InstantiateMsg as ProxyInstantiateMsg,
-    token::InstantiateMsg as TokenInstantiateMsg,
-    vesting::{
-        Cw20HookMsg as VestingHookMsg, InstantiateMsg as VestingInstantiateMsg, VestingAccount,
-        VestingSchedule, VestingSchedulePoint,
-    },
-};
+use abstract_sdk::os as abstract_os;
 
-use boot_core::deploy::Deploy;
-use boot_core::{prelude::*, TxHandler};
+use abstract_boot::boot_core::*;
+use autocompounder::state::{Claim, Config};
 use boot_cw_plus::Cw20;
-use cosmwasm_std::{to_binary, Addr, Binary, Decimal, Empty, StdResult, Uint128, Uint64};
+use cosmwasm_std::{
+    coin, coins, to_binary, Addr, Binary, Decimal, Empty, StdResult, Timestamp, Uint128, Uint64,
+};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
+use cw_asset::Asset;
 use cw_multi_test::{App, ContractWrapper, Executor};
+use cw_staking::CW_STAKING;
+use cw_utils::Expiration;
+use dex::msg::*;
+use dex::EXCHANGE;
 use forty_two::autocompounder::{
-    AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, BondingPeriodSelector,
+    AutocompounderExecuteMsgFns, AutocompounderQueryMsg, AutocompounderQueryMsgFns,
+    BondingPeriodSelector,
 };
 use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
+use forty_two_boot::autocompounder::AutocompounderApp;
 use speculoos::assert_that;
 use speculoos::prelude::OrderedAssertions;
 use test_utils::abstract_helper::{self, init_auto_compounder};
-use test_utils::astroport::{Astroport, PoolWithProxy, EUR_TOKEN, USD_TOKEN};
 use test_utils::vault::Vault;
-use test_utils::OWNER;
+use test_utils::{AResult, DISTRIBUTION, OWNER};
 
-const ASTROPORT: &str = "astroport";
+use wyndex_bundle::*;
+
+const WYNDEX: &str = "wyndex";
 const COMMISSION_RECEIVER: &str = "commission_receiver";
 const VAULT_TOKEN: &str = "vault_token";
 
@@ -50,11 +41,18 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
     let version = "1.0.0".parse().unwrap();
     // Deploy abstract
     let abstract_ = Abstract::deploy_on(mock.clone(), version)?;
-    // Deploy Astroport
-    let astroport = Astroport::deploy_on(mock.clone(), Empty {})?;
+    // create first OS
+    abstract_.os_factory.create_default_os(
+        abstract_os::objects::gov_type::GovernanceDetails::Monarchy {
+            monarch: mock.sender.to_string(),
+        },
+    )?;
 
-    let eur_asset = AssetEntry::new(EUR_TOKEN);
-    let usd_asset = AssetEntry::new(USD_TOKEN);
+    // Deploy mock dex
+    let wyndex = WynDex::deploy_on(mock.clone(), Empty {})?;
+
+    let eur_asset = AssetEntry::new(EUR);
+    let usd_asset = AssetEntry::new(USD);
 
     // Set up the dex and staking contracts
     let exchange_api = abstract_helper::init_exchange(mock.clone(), &abstract_, None)?;
@@ -70,6 +68,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
             monarch: mock.sender.to_string(),
         },
     )?;
+
     // install dex
     os.manager.install_module(EXCHANGE, &Empty {})?;
     // install staking
@@ -82,7 +81,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
                 code_id: vault_toke_code_id,
                 commission_addr: COMMISSION_RECEIVER.to_string(),
                 deposit_fees: Decimal::percent(3),
-                dex: ASTROPORT.to_string(),
+                dex: WYNDEX.to_string(),
                 fee_asset: eur_asset.to_string(),
                 performance_fees: Decimal::percent(3),
                 pool_assets: vec![eur_asset, usd_asset],
@@ -121,7 +120,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
         auto_compounder,
         vault_token,
         abstract_os: abstract_,
-        astroport,
+        wyndex,
         dex: exchange_api,
         staking: staking_api,
     })
@@ -135,155 +134,214 @@ fn proper_initialisation() {
     // initialize with no pool for the fee token and reward token
 }
 
+/// This test covers:
+/// - Create a vault and check its configuration setup.
+/// - Deposit balanced funds into the auto-compounder and check the minted vault token.
+/// - Withdraw a part from the auto-compounder and check the pending claims.
+/// - Check that the pending claims are updated after another withdraw.
+/// - Batch unbond and check the pending claims are removed.
+/// - Withdraw and check the removal of claims.
+/// - Check the balances and staked balances.
+/// - Withdraw all from the auto-compounder and check the balances again.
 #[test]
-#[cfg(any(feature = "pisco-1", feature = "phoenix-1"))]
-fn generator_without_reward_proxies_balanced_assets() -> Result<(), BootError> {
+fn generator_without_reward_proxies_balanced_assets() -> AResult {
     let owner = Addr::unchecked(test_utils::OWNER);
 
     // create testing environment
     let (_state, mock) = instantiate_default_mock_env(&owner)?;
 
     // create a vault
-    let vault = crate::create_vault(mock)?;
-    let Astroport {
+    let vault = crate::create_vault(mock.clone())?;
+    let WynDex {
         eur_token,
         usd_token,
         eur_usd_lp,
-        generator,
         ..
-    } = vault.astroport;
+    } = vault.wyndex;
     let vault_token = vault.vault_token;
     let auto_compounder_addr = vault.auto_compounder.addr_str()?;
     let eur_asset = AssetEntry::new("eur");
     let usd_asset = AssetEntry::new("usd");
+    let asset_infos = vec![eur_token.clone(), usd_token.clone()];
 
     // check config setup
     let config = vault.auto_compounder.config()?;
     assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
 
     // give user some funds
-    eur_token.mint(&owner, 100_000u128)?;
-    usd_token.mint(&owner, 100_000u128)?;
-
-    // increase allowance
-    eur_token.increase_allowance(&auto_compounder_addr, 10_000u128, None)?;
-    usd_token.increase_allowance(&auto_compounder_addr, 10_000u128, None)?;
+    mock.set_balances(&[(
+        &owner,
+        &[
+            coin(100_000u128, eur_token.to_string()),
+            coin(100_000u128, usd_token.to_string()),
+        ],
+    )])?;
 
     // initial deposit must be > 1000 (of both assets)
-    // this is set by Astroport
-    vault.auto_compounder.deposit(vec![
-        AnsAsset::new(eur_asset, 10000u128),
-        AnsAsset::new(usd_asset, 10000u128),
-    ])?;
+    // this is set by WynDex
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(eur_asset, 10000u128),
+            AnsAsset::new(usd_asset, 10000u128),
+        ],
+        &[coin(10000u128, EUR), coin(10000u128, USD)],
+    )?;
 
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(10000u128);
 
     // and eur balance decreased and usd balance stayed the same
-    let eur_balance = eur_token.balance(&owner)?;
-    let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(90_000u128);
-    assert_that!(usd_balance).is_equal_to(90_000u128);
+    let balances = mock.query_all_balances(&owner)?;
+
+    // .sort_by(|a, b| a.denom.cmp(&b.denom));
+    assert_that!(balances).is_equal_to(vec![
+        coin(90_000u128, eur_token.to_string()),
+        coin(90_000u128, usd_token.to_string()),
+    ]);
 
     // withdraw part from the auto-compounder
-    vault_token.send(&Cw20HookMsg::Redeem {}, 4000, auto_compounder_addr.clone())?;
+    vault_token.send(&Cw20HookMsg::Redeem {}, 2000, auto_compounder_addr.clone())?;
     // check that the vault token decreased
     let vault_token_balance = vault_token.balance(&owner)?;
-    assert_that!(vault_token_balance).is_equal_to(6000u128);
+    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
+    assert_that!(vault_token_balance).is_equal_to(8000u128);
+    assert_that!(pending_claims.u128()).is_equal_to(2000u128);
 
-    // and eur and usd balance increased. Rounding error is 1 (i guess)
-    let eur_balance = eur_token.balance(&owner)?;
-    let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(93_999u128);
-    assert_that!(usd_balance).is_equal_to(93_999u128);
+    // check that the pending claims are updated
+    vault_token.send(&Cw20HookMsg::Redeem {}, 2000, auto_compounder_addr.clone())?;
+    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
+    assert_that!(pending_claims.u128()).is_equal_to(4000u128);
 
-    let generator_staked_balance = eur_usd_lp.balance(&generator)?;
-    assert_that!(generator_staked_balance).is_equal_to(6000u128);
+    vault.auto_compounder.batch_unbond()?;
+
+    // checks if the pending claims are now removed
+    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
+    assert_that!(pending_claims.u128()).is_equal_to(0u128);
+
+    mock.next_block()?;
+    let claims = vault.auto_compounder.claims(owner.to_string())?;
+    let unbonding: Expiration = claims[0].unbonding_timestamp;
+    if let Expiration::AtTime(time) = unbonding {
+        mock.app.borrow_mut().update_block(|b| {
+            b.time = time.plus_seconds(10);
+        });
+    }
+    mock.next_block()?;
+    vault.auto_compounder.withdraw()?;
+
+    // check that the claim is removed
+    let claims: Vec<Claim> = vault.auto_compounder.claims(owner.to_string())?;
+    assert_that!(claims.len()).is_equal_to(0);
+
+    let balances = mock.query_all_balances(&owner)?;
+    // .sort_by(|a, b| a.denom.cmp(&b.denom));
+    assert_that!(balances).is_equal_to(vec![
+        coin(94_000u128, eur_token.to_string()),
+        coin(94_000u128, usd_token.to_string()),
+    ]);
+
+    let staked = vault
+        .wyndex
+        .suite
+        .query_all_staked(asset_infos, &vault.os.proxy.addr_str()?)?;
+
+    let generator_staked_balance = staked.stakes.first().unwrap();
+    assert_that!(generator_staked_balance.stake.u128()).is_equal_to(6000u128);
 
     // withdraw all from the auto-compounder
     vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr)?;
+    vault.auto_compounder.batch_unbond()?;
+    mock.wait_blocks(60 * 60 * 24 * 21)?;
+    vault.auto_compounder.withdraw()?;
 
-    let eur_balance = eur_token.balance(&owner)?;
-    let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(99_999u128);
-    assert_that!(usd_balance).is_equal_to(99_999u128);
+    // and eur balance decreased and usd balance stayed the same
+    let balances = mock.query_all_balances(&owner)?;
 
+    // .sort_by(|a, b| a.denom.cmp(&b.denom));
+    assert_that!(balances).is_equal_to(vec![
+        coin(100_000u128, eur_token.to_string()),
+        coin(100_000u128, usd_token.to_string()),
+    ]);
     Ok(())
 }
 
 /// This test covers:
+/// - depositing with 2 assets
 /// - depositing and withdrawing with a single sided asset
 /// - querying the state of the auto-compounder
 /// - querying the balance of a users position in the auto-compounder
 /// - querying the total lp balance of the auto-compounder
 #[test]
-#[cfg(any(feature = "pisco-1", feature = "phoenix-1"))]
-fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
+fn generator_without_reward_proxies_single_sided() -> AResult {
     let owner = Addr::unchecked(test_utils::OWNER);
 
     // create testing environment
     let (_state, mock) = instantiate_default_mock_env(&owner)?;
 
     // create a vault
-    let vault = crate::create_vault(mock)?;
-    let Astroport {
+    let vault = crate::create_vault(mock.clone())?;
+    let WynDex {
         eur_token,
         usd_token,
         eur_usd_lp,
-        generator,
         ..
-    } = vault.astroport;
+    } = vault.wyndex;
     let vault_token = vault.vault_token;
     let auto_compounder_addr = vault.auto_compounder.addr_str()?;
     let eur_asset = AssetEntry::new("eur");
     let usd_asset = AssetEntry::new("usd");
+    let asset_infos = vec![eur_token.clone(), usd_token.clone()];
 
     // check config setup
-    let config = vault.auto_compounder.config()?;
+    let config: Config = vault.auto_compounder.config()?;
     let position = vault.auto_compounder.total_lp_position()?;
     assert_that!(position).is_equal_to(Uint128::zero());
 
     assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
 
     // give user some funds
-    eur_token.mint(&owner, 100_000u128)?;
-    usd_token.mint(&owner, 100_000u128)?;
-
-    // increase allowance
-    eur_token.increase_allowance(&auto_compounder_addr, 10_000u128, None)?;
-    usd_token.increase_allowance(&auto_compounder_addr, 10_000u128, None)?;
+    mock.set_balances(&[(
+        &owner,
+        &[
+            coin(100_000u128, eur_token.to_string()),
+            coin(100_000u128, usd_token.to_string()),
+        ],
+    )])?;
 
     // initial deposit must be > 1000 (of both assets)
-    // this is set by Astroport
-    vault.auto_compounder.deposit(vec![
-        AnsAsset::new(eur_asset.clone(), 10000u128),
-        AnsAsset::new(usd_asset.clone(), 10000u128),
-    ])?;
+    // this is set by WynDex
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(eur_asset.clone(), 10000u128),
+            AnsAsset::new(usd_asset.clone(), 10000u128),
+        ],
+        &[coin(10_000u128, EUR), coin(10_000u128, USD)],
+    )?;
 
     let position = vault.auto_compounder.total_lp_position()?;
     assert_that!(position).is_greater_than(Uint128::zero());
 
     // single asset deposit
-    eur_token.increase_allowance(&auto_compounder_addr, 1_000u128, None)?;
-    vault
-        .auto_compounder
-        .deposit(vec![AnsAsset::new(eur_asset, 1000u128)])?;
+    vault.auto_compounder.deposit(
+        vec![AnsAsset::new(eur_asset, 1000u128)],
+        &[coin(1000u128, EUR)],
+    )?;
 
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(&owner)?;
-    assert_that!(vault_token_balance).is_equal_to(10495u128);
+    assert_that!(vault_token_balance).is_equal_to(10487u128);
     let new_position = vault.auto_compounder.total_lp_position()?;
     assert_that!(new_position).is_greater_than(position);
 
-    usd_token.increase_allowance(&auto_compounder_addr, 1_000u128, None)?;
-    vault
-        .auto_compounder
-        .deposit(vec![AnsAsset::new(usd_asset, 1000u128)])?;
+    vault.auto_compounder.deposit(
+        vec![AnsAsset::new(usd_asset, 1000u128)],
+        &[coin(1000u128, USD)],
+    )?;
 
     // check that the vault token is increased
     let vault_token_balance = vault_token.balance(&owner)?;
-    assert_that!(vault_token_balance).is_equal_to(10989u128);
+    assert_that!(vault_token_balance).is_equal_to(10986u128);
     // check if the vault balance query functions properly:
     let vault_balance_queried = vault.auto_compounder.balance(owner.to_string())?;
     assert_that!(vault_balance_queried).is_equal_to(Uint128::from(vault_token_balance));
@@ -293,29 +351,63 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
     assert_that!(new_position).is_greater_than(position);
 
     // and eur balance decreased and usd balance stayed the same
-    let eur_balance = eur_token.balance(&owner)?;
-    let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(89_000u128);
-    assert_that!(usd_balance).is_equal_to(89_000u128);
+    let balances = mock.query_all_balances(&owner)?;
+    assert_that!(balances).is_equal_to(vec![
+        coin(89_000u128, eur_token.to_string()),
+        coin(89_000u128, usd_token.to_string()),
+    ]);
 
     // withdraw part from the auto-compounder
-    vault_token.send(&Cw20HookMsg::Redeem {}, 4989, auto_compounder_addr.clone())?;
+    vault_token.send(&Cw20HookMsg::Redeem {}, 4986, auto_compounder_addr.clone())?;
     // check that the vault token decreased
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(6000u128);
 
+    let pending_claim = vault.auto_compounder.pending_claims(owner.to_string())?;
+    assert_that!(pending_claim.u128()).is_equal_to(4986u128);
+    let vault_token_balance = vault_token.balance(&vault.auto_compounder.address()?)?;
+    assert_that!(vault_token_balance).is_equal_to(4986u128);
+
+    let total_lp_balance = vault.auto_compounder.total_lp_position()?;
+    assert_that!(total_lp_balance).is_equal_to(new_position);
+
+    // Batch unbond pending claims
+    vault.auto_compounder.batch_unbond()?;
+
+    // query the claims of the auto-compounder
+    let claims = vault.auto_compounder.claims(owner.to_string())?;
+    let expected_claim = Claim {
+        unbonding_timestamp: Expiration::AtTime(mock.block_info()?.time.plus_seconds(1)),
+        amount_of_vault_tokens_to_burn: 4986u128.into(),
+        amount_of_lp_tokens_to_unbond: 4985u128.into(),
+    };
+    assert_that!(claims).is_equal_to(vec![expected_claim]);
+
+    // let the time pass and withdraw the claims
+    mock.wait_blocks(60 * 60 * 24 * 10)?;
+
+    // let total_lp_balance = vault.auto_compounder.total_lp_position()?;
+    // assert_that!(total_lp_balance).is_equal_to(new_position);
+    vault.auto_compounder.withdraw()?;
+
     // and eur and usd balance increased
-    let eur_balance = eur_token.balance(&owner)?;
-    let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(93_988u128);
-    assert_that!(usd_balance).is_equal_to(93_988u128);
+    let balances = mock.query_all_balances(&owner)?;
+    assert_that!(balances).is_equal_to(vec![
+        coin(93_988u128, eur_token.to_string()),
+        coin(93_988u128, usd_token.to_string()),
+    ]);
 
     let position = new_position;
     let new_position = vault.auto_compounder.total_lp_position()?;
     assert_that!(new_position).is_less_than(position);
 
-    let generator_staked_balance = eur_usd_lp.balance(&generator)?;
-    assert_that!(generator_staked_balance).is_equal_to(6001u128);
+    let generator_staked_balance = vault
+        .wyndex
+        .suite
+        .query_all_staked(asset_infos, &vault.os.proxy.addr_str()?)?
+        .stakes[0]
+        .stake;
+    assert_that!(generator_staked_balance.u128()).is_equal_to(6001u128);
 
     // withdraw all from the auto-compounder
     vault_token.send(&Cw20HookMsg::Redeem {}, 6000, auto_compounder_addr)?;
@@ -325,16 +417,18 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
         .auto_compounder
         .pending_claims(owner.to_string())?
         .into();
-    assert_that!(pending_claims).is_equal_to(0u128); // no unbonding period, so no pending claims
+    assert_that!(pending_claims).is_equal_to(6000u128); // no unbonding period, so no pending claims
 
-    vault.auto_compounder.batch_unbond().unwrap_err(); // batch unbonding not enabled
-    vault.auto_compounder.withdraw().unwrap_err(); // withdraw wont have any effect, because there are no pending claims
-                                                   // mock.next_block()?;
+    vault.auto_compounder.batch_unbond()?; // batch unbonding not enabled
+    mock.wait_blocks(60 * 60 * 24 * 10)?;
+    vault.auto_compounder.withdraw()?; // withdraw wont have any effect, because there are no pending claims
+                                       // mock.next_block()?;
 
-    let eur_balance = eur_token.balance(&owner)?;
-    let usd_balance = usd_token.balance(&owner)?;
-    assert_that!(eur_balance).is_equal_to(99_989u128);
-    assert_that!(usd_balance).is_equal_to(99_989u128);
+    let balances = mock.query_all_balances(&owner)?;
+    assert_that!(balances).is_equal_to(vec![
+        coin(99_993u128, eur_token.to_string()),
+        coin(99_993u128, usd_token.to_string()),
+    ]);
 
     let new_position = vault.auto_compounder.total_lp_position()?;
     assert_that!(new_position).is_equal_to(Uint128::zero());
@@ -349,22 +443,23 @@ fn generator_without_reward_proxies_single_sided() -> Result<(), BootError> {
 /// - checks if the fee distribution is correct
 /// - checks if the rewards are distributed correctly
 #[test]
-#[cfg(any(feature = "pisco-1", feature = "phoenix-1"))]
-fn generator_with_rewards_test_fee_and_reward_distribution() -> Result<(), BootError> {
+fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
     let owner = Addr::unchecked(test_utils::OWNER);
     let commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
+    let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
 
     // create testing environment
     let (_state, mock) = instantiate_default_mock_env(&owner)?;
 
     // create a vault
-    let vault = crate::create_vault(mock.clone())?;
-    let Astroport {
+    let mut vault = crate::create_vault(mock.clone())?;
+    let WynDex {
         eur_token,
         usd_token,
         eur_usd_lp,
+        eur_usd_staking,
         ..
-    } = vault.astroport;
+    } = vault.wyndex;
 
     let vault_token = vault.vault_token;
     let auto_compounder_addr = vault.auto_compounder.addr_str()?;
@@ -376,19 +471,26 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> Result<(), BootE
     assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
 
     // give user some funds
-    eur_token.mint(&owner, 100_000u128)?;
-    usd_token.mint(&owner, 100_000u128)?;
-
-    // increase allowance
-    eur_token.increase_allowance(&auto_compounder_addr, 100_000u128, None)?;
-    usd_token.increase_allowance(&auto_compounder_addr, 100_000u128, None)?;
+    mock.set_balances(&[
+        (
+            &owner,
+            &[
+                coin(100_000u128, eur_token.to_string()),
+                coin(100_000u128, usd_token.to_string()),
+            ],
+        ),
+        (&wyndex_owner, &[coin(100_000u128, WYND_TOKEN.to_string())]),
+    ])?;
 
     // initial deposit must be > 1000 (of both assets)
-    // this is set by Astroport
-    vault.auto_compounder.deposit(vec![
-        AnsAsset::new(eur_asset, 100_000u128),
-        AnsAsset::new(usd_asset, 100_000u128),
-    ])?;
+    // this is set by WynDex
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(eur_asset, 100_000u128),
+            AnsAsset::new(usd_asset, 100_000u128),
+        ],
+        &[coin(100_000u128, EUR), coin(100_000u128, USD)],
+    )?;
 
     // query how much lp tokens are in the vault
     let vault_lp_balance = vault.auto_compounder.total_lp_position()? as Uint128;
@@ -396,539 +498,65 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> Result<(), BootE
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(&owner)?;
     assert_that!(vault_token_balance).is_equal_to(100_000u128);
-    assert_that!(eur_token.balance(&owner)?).is_equal_to(0u128);
+    let ownerbalance = mock.query_balance(&owner, EUR)?;
+    assert_that!(ownerbalance.u128()).is_equal_to(0u128);
 
     // process block -> the AC should have pending rewards at the staking contract
     mock.next_block()?;
+    vault.wyndex.suite.distribute_funds(
+        eur_usd_staking,
+        wyndex_owner.as_str(),
+        &coins(1000, WYND_TOKEN),
+    )?; // distribute 1000 EUR
 
-    // QUESTION: Is this the right address to query? @HOWARD
-    // let pending_rewards = query_pending_token(&eur_usd_lp.address()?, &vault.auto_compounder.addr_str()?, &mock.app.borrow(), &generator).pending;
-    // assert_that!(pending_rewards).is_greater_than(Uint128::zero());
-
-    // rewards are 1_000_000 ASTRO each block for the entire amount of staked lp.
+    // rewards are 1_000 WYND each block for the entire amount of staked lp.
     // the fee received should be equal to 3% of the rewarded tokens which is then swapped using the astro/EUR pair.
-    // the fee is 3% of 1M = 30_000, rewards are then 970_000
+    // the fee is 3% of 1K = 30, rewards are then 970
     // the fee is then swapped using the astro/EUR pair
-    // the price of the astro/EUR pair is 100M:10M
-    // which will result in a 2990 EUR fee for the autocompounder. #TODO: check this: bit less then expected
+    // the price of the WYND/EUR pair is 10K:10K
+    // which will result in a 29 EUR fee for the autocompounder due to spread + rounding.
     vault.auto_compounder.compound()?;
-    let commission_received = eur_token.balance(&commission_addr)?;
-    assert_that!(commission_received).is_equal_to(2970u128);
 
-    // The reward for the user is then 970_000 ASTRO which is then swapped using the astro/EUR pair
-    // this will be swapped for 95_116 EUR, which then is provided using single sided provide_liquidity (this is a bit less then 50% of the initial deposit)
-    // This is around a quarter of the previous position, with some slippage
-    let new_vault_lp_balance = vault.auto_compounder.total_lp_position()?;
+    let commission_received: Uint128 = mock.query_balance(&commission_addr, EUR)?;
+    assert_that!(commission_received.u128()).is_equal_to(29u128);
+
+    // The reward for the user is then 970 WYND which is then swapped using the WYND/EUR pair
+    // this will be swapped for ~880 EUR, which then is provided using single sided provide_liquidity
+    let new_vault_lp_balance: Uint128 = vault.auto_compounder.total_lp_position()?;
     let new_lp: Uint128 = new_vault_lp_balance - vault_lp_balance;
-    let expected_new_value = Uint128::from(vault_lp_balance.u128() * 4u128 / 10u128); // 40% of the previous position
+    let expected_new_value: Uint128 = Uint128::from(vault_lp_balance.u128() * 4u128 / 1000u128); // 0.4% of the previous position
     assert_that!(new_lp).is_greater_than(expected_new_value);
 
-    let owner_eur_balance = eur_token.balance(&owner)?;
-    let owner_usd_balance = usd_token.balance(&owner)?;
+    let owner_balance_eur = mock.query_balance(&owner, EUR)?;
+    let owner_balance_usd = mock.query_balance(&owner, USD)?;
 
-    // withdraw the vault token to see if the user actually received more of EUR and USD then they deposited
+    // Redeem vault tokens and create pending claim of user tokens to see if the user actually received more of EUR and USD then they deposited
     vault_token.send(
         &Cw20HookMsg::Redeem {},
         vault_token_balance,
         auto_compounder_addr,
     )?;
-    let eur_diff = eur_token.balance(&owner)? - owner_eur_balance;
-    let usd_diff = usd_token.balance(&owner)? - owner_usd_balance;
+
+    // Unbond tokens & clear pending claims
+    vault.auto_compounder.batch_unbond()?;
+
+    mock.wait_blocks(1)?;
+
+    // Withdraw EUR and USD tokens to user
+    vault.auto_compounder.withdraw()?;
+
+    let new_owner_balance = mock.query_all_balances(&owner)?;
+    let eur_diff = new_owner_balance[0].amount.u128() - owner_balance_eur.u128();
+    let usd_diff = new_owner_balance[1].amount.u128() - owner_balance_usd.u128();
 
     // the user should have received more of EUR and USD then they deposited
-    assert_that!(eur_diff).is_greater_than(140_000u128); // estimated value
-    assert_that!(usd_diff).is_greater_than(130_000u128);
+    assert_that!(eur_diff).is_greater_than(100_000u128); // estimated value
+    assert_that!(usd_diff).is_greater_than(100_000u128);
 
     Ok(())
 }
 
-fn generator_with_rewards_test_rewards_distribution_with_multiple_users() -> Result<(), BootError> {
+fn generator_with_rewards_test_rewards_distribution_with_multiple_users() -> AResult {
     // test multiple user deposits and withdrawals
     todo!()
-}
-
-fn mock_app() -> App {
-    App::default()
-}
-
-fn store_token_code(app: &mut App) -> u64 {
-    let astro_token_contract = Box::new(ContractWrapper::new_with_empty(
-        astroport_token::contract::execute,
-        astroport_token::contract::instantiate,
-        astroport_token::contract::query,
-    ));
-
-    app.store_code(astro_token_contract)
-}
-
-fn store_factory_code(app: &mut App) -> u64 {
-    let factory_contract = Box::new(
-        ContractWrapper::new_with_empty(
-            astroport_factory::contract::execute,
-            astroport_factory::contract::instantiate,
-            astroport_factory::contract::query,
-        )
-        .with_reply_empty(astroport_factory::contract::reply),
-    );
-
-    app.store_code(factory_contract)
-}
-
-fn store_pair_code_id(app: &mut App) -> u64 {
-    let pair_contract = Box::new(
-        ContractWrapper::new_with_empty(
-            astroport_pair::contract::execute,
-            astroport_pair::contract::instantiate,
-            astroport_pair::contract::query,
-        )
-        .with_reply_empty(astroport_pair::contract::reply),
-    );
-
-    app.store_code(pair_contract)
-}
-
-fn store_pair_stable_code_id(app: &mut App) -> u64 {
-    let pair_contract = Box::new(
-        ContractWrapper::new_with_empty(
-            astroport_pair_stable::contract::execute,
-            astroport_pair_stable::contract::instantiate,
-            astroport_pair_stable::contract::query,
-        )
-        .with_reply_empty(astroport_pair_stable::contract::reply),
-    );
-
-    app.store_code(pair_contract)
-}
-
-fn instantiate_token(app: &mut App, token_code_id: u64, name: &str, cap: Option<u128>) -> Addr {
-    let name = String::from(name);
-
-    let msg = TokenInstantiateMsg {
-        name: name.clone(),
-        symbol: name.clone(),
-        decimals: 6,
-        initial_balances: vec![],
-        mint: Some(cw_astro::MinterResponse {
-            minter: String::from(OWNER),
-            cap: cap.map(Uint128::from),
-        }),
-        marketing: None,
-    };
-
-    app.instantiate_contract(token_code_id, Addr::unchecked(OWNER), &msg, &[], name, None)
-        .unwrap()
-}
-
-fn instantiate_factory(
-    app: &mut App,
-    factory_code_id: u64,
-    token_code_id: u64,
-    pair_code_id: u64,
-    pair_stable_code_id: Option<u64>,
-) -> Addr {
-    let mut msg = FactoryInstantiateMsg {
-        pair_configs: vec![PairConfig {
-            code_id: pair_code_id,
-            pair_type: PairType::Xyk {},
-            total_fee_bps: 100,
-            maker_fee_bps: 10,
-            is_disabled: false,
-            is_generator_disabled: false,
-        }],
-        coin_registry_address: "some_addr".to_string(),
-        token_code_id,
-        fee_address: None,
-        generator_address: None,
-        owner: String::from(OWNER),
-        whitelist_code_id: 0,
-    };
-
-    if let Some(pair_stable_code_id) = pair_stable_code_id {
-        msg.pair_configs.push(PairConfig {
-            code_id: pair_stable_code_id,
-            pair_type: PairType::Stable {},
-            total_fee_bps: 100,
-            maker_fee_bps: 10,
-            is_disabled: false,
-            is_generator_disabled: false,
-        });
-    }
-
-    app.instantiate_contract(
-        factory_code_id,
-        Addr::unchecked(OWNER),
-        &msg,
-        &[],
-        "Factory",
-        None,
-    )
-    .unwrap()
-}
-
-fn instantiate_generator(
-    app: &mut App,
-    factory_instance: &Addr,
-    astro_token_instance: &Addr,
-    generator_controller: Option<String>,
-) -> Addr {
-    // Vesting
-    let vesting_contract = Box::new(ContractWrapper::new_with_empty(
-        astroport_vesting::contract::execute,
-        astroport_vesting::contract::instantiate,
-        astroport_vesting::contract::query,
-    ));
-    let owner = Addr::unchecked(OWNER);
-    let vesting_code_id = app.store_code(vesting_contract);
-
-    let init_msg = VestingInstantiateMsg {
-        owner: owner.to_string(),
-        vesting_token: AssetInfo::Token {
-            contract_addr: astro_token_instance.clone(),
-        },
-    };
-
-    let vesting_instance = app
-        .instantiate_contract(
-            vesting_code_id,
-            owner.clone(),
-            &init_msg,
-            &[],
-            "Vesting",
-            None,
-        )
-        .unwrap();
-
-    mint_tokens(
-        app,
-        owner.clone(),
-        astro_token_instance,
-        &owner,
-        1_000_000_000_000_000,
-    );
-
-    // Generator
-    let generator_contract = Box::new(
-        ContractWrapper::new_with_empty(
-            astroport_generator::contract::execute,
-            astroport_generator::contract::instantiate,
-            astroport_generator::contract::query,
-        )
-        .with_reply_empty(astroport_generator::contract::reply),
-    );
-
-    let whitelist_code_id = store_whitelist_code(app);
-    let generator_code_id = app.store_code(generator_contract);
-
-    let init_msg = GeneratorInstantiateMsg {
-        owner: owner.to_string(),
-        factory: factory_instance.to_string(),
-        guardian: None,
-        start_block: Uint64::from(app.block_info().height),
-        astro_token: AssetInfo::Token {
-            contract_addr: astro_token_instance.clone(),
-        },
-        tokens_per_block: Uint128::new(1_000_000),
-        vesting_contract: vesting_instance.to_string(),
-        generator_controller,
-        voting_escrow_delegation: None,
-        voting_escrow: None,
-        whitelist_code_id,
-    };
-
-    let generator_instance = app
-        .instantiate_contract(
-            generator_code_id,
-            owner.clone(),
-            &init_msg,
-            &[],
-            "Guage",
-            None,
-        )
-        .unwrap();
-
-    // Vesting to generator:
-    let current_block = app.block_info();
-
-    let amount = Uint128::new(63_072_000_000_000);
-
-    let msg = Cw20ExecuteMsg::Send {
-        contract: vesting_instance.to_string(),
-        msg: to_binary(&VestingHookMsg::RegisterVestingAccounts {
-            vesting_accounts: vec![VestingAccount {
-                address: generator_instance.to_string(),
-                schedules: vec![VestingSchedule {
-                    start_point: VestingSchedulePoint {
-                        time: current_block.time.seconds(),
-                        amount,
-                    },
-                    end_point: None,
-                }],
-            }],
-        })
-        .unwrap(),
-        amount,
-    };
-
-    app.execute_contract(owner, astro_token_instance.clone(), &msg, &[])
-        .unwrap();
-
-    generator_instance
-}
-
-// fn instantiate_valkyrie_protocol(
-//     app: &mut App,
-//     valkyrie_token: &Addr,
-//     pair: &Addr,
-//     lp_token: &Addr,
-// ) -> Addr {
-//     // Valkyrie staking
-//     let valkyrie_staking_contract = Box::new(ContractWrapper::new_with_empty(
-//         valkyrie_lp_staking::entrypoints::execute,
-//         valkyrie_lp_staking::entrypoints::instantiate,
-//         valkyrie_lp_staking::entrypoints::query,
-//     ));
-
-//     let valkyrie_staking_code_id = app.store_code(valkyrie_staking_contract);
-
-//     let init_msg = valkyrie::lp_staking::execute_msgs::InstantiateMsg {
-//         token: valkyrie_token.to_string(),
-//         pair: pair.to_string(),
-//         lp_token: lp_token.to_string(),
-//         whitelisted_contracts: vec![],
-//         distribution_schedule: vec![
-//             (
-//                 app.block_info().height,
-//                 app.block_info().height + 1,
-//                 Uint128::new(50_000_000),
-//             ),
-//             (
-//                 app.block_info().height + 1,
-//                 app.block_info().height + 2,
-//                 Uint128::new(60_000_000),
-//             ),
-//         ],
-//     };
-
-//     let valkyrie_staking_instance = app
-//         .instantiate_contract(
-//             valkyrie_staking_code_id,
-//             Addr::unchecked(OWNER),
-//             &init_msg,
-//             &[],
-//             "Valkyrie staking",
-//             None,
-//         )
-//         .unwrap();
-
-//     valkyrie_staking_instance
-// }
-
-// fn store_proxy_code(app: &mut App) -> u64 {
-//     let generator_proxy_to_vkr_contract = Box::new(ContractWrapper::new_with_empty(
-//         generator_proxy_to_vkr::contract::execute,
-//         generator_proxy_to_vkr::contract::instantiate,
-//         generator_proxy_to_vkr::contract::query,
-//     ));
-
-//     app.store_code(generator_proxy_to_vkr_contract)
-// }
-
-fn instantiate_proxy(
-    app: &mut App,
-    proxy_code: u64,
-    generator_instance: &Addr,
-    pair: &Addr,
-    lp_token: &Addr,
-    vkr_staking_instance: &Addr,
-    vkr_token_instance: &Addr,
-) -> Addr {
-    let init_msg = ProxyInstantiateMsg {
-        generator_contract_addr: generator_instance.to_string(),
-        pair_addr: pair.to_string(),
-        lp_token_addr: lp_token.to_string(),
-        reward_contract_addr: vkr_staking_instance.to_string(),
-        reward_token_addr: vkr_token_instance.to_string(),
-    };
-
-    app.instantiate_contract(
-        proxy_code,
-        Addr::unchecked(OWNER),
-        &init_msg,
-        &[],
-        String::from("Proxy"),
-        None,
-    )
-    .unwrap()
-}
-
-fn register_lp_tokens_in_generator(
-    app: &mut App,
-    generator_instance: &Addr,
-    pools_with_proxy: Vec<PoolWithProxy>,
-) {
-    let pools: Vec<(String, Uint128)> = pools_with_proxy.iter().map(|p| p.pool.clone()).collect();
-
-    app.execute_contract(
-        Addr::unchecked(OWNER),
-        generator_instance.clone(),
-        &GeneratorExecuteMsg::SetupPools { pools },
-        &[],
-    )
-    .unwrap();
-
-    for pool_with_proxy in &pools_with_proxy {
-        if let Some(proxy) = &pool_with_proxy.proxy {
-            app.execute_contract(
-                Addr::unchecked(OWNER),
-                generator_instance.clone(),
-                &GeneratorExecuteMsg::MoveToProxy {
-                    lp_token: pool_with_proxy.pool.0.clone(),
-                    proxy: proxy.to_string(),
-                },
-                &[],
-            )
-            .unwrap();
-        }
-    }
-}
-
-fn mint_tokens(app: &mut App, sender: Addr, token: &Addr, recipient: &Addr, amount: u128) {
-    let msg = Cw20ExecuteMsg::Mint {
-        recipient: recipient.to_string(),
-        amount: Uint128::from(amount),
-    };
-
-    app.execute_contract(sender, token.to_owned(), &msg, &[])
-        .unwrap();
-}
-fn increase_allowance(app: &mut App, sender: Addr, token: &Addr, spender: &Addr, amount: u128) {
-    let msg = Cw20ExecuteMsg::IncreaseAllowance {
-        spender: spender.to_string(),
-        amount: amount.into(),
-        expires: None,
-    };
-
-    app.execute_contract(sender, token.to_owned(), &msg, &[])
-        .unwrap();
-}
-
-fn deposit_lp_tokens_to_generator(
-    app: &mut App,
-    generator_instance: &Addr,
-    depositor: &str,
-    lp_tokens: &[(&Addr, u128)],
-) {
-    for (token, amount) in lp_tokens {
-        let msg = Cw20ExecuteMsg::Send {
-            contract: generator_instance.to_string(),
-            msg: to_binary(&GeneratorHookMsg::Deposit {}).unwrap(),
-            amount: Uint128::from(amount.to_owned()),
-        };
-
-        app.execute_contract(Addr::unchecked(depositor), (*token).clone(), &msg, &[])
-            .unwrap();
-    }
-}
-
-fn check_token_balance(app: &mut App, token: &Addr, address: &Addr, expected: u128) {
-    let msg = Cw20QueryMsg::Balance {
-        address: address.to_string(),
-    };
-    let res: StdResult<BalanceResponse> = app.wrap().query_wasm_smart(token, &msg);
-    assert_eq!(res.unwrap().balance, Uint128::from(expected));
-}
-
-fn check_emission_balance(
-    app: &mut App,
-    generator: &Addr,
-    lp_token: &Addr,
-    user: &Addr,
-    expected: u128,
-) {
-    let msg = GeneratorQueryMsg::UserVirtualAmount {
-        lp_token: lp_token.to_string(),
-        user: user.to_string(),
-    };
-
-    let res: Uint128 = app.wrap().query_wasm_smart(generator, &msg).unwrap();
-    assert_eq!(Uint128::from(expected), res);
-}
-
-fn check_pending_rewards(
-    app: &mut App,
-    generator_instance: &Addr,
-    token: &Addr,
-    depositor: &str,
-    (expected, expected_on_proxy): (u128, Option<Vec<u128>>),
-) {
-    let res = query_pending_token(token, depositor, app, generator_instance);
-
-    assert_eq!(res.pending.u128(), expected);
-    let pending_on_proxy = res.pending_on_proxy.map(|rewards| {
-        rewards
-            .into_iter()
-            .map(|Asset { amount, .. }| amount.u128())
-            .collect::<Vec<_>>()
-    });
-    assert_eq!(pending_on_proxy, expected_on_proxy)
-}
-
-fn query_pending_token(
-    lp_token: &Addr,
-    depositor: &str,
-    app: &App,
-    generator_instance: &Addr,
-) -> PendingTokenResponse {
-    let msg = GeneratorQueryMsg::PendingToken {
-        lp_token: lp_token.to_string(),
-        user: String::from(depositor),
-    };
-
-    let res: PendingTokenResponse = app
-        .wrap()
-        .query_wasm_smart(generator_instance.to_owned(), &msg)
-        .unwrap();
-    res
-}
-
-fn create_pair(
-    app: &mut App,
-    factory: &Addr,
-    pair_type: Option<PairType>,
-    init_param: Option<Binary>,
-    assets: Vec<AssetInfo>,
-) -> (Addr, Addr) {
-    app.execute_contract(
-        Addr::unchecked(OWNER),
-        factory.clone(),
-        &FactoryExecuteMsg::CreatePair {
-            pair_type: pair_type.unwrap_or(PairType::Xyk {}),
-            asset_infos: assets.clone(),
-            init_params: init_param,
-        },
-        &[],
-    )
-    .unwrap();
-
-    let res: PairInfo = app
-        .wrap()
-        .query_wasm_smart(
-            factory,
-            &FactoryQueryMsg::Pair {
-                asset_infos: assets,
-            },
-        )
-        .unwrap();
-
-    (res.contract_addr, res.liquidity_token)
-}
-
-fn store_whitelist_code(app: &mut App) -> u64 {
-    let whitelist_contract = Box::new(ContractWrapper::new_with_empty(
-        astroport_whitelist::contract::execute,
-        astroport_whitelist::contract::instantiate,
-        astroport_whitelist::contract::query,
-    ));
-
-    app.store_code(whitelist_contract)
 }

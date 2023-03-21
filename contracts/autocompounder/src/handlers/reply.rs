@@ -6,17 +6,12 @@ use crate::contract::{
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{Config, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
-use abstract_sdk::os::cw_staking::{
-    CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse, CW_STAKING,
-};
+use abstract_sdk::ApiInterface;
 use abstract_sdk::{
     features::AbstractResponse,
     features::{AbstractNameService, Identification},
-    os::{
-        dex::OfferAsset,
-        objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
-    },
-    AbstractSdkResult, Dex, DexInterface, ModuleInterface, Resolve, TransferInterface,
+    os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
+    AbstractSdkResult, Resolve, TransferInterface,
 };
 use cosmwasm_std::{
     wasm_execute, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError,
@@ -24,7 +19,13 @@ use cosmwasm_std::{
 };
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw_asset::{Asset, AssetInfo};
+use cw_staking::{
+    msg::{CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse},
+    CW_STAKING,
+};
 use cw_utils::Duration;
+use dex::api::{Dex, DexInterface};
+use dex::msg::OfferAsset;
 use forty_two::autocompounder::FeeConfig;
 use protobuf::Message;
 
@@ -346,12 +347,12 @@ fn query_rewards(
     pool_data: PoolMetadata,
 ) -> AbstractSdkResult<Vec<AssetInfo>> {
     // query staking module for which rewards are available
-    let modules = app.modules(deps);
+    let apis = app.apis(deps);
     let query = CwStakingQueryMsg::RewardTokens {
         provider: pool_data.dex.clone(),
         staking_token: LpToken::from(pool_data).into(),
     };
-    let RewardTokensResponse { tokens } = modules.query_api(CW_STAKING, query)?;
+    let RewardTokensResponse { tokens } = apis.query(CW_STAKING, query)?;
 
     Ok(tokens)
 }
@@ -364,8 +365,8 @@ fn stake_lp_tokens(
     asset: AnsAsset,
     unbonding_period: Option<Duration>,
 ) -> AbstractSdkResult<CosmosMsg> {
-    let modules = app.modules(deps);
-    modules.api_request(
+    let apis = app.apis(deps);
+    apis.request(
         CW_STAKING,
         CwStakingExecuteMsg {
             provider,

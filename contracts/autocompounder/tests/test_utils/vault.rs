@@ -1,8 +1,10 @@
-use super::astroport::Astroport;
-use abstract_boot::{Abstract, CwStakingApi, DexApi, OS};
-use boot_core::BootEnvironment;
+use abstract_boot::boot_core::BootEnvironment;
+use abstract_boot::{Abstract, OS};
 use boot_cw_plus::Cw20;
+use cw_staking::boot::CwStakingApi;
+use dex::boot::DexApi;
 use forty_two_boot::autocompounder::AutocompounderApp;
+use wyndex_bundle::WynDex;
 
 pub struct Vault<Chain: BootEnvironment> {
     pub os: OS<Chain>,
@@ -10,6 +12,6 @@ pub struct Vault<Chain: BootEnvironment> {
     pub vault_token: Cw20<Chain>,
     pub staking: CwStakingApi<Chain>,
     pub dex: DexApi<Chain>,
-    pub astroport: Astroport,
+    pub wyndex: WynDex,
     pub abstract_os: Abstract<Chain>,
 }

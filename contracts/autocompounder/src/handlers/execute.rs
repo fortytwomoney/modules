@@ -7,12 +7,12 @@ use crate::error::AutocompounderError;
 use crate::state::{
     Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
-use abstract_sdk::os::cw_staking::{CwStakingAction, CwStakingExecuteMsg, CW_STAKING};
+use abstract_sdk::ApiInterface;
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use abstract_sdk::{
     features::{AbstractNameService, Identification},
     os::objects::{AnsAsset, AssetEntry, LpToken},
-    DexInterface, ModuleInterface, Resolve, TransferInterface,
+    Resolve, TransferInterface,
 };
 use cosmwasm_std::{
     from_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
@@ -20,7 +20,10 @@ use cosmwasm_std::{
 };
 use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetList;
+use cw_staking::msg::{CwStakingAction, CwStakingExecuteMsg};
+use cw_staking::CW_STAKING;
 use cw_utils::Duration;
+use dex::api::DexInterface;
 use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
 use std::ops::Add;
 
@@ -336,7 +339,7 @@ pub fn withdraw_claims(
     }
 
     let Some(claims) = CLAIMS.may_load(deps.storage, address.to_string())? else {
-        return Err(AutocompounderError::NoMaturedClaims {});
+        return Err(AutocompounderError::NoClaims {});
     };
 
     // 1) get all matured claims for user
@@ -351,6 +354,10 @@ pub fn withdraw_claims(
     });
 
     if matured_claims.is_empty() {
+        eprintln!(
+            "No matured claims at timestamp: {:?}. ongoing claims: {:?}",
+            env.block.time, ongoing_claims
+        );
         return Err(AutocompounderError::NoMaturedClaims {});
     }
 
@@ -362,6 +369,14 @@ pub fn withdraw_claims(
             acc + claim.amount_of_lp_tokens_to_unbond
         });
 
+    // 3.1) claim all matured claims from staking contract
+    let claim_msg = claim_unbonded_tokens(
+        deps.as_ref(),
+        &app,
+        config.pool_data.dex.clone(),
+        AssetEntry::from(LpToken::from(config.pool_data.clone())),
+    );
+
     // 3) withdraw lp tokens
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
     let swap_msg: CosmosMsg = dex.withdraw_liquidity(
@@ -370,7 +385,9 @@ pub fn withdraw_claims(
     )?;
     let sub_msg = SubMsg::reply_on_success(swap_msg, LP_WITHDRAWAL_REPLY_ID);
 
-    let response = Response::new().add_submessage(sub_msg);
+    let response = Response::new()
+        .add_message(claim_msg)
+        .add_submessage(sub_msg);
     Ok(app.custom_tag_response(
         response,
         "withdraw_claims",
@@ -476,19 +493,37 @@ fn claim_lp_rewards(
     provider: String,
     lp_token_name: AssetEntry,
 ) -> CosmosMsg {
-    let modules = app.modules(deps);
+    let apis = app.apis(deps);
 
-    modules
-        .api_request(
-            CW_STAKING,
-            CwStakingExecuteMsg {
-                provider,
-                action: CwStakingAction::ClaimRewards {
-                    staking_token: lp_token_name,
-                },
+    apis.request(
+        CW_STAKING,
+        CwStakingExecuteMsg {
+            provider,
+            action: CwStakingAction::ClaimRewards {
+                staking_token: lp_token_name,
             },
-        )
-        .unwrap()
+        },
+    )
+    .unwrap()
+}
+fn claim_unbonded_tokens(
+    deps: Deps,
+    app: &AutocompounderApp,
+    provider: String,
+    lp_token_name: AssetEntry,
+) -> CosmosMsg {
+    let apis = app.apis(deps);
+
+    apis.request(
+        CW_STAKING,
+        CwStakingExecuteMsg {
+            provider,
+            action: CwStakingAction::Claim {
+                staking_token: lp_token_name,
+            },
+        },
+    )
+    .unwrap()
 }
 
 fn get_burn_msg(contract: &Addr, amount: Uint128) -> StdResult<CosmosMsg> {
@@ -505,20 +540,19 @@ fn unstake_lp_tokens(
     amount: Uint128,
     unbonding_period: Option<Duration>,
 ) -> CosmosMsg {
-    let modules = app.modules(deps);
+    let apis = app.apis(deps);
 
-    modules
-        .api_request(
-            CW_STAKING,
-            CwStakingExecuteMsg {
-                provider,
-                action: CwStakingAction::Unstake {
-                    staking_token: AnsAsset::new(lp_token_name, amount),
-                    unbonding_period,
-                },
+    apis.request(
+        CW_STAKING,
+        CwStakingExecuteMsg {
+            provider,
+            action: CwStakingAction::Unstake {
+                staking_token: AnsAsset::new(lp_token_name, amount),
+                unbonding_period,
             },
-        )
-        .unwrap()
+        },
+    )
+    .unwrap()
 }
 
 #[cfg(test)]
@@ -527,7 +561,7 @@ mod test {
 
     use crate::contract::AUTO_COMPOUNDER_APP;
     use abstract_sdk::base::ExecuteEndpoint;
-    use abstract_testing::TEST_MANAGER;
+    use abstract_testing::prelude::TEST_MANAGER;
     use cosmwasm_std::{
         testing::{mock_env, mock_info},
         Addr,

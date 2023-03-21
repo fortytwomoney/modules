@@ -19,3 +19,6 @@ serde = { workspace = true }
 forty-two = { workspace = true, features = ["boot"] }
 abstract-os = { workspace = true}
 anyhow = { workspace = true }
+
+cw-staking = { workspace = true, features = ["boot"] }
+dex = { workspace = true }

@@ -2,10 +2,10 @@ use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::state::{Claim, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS};
 use abstract_sdk::features::Identification;
 use abstract_sdk::os::objects::LpToken;
-use abstract_sdk::ModuleInterface;
+use abstract_sdk::ApiInterface;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 
-use abstract_sdk::os::cw_staking::{CwStakingQueryMsg, CW_STAKING};
+use cw_staking::{msg::CwStakingQueryMsg, CW_STAKING};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 use forty_two::autocompounder::{AutocompounderQueryMsg, Config};
@@ -56,8 +56,8 @@ pub fn query_pending_claims(deps: Deps, address: String) -> AutocompounderResult
         return Ok(Uint128::zero());
     }
 
-    let pending_claims = PENDING_CLAIMS.load(deps.storage, address)?;
-    Ok(pending_claims)
+    let pending_claims = PENDING_CLAIMS.may_load(deps.storage, address)?;
+    Ok(pending_claims.unwrap_or_default())
 }
 
 pub fn query_claims(deps: Deps, address: String) -> AutocompounderResult<Vec<Claim>> {
@@ -98,7 +98,7 @@ pub fn query_total_lp_position(
     deps: Deps,
 ) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
-    let modules = app.modules(deps);
+    let apis = app.apis(deps);
 
     // query staking api for total lp tokens
 
@@ -108,7 +108,7 @@ pub fn query_total_lp_position(
         staker_address: app.proxy_address(deps)?.to_string(),
         unbonding_period: config.unbonding_period,
     };
-    let res: abstract_sdk::os::cw_staking::StakeResponse = modules.query_api(CW_STAKING, query)?;
+    let res: cw_staking::msg::StakeResponse = apis.query(CW_STAKING, query)?;
     Ok(res.amount)
 }
 

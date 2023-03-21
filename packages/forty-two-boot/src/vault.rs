@@ -1,12 +1,12 @@
 use crate::autocompounder::AutocompounderApp;
 use crate::{get_module_address, is_module_installed};
-use abstract_boot::CwStakingApi;
 use abstract_boot::OS;
 use abstract_os::app;
-use abstract_os::cw_staking::CW_STAKING;
-use boot_core::prelude::*;
 use boot_core::BootEnvironment;
+use boot_core::*;
 use cosmwasm_std::Empty;
+use cw_staking::boot::CwStakingApi;
+use cw_staking::CW_STAKING;
 use forty_two::autocompounder::AUTOCOMPOUNDER;
 
 pub struct Vault<Chain: BootEnvironment> {

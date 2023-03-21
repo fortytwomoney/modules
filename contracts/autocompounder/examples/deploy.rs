@@ -1,8 +1,8 @@
 use abstract_boot::VersionControl;
+use abstract_boot::boot_core::{ContractInstance, BootUpload};
+use abstract_boot::boot_core;
 use boot_core::networks::{parse_network, NetworkInfo};
-use boot_core::prelude::instantiate_daemon_env;
-use boot_core::prelude::*;
-use boot_core::DaemonOptionsBuilder;
+use boot_core::*;
 use cosmwasm_std::Addr;
 use forty_two::autocompounder::AUTOCOMPOUNDER;
 use forty_two_boot::autocompounder::AutocompounderApp;

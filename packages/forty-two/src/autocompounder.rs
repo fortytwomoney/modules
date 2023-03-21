@@ -29,19 +29,22 @@
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
 use abstract_sdk::os::app;
-use abstract_sdk::os::dex::{DexName, OfferAsset};
-use abstract_sdk::os::objects::{AssetEntry, PoolAddress, PoolMetadata};
+use abstract_sdk::os::objects::{AssetEntry, DexName, PoolAddress, PoolMetadata};
 use cosmwasm_schema::QueryResponses;
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetInfo;
 use cw_utils::{Duration, Expiration};
+use dex::msg::OfferAsset;
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 
 /// Impls for being able to call methods on the autocompounder app directly
 pub type ExecuteMsg = app::ExecuteMsg<AutocompounderExecuteMsg, Cw20ReceiveMsg>;
 pub type QueryMsg = app::QueryMsg<AutocompounderQueryMsg>;
+pub type InstantiateMsg = app::InstantiateMsg<AutocompounderInstantiateMsg>;
+pub type MigrateMsg = app::MigrateMsg<AutocompounderMigrateMsg>;
+
 impl app::AppExecuteMsg for AutocompounderExecuteMsg {}
 impl app::AppQueryMsg for AutocompounderQueryMsg {}
 
@@ -78,6 +81,7 @@ pub enum AutocompounderExecuteMsg {
         withdrawal: Option<Decimal>,
     },
     /// Join vault by depositing one or more funds
+    #[payable]
     Deposit { funds: Vec<OfferAsset> },
     /// Withdraw all unbonded funds
     Withdraw {},

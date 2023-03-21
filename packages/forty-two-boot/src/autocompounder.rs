@@ -1,20 +1,14 @@
 use abstract_os::app;
 use abstract_os::app::BaseExecuteMsg;
-use boot_core::prelude::{boot_contract, BootExecute};
+use boot_core::{boot_contract, BootExecute};
 use boot_core::{BootEnvironment, BootError, Contract, IndexResponse, TxResponse};
 use cosmwasm_std::{Addr, Coin};
 use forty_two::autocompounder::{
-    AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg,
-    AutocompounderQueryMsg, AUTOCOMPOUNDER,
+    AutocompounderExecuteMsg, ExecuteMsg, InstantiateMsg, QueryMsg, MigrateMsg, AUTOCOMPOUNDER,
 };
 
-type AppInstantiateMsg = app::InstantiateMsg<AutocompounderInstantiateMsg>;
-type AppExecuteMsg = app::ExecuteMsg<AutocompounderExecuteMsg>;
-type AppQueryMsg = app::QueryMsg<AutocompounderQueryMsg>;
-type AppMigrateMsg = app::MigrateMsg<AutocompounderMigrateMsg>;
-
 /// Contract wrapper for deploying with BOOT
-#[boot_contract(AppInstantiateMsg, AppExecuteMsg, AppQueryMsg, AppMigrateMsg)]
+#[boot_contract(InstantiateMsg, ExecuteMsg, QueryMsg, MigrateMsg)]
 pub struct AutocompounderApp<Chain>;
 
 impl<Chain: BootEnvironment> AutocompounderApp<Chain>
