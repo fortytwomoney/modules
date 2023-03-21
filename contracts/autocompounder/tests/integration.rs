@@ -509,40 +509,49 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
         &coins(1000, WYND_TOKEN),
     )?; // distribute 1000 EUR
 
-    // rewards are 1_000_000 ASTRO each block for the entire amount of staked lp.
+    // rewards are 1_000 WYND each block for the entire amount of staked lp.
     // the fee received should be equal to 3% of the rewarded tokens which is then swapped using the astro/EUR pair.
-    // the fee is 3% of 1M = 30_000, rewards are then 970_000
+    // the fee is 3% of 1K = 30, rewards are then 970
     // the fee is then swapped using the astro/EUR pair
-    // the price of the astro/EUR pair is 100M:10M
-    // which will result in a 2990 EUR fee for the autocompounder. #TODO: check this: bit less then expected
+    // the price of the WYND/EUR pair is 10K:10K
+    // which will result in a 29 EUR fee for the autocompounder due to spread + rounding.
     vault.auto_compounder.compound()?;
 
-    let commission_received = mock.query_balance(&commission_addr, EUR)?;
-    assert_that!(commission_received.u128()).is_equal_to(2970u128);
+    let commission_received: Uint128 = mock.query_balance(&commission_addr, EUR)?;
+    assert_that!(commission_received.u128()).is_equal_to(29u128);
 
-    // The reward for the user is then 970_000 ASTRO which is then swapped using the astro/EUR pair
-    // this will be swapped for 95_116 EUR, which then is provided using single sided provide_liquidity (this is a bit less then 50% of the initial deposit)
-    // This is around a quarter of the previous position, with some slippage
-    let new_vault_lp_balance = vault.auto_compounder.total_lp_position()?;
+    // The reward for the user is then 970 WYND which is then swapped using the WYND/EUR pair
+    // this will be swapped for ~880 EUR, which then is provided using single sided provide_liquidity
+    let new_vault_lp_balance: Uint128 = vault.auto_compounder.total_lp_position()?;
     let new_lp: Uint128 = new_vault_lp_balance - vault_lp_balance;
-    let expected_new_value = Uint128::from(vault_lp_balance.u128() * 4u128 / 10u128); // 40% of the previous position
+    let expected_new_value: Uint128 = Uint128::from(vault_lp_balance.u128() * 4u128 / 1000u128); // 0.4% of the previous position
     assert_that!(new_lp).is_greater_than(expected_new_value);
 
-    let owner_balance = mock.query_all_balances(&owner)?;
+    let owner_balance_eur = mock.query_balance(&owner, EUR)?;
+    let owner_balance_usd = mock.query_balance(&owner, USD)?;
 
-    // withdraw the vault token to see if the user actually received more of EUR and USD then they deposited
+    // Redeem vault tokens and create pending claim of user tokens to see if the user actually received more of EUR and USD then they deposited
     vault_token.send(
         &Cw20HookMsg::Redeem {},
         vault_token_balance,
         auto_compounder_addr,
     )?;
+
+    // Unbond tokens & clear pending claims
+    vault.auto_compounder.batch_unbond()?;
+
+    mock.wait_blocks(1)?;
+
+    // Withdraw EUR and USD tokens to user
+    vault.auto_compounder.withdraw()?;
+
     let new_owner_balance = mock.query_all_balances(&owner)?;
-    let eur_diff = new_owner_balance[0].amount.u128() - owner_balance[0].amount.u128();
-    let usd_diff = new_owner_balance[1].amount.u128() - owner_balance[1].amount.u128();
+    let eur_diff = new_owner_balance[0].amount.u128() - owner_balance_eur.u128();
+    let usd_diff = new_owner_balance[1].amount.u128() - owner_balance_usd.u128();
 
     // the user should have received more of EUR and USD then they deposited
-    assert_that!(eur_diff).is_greater_than(140_000u128); // estimated value
-    assert_that!(usd_diff).is_greater_than(130_000u128);
+    assert_that!(eur_diff).is_greater_than(100_000u128); // estimated value
+    assert_that!(usd_diff).is_greater_than(100_000u128);
 
     Ok(())
 }
