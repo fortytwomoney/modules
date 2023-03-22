@@ -118,7 +118,7 @@ mod test_common {
             )
     }
 
-    // Mock Querier with a smart-query handler for the module factory which returns StakingInfo with unbonding period
+    // same as app_base_mock_querier but there is unbonding period for tokens
     pub fn app_base_mock_querier_with_unbonding_period() -> MockQuerierBuilder {
         let abstract_env = AbstractMockQuerierBuilder::default().os(TEST_MANAGER, TEST_PROXY, 0);
         abstract_env
@@ -138,7 +138,7 @@ mod test_common {
             })
             .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
                 match from_binary(msg).unwrap() {
-                    abstract_os::cw_staking::QueryMsg::App(CwStakingQueryMsg::Info {
+                    cw_staking::msg::QueryMsg::App(CwStakingQueryMsg::Info {
                         provider: _,
                         staking_token: _,
                     }) => {
@@ -156,13 +156,13 @@ mod test_common {
             .with_raw_handler(TEST_ANS_HOST, |key| match key {
                 "\0\u{6}assetseur" => Ok(to_binary(&AssetInfo::Native("eur".into())).unwrap()),
                 "\0\u{6}assetsusd" => Ok(to_binary(&AssetInfo::Native("usd".into())).unwrap()),
-                "\0\u{6}assetsastroport/eur,usd" => {
+                "\0\u{6}assetswyndex/eur,usd" => {
                     Ok(to_binary(&AssetInfo::cw20(Addr::unchecked("usd_eur_lp"))).unwrap())
                 }
-                "\0\tcontracts\0\tastroportstaking/astroport/eur,usd" => {
+                "\0\tcontracts\0\twyndexstaking/wyndex/eur,usd" => {
                     Ok(to_binary(&Addr::unchecked("staking_addr")).unwrap())
                 }
-                "\0\u{8}pool_ids\0\u{3}eur\0\u{3}usdastroport" => {
+                "\0\u{8}pool_ids\0\u{3}eur\0\u{3}usdwyndex" => {
                     Ok(to_binary(&vec![PoolReference {
                         unique_id: 0.into(),
                         pool_address: abstract_os::objects::pool_id::PoolAddressBase::Contract(
@@ -172,7 +172,7 @@ mod test_common {
                     .unwrap())
                 }
                 "\0\u{5}pools\0\0\0\0\0\0\0\0" => Ok(to_binary(&PoolMetadata::new(
-                    ASTROPORT,
+                    WYNDEX,
                     abstract_os::objects::PoolType::ConstantProduct,
                     vec!["usd", "eur"],
                 ))
@@ -189,7 +189,11 @@ mod test_common {
             .with_contract_map_entry(
                 TEST_MANAGER,
                 abstract_os::manager::state::OS_MODULES,
-                ("4t2:cw-staking", &Addr::unchecked(TEST_CW_STAKING_MODULE)),
+                (
+                    "abstract:cw-staking",
+                    Addr::unchecked(TEST_CW_STAKING_MODULE),
+                )
+                    .into(),
             )
     }
 

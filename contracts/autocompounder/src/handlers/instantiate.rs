@@ -230,10 +230,10 @@ pub fn query_staking_info(
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::{contract::AUTO_COMPOUNDER_APP, test_common::app_base_mock_querier};
     use abstract_sdk::base::InstantiateEndpoint;
-    use abstract_testing::{TEST_ANS_HOST, TEST_MODULE_FACTORY};
+    use abstract_sdk::os as abstract_os;
+    use abstract_testing::prelude::{TEST_ANS_HOST, TEST_MODULE_FACTORY};
     const ASTROPORT: &str = "astroport";
     const COMMISSION_RECEIVER: &str = "commission_receiver";
     use crate::test_common::app_init;
@@ -244,15 +244,18 @@ mod test {
     use cw_asset::AssetInfo;
     use speculoos::{assert_that, result::ResultAssertions};
 
+    use super::*;
+
     #[test]
     fn test_app_instantiation() -> anyhow::Result<()> {
         let deps = app_init(false);
         let config = CONFIG.load(deps.as_ref().storage).unwrap();
         let fee_config = FEE_CONFIG.load(deps.as_ref().storage).unwrap();
-        assert_that!(config.pool_assets).is_equal_to(vec![
-            AssetInfo::Native("usd".into()),
-            AssetInfo::Native("eur".into()),
-        ]);
+        assert_that!(config.pool_assets.len()).is_equal_to(2);
+        assert_that!(&config.pool_assets).matches(|x| {
+            x.contains(&AssetInfo::Native("usd".into()))
+                && x.contains(&AssetInfo::Native("eur".into()))
+        });
         assert_that!(fee_config).is_equal_to(FeeConfig {
             performance: Decimal::percent(3),
             deposit: Decimal::percent(3),

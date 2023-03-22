@@ -559,8 +559,7 @@ fn unstake_lp_tokens(
 mod test {
     use super::*;
 
-    use crate::contract::AUTO_COMPOUNDER_APP;
-    use crate::test_common::app_init;
+    use crate::{contract::AUTO_COMPOUNDER_APP, test_common::app_init};
     use abstract_sdk::base::ExecuteEndpoint;
     use abstract_testing::prelude::TEST_MANAGER;
     use cosmwasm_std::{
@@ -616,7 +615,6 @@ mod test {
             assert_that!(new_fee.deposit).is_equal_to(Decimal::percent(1));
             Ok(())
         }
-
         #[test]
         fn cannot_set_fee_above_or_equal_1() -> anyhow::Result<()> {
             let mut deps = app_init(false);
@@ -646,13 +644,13 @@ mod test {
     }
 
     #[test]
-    fn cannot_withdraw_liquidity_if_no_matured_claims() -> anyhow::Result<()> {
+    fn cannot_withdraw_liquidity_if_no_claims() -> anyhow::Result<()> {
         let mut deps = app_init(true);
         let msg = AutocompounderExecuteMsg::Withdraw {};
         let resp = execute_as_manager(deps.as_mut(), msg);
         assert_that!(resp)
             .is_err()
-            .matches(|e| matches!(e, AutocompounderError::NoMaturedClaims {}));
+            .matches(|e| matches!(e, AutocompounderError::NoClaims {}));
         Ok(())
     }
 }
