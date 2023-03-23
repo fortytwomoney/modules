@@ -433,10 +433,4 @@ fn get_staking_rewards(
 }
 
 #[cfg(test)]
-mod test {
-    use cosmwasm_std::testing::mock_dependencies;
-
-    fn get_staking_rewards() {
-        let _deps = mock_dependencies();
-    }
-}
+mod test {}

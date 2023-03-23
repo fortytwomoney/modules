@@ -559,7 +559,7 @@ fn unstake_lp_tokens(
 mod test {
     use super::*;
 
-    use crate::contract::AUTO_COMPOUNDER_APP;
+    use crate::{contract::AUTO_COMPOUNDER_APP, test_common::app_init};
     use abstract_sdk::base::ExecuteEndpoint;
     use abstract_testing::prelude::TEST_MANAGER;
     use cosmwasm_std::{
@@ -568,6 +568,7 @@ mod test {
     };
     use cw_controllers::AdminError;
     use forty_two::autocompounder::ExecuteMsg;
+    use speculoos::{assert_that, result::ResultAssertions};
 
     fn execute_as(
         deps: DepsMut,
@@ -594,7 +595,7 @@ mod test {
 
         #[test]
         fn only_admin() -> anyhow::Result<()> {
-            let mut deps = app_init();
+            let mut deps = app_init(false);
             let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
                 performance: None,
                 deposit: Some(Decimal::percent(1)),
@@ -614,5 +615,42 @@ mod test {
             assert_that!(new_fee.deposit).is_equal_to(Decimal::percent(1));
             Ok(())
         }
+        #[test]
+        fn cannot_set_fee_above_or_equal_1() -> anyhow::Result<()> {
+            let mut deps = app_init(false);
+            let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
+                performance: None,
+                deposit: Some(Decimal::one()),
+                withdrawal: None,
+            };
+
+            let resp = execute_as_manager(deps.as_mut(), msg);
+            assert_that!(resp)
+                .is_err()
+                .matches(|e| matches!(e, AutocompounderError::InvalidFee {}));
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn cannot_batch_unbond_if_unbonding_not_enabled() -> anyhow::Result<()> {
+        let mut deps = app_init(false);
+        let msg = AutocompounderExecuteMsg::BatchUnbond {};
+        let resp = execute_as_manager(deps.as_mut(), msg);
+        assert_that!(resp)
+            .is_err()
+            .matches(|e| matches!(e, AutocompounderError::UnbondingNotEnabled {}));
+        Ok(())
+    }
+
+    #[test]
+    fn cannot_withdraw_liquidity_if_no_claims() -> anyhow::Result<()> {
+        let mut deps = app_init(true);
+        let msg = AutocompounderExecuteMsg::Withdraw {};
+        let resp = execute_as_manager(deps.as_mut(), msg);
+        assert_that!(resp)
+            .is_err()
+            .matches(|e| matches!(e, AutocompounderError::NoClaims {}));
+        Ok(())
     }
 }
