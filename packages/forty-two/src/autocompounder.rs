@@ -3,7 +3,7 @@
 //! `your_namespace::autocompounder` is an app which allows users to ...
 //!
 //! ## Creation
-//! The contract can be added on an Account by calling [`ExecuteMsg::CreateModule`](crate::manager::ExecuteMsg::CreateModule) on the manager of the os.
+//! The contract can be added on an Account by calling [`ExecuteMsg::CreateModule`](crate::manager::ExecuteMsg::CreateModule) on the manager of the account.
 //! ```ignore
 //! let autocompounder_init_msg = InstantiateMsg::AutocompounderInstantiateMsg{
 //!               /// The initial value for max_count

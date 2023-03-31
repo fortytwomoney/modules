@@ -58,8 +58,8 @@ deploy-pisco-1: wasm-pisco-1
   just deploy-module autocompounder pisco-1
 
 full-deploy-pisco-1: deploy-pisco-1
-  just create-vault pisco-1 "'terra2>astro'" --os-id 2
-  just create-vault pisco-1 "'terra2>stb'" --os-id 3
+  just create-vault pisco-1 "'terra2>astro'" --account-id 2
+  just create-vault pisco-1 "'terra2>stb'" --account-id 3
 
 # Use this to wasm and update the autocompounder code on pisco-1 while updating the cw-staking version as well
 update-autocompounder-pisco-1 network='pisco-1':

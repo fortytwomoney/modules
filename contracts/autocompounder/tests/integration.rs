@@ -63,18 +63,18 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
     // upload the vault token code
     let vault_toke_code_id = vault_token.upload()?.uploaded_code_id()?;
     // Create an Account that we will turn into a vault
-    let os = abstract_.account_factory.create_default_account(
+    let account = abstract_.account_factory.create_default_account(
         abstract_core::objects::gov_type::GovernanceDetails::Monarchy {
             monarch: mock.sender.to_string(),
         },
     )?;
 
     // install dex
-    os.manager.install_module(EXCHANGE, &Empty {})?;
+    account.manager.install_module(EXCHANGE, &Empty {})?;
     // install staking
-    os.manager.install_module(CW_STAKING, &Empty {})?;
+    account.manager.install_module(CW_STAKING, &Empty {})?;
     // install autocompounder
-    os.manager.install_module(
+    account.manager.install_module(
         AUTOCOMPOUNDER,
         &abstract_core::app::InstantiateMsg {
             module: forty_two::autocompounder::AutocompounderInstantiateMsg {
@@ -94,7 +94,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
         },
     )?;
     // get its address
-    let auto_compounder_addr = os
+    let auto_compounder_addr = account
         .manager
         .module_addresses(vec![AUTOCOMPOUNDER.into()])?
         .modules[0]
@@ -105,10 +105,10 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
 
     // give the autocompounder permissions to call on the dex and cw-staking contracts
     exchange_api
-        .call_as(&os.manager.address()?)
+        .call_as(&account.manager.address()?)
         .update_traders(vec![auto_compounder_addr.clone()], vec![])?;
     staking_api
-        .call_as(&os.manager.address()?)
+        .call_as(&account.manager.address()?)
         .update_traders(vec![auto_compounder_addr], vec![])?;
 
     // set the vault token address
@@ -116,7 +116,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
     vault_token.set_address(&auto_compounder_config.vault_token);
 
     Ok(Vault {
-        os,
+        account,
         auto_compounder,
         vault_token,
         abstract_core: abstract_,
@@ -244,7 +244,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     let staked = vault
         .wyndex
         .suite
-        .query_all_staked(asset_infos, &vault.os.proxy.addr_str()?)?;
+        .query_all_staked(asset_infos, &vault.account.proxy.addr_str()?)?;
 
     let generator_staked_balance = staked.stakes.first().unwrap();
     assert_that!(generator_staked_balance.stake.u128()).is_equal_to(6000u128);
@@ -404,7 +404,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     let generator_staked_balance = vault
         .wyndex
         .suite
-        .query_all_staked(asset_infos, &vault.os.proxy.addr_str()?)?
+        .query_all_staked(asset_infos, &vault.account.proxy.addr_str()?)?
         .stakes[0]
         .stake;
     assert_that!(generator_staked_balance.u128()).is_equal_to(6001u128);
