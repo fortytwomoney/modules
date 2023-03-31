@@ -2,9 +2,9 @@
 mod test_utils;
 
 use abstract_boot::{Abstract, AbstractBootError, ManagerQueryFns};
-use abstract_os::api::{BaseExecuteMsgFns, BaseQueryMsgFns};
-use abstract_os::objects::{AnsAsset, AssetEntry};
-use abstract_sdk::os as abstract_os;
+use abstract_core::api::{BaseExecuteMsgFns, BaseQueryMsgFns};
+use abstract_core::objects::{AnsAsset, AssetEntry};
+use abstract_sdk::core as abstract_core;
 
 use abstract_boot::boot_core::*;
 use autocompounder::state::{Claim, Config};
@@ -41,9 +41,9 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
     let version = "1.0.0".parse().unwrap();
     // Deploy abstract
     let abstract_ = Abstract::deploy_on(mock.clone(), version)?;
-    // create first OS
-    abstract_.os_factory.create_default_os(
-        abstract_os::objects::gov_type::GovernanceDetails::Monarchy {
+    // create first Account
+    abstract_.account_factory.create_default_account(
+        abstract_core::objects::gov_type::GovernanceDetails::Monarchy {
             monarch: mock.sender.to_string(),
         },
     )?;
@@ -62,9 +62,9 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
     let mut vault_token = Cw20::new(VAULT_TOKEN, mock.clone());
     // upload the vault token code
     let vault_toke_code_id = vault_token.upload()?.uploaded_code_id()?;
-    // Create an OS that we will turn into a vault
-    let os = abstract_.os_factory.create_default_os(
-        abstract_os::objects::gov_type::GovernanceDetails::Monarchy {
+    // Create an Account that we will turn into a vault
+    let os = abstract_.account_factory.create_default_account(
+        abstract_core::objects::gov_type::GovernanceDetails::Monarchy {
             monarch: mock.sender.to_string(),
         },
     )?;
@@ -76,8 +76,8 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
     // install autocompounder
     os.manager.install_module(
         AUTOCOMPOUNDER,
-        &abstract_os::app::InstantiateMsg {
-            app: forty_two::autocompounder::AutocompounderInstantiateMsg {
+        &abstract_core::app::InstantiateMsg {
+            module: forty_two::autocompounder::AutocompounderInstantiateMsg {
                 code_id: vault_toke_code_id,
                 commission_addr: COMMISSION_RECEIVER.to_string(),
                 deposit_fees: Decimal::percent(3),
@@ -88,7 +88,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
                 withdrawal_fees: Decimal::percent(3),
                 preferred_bonding_period: BondingPeriodSelector::Shortest,
             },
-            base: abstract_os::app::BaseInstantiateMsg {
+            base: abstract_core::app::BaseInstantiateMsg {
                 ans_host_address: abstract_.ans_host.addr_str()?,
             },
         },
@@ -119,7 +119,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
         os,
         auto_compounder,
         vault_token,
-        abstract_os: abstract_,
+        abstract_core: abstract_,
         wyndex,
         dex: exchange_api,
         staking: staking_api,

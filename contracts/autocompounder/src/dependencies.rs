@@ -1,4 +1,4 @@
-use abstract_sdk::os::objects::dependency::StaticDependency;
+use abstract_sdk::core::objects::dependency::StaticDependency;
 use cw_staking::CW_STAKING;
 use dex::EXCHANGE;
 

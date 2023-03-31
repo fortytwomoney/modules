@@ -2,7 +2,7 @@ use abstract_boot::{
     boot_core::{networks, networks::NetworkInfo, prelude::*, DaemonOptionsBuilder},
     VersionControl, VCExecFns,
 };
-use abstract_os::{
+use abstract_core::{
     objects::module::{ModuleInfo, ModuleVersion},
 };
 use cosmwasm_std::Addr;
@@ -12,7 +12,7 @@ use std::sync::Arc;
 const NETWORK: NetworkInfo = networks::UNI_5;
 
 // To deploy the app we need to get the memory and then register it
-// We can then deploy a test OS that uses that new app
+// We can then deploy a test Account that uses that new app
 
 const _MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 

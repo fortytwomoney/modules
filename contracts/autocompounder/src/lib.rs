@@ -13,11 +13,11 @@ pub mod state;
 #[cfg(test)]
 mod test_common {
     use abstract_sdk::base::InstantiateEndpoint;
-    pub use abstract_sdk::os as abstract_os;
-    use abstract_sdk::os::{
+    pub use abstract_sdk::core as abstract_core;
+    use abstract_sdk::core::{
         module_factory::ContextResponse,
         objects::{PoolMetadata, PoolReference},
-        version_control::Core,
+        version_control::AccountBase,
     };
     use abstract_testing::{
         addresses::{TEST_MANAGER, TEST_MODULE_FACTORY, TEST_PROXY},
@@ -41,13 +41,13 @@ mod test_common {
     // Mock Querier with a smart-query handler for the module factory
     // Because that query is performed when the App is instantiated to get the manager's address and set it as the Admin
     pub fn app_base_mock_querier() -> MockQuerierBuilder {
-        let abstract_env = AbstractMockQuerierBuilder::default().os(TEST_MANAGER, TEST_PROXY, 0);
+        let abstract_env = AbstractMockQuerierBuilder::default().account(TEST_MANAGER, TEST_PROXY, 0);
         abstract_env
             .builder()
             .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_binary(msg).unwrap() {
-                abstract_os::module_factory::QueryMsg::Context {} => {
+                abstract_core::module_factory::QueryMsg::Context {} => {
                     let resp = ContextResponse {
-                        core: Some(Core {
+                        account_base: Some(AccountBase {
                             manager: Addr::unchecked(TEST_MANAGER),
                             proxy: Addr::unchecked(TEST_PROXY),
                         }),
@@ -59,7 +59,7 @@ mod test_common {
             })
             .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
                 match from_binary(msg).unwrap() {
-                    cw_staking::msg::QueryMsg::App(CwStakingQueryMsg::Info {
+                    cw_staking::msg::QueryMsg::Module(CwStakingQueryMsg::Info {
                         provider: _,
                         staking_token: _,
                     }) => {
@@ -86,7 +86,7 @@ mod test_common {
                 "\0\u{8}pool_ids\0\u{3}eur\0\u{3}usdwyndex" => {
                     Ok(to_binary(&vec![PoolReference {
                         unique_id: 0.into(),
-                        pool_address: abstract_os::objects::pool_id::PoolAddressBase::Contract(
+                        pool_address: abstract_core::objects::pool_id::PoolAddressBase::Contract(
                             Addr::unchecked(TEST_POOL_ADDR),
                         ),
                     }])
@@ -94,7 +94,7 @@ mod test_common {
                 }
                 "\0\u{5}pools\0\0\0\0\0\0\0\0" => Ok(to_binary(&PoolMetadata::new(
                     WYNDEX,
-                    abstract_os::objects::PoolType::ConstantProduct,
+                    abstract_core::objects::PoolType::ConstantProduct,
                     vec!["usd", "eur"],
                 ))
                 .unwrap()),
@@ -109,7 +109,7 @@ mod test_common {
             // })
             .with_contract_map_entry(
                 TEST_MANAGER,
-                abstract_os::manager::state::OS_MODULES,
+                abstract_core::manager::state::OS_MODULES,
                 (
                     "abstract:cw-staking",
                     Addr::unchecked(TEST_CW_STAKING_MODULE),
@@ -120,13 +120,13 @@ mod test_common {
 
     // same as app_base_mock_querier but there is unbonding period for tokens
     pub fn app_base_mock_querier_with_unbonding_period() -> MockQuerierBuilder {
-        let abstract_env = AbstractMockQuerierBuilder::default().os(TEST_MANAGER, TEST_PROXY, 0);
+        let abstract_env = AbstractMockQuerierBuilder::default().account(TEST_MANAGER, TEST_PROXY, 0);
         abstract_env
             .builder()
             .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_binary(msg).unwrap() {
-                abstract_os::module_factory::QueryMsg::Context {} => {
+                abstract_core::module_factory::QueryMsg::Context {} => {
                     let resp = ContextResponse {
-                        core: Some(Core {
+                        account_base: Some(AccountBase {
                             manager: Addr::unchecked(TEST_MANAGER),
                             proxy: Addr::unchecked(TEST_PROXY),
                         }),
@@ -138,7 +138,7 @@ mod test_common {
             })
             .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
                 match from_binary(msg).unwrap() {
-                    cw_staking::msg::QueryMsg::App(CwStakingQueryMsg::Info {
+                    cw_staking::msg::QueryMsg::Module(CwStakingQueryMsg::Info {
                         provider: _,
                         staking_token: _,
                     }) => {
@@ -165,7 +165,7 @@ mod test_common {
                 "\0\u{8}pool_ids\0\u{3}eur\0\u{3}usdwyndex" => {
                     Ok(to_binary(&vec![PoolReference {
                         unique_id: 0.into(),
-                        pool_address: abstract_os::objects::pool_id::PoolAddressBase::Contract(
+                        pool_address: abstract_core::objects::pool_id::PoolAddressBase::Contract(
                             Addr::unchecked(TEST_POOL_ADDR),
                         ),
                     }])
@@ -173,7 +173,7 @@ mod test_common {
                 }
                 "\0\u{5}pools\0\0\0\0\0\0\0\0" => Ok(to_binary(&PoolMetadata::new(
                     WYNDEX,
-                    abstract_os::objects::PoolType::ConstantProduct,
+                    abstract_core::objects::PoolType::ConstantProduct,
                     vec!["usd", "eur"],
                 ))
                 .unwrap()),
@@ -188,7 +188,7 @@ mod test_common {
             // })
             .with_contract_map_entry(
                 TEST_MANAGER,
-                abstract_os::manager::state::OS_MODULES,
+                abstract_core::manager::state::OS_MODULES,
                 (
                     "abstract:cw-staking",
                     Addr::unchecked(TEST_CW_STAKING_MODULE),
@@ -212,8 +212,8 @@ mod test_common {
                 deps.as_mut(),
                 mock_env(),
                 info,
-                abstract_os::app::InstantiateMsg {
-                    app: forty_two::autocompounder::AutocompounderInstantiateMsg {
+                abstract_core::app::InstantiateMsg {
+                    module: forty_two::autocompounder::AutocompounderInstantiateMsg {
                         code_id: 1,
                         commission_addr: COMMISSION_RECEIVER.to_string(),
                         deposit_fees: Decimal::percent(3),
@@ -224,7 +224,7 @@ mod test_common {
                         withdrawal_fees: Decimal::percent(3),
                         preferred_bonding_period: BondingPeriodSelector::Shortest,
                     },
-                    base: abstract_os::app::BaseInstantiateMsg {
+                    base: abstract_core::app::BaseInstantiateMsg {
                         ans_host_address: TEST_ANS_HOST.to_string(),
                     },
                 },

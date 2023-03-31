@@ -1,4 +1,4 @@
-use abstract_boot::{ManagerQueryFns, OS};
+use abstract_boot::{ManagerQueryFns, AbstractAccount};
 use boot_core::BootEnvironment;
 
 use cosmwasm_std::Addr;
@@ -8,7 +8,7 @@ pub mod vault;
 
 /// TODO: abstract-boot
 pub fn get_module_address<Chain: BootEnvironment>(
-    os: &OS<Chain>,
+    os: &AbstractAccount<Chain>,
     module_id: &str,
 ) -> anyhow::Result<Addr> {
     let module_infos = os.manager.module_infos(None, None)?.module_infos;
@@ -21,7 +21,7 @@ pub fn get_module_address<Chain: BootEnvironment>(
 
 // TODO: abstract boot
 pub fn is_module_installed<Chain: BootEnvironment>(
-    os: &OS<Chain>,
+    os: &AbstractAccount<Chain>,
     module_id: &str,
 ) -> anyhow::Result<bool> {
     let module_infos = os.manager.module_infos(None, None)?.module_infos;

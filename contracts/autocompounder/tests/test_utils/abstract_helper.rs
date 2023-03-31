@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use abstract_boot::boot_core::*;
 use abstract_boot::{Abstract, AbstractBootError};
-use abstract_sdk::os as abstract_os;
-use abstract_sdk::os::api::InstantiateMsg;
+use abstract_sdk::core as abstract_core;
+use abstract_sdk::core::api::InstantiateMsg;
 use cosmwasm_std::{Decimal, Empty};
 use cw_multi_test::ContractWrapper;
 use cw_staking::{boot::CwStakingApi, CW_STAKING};
@@ -30,11 +30,11 @@ pub(crate) fn init_exchange(
     exchange.upload()?;
     exchange.instantiate(
         &InstantiateMsg {
-            app: DexInstantiateMsg {
+            module: DexInstantiateMsg {
                 swap_fee: Decimal::from_str("0.003")?,
                 recipient_os: 0,
             },
-            base: abstract_os::api::BaseInstantiateMsg {
+            base: abstract_core::api::BaseInstantiateMsg {
                 ans_host_address: deployment.ans_host.addr_str()?,
                 version_control_address: deployment.version_control.addr_str()?,
             },
@@ -71,8 +71,8 @@ pub(crate) fn init_staking(
     staking.upload()?;
     staking.instantiate(
         &InstantiateMsg {
-            app: Empty {},
-            base: abstract_os::api::BaseInstantiateMsg {
+            module: Empty {},
+            base: abstract_core::api::BaseInstantiateMsg {
                 ans_host_address: deployment.ans_host.addr_str()?,
                 version_control_address: deployment.version_control.addr_str()?,
             },

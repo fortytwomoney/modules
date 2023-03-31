@@ -1,5 +1,5 @@
-use abstract_os::app;
-use abstract_os::app::BaseExecuteMsg;
+use abstract_core::app;
+use abstract_core::app::BaseExecuteMsg;
 use boot_core::{boot_contract, BootExecute};
 use boot_core::{BootEnvironment, BootError, Contract, IndexResponse, TxResponse};
 use cosmwasm_std::{Addr, Coin};
@@ -29,7 +29,7 @@ where
         execute_msg: AutocompounderExecuteMsg,
         coins: Option<&[Coin]>,
     ) -> Result<TxResponse<Chain>, BootError> {
-        self.execute(&app::ExecuteMsg::App(execute_msg), coins)
+        self.execute(&app::ExecuteMsg::Module(execute_msg), coins)
     }
 
     /// Temporary helper to execute the app base explicitly

@@ -7,7 +7,7 @@ use std::sync::Arc;
 const NETWORK: NetworkInfo = networks::UNI_5;
 
 // To deploy the app we need to get the memory and then register it
-// We can then deploy a test OS that uses that new app
+// We can then deploy a test Account that uses that new app
 
 const _MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -56,7 +56,7 @@ pub fn deploy_api() -> anyhow::Result<()> {
 
     // let app_config: ConfigResponse = app.query_app(AutocompounderQueryMsg::Config {})?;
 
-    // TODO: Attach to an OS
+    // TODO: Attach to an Account
 
     Ok(())
 }

@@ -1,7 +1,7 @@
 use crate::autocompounder::AutocompounderApp;
 use crate::{get_module_address, is_module_installed};
-use abstract_boot::OS;
-use abstract_os::app;
+use abstract_boot::AbstractAccount;
+use abstract_core::app;
 use boot_core::BootEnvironment;
 use boot_core::*;
 use cosmwasm_std::Empty;
@@ -10,30 +10,30 @@ use cw_staking::CW_STAKING;
 use forty_two::autocompounder::AUTOCOMPOUNDER;
 
 pub struct Vault<Chain: BootEnvironment> {
-    pub os: OS<Chain>,
+    pub account: AbstractAccount<Chain>,
     pub staking: CwStakingApi<Chain>,
     pub autocompounder: AutocompounderApp<Chain>,
 }
 
 impl<Chain: BootEnvironment> Vault<Chain> {
-    pub fn new(chain: Chain, os_id: Option<u32>) -> anyhow::Result<Self> {
-        let os = OS::new(chain.clone(), os_id);
+    pub fn new(chain: Chain, account_id: Option<u32>) -> anyhow::Result<Self> {
+        let account = AbstractAccount::new(chain.clone(), account_id);
         let staking = CwStakingApi::new(CW_STAKING, chain.clone());
         let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
-        if os_id.is_some() {
-            if is_module_installed(&os, CW_STAKING)? {
-                let cw_staking_address = get_module_address(&os, CW_STAKING)?;
+        if account_id.is_some() {
+            if is_module_installed(&account, CW_STAKING)? {
+                let cw_staking_address = get_module_address(&account, CW_STAKING)?;
                 staking.set_address(&cw_staking_address);
             }
-            if is_module_installed(&os, AUTOCOMPOUNDER)? {
-                let autocompounder_address = get_module_address(&os, AUTOCOMPOUNDER)?;
+            if is_module_installed(&account, AUTOCOMPOUNDER)? {
+                let autocompounder_address = get_module_address(&account, AUTOCOMPOUNDER)?;
                 autocompounder.set_address(&autocompounder_address);
             }
         }
 
         Ok(Self {
-            os,
+            account,
             staking,
             autocompounder,
         })
@@ -41,15 +41,15 @@ impl<Chain: BootEnvironment> Vault<Chain> {
 
     /// Update the vault to have the latest versions of the modules
     pub fn update(&mut self) -> anyhow::Result<()> {
-        if is_module_installed(&self.os, CW_STAKING)? {
-            self.os.manager.upgrade_module(CW_STAKING, &Empty {})?;
+        if is_module_installed(&self.account, CW_STAKING)? {
+            self.account.manager.upgrade_module(CW_STAKING, &Empty {})?;
         }
-        if is_module_installed(&self.os, AUTOCOMPOUNDER)? {
+        if is_module_installed(&self.account, AUTOCOMPOUNDER)? {
             let x = app::MigrateMsg {
-                app: forty_two::autocompounder::AutocompounderMigrateMsg {},
+                module: forty_two::autocompounder::AutocompounderMigrateMsg {},
                 base: app::BaseMigrateMsg {},
             };
-            self.os.manager.upgrade_module(AUTOCOMPOUNDER, &x)?;
+            self.account.manager.upgrade_module(AUTOCOMPOUNDER, &x)?;
         }
         Ok(())
     }
