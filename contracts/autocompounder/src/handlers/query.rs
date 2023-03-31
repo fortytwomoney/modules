@@ -1,7 +1,7 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::state::{Claim, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS};
-use abstract_sdk::features::Identification;
-use abstract_sdk::os::objects::LpToken;
+use abstract_sdk::features::AccountIdentification;
+use abstract_sdk::core::objects::LpToken;
 use abstract_sdk::ApiInterface;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 

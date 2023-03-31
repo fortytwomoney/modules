@@ -5,8 +5,8 @@ use crate::state::{Config, CONFIG, FEE_CONFIG};
 use abstract_sdk::ApiInterface;
 use abstract_sdk::{
     features::AbstractNameService,
-    os::api,
-    os::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
+    core::api,
+    core::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
     Resolve,
 };
 use cosmwasm_std::{
@@ -232,7 +232,7 @@ pub fn query_staking_info(
 mod test {
     use crate::{contract::AUTO_COMPOUNDER_APP, test_common::app_base_mock_querier};
     use abstract_sdk::base::InstantiateEndpoint;
-    use abstract_sdk::os as abstract_os;
+    use abstract_sdk::core as abstract_core;
     use abstract_testing::prelude::{TEST_ANS_HOST, TEST_MODULE_FACTORY};
     const ASTROPORT: &str = "astroport";
     const COMMISSION_RECEIVER: &str = "commission_receiver";
@@ -277,8 +277,8 @@ mod test {
             deps.as_mut(),
             mock_env(),
             info,
-            abstract_os::app::InstantiateMsg {
-                app: forty_two::autocompounder::AutocompounderInstantiateMsg {
+            abstract_core::app::InstantiateMsg {
+                module: forty_two::autocompounder::AutocompounderInstantiateMsg {
                     code_id: 1,
                     commission_addr: COMMISSION_RECEIVER.to_string(),
                     deposit_fees: Decimal::percent(3),
@@ -289,7 +289,7 @@ mod test {
                     withdrawal_fees: Decimal::percent(3),
                     preferred_bonding_period: BondingPeriodSelector::Shortest,
                 },
-                base: abstract_os::app::BaseInstantiateMsg {
+                base: abstract_core::app::BaseInstantiateMsg {
                     ans_host_address: TEST_ANS_HOST.to_string(),
                 },
             },

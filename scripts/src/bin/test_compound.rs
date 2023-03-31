@@ -2,7 +2,7 @@ use std::sync::Arc;
 use abstract_boot::{
     boot_core::{prelude::*, DaemonOptionsBuilder}, VersionControl,
 };
-use abstract_os::{
+use abstract_core::{
     objects::{AnsAsset, PoolMetadata}
 };
 use clap::Parser;

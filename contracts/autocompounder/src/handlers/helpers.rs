@@ -3,7 +3,7 @@ use crate::{
     error::AutocompounderError,
 };
 use abstract_sdk::ApiInterface;
-use abstract_sdk::{features::Identification, os::objects::AssetEntry};
+use abstract_sdk::{features::AccountIdentification, core::objects::AssetEntry};
 use cosmwasm_std::{Decimal, Deps, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw_staking::{msg::*, CW_STAKING};

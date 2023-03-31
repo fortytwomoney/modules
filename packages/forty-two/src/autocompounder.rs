@@ -3,7 +3,7 @@
 //! `your_namespace::autocompounder` is an app which allows users to ...
 //!
 //! ## Creation
-//! The contract can be added on an OS by calling [`ExecuteMsg::CreateModule`](crate::manager::ExecuteMsg::CreateModule) on the manager of the os.
+//! The contract can be added on an Account by calling [`ExecuteMsg::CreateModule`](crate::manager::ExecuteMsg::CreateModule) on the manager of the os.
 //! ```ignore
 //! let autocompounder_init_msg = InstantiateMsg::AutocompounderInstantiateMsg{
 //!               /// The initial value for max_count
@@ -28,8 +28,8 @@
 //! ## Migration
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
-use abstract_sdk::os::app;
-use abstract_sdk::os::objects::{AssetEntry, DexName, PoolAddress, PoolMetadata};
+use abstract_sdk::core::app;
+use abstract_sdk::core::objects::{AssetEntry, DexName, PoolAddress, PoolMetadata};
 use cosmwasm_schema::QueryResponses;
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;

@@ -3,17 +3,17 @@ use std::sync::Arc;
 
 use abstract_boot::{
     boot_core::{prelude::*, state::StateInterface, DaemonOptionsBuilder},
-    Manager, OSFactory, Proxy, VersionControl, OS,
+    Manager, OSFactory, Proxy, VersionControl, AbstractAccount,
 };
-use abstract_os::{
+use abstract_core::{
     ABSTRACT_EVENT_NAME,
     api,
     app,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
-    os_factory,
+    account_factory,
     registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY}
 };
-use abstract_os::objects::module::ModuleInfo;
+use abstract_core::objects::module::ModuleInfo;
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
 use log::info;
@@ -27,7 +27,7 @@ use forty_two::{
 use forty_two_boot::{get_module_address, is_module_installed, parse_network};
 
 // To deploy the app we need to get the memory and then register it
-// We can then deploy a test OS that uses that new app
+// We can then deploy a test Account that uses that new app
 
 const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -38,9 +38,9 @@ fn create_vault<Chain: BootEnvironment>(
     chain: Chain,
     governance_details: GovernanceDetails,
     assets: Vec<String>,
-) -> Result<OS<Chain>, BootError> {
+) -> Result<AbstractAccount<Chain>, BootError> {
     let result = factory.execute(
-        &os_factory::ExecuteMsg::CreateOs {
+        &account_factory::ExecuteMsg::CreateOs {
             governance: governance_details,
             description: None,
             link: None,
@@ -57,7 +57,7 @@ fn create_vault<Chain: BootEnvironment>(
     chain
         .state()
         .set_address(PROXY, &Addr::unchecked(proxy_address));
-    Ok(OS {
+    Ok(AbstractAccount {
         manager: Manager::new(MANAGER, chain.clone()),
         proxy: Proxy::new(PROXY, chain),
     })
@@ -88,21 +88,21 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let version_control =
         VersionControl::load(chain.clone(), &Addr::unchecked(version_control_address));
 
-    let os_factory = OSFactory::new(OS_FACTORY, chain.clone());
+    let account_factory = OSFactory::new(OS_FACTORY, chain.clone());
 
     let abstract_version = env::var("ABSTRACT_VERSION").expect("Missing ABSTRACT_VERSION");
 
     let abstract_version = ModuleVersion::from(abstract_version);
-    os_factory.set_address(&version_control.get_api_addr(OS_FACTORY, abstract_version)?);
+    account_factory.set_address(&version_control.get_api_addr(OS_FACTORY, abstract_version)?);
 
     let mut assets = vec![args.paired_asset, base_pair_asset.to_string()];
     assets.sort();
 
-    let os = if let Some(os_id) = args.os_id {
-        OS::new(chain, Some(os_id))
+    let os = if let Some(account_id) = args.account_id {
+        AbstractAccount::new(chain, Some(account_id))
     } else {
         create_vault(
-            &os_factory,
+            &account_factory,
             chain,
             GovernanceDetails::Monarchy {
                 monarch: sender.to_string(),
@@ -189,7 +189,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 struct Arguments {
     /// Optionally provide an OSID to turn into a vault
     #[arg(short, long)]
-    os_id: Option<u32>,
+    account_id: Option<u32>,
     /// Paired asset in the pool
     #[arg(short, long)]
     paired_asset: String,

@@ -10,8 +10,8 @@ use crate::state::{
 use abstract_sdk::ApiInterface;
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use abstract_sdk::{
-    features::{AbstractNameService, Identification},
-    os::objects::{AnsAsset, AssetEntry, LpToken},
+    features::{AbstractNameService, AccountIdentification},
+    core::objects::{AnsAsset, AssetEntry, LpToken},
     Resolve, TransferInterface,
 };
 use cosmwasm_std::{
@@ -123,14 +123,14 @@ pub fn deposit(
     let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>, AbstractSdkError> = claimed_deposits
         .into_iter()
         .map(|asset| {
-            // transfer cw20 tokens to the OS
+            // transfer cw20 tokens to the Account
             // will fail if allowance is not set or if some other assets are sent
             Ok(asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)?)
         })
         .collect();
     msgs.append(cw_20_transfer_msgs_res?.as_mut());
 
-    // transfer received coins to the OS
+    // transfer received coins to the Account
     if !msg_info.funds.is_empty() {
         let bank = app.bank(deps.as_ref());
         msgs.push(bank.deposit_coins(msg_info.funds)?);

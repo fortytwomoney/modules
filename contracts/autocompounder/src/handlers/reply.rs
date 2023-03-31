@@ -9,8 +9,8 @@ use crate::state::{Config, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
 use abstract_sdk::ApiInterface;
 use abstract_sdk::{
     features::AbstractResponse,
-    features::{AbstractNameService, Identification},
-    os::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
+    features::{AbstractNameService, AccountIdentification},
+    core::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
     AbstractSdkResult, Resolve, TransferInterface,
 };
 use cosmwasm_std::{
