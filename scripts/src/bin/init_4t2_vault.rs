@@ -2,29 +2,28 @@ use std::env;
 use std::sync::Arc;
 
 use abstract_boot::{
-    boot_core::{prelude::*, state::StateInterface, DaemonOptionsBuilder},
-    Manager, OSFactory, Proxy, VersionControl, AbstractAccount,
+    AbstractAccount,
+    AccountFactory, boot_core::{DaemonOptionsBuilder, prelude::*, state::StateInterface}, Manager, Proxy, VersionControl,
 };
 use abstract_core::{
     ABSTRACT_EVENT_NAME,
+    account_factory,
     api,
     app,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
-    account_factory,
-    registry::{ANS_HOST, EXCHANGE, MANAGER, OS_FACTORY, PROXY}
+    registry::{ANS_HOST, EXCHANGE, MANAGER, ACCOUNT_FACTORY, PROXY}
 };
 use abstract_core::objects::module::ModuleInfo;
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
-use log::info;
-
 use forty_two::{
     autocompounder::{
-        AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER,
+        AUTOCOMPOUNDER, AutocompounderInstantiateMsg, BondingPeriodSelector,
     },
     cw_staking::CW_STAKING
 };
 use forty_two_boot::{get_module_address, is_module_installed, parse_network};
+use log::info;
 
 // To deploy the app we need to get the memory and then register it
 // We can then deploy a test Account that uses that new app
@@ -34,7 +33,7 @@ const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 
 fn create_vault<Chain: BootEnvironment>(
-    factory: &OSFactory<Chain>,
+    factory: &AccountFactory<Chain>,
     chain: Chain,
     governance_details: GovernanceDetails,
     assets: Vec<String>,
@@ -88,17 +87,17 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let version_control =
         VersionControl::load(chain.clone(), &Addr::unchecked(version_control_address));
 
-    let account_factory = OSFactory::new(OS_FACTORY, chain.clone());
+    let account_factory = AccountFactory::new(ACCOUNT_FACTORY, chain.clone());
 
     let abstract_version = env::var("ABSTRACT_VERSION").expect("Missing ABSTRACT_VERSION");
 
     let abstract_version = ModuleVersion::from(abstract_version);
-    account_factory.set_address(&version_control.get_api_addr(OS_FACTORY, abstract_version)?);
+    account_factory.set_address(&version_control.get_api_addr(ACCOUNT_FACTORY, abstract_version)?);
 
     let mut assets = vec![args.paired_asset, base_pair_asset.to_string()];
     assets.sort();
 
-    let os = if let Some(account_id) = args.account_id {
+    let account = if let Some(account_id) = args.account_id {
         AbstractAccount::new(chain, Some(account_id))
     } else {
         create_vault(
@@ -115,29 +114,29 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     // panic!("{?:}", query_res);
 
     // Install abstract dex
-    if !is_module_installed(&os, EXCHANGE)? {
-        os.manager.install_module(EXCHANGE, &Empty {})?;
+    if !is_module_installed(&account, EXCHANGE)? {
+        account.manager.install_module(EXCHANGE, &Empty {})?;
     }
 
     // First uninstall autocompounder if found
-    if is_module_installed(&os, AUTOCOMPOUNDER)? {
-        os.manager.uninstall_module(AUTOCOMPOUNDER)?;
+    if is_module_installed(&account, AUTOCOMPOUNDER)? {
+        account.manager.uninstall_module(AUTOCOMPOUNDER)?;
     }
 
     // Uninstall cw_staking if found
-    if is_module_installed(&os, CW_STAKING)? {
-        os.manager.uninstall_module(CW_STAKING)?;
+    if is_module_installed(&account, CW_STAKING)? {
+        account.manager.uninstall_module(CW_STAKING)?;
     }
 
     // Install both modules
     let new_module_version = ModuleVersion::from(MODULE_VERSION);
 
-    os.manager
+    account.manager
         .install_module_version(CW_STAKING, new_module_version.clone(), &Empty {})?;
 
 
 
-    os.manager.install_module_version(
+    account.manager.install_module_version(
         AUTOCOMPOUNDER,
         new_module_version,
         &app::InstantiateMsg {
@@ -147,7 +146,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                     .reference.unwrap_addr()?
                     .to_string(),
             },
-            app: AutocompounderInstantiateMsg {
+            module: AutocompounderInstantiateMsg {
                 performance_fees: Decimal::new(100u128.into()),
                 deposit_fees: Decimal::new(100u128.into()),
                 withdrawal_fees: Decimal::new(100u128.into()),
@@ -166,16 +165,16 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     )?;
 
     // Register the autocompounder as a trader on the cw-staking and the dex
-    let autocompounder_address = get_module_address(&os, AUTOCOMPOUNDER)?;
+    let autocompounder_address = get_module_address(&account, AUTOCOMPOUNDER)?;
 
-    os.manager.execute_on_module(CW_STAKING,
-    api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
+    account.manager.execute_on_module(CW_STAKING,
+                                      api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
         to_add: vec![ autocompounder_address.to_string()],
         to_remove: vec![],
     }))?;
 
-    os.manager.execute_on_module(EXCHANGE,
-    api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
+    account.manager.execute_on_module(EXCHANGE,
+                                      api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
         to_add: vec![ autocompounder_address.to_string()],
         to_remove: vec![],
     }))?;
@@ -187,7 +186,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 #[derive(Parser, Default, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Arguments {
-    /// Optionally provide an OSID to turn into a vault
+    /// Optionally provide an Account Id to turn into a vault
     #[arg(short, long)]
     account_id: Option<u32>,
     /// Paired asset in the pool

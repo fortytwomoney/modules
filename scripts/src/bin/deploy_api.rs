@@ -47,7 +47,7 @@ pub fn deploy_api() -> anyhow::Result<()> {
     //         ans_host_address: ans_host.address()?.into_string(),
     //         version_control_address: version_control.address()?.into_string(),
     //     },
-    //     app: Empty {},
+    //     module: Empty {},
     // };
     // version_control.upload_and_register_api(&mut api.as_instance_mut(), &api_init_msg, &module_version)?;
 

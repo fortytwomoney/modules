@@ -7,7 +7,7 @@ use forty_two_boot::autocompounder::AutocompounderApp;
 use wyndex_bundle::WynDex;
 
 pub struct Vault<Chain: BootEnvironment> {
-    pub os: AbstractAccount<Chain>,
+    pub account: AbstractAccount<Chain>,
     pub auto_compounder: AutocompounderApp<Chain>,
     pub vault_token: Cw20<Chain>,
     pub staking: CwStakingApi<Chain>,
