@@ -1,6 +1,6 @@
-use abstract_boot::VersionControl;
-use abstract_boot::boot_core::{ContractInstance, BootUpload};
 use abstract_boot::boot_core;
+use abstract_boot::boot_core::{BootUpload, ContractInstance};
+use abstract_boot::VersionControl;
 use boot_core::networks::{parse_network, NetworkInfo};
 use boot_core::*;
 use cosmwasm_std::Addr;

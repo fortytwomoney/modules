@@ -4,7 +4,7 @@ use boot_core::{boot_contract, BootExecute};
 use boot_core::{BootEnvironment, BootError, Contract, IndexResponse, TxResponse};
 use cosmwasm_std::{Addr, Coin};
 use forty_two::autocompounder::{
-    AutocompounderExecuteMsg, ExecuteMsg, InstantiateMsg, QueryMsg, MigrateMsg, AUTOCOMPOUNDER,
+    AutocompounderExecuteMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, AUTOCOMPOUNDER,
 };
 
 /// Contract wrapper for deploying with BOOT
