@@ -12,6 +12,7 @@ pub mod state;
 
 #[cfg(test)]
 mod test_common {
+    use abstract_cw_staking_api::msg::{CwStakingQueryMsg, StakingInfoResponse};
     use abstract_sdk::base::InstantiateEndpoint;
     pub use abstract_sdk::core as abstract_core;
     use abstract_sdk::core::{
@@ -27,7 +28,6 @@ mod test_common {
     pub use cosmwasm_std::testing::*;
     use cosmwasm_std::{from_binary, to_binary, Addr, Decimal};
     use cw_asset::AssetInfo;
-    use cw_staking::msg::{CwStakingQueryMsg, StakingInfoResponse};
     use cw_utils::Duration;
     use forty_two::autocompounder::BondingPeriodSelector;
     pub use speculoos::prelude::*;
@@ -41,7 +41,8 @@ mod test_common {
     // Mock Querier with a smart-query handler for the module factory
     // Because that query is performed when the App is instantiated to get the manager's address and set it as the Admin
     pub fn app_base_mock_querier() -> MockQuerierBuilder {
-        let abstract_env = AbstractMockQuerierBuilder::default().account(TEST_MANAGER, TEST_PROXY, 0);
+        let abstract_env =
+            AbstractMockQuerierBuilder::default().account(TEST_MANAGER, TEST_PROXY, 0);
         abstract_env
             .builder()
             .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_binary(msg).unwrap() {
@@ -59,7 +60,7 @@ mod test_common {
             })
             .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
                 match from_binary(msg).unwrap() {
-                    cw_staking::msg::QueryMsg::Module(CwStakingQueryMsg::Info {
+                    abstract_cw_staking_api::msg::QueryMsg::Module(CwStakingQueryMsg::Info {
                         provider: _,
                         staking_token: _,
                     }) => {
@@ -120,7 +121,8 @@ mod test_common {
 
     // same as app_base_mock_querier but there is unbonding period for tokens
     pub fn app_base_mock_querier_with_unbonding_period() -> MockQuerierBuilder {
-        let abstract_env = AbstractMockQuerierBuilder::default().account(TEST_MANAGER, TEST_PROXY, 0);
+        let abstract_env =
+            AbstractMockQuerierBuilder::default().account(TEST_MANAGER, TEST_PROXY, 0);
         abstract_env
             .builder()
             .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_binary(msg).unwrap() {
@@ -138,7 +140,7 @@ mod test_common {
             })
             .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
                 match from_binary(msg).unwrap() {
-                    cw_staking::msg::QueryMsg::Module(CwStakingQueryMsg::Info {
+                    abstract_cw_staking_api::msg::QueryMsg::Module(CwStakingQueryMsg::Info {
                         provider: _,
                         staking_token: _,
                     }) => {

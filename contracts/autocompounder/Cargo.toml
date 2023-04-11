@@ -40,8 +40,8 @@ thiserror = { version = "1.0.21" }
 abstract-app = { workspace = true }
 abstract-sdk = { workspace = true }
 
-dex = { workspace = true }
-cw-staking = { workspace = true }
+abstract-dex-api = { workspace = true }
+abstract-cw-staking-api = { workspace = true }
 
 forty-two = { workspace = true }
 
@@ -49,10 +49,10 @@ forty-two = { workspace = true }
 forty-two-boot = { path = "../../packages/forty-two-boot" }
 forty-two = { workspace = true, features = ["boot"] }
 # wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git"}
-wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git", branch = "main" }
+wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git", branch = "update/0.13.2" }
 # wyndex-bundle = { path = "../../../../abstract/integration-bundles/bundles/wyndex", package = "wyndex-bundle" }
-dex = { workspace = true, features = ["juno", "boot"] }
-cw-staking = { workspace = true, features = ["juno", "boot"] }
+abstract-dex-api = { workspace = true, features = ["juno", "boot"] }
+abstract-cw-staking-api = { workspace = true, features = ["juno", "boot"] }
 abstract-boot = { workspace = true, features = ["daemon"] }
 abstract-testing = { workspace = true }
 boot-cw-plus = { workspace = true }

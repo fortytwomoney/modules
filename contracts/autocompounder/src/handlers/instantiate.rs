@@ -2,11 +2,15 @@ use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::state::{Config, CONFIG, FEE_CONFIG};
+use abstract_cw_staking_api::{
+    msg::{CwStakingQueryMsg, StakingInfoResponse},
+    CW_STAKING,
+};
 use abstract_sdk::ApiInterface;
 use abstract_sdk::{
-    features::AbstractNameService,
     core::api,
     core::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
+    features::AbstractNameService,
     Resolve,
 };
 use cosmwasm_std::{
@@ -15,10 +19,6 @@ use cosmwasm_std::{
 };
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
-use cw_staking::{
-    msg::{CwStakingQueryMsg, StakingInfoResponse},
-    CW_STAKING,
-};
 use cw_utils::Duration;
 use forty_two::autocompounder::{
     AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER,

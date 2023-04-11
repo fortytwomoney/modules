@@ -1,17 +1,17 @@
 use abstract_core::app;
 use abstract_core::app::BaseExecuteMsg;
-use boot_core::{boot_contract, BootExecute};
-use boot_core::{BootEnvironment, BootError, Contract, IndexResponse, TxResponse};
+use boot_core::{contract, BootExecute, CwEnv};
+use boot_core::{BootError, Contract, IndexResponse, TxResponse};
 use cosmwasm_std::{Addr, Coin};
 use forty_two::autocompounder::{
     AutocompounderExecuteMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, AUTOCOMPOUNDER,
 };
 
 /// Contract wrapper for deploying with BOOT
-#[boot_contract(InstantiateMsg, ExecuteMsg, QueryMsg, MigrateMsg)]
+#[contract(InstantiateMsg, ExecuteMsg, QueryMsg, MigrateMsg)]
 pub struct AutocompounderApp<Chain>;
 
-impl<Chain: BootEnvironment> AutocompounderApp<Chain>
+impl<Chain: CwEnv> AutocompounderApp<Chain>
 where
     TxResponse<Chain>: IndexResponse,
 {

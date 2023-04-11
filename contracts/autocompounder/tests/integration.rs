@@ -7,6 +7,9 @@ use abstract_core::objects::{AnsAsset, AssetEntry};
 use abstract_sdk::core as abstract_core;
 
 use abstract_boot::boot_core::*;
+use abstract_cw_staking_api::CW_STAKING;
+use abstract_dex_api::msg::*;
+use abstract_dex_api::EXCHANGE;
 use autocompounder::state::{Claim, Config};
 use boot_cw_plus::Cw20;
 use cosmwasm_std::{
@@ -15,10 +18,7 @@ use cosmwasm_std::{
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_asset::Asset;
 use cw_multi_test::{App, ContractWrapper, Executor};
-use cw_staking::CW_STAKING;
 use cw_utils::Expiration;
-use dex::msg::*;
-use dex::EXCHANGE;
 use forty_two::autocompounder::{
     AutocompounderExecuteMsgFns, AutocompounderQueryMsg, AutocompounderQueryMsgFns,
     BondingPeriodSelector,
