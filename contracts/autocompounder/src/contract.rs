@@ -17,6 +17,7 @@ pub type AutocompounderApp = AppContract<
     AutocompounderExecuteMsg,
     AutocompounderQueryMsg,
     AutocompounderMigrateMsg,
+    cosmwasm_std::Empty,
     Cw20ReceiveMsg,
 >;
 
