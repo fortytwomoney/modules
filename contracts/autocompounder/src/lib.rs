@@ -110,7 +110,7 @@ mod test_common {
             // })
             .with_contract_map_entry(
                 TEST_MANAGER,
-                abstract_core::manager::state::OS_MODULES,
+                abstract_core::manager::state::ACCOUNT_MODULES,
                 (
                     "abstract:cw-staking",
                     Addr::unchecked(TEST_CW_STAKING_MODULE),
@@ -190,7 +190,7 @@ mod test_common {
             // })
             .with_contract_map_entry(
                 TEST_MANAGER,
-                abstract_core::manager::state::OS_MODULES,
+                abstract_core::manager::state::ACCOUNT_MODULES,
                 (
                     "abstract:cw-staking",
                     Addr::unchecked(TEST_CW_STAKING_MODULE),
