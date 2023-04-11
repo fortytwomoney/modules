@@ -11,7 +11,8 @@ use abstract_cw_staking_api::CW_STAKING;
 use abstract_dex_api::msg::*;
 use abstract_dex_api::EXCHANGE;
 use autocompounder::state::{Claim, Config};
-use boot_cw_plus::Cw20;
+use boot_cw_plus::Cw20Base;
+
 use cosmwasm_std::{
     coin, coins, to_binary, Addr, Binary, Decimal, Empty, StdResult, Timestamp, Uint128, Uint64,
 };
@@ -49,7 +50,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
     )?;
 
     // Deploy mock dex
-    let wyndex = WynDex::deploy_on(mock.clone(), Empty {})?;
+    let wyndex = WynDex::store_on(mock.clone()).unwrap();
 
     let eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);
@@ -59,7 +60,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
     let staking_api = abstract_helper::init_staking(mock.clone(), &abstract_, None)?;
     let auto_compounder = init_auto_compounder(mock.clone(), &abstract_, None)?;
 
-    let mut vault_token = Cw20::new(VAULT_TOKEN, mock.clone());
+    let mut vault_token = Cw20Base::new(VAULT_TOKEN, mock.clone());
     // upload the vault token code
     let vault_toke_code_id = vault_token.upload()?.uploaded_code_id()?;
     // Create an Account that we will turn into a vault
