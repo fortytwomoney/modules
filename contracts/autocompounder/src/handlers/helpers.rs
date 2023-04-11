@@ -2,11 +2,11 @@ use crate::{
     contract::{AutocompounderApp, AutocompounderResult},
     error::AutocompounderError,
 };
+use abstract_cw_staking_api::{msg::*, CW_STAKING};
 use abstract_sdk::ApiInterface;
-use abstract_sdk::{features::AccountIdentification, core::objects::AssetEntry};
+use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
 use cosmwasm_std::{Decimal, Deps, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
-use cw_staking::{msg::*, CW_STAKING};
 use cw_utils::Duration;
 use forty_two::autocompounder::Config;
 

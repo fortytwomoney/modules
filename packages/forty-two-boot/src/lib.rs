@@ -1,5 +1,5 @@
-use abstract_boot::{ManagerQueryFns, AbstractAccount};
-use boot_core::BootEnvironment;
+use abstract_boot::{AbstractAccount, ManagerQueryFns};
+use boot_core::CwEnv;
 
 use cosmwasm_std::Addr;
 
@@ -7,7 +7,7 @@ pub mod autocompounder;
 pub mod vault;
 
 /// TODO: abstract-boot
-pub fn get_module_address<Chain: BootEnvironment>(
+pub fn get_module_address<Chain: CwEnv>(
     account: &AbstractAccount<Chain>,
     module_id: &str,
 ) -> anyhow::Result<Addr> {
@@ -20,7 +20,7 @@ pub fn get_module_address<Chain: BootEnvironment>(
 }
 
 // TODO: abstract boot
-pub fn is_module_installed<Chain: BootEnvironment>(
+pub fn is_module_installed<Chain: CwEnv>(
     account: &AbstractAccount<Chain>,
     module_id: &str,
 ) -> anyhow::Result<bool> {

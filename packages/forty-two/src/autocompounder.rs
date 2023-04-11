@@ -28,6 +28,7 @@
 //! ## Migration
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
+use abstract_dex_api::msg::OfferAsset;
 use abstract_sdk::core::app;
 use abstract_sdk::core::objects::{AssetEntry, DexName, PoolAddress, PoolMetadata};
 use cosmwasm_schema::QueryResponses;
@@ -35,7 +36,6 @@ use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetInfo;
 use cw_utils::{Duration, Expiration};
-use dex::msg::OfferAsset;
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 

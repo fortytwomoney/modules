@@ -2,20 +2,20 @@ use crate::autocompounder::AutocompounderApp;
 use crate::{get_module_address, is_module_installed};
 use abstract_boot::AbstractAccount;
 use abstract_core::app;
-use boot_core::BootEnvironment;
+use abstract_cw_staking_api::boot::CwStakingApi;
+use abstract_cw_staking_api::CW_STAKING;
+use boot_core::CwEnv;
 use boot_core::*;
 use cosmwasm_std::Empty;
-use cw_staking::boot::CwStakingApi;
-use cw_staking::CW_STAKING;
 use forty_two::autocompounder::AUTOCOMPOUNDER;
 
-pub struct Vault<Chain: BootEnvironment> {
+pub struct Vault<Chain: CwEnv> {
     pub account: AbstractAccount<Chain>,
     pub staking: CwStakingApi<Chain>,
     pub autocompounder: AutocompounderApp<Chain>,
 }
 
-impl<Chain: BootEnvironment> Vault<Chain> {
+impl<Chain: CwEnv> Vault<Chain> {
     pub fn new(chain: Chain, account_id: Option<u32>) -> anyhow::Result<Self> {
         let account = AbstractAccount::new(chain.clone(), account_id);
         let staking = CwStakingApi::new(CW_STAKING, chain.clone());

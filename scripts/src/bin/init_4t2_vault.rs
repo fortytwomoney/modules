@@ -2,25 +2,21 @@ use std::env;
 use std::sync::Arc;
 
 use abstract_boot::{
-    AbstractAccount,
-    AccountFactory, boot_core::{DaemonOptionsBuilder, prelude::*, state::StateInterface}, Manager, Proxy, VersionControl,
-};
-use abstract_core::{
-    ABSTRACT_EVENT_NAME,
-    account_factory,
-    api,
-    app,
-    objects::{gov_type::GovernanceDetails, module::ModuleVersion},
-    registry::{ANS_HOST, EXCHANGE, MANAGER, ACCOUNT_FACTORY, PROXY}
+    boot_core::{prelude::*, state::StateInterface, DaemonOptionsBuilder},
+    AbstractAccount, AccountFactory, Manager, Proxy, VersionControl,
 };
 use abstract_core::objects::module::ModuleInfo;
+use abstract_core::{
+    account_factory, api, app,
+    objects::{gov_type::GovernanceDetails, module::ModuleVersion},
+    registry::{ACCOUNT_FACTORY, ANS_HOST, EXCHANGE, MANAGER, PROXY},
+    ABSTRACT_EVENT_NAME,
+};
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
 use forty_two::{
-    autocompounder::{
-        AUTOCOMPOUNDER, AutocompounderInstantiateMsg, BondingPeriodSelector,
-    },
-    cw_staking::CW_STAKING
+    abstract_cw_staking_api::CW_STAKING,
+    autocompounder::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER},
 };
 use forty_two_boot::{get_module_address, is_module_installed, parse_network};
 use log::info;
@@ -30,9 +26,7 @@ use log::info;
 
 const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-
-
-fn create_vault<Chain: BootEnvironment>(
+fn create_vault<Chain: CwEnv>(
     factory: &AccountFactory<Chain>,
     chain: Chain,
     governance_details: GovernanceDetails,
@@ -110,7 +104,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         )?
     };
 
-    // let query_res = forty_two::cw_staking::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
+    // let query_res = forty_two ::abstract_cw_staking_api::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
     // panic!("{?:}", query_res);
 
     // Install abstract dex
@@ -131,10 +125,9 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     // Install both modules
     let new_module_version = ModuleVersion::from(MODULE_VERSION);
 
-    account.manager
+    account
+        .manager
         .install_module_version(CW_STAKING, new_module_version.clone(), &Empty {})?;
-
-
 
     account.manager.install_module_version(
         AUTOCOMPOUNDER,
@@ -143,7 +136,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             base: app::BaseInstantiateMsg {
                 ans_host_address: version_control
                     .module(ModuleInfo::from_id_latest(ANS_HOST)?)?
-                    .reference.unwrap_addr()?
+                    .reference
+                    .unwrap_addr()?
                     .to_string(),
             },
             module: AutocompounderInstantiateMsg {
@@ -167,18 +161,21 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     // Register the autocompounder as a trader on the cw-staking and the dex
     let autocompounder_address = get_module_address(&account, AUTOCOMPOUNDER)?;
 
-    account.manager.execute_on_module(CW_STAKING,
-                                      api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
-        to_add: vec![ autocompounder_address.to_string()],
-        to_remove: vec![],
-    }))?;
+    account.manager.execute_on_module(
+        CW_STAKING,
+        api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
+            to_add: vec![autocompounder_address.to_string()],
+            to_remove: vec![],
+        }),
+    )?;
 
-    account.manager.execute_on_module(EXCHANGE,
-                                      api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
-        to_add: vec![ autocompounder_address.to_string()],
-        to_remove: vec![],
-    }))?;
-
+    account.manager.execute_on_module(
+        EXCHANGE,
+        api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
+            to_add: vec![autocompounder_address.to_string()],
+            to_remove: vec![],
+        }),
+    )?;
 
     Ok(())
 }

@@ -2,13 +2,13 @@ use std::str::FromStr;
 
 use abstract_boot::boot_core::*;
 use abstract_boot::{Abstract, AbstractBootError};
+use abstract_cw_staking_api::{boot::CwStakingApi, CW_STAKING};
+use abstract_dex_api::msg::DexInstantiateMsg;
+use abstract_dex_api::{boot::DexApi, EXCHANGE};
 use abstract_sdk::core as abstract_core;
 use abstract_sdk::core::api::InstantiateMsg;
 use cosmwasm_std::{Decimal, Empty};
 use cw_multi_test::ContractWrapper;
-use cw_staking::{boot::CwStakingApi, CW_STAKING};
-use dex::msg::DexInstantiateMsg;
-use dex::{boot::DexApi, EXCHANGE};
 use forty_two::autocompounder::AUTOCOMPOUNDER;
 use forty_two_boot::autocompounder::AutocompounderApp;
 
@@ -23,9 +23,9 @@ pub(crate) fn init_exchange(
     exchange
         .as_instance_mut()
         .set_mock(Box::new(cw_multi_test::ContractWrapper::new_with_empty(
-            ::dex::contract::execute,
-            ::dex::contract::instantiate,
-            ::dex::contract::query,
+            ::abstract_dex_api::contract::execute,
+            ::abstract_dex_api::contract::instantiate,
+            ::abstract_dex_api::contract::query,
         )));
     exchange.upload()?;
     exchange.instantiate(
@@ -64,9 +64,9 @@ pub(crate) fn init_staking(
     staking
         .as_instance_mut()
         .set_mock(Box::new(cw_multi_test::ContractWrapper::new_with_empty(
-            ::cw_staking::contract::execute,
-            ::cw_staking::contract::instantiate,
-            ::cw_staking::contract::query,
+            ::abstract_cw_staking_api::contract::execute,
+            ::abstract_cw_staking_api::contract::instantiate,
+            ::abstract_cw_staking_api::contract::query,
         )));
     staking.upload()?;
     staking.instantiate(

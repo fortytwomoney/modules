@@ -6,11 +6,17 @@ use crate::contract::{
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{Config, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
+use abstract_cw_staking_api::{
+    msg::{CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse},
+    CW_STAKING,
+};
+use abstract_dex_api::api::{Dex, DexInterface};
+use abstract_dex_api::msg::OfferAsset;
 use abstract_sdk::ApiInterface;
 use abstract_sdk::{
+    core::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
     features::AbstractResponse,
     features::{AbstractNameService, AccountIdentification},
-    core::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
     AbstractSdkResult, Resolve, TransferInterface,
 };
 use cosmwasm_std::{
@@ -19,13 +25,7 @@ use cosmwasm_std::{
 };
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw_asset::{Asset, AssetInfo};
-use cw_staking::{
-    msg::{CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse},
-    CW_STAKING,
-};
 use cw_utils::Duration;
-use dex::api::{Dex, DexInterface};
-use dex::msg::OfferAsset;
 use forty_two::autocompounder::FeeConfig;
 use protobuf::Message;
 
