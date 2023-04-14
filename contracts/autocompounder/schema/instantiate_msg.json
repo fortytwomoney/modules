@@ -8,7 +8,7 @@
   ],
   "properties": {
     "app": {
-      "description": "custom instantiate msg attributes",
+      "description": "custom instantiate msg",
       "allOf": [
         {
           "$ref": "#/definitions/AutocompounderInstantiateMsg"

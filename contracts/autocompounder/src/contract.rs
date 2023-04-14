@@ -17,8 +17,8 @@ pub type AutocompounderApp = AppContract<
     AutocompounderExecuteMsg,
     AutocompounderQueryMsg,
     AutocompounderMigrateMsg,
-    cosmwasm_std::Empty,
     Cw20ReceiveMsg,
+    cosmwasm_std::Empty,
 >;
 
 pub type AutocompounderResult<T = Response> = Result<T, AutocompounderError>;

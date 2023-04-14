@@ -49,7 +49,7 @@ forty-two = { workspace = true }
 forty-two-boot = { path = "../../packages/forty-two-boot" }
 forty-two = { workspace = true, features = ["boot"] }
 # wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git"}
-wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git", branch = "update/0.13.2" }
+wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git", tag = "v0.14.0" }
 # wyndex-bundle = { path = "../../../../abstract/integration-bundles/bundles/wyndex", package = "wyndex-bundle" }
 abstract-dex-api = { workspace = true, features = ["juno", "boot"] }
 abstract-cw-staking-api = { workspace = true, features = ["juno", "boot"] }

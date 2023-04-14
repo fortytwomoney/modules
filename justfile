@@ -6,6 +6,13 @@ update:
 watch:
   cargo watch -x lcheck
 
+check:
+  cargo check --all-features
+
+lintfix:
+  cargo clippy --fix --allow-staged --allow-dirty --all-features
+  cargo fmt --all
+
 # `just wasm-module cw-staking --features pisco-1 --no-default-features`
 wasm-module module +args='':
   RUSTFLAGS='-C link-arg=-s' cargo wasm --package {{module}} {{args}}
@@ -18,13 +25,11 @@ deploy-module module network +args='':
 
 # wasm all the things!
 wasm:
-  RUSTFLAGS='-C link-arg=-s' cargo wasm --package cw-staking
   RUSTFLAGS='-C link-arg=-s' cargo wasm --package autocompounder
 
 # would be really nice to be able to say "abstarct register autocompounder"
 deploy network: wasm
   just deploy-module autocompounder {{network}}
-  just deploy-module cw-staking {{network}}
 
 create-vault network paired +args='':
   (cd scripts && cargo +nightly run --bin init_4t2_vault -- --network-id {{network}} --paired-asset {{paired}} {{args}})
@@ -33,7 +38,7 @@ build:
   cargo build
 
 test:
-  cargo nextest run
+  cargo nextest run --all-features
 
 schema-module module version:
   #!/usr/bin/env bash
