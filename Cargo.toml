@@ -37,8 +37,8 @@ abstract-core = { version = "0.14" }
 abstract-boot = { version = "0.14" }
 abstract-testing = { version = "0.14" }
 
-abstract-dex-api = { git = "https://github.com/Abstract-OS/apis.git", tag = "v0.14.0" }
-abstract-cw-staking-api = { git = "https://github.com/Abstract-OS/apis.git", tag = "v0.14.0" }
+abstract-dex-api = { git = "https://github.com/Abstract-OS/apis.git", tag = "v0.14.1" }
+abstract-cw-staking-api = { git = "https://github.com/Abstract-OS/apis.git", tag = "v0.14.1" }
 # cw-staking = { path = "../../abstract/Apis/contracts/cw-staking" }
 
 forty-two = { version = "0.4.0", path = "packages/forty-two" }

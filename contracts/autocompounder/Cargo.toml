@@ -37,20 +37,16 @@ schemars = "0.8.1"
 serde = { workspace = true }
 thiserror = { version = "1.0.21" }
 
-abstract-app = { workspace = true }
-abstract-sdk = { workspace = true }
-
-abstract-dex-api = { workspace = true }
-abstract-cw-staking-api = { workspace = true }
-
+abstract-app = { version = "0.14" }
+abstract-sdk = { version = "0.14" }
+abstract-dex-api = { git = "https://github.com/Abstract-OS/apis.git", tag = "v0.14.1", default-features = false}
+abstract-cw-staking-api = { git = "https://github.com/Abstract-OS/apis.git", tag = "v0.14.1", default-features = false }
 forty-two = { workspace = true }
 
 [dev-dependencies]
 forty-two-boot = { path = "../../packages/forty-two-boot" }
 forty-two = { workspace = true, features = ["boot"] }
-# wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git"}
 wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git", tag = "v0.14.0" }
-# wyndex-bundle = { path = "../../../../abstract/integration-bundles/bundles/wyndex", package = "wyndex-bundle" }
 abstract-dex-api = { workspace = true, features = ["juno", "boot"] }
 abstract-cw-staking-api = { workspace = true, features = ["juno", "boot"] }
 abstract-boot = { workspace = true, features = ["daemon"] }

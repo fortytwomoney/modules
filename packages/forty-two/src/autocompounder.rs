@@ -81,7 +81,7 @@ pub enum AutocompounderExecuteMsg {
         withdrawal: Option<Decimal>,
     },
     /// Join vault by depositing one or more funds
-    #[payable]
+    #[cfg_attr(feature = "boot", payable)]
     Deposit { funds: Vec<OfferAsset> },
     /// Withdraw all unbonded funds
     Withdraw {},
