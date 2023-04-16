@@ -5,7 +5,7 @@ use abstract_app::export_endpoints;
 use abstract_app::AppContract;
 use cosmwasm_std::Response;
 use cw20::Cw20ReceiveMsg;
-use forty_two::autocompounder::{
+use crate::msg::{
     AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg,
     AutocompounderQueryMsg, AUTOCOMPOUNDER,
 };
@@ -37,7 +37,7 @@ pub const FEE_SWAPPED_REPLY: u64 = 6u64;
 
 /// Used as the foundation for building your app.
 /// All entrypoints are executed through this const (`instantiate`, `query`, `execute`, `migrate`)
-pub const AUTO_COMPOUNDER_APP: AutocompounderApp =
+pub const AUTOCOMPOUNDER_APP: AutocompounderApp =
     AutocompounderApp::new(AUTOCOMPOUNDER, MODULE_VERSION, None)
         .with_instantiate(handlers::instantiate_handler)
         .with_query(handlers::query_handler)
@@ -56,5 +56,5 @@ pub const AUTO_COMPOUNDER_APP: AutocompounderApp =
         .with_dependencies(AUTOCOMPOUNDER_DEPS);
 
 // Export the endpoints for this contract
-#[cfg(not(feature = "library"))]
-export_endpoints!(AUTO_COMPOUNDER_APP, AutocompounderApp);
+#[cfg(feature = "export")]
+export_endpoints!(AUTOCOMPOUNDER_APP, AutocompounderApp);

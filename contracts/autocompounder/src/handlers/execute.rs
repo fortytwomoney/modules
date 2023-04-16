@@ -24,7 +24,7 @@ use cosmwasm_std::{
 use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetList;
 use cw_utils::Duration;
-use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
+use crate::msg::{AutocompounderExecuteMsg, Cw20HookMsg};
 use std::ops::Add;
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
@@ -559,7 +559,7 @@ fn unstake_lp_tokens(
 mod test {
     use super::*;
 
-    use crate::{contract::AUTO_COMPOUNDER_APP, test_common::app_init};
+    use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_init};
     use abstract_sdk::base::ExecuteEndpoint;
     use abstract_testing::prelude::TEST_MANAGER;
     use cosmwasm_std::{
@@ -567,7 +567,7 @@ mod test {
         Addr,
     };
     use cw_controllers::AdminError;
-    use forty_two::autocompounder::ExecuteMsg;
+    use crate::msg::ExecuteMsg;
     use speculoos::{assert_that, result::ResultAssertions};
 
     fn execute_as(
@@ -576,7 +576,7 @@ mod test {
         msg: impl Into<ExecuteMsg>,
     ) -> Result<Response, AutocompounderError> {
         let info = mock_info(sender, &[]);
-        AUTO_COMPOUNDER_APP.execute(deps, mock_env(), info, msg.into())
+        AUTOCOMPOUNDER_APP.execute(deps, mock_env(), info, msg.into())
     }
 
     fn execute_as_manager(

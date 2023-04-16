@@ -8,7 +8,7 @@ use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
 use cosmwasm_std::{Decimal, Deps, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw_utils::Duration;
-use forty_two::autocompounder::Config;
+use crate::msg::Config;
 
 /// queries staking module for the number of staked assets of the app
 pub fn query_stake(

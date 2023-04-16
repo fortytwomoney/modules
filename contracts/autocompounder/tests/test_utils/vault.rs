@@ -3,7 +3,7 @@ use abstract_boot::{Abstract, AbstractAccount};
 use abstract_cw_staking_api::boot::CwStakingApi;
 use abstract_dex_api::boot::DexApi;
 use boot_cw_plus::Cw20Base;
-use forty_two_boot::autocompounder::AutocompounderApp;
+use autocompounder::autocompounder::AutocompounderApp;
 use wyndex_bundle::WynDex;
 
 pub struct Vault<Chain: CwEnv> {

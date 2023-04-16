@@ -20,12 +20,12 @@ use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_asset::Asset;
 use cw_multi_test::{App, ContractWrapper, Executor};
 use cw_utils::Expiration;
-use forty_two::autocompounder::{
+use autocompounder::msg::{
     AutocompounderExecuteMsgFns, AutocompounderQueryMsg, AutocompounderQueryMsgFns,
     BondingPeriodSelector,
 };
-use forty_two::autocompounder::{Cw20HookMsg, AUTOCOMPOUNDER};
-use forty_two_boot::autocompounder::AutocompounderApp;
+use autocompounder::msg::{Cw20HookMsg, AUTOCOMPOUNDER};
+use autocompounder::autocompounder::AutocompounderApp;
 use speculoos::assert_that;
 use speculoos::prelude::OrderedAssertions;
 use test_utils::abstract_helper::{self, init_auto_compounder};
@@ -78,7 +78,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
     account.manager.install_module(
         AUTOCOMPOUNDER,
         &abstract_core::app::InstantiateMsg {
-            module: forty_two::autocompounder::AutocompounderInstantiateMsg {
+            module: autocompounder::msg::AutocompounderInstantiateMsg {
                 code_id: vault_toke_code_id,
                 commission_addr: COMMISSION_RECEIVER.to_string(),
                 deposit_fees: Decimal::percent(3),

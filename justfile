@@ -36,7 +36,7 @@ create-pisco-1-vaults +args='':
 
 # `just wasm-contract autocompounder--features export,terra --no-default-features`
 wasm-contract module +args='':
-  RUSTFLAGS='-C link-arg=-s' cargo wasm --package abstract-{{module}}-app {{args}}
+  RUSTFLAGS='-C link-arg=-s' cargo wasm --package {{module}} {{args}}
 
 # Wasm all the contracts in the repository for the given chain
 wasm chain_name:

@@ -9,11 +9,11 @@ use clap::Parser;
 use cosmwasm_std::{Addr};
 use log::info;
 use speculoos::prelude::*;
-use forty_two::autocompounder::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns as AutocompounderQuery, Config};
-use forty_two_boot::{
+use autocompounder::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns as AutocompounderQuery, Config};
+use autocompounder::{
     parse_network
 };
-use forty_two_boot::vault::Vault;
+use autocompounder::vault::Vault;
 
 fn test_compound(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());

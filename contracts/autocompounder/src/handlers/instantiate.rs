@@ -20,7 +20,7 @@ use cosmwasm_std::{
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use cw_utils::Duration;
-use forty_two::autocompounder::{
+use crate::msg::{
     AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER,
 };
 
@@ -230,7 +230,7 @@ pub fn query_staking_info(
 
 #[cfg(test)]
 mod test {
-    use crate::{contract::AUTO_COMPOUNDER_APP, test_common::app_base_mock_querier};
+    use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_base_mock_querier};
     use abstract_sdk::base::InstantiateEndpoint;
     use abstract_sdk::core as abstract_core;
     use abstract_testing::prelude::{TEST_ANS_HOST, TEST_MODULE_FACTORY};
@@ -273,12 +273,12 @@ mod test {
 
         deps.querier = app_base_mock_querier().build();
 
-        let resp = AUTO_COMPOUNDER_APP.instantiate(
+        let resp = AUTOCOMPOUNDER_APP.instantiate(
             deps.as_mut(),
             mock_env(),
             info,
             abstract_core::app::InstantiateMsg {
-                module: forty_two::autocompounder::AutocompounderInstantiateMsg {
+                module: crate::msg::AutocompounderInstantiateMsg {
                     code_id: 1,
                     commission_addr: COMMISSION_RECEIVER.to_string(),
                     deposit_fees: Decimal::percent(3),

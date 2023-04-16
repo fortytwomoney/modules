@@ -20,8 +20,10 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 backtraces = ["cosmwasm-std/backtraces"]
-library = []
+export = []
+default = ["export"]
 schema = ["abstract-app/schema"]
+boot = ["export", "dep:abstract-boot", "dep:boot-core", "dep:anyhow"]
 
 [dependencies]
 cosmwasm-std = { workspace = true }
@@ -43,9 +45,12 @@ abstract-sdk = { version = "0.14" }
 abstract-dex-api = { workspace = true, default-features = false}
 abstract-cw-staking-api = { workspace = true, default-features = false }
 forty-two = { workspace = true }
+abstract-boot = { workspace = true, optional = true }
+boot-core = { workspace = true, optional = true }
+abstract-core = { workspace = true }
+anyhow = { workspace = true, optional = true }
 
 [dev-dependencies]
-forty-two-boot = { path = "../../packages/forty-two-boot" }
 forty-two = { workspace = true, features = ["boot"] }
 wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git", tag = "v0.14.0" }
 abstract-dex-api = { workspace = true, features = ["juno", "boot"] }
@@ -53,6 +58,7 @@ abstract-cw-staking-api = { workspace = true, features = ["juno", "boot"] }
 abstract-boot = { workspace = true, features = ["daemon"] }
 abstract-testing = { workspace = true }
 boot-cw-plus = { workspace = true }
+abstract-core = { workpsace = true }
 
 cw-multi-test = { workspace = true }
 anyhow = { workspace = true }

@@ -8,7 +8,7 @@ use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 use abstract_cw_staking_api::{msg::CwStakingQueryMsg, CW_STAKING};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
-use forty_two::autocompounder::{AutocompounderQueryMsg, Config};
+use crate::msg::{AutocompounderQueryMsg, Config};
 
 const DEFAULT_PAGE_SIZE: u8 = 5;
 const MAX_PAGE_SIZE: u8 = 20;

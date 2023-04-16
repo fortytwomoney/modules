@@ -26,7 +26,7 @@ use cosmwasm_std::{
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw_asset::{Asset, AssetInfo};
 use cw_utils::Duration;
-use forty_two::autocompounder::FeeConfig;
+use crate::msg::FeeConfig;
 use protobuf::Message;
 
 /// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.

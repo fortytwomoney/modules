@@ -14,11 +14,14 @@ use abstract_core::{
 };
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
-use forty_two::{
-    abstract_cw_staking_api::CW_STAKING,
-    autocompounder::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER},
+use autocompounder::{
+    AutocompounderInstantiateMsg,
+    BondingPeriodSelector,
+    AUTOCOMPOUNDER,
+    get_module_address,
+    is_module_installed,
+    parse_network
 };
-use forty_two_boot::{get_module_address, is_module_installed, parse_network};
 use log::info;
 
 // To deploy the app we need to get the memory and then register it

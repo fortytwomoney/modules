@@ -2,7 +2,7 @@ use cosmwasm_std::Addr;
 use cosmwasm_std::Uint128;
 use cw_storage_plus::{Item, Map};
 use cw_utils::Expiration;
-pub use forty_two::autocompounder::{Claim, Config, FeeConfig};
+pub use crate::msg::{Claim, Config, FeeConfig};
 
 pub const CACHED_USER_ADDR: Item<Addr> = Item::new("cached_user_addr");
 pub const LATEST_UNBONDING: Item<Expiration> = Item::new("latest_unbonding");

@@ -4,6 +4,10 @@ pub mod error;
 mod handlers;
 pub mod response;
 pub mod state;
+pub mod msg;
+
+#[cfg(feature = "boot")]
+mod boot;
 
 // TODO; FIX
 // #[cfg(test)]
@@ -22,17 +26,17 @@ mod test_common {
     };
     use abstract_testing::{
         addresses::{TEST_MANAGER, TEST_MODULE_FACTORY, TEST_PROXY},
-        prelude::{AbstractMockQuerierBuilder, TEST_ANS_HOST},
-        MockDeps, MockQuerierBuilder,
+        MockDeps,
+        MockQuerierBuilder, prelude::{AbstractMockQuerierBuilder, TEST_ANS_HOST},
     };
     pub use cosmwasm_std::testing::*;
-    use cosmwasm_std::{from_binary, to_binary, Addr, Decimal};
+    use cosmwasm_std::{Addr, Decimal, from_binary, to_binary};
     use cw_asset::AssetInfo;
     use cw_utils::Duration;
-    use forty_two::autocompounder::BondingPeriodSelector;
+    use crate::msg::BondingPeriodSelector;
     pub use speculoos::prelude::*;
 
-    use crate::contract::AUTO_COMPOUNDER_APP;
+    use crate::contract::AUTOCOMPOUNDER_APP;
     const WYNDEX: &str = "wyndex";
     const COMMISSION_RECEIVER: &str = "commission_receiver";
     const TEST_CW_STAKING_MODULE: &str = "cw_staking";
@@ -209,13 +213,13 @@ mod test_common {
             deps.querier = app_base_mock_querier().build();
         }
 
-        AUTO_COMPOUNDER_APP
+        AUTOCOMPOUNDER_APP
             .instantiate(
                 deps.as_mut(),
                 mock_env(),
                 info,
                 abstract_core::app::InstantiateMsg {
-                    module: forty_two::autocompounder::AutocompounderInstantiateMsg {
+                    module: crate::msg::AutocompounderInstantiateMsg {
                         code_id: 1,
                         commission_addr: COMMISSION_RECEIVER.to_string(),
                         deposit_fees: Decimal::percent(3),
