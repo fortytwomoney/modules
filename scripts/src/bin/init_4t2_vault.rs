@@ -61,8 +61,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
     let (dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
-        // "uni-6" => ("junoswap", "junox", 4012),
-        // "juno-1" => ("junoswap", "juno", 0),
+        // "uni-6" => ("junoswap", "juno>junox", 4012),
+        // "juno-1" => ("junoswap", "juno>juno", 0),
         "pisco-1" => ("astroport", "terra2>luna", 83),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
@@ -76,8 +76,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     let abstr = Abstract::new(chain.clone());
 
-    let mut assets = vec![args.paired_asset, base_pair_asset.to_string()];
-    assets.sort();
+    let mut pair_assets = vec![args.paired_asset, base_pair_asset.to_string()];
+    pair_assets.sort();
 
     let account = if let Some(account_id) = args.account_id {
         AbstractAccount::new(chain, Some(account_id))
@@ -88,7 +88,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             GovernanceDetails::Monarchy {
                 monarch: sender.to_string(),
             },
-            assets.clone(),
+            pair_assets.clone(),
         )?
     };
 
@@ -115,7 +115,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     account
         .manager
-        .install_module_version(CW_STAKING, new_module_version.clone(), &Empty {})?;
+        .install_module(CW_STAKING, &Empty {})?;
 
     account.manager.install_module_version(
         AUTOCOMPOUNDER,
@@ -140,7 +140,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                 dex: dex.into(),
                 fee_asset: base_pair_asset.into(),
                 /// Assets in the pool
-                pool_assets: assets.into_iter().map(Into::into).collect(),
+                pool_assets: pair_assets.into_iter().map(Into::into).collect(),
                 preferred_bonding_period: BondingPeriodSelector::Shortest,
             },
         },
@@ -177,6 +177,7 @@ struct Arguments {
     /// Paired asset in the pool
     #[arg(short, long)]
     paired_asset: String,
+    /// Network to deploy on
     #[arg(short, long)]
     network_id: String,
     // #[arg(short, long)]
