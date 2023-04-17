@@ -1,42 +1,40 @@
 use std::env;
 use std::sync::Arc;
 
-use abstract_boot::{
-    boot_core::{prelude::*, state::StateInterface, DaemonOptionsBuilder},
-    AbstractAccount, AccountFactory, Manager, Proxy, VersionControl,
-};
-use abstract_core::objects::module::ModuleInfo;
+use abstract_boot::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy, VersionControl};
 use abstract_core::{
-    account_factory, api, app,
+    account_factory,
+    api,
+    app,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
-    registry::{ACCOUNT_FACTORY, ANS_HOST, EXCHANGE, MANAGER, PROXY},
+    registry::{ACCOUNT_FACTORY, ANS_HOST, MANAGER, PROXY},
     ABSTRACT_EVENT_NAME,
+    objects::module::ModuleInfo,
+    manager::ExecuteMsgFns
 };
+use abstract_cw_staking_api::CW_STAKING;
+use boot_core::{BootError, BootExecute, CwEnv, instantiate_daemon_env, networks::parse_network, ContractInstance, IndexResponse, TxResponse, StateInterface, DaemonOptionsBuilder};
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
-use autocompounder::{
-    AutocompounderInstantiateMsg,
-    BondingPeriodSelector,
-    AUTOCOMPOUNDER,
-    get_module_address,
-    is_module_installed,
-    parse_network
-};
+
 use log::info;
+use autocompounder::boot::{get_module_address, is_module_installed};
+use autocompounder::msg::{AUTOCOMPOUNDER, AutocompounderInstantiateMsg, BondingPeriodSelector};
 
 // To deploy the app we need to get the memory and then register it
 // We can then deploy a test Account that uses that new app
 
 const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-fn create_vault<Chain: CwEnv>(
+fn create_vault_account<Chain: CwEnv>(
     factory: &AccountFactory<Chain>,
     chain: Chain,
-    governance_details: GovernanceDetails,
+    governance_details: GovernanceDetails<String>,
     assets: Vec<String>,
-) -> Result<AbstractAccount<Chain>, BootError> {
+) -> Result<AbstractAccount<Chain>, BootError>
+where  TxResponse<Chain> : IndexResponse {
     let result = factory.execute(
-        &account_factory::ExecuteMsg::CreateOs {
+        &account_factory::ExecuteMsg::CreateAccount {
             governance: governance_details,
             description: None,
             link: None,
@@ -63,33 +61,20 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
     let (dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
-        "uni-5" => ("junoswap", "junox", 4012),
-        "juno-1" => ("junoswap", "juno", 0),
+        // "uni-6" => ("junoswap", "junox", 4012),
+        // "juno-1" => ("junoswap", "juno", 0),
         "pisco-1" => ("astroport", "terra2>luna", 83),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
 
     info!("Using dex: {} and base: {}", dex, base_pair_asset);
 
-    let network = parse_network(&args.network_id);
-
-    let daemon_options = DaemonOptionsBuilder::default().network(network).build()?;
-
     // Setup the environment
+    let network = parse_network(&args.network_id);
+    let daemon_options = DaemonOptionsBuilder::default().network(network).build()?;
     let (sender, chain) = instantiate_daemon_env(&rt, daemon_options)?;
 
-    let version_control_address: String =
-        env::var("VERSION_CONTROL").expect("VERSION_CONTROL must be set");
-
-    let version_control =
-        VersionControl::load(chain.clone(), &Addr::unchecked(version_control_address));
-
-    let account_factory = AccountFactory::new(ACCOUNT_FACTORY, chain.clone());
-
-    let abstract_version = env::var("ABSTRACT_VERSION").expect("Missing ABSTRACT_VERSION");
-
-    let abstract_version = ModuleVersion::from(abstract_version);
-    account_factory.set_address(&version_control.get_api_addr(ACCOUNT_FACTORY, abstract_version)?);
+    let abstr = Abstract::new(chain.clone());
 
     let mut assets = vec![args.paired_asset, base_pair_asset.to_string()];
     assets.sort();
@@ -97,8 +82,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let account = if let Some(account_id) = args.account_id {
         AbstractAccount::new(chain, Some(account_id))
     } else {
-        create_vault(
-            &account_factory,
+        create_vault_account(
+            &abstr.account_factory,
             chain,
             GovernanceDetails::Monarchy {
                 monarch: sender.to_string(),
@@ -111,18 +96,18 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     // panic!("{?:}", query_res);
 
     // Install abstract dex
-    if !is_module_installed(&account, EXCHANGE)? {
-        account.manager.install_module(EXCHANGE, &Empty {})?;
+    if !is_module_installed(&account, "abstract:dex")? {
+        account.manager.install_module("abstract:dex", &Empty {})?;
     }
 
     // First uninstall autocompounder if found
     if is_module_installed(&account, AUTOCOMPOUNDER)? {
-        account.manager.uninstall_module(AUTOCOMPOUNDER)?;
+        account.manager.uninstall_module(AUTOCOMPOUNDER.to_string())?;
     }
 
     // Uninstall cw_staking if found
     if is_module_installed(&account, CW_STAKING)? {
-        account.manager.uninstall_module(CW_STAKING)?;
+        account.manager.uninstall_module(CW_STAKING.to_string())?;
     }
 
     // Install both modules
@@ -137,7 +122,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         new_module_version,
         &app::InstantiateMsg {
             base: app::BaseInstantiateMsg {
-                ans_host_address: version_control
+                ans_host_address: abstr.version_control
                     .module(ModuleInfo::from_id_latest(ANS_HOST)?)?
                     .reference
                     .unwrap_addr()?
@@ -166,15 +151,15 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     account.manager.execute_on_module(
         CW_STAKING,
-        api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
+        api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateAuthorizedAddresses {
             to_add: vec![autocompounder_address.to_string()],
             to_remove: vec![],
         }),
     )?;
 
     account.manager.execute_on_module(
-        EXCHANGE,
-        api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateTraders {
+        "abstract:dex",
+        api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateAuthorizedAddresses {
             to_add: vec![autocompounder_address.to_string()],
             to_remove: vec![],
         }),

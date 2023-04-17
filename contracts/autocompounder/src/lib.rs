@@ -9,11 +9,6 @@ pub mod msg;
 #[cfg(feature = "boot")]
 pub mod boot;
 
-// TODO; FIX
-// #[cfg(test)]
-// #[cfg(not(target_arch = "wasm32"))]
-// mod tests;
-
 #[cfg(test)]
 mod test_common {
     use abstract_cw_staking_api::msg::{CwStakingQueryMsg, StakingInfoResponse};

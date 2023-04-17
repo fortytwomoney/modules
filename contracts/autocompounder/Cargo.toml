@@ -23,7 +23,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 export = []
 default = ["export"]
 schema = ["abstract-app/schema"]
-boot = ["export", "dep:abstract-boot", "dep:boot-core", "dep:anyhow"]
+boot = ["export", "dep:abstract-boot", "dep:boot-core", "dep:anyhow", "abstract-cw-staking-api/boot"]
 
 [dependencies]
 cosmwasm-std = { workspace = true }

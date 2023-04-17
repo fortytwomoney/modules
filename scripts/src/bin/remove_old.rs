@@ -1,5 +1,5 @@
 use abstract_boot::{
-    boot_core::{networks, networks::NetworkInfo, prelude::*, DaemonOptionsBuilder},
+    boot_core::{networks, networks::NetworkInfo,  DaemonOptionsBuilder},
     VersionControl, VCExecFns,
 };
 use abstract_core::{
@@ -8,8 +8,9 @@ use abstract_core::{
 use cosmwasm_std::Addr;
 use std::env;
 use std::sync::Arc;
+use boot_core::instantiate_daemon_env;
 
-const NETWORK: NetworkInfo = networks::UNI_5;
+const NETWORK: NetworkInfo = networks::UNI_6;
 
 // To deploy the app we need to get the memory and then register it
 // We can then deploy a test Account that uses that new app
@@ -35,13 +36,13 @@ pub fn deploy_api() -> anyhow::Result<()> {
     for version in old_versions {
         version_control.remove_module(ModuleInfo {
             name: "autocompounder".to_string(),
-            provider: "4t2".into(),
+            namespace: "4t2".into(),
             version: ModuleVersion::from(version),
         })?;
 
         version_control.remove_module(ModuleInfo {
             name: "cw-staking".to_string(),
-            provider: "4t2".into(),
+            namespace: "4t2".into(),
             version: ModuleVersion::from(version),
         })?;
     }
