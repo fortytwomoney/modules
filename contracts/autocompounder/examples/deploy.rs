@@ -1,26 +1,27 @@
-use abstract_boot::boot_core;
-use abstract_boot::boot_core::{BootUpload, ContractInstance};
-use abstract_boot::VersionControl;
+use boot_core;
+use abstract_boot::{AppDeployer, VersionControl};
 use boot_core::networks::{parse_network, NetworkInfo};
 use boot_core::*;
-use cosmwasm_std::Addr;
 use autocompounder::msg::AUTOCOMPOUNDER;
-use autocompounder::autocompounder::AutocompounderApp;
+use autocompounder::boot::AutocompounderApp;
 use std::env;
 use std::sync::Arc;
+use abstract_core::VERSION_CONTROL;
+use abstract_core::version_control::ExecuteMsgFns;
 use tokio::runtime::Runtime;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn deploy_autocompounder(
     network: NetworkInfo,
-    autocompounder_code_id: Option<u64>,
+    _autocompounder_code_id: Option<u64>,
 ) -> anyhow::Result<()> {
     let version: Version = CONTRACT_VERSION.parse().unwrap();
 
     let rt = Arc::new(Runtime::new()?);
     let options = DaemonOptionsBuilder::default().network(network).build();
     let (_sender, chain) = instantiate_daemon_env(&rt, options?)?;
+
     let mut autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
 
     autocompounder.deploy(version)?;

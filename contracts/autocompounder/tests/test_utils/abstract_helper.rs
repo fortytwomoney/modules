@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use abstract_boot::boot_core::*;
+use boot_core::*;
 use abstract_boot::{Abstract, AbstractBootError};
 use abstract_cw_staking_api::{boot::CwStakingApi, CW_STAKING};
 use abstract_dex_api::msg::DexInstantiateMsg;

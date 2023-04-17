@@ -1,11 +1,10 @@
-use abstract_boot::{AbstractAccount, AnsHost, AppDeployer, ManagerQueryFns};
+use abstract_boot::{AbstractAccount, AppDeployer, ManagerQueryFns};
 use abstract_cw_staking_api::{
     boot::CwStakingApi,
     CW_STAKING
 };
 use abstract_sdk::core::app;
 use abstract_sdk::core::app::BaseExecuteMsg;
-use abstract_sdk::register::ANS_HOST;
 use boot_core::{
     BootError,
     BootExecute,
@@ -118,7 +117,6 @@ impl<Chain: CwEnv> Vault<Chain> {
         let account = AbstractAccount::new(chain.clone(), account_id);
         let staking = CwStakingApi::new(CW_STAKING, chain.clone());
         let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
-        let ans = AnsHost::new(ANS_HOST, chain);
 
         if account_id.is_some() {
             if is_module_installed(&account, CW_STAKING)? {

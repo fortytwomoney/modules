@@ -1,4 +1,4 @@
-use abstract_boot::boot_core::CwEnv;
+use boot_core::CwEnv;
 use abstract_boot::{Abstract, AbstractAccount};
 use abstract_cw_staking_api::boot::CwStakingApi;
 use abstract_dex_api::boot::DexApi;

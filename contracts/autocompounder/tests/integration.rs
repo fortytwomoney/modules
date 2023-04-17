@@ -6,7 +6,7 @@ use abstract_core::api::{BaseExecuteMsgFns, BaseQueryMsgFns};
 use abstract_core::objects::{AnsAsset, AssetEntry};
 use abstract_sdk::core as abstract_core;
 
-use abstract_boot::boot_core::*;
+use boot_core::*;
 use abstract_cw_staking_api::CW_STAKING;
 use abstract_dex_api::msg::*;
 use abstract_dex_api::EXCHANGE;

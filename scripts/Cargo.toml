@@ -19,7 +19,7 @@ serde = { workspace = true }
 dotenv = { workspace = true }
 env_logger = { workspace = true }
 semver = { workspace = true }
-abstract-cw-staking-api = { git = "https://github.com/Abstract-OS/apis.git", package = "abstract-cw-staking-api", tag = "v0.14.0" }
+abstract-cw-staking-api = { git = "https://github.com/Abstract-OS/apis.git", package = "abstract-cw-staking-api", tag = "v0.14.2" }
 abstract-core = { workspace = true }
 forty-two = { workspace = true, features = ["boot"] }
 tokio = { workspace = true }

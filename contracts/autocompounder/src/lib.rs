@@ -7,7 +7,7 @@ pub mod state;
 pub mod msg;
 
 #[cfg(feature = "boot")]
-mod boot;
+pub mod boot;
 
 // TODO; FIX
 // #[cfg(test)]
