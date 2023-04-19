@@ -1,6 +1,6 @@
 use boot_core;
 use abstract_boot::{AppDeployer, VersionControl};
-use boot_core::networks::{parse_network, NetworkInfo};
+use boot_core::networks::{parse_network, NetworkInfo, NetworkKind};
 use boot_core::*;
 use autocompounder::msg::AUTOCOMPOUNDER;
 use autocompounder::boot::AutocompounderApp;
@@ -8,9 +8,21 @@ use std::env;
 use std::sync::Arc;
 use abstract_core::VERSION_CONTROL;
 use abstract_core::version_control::ExecuteMsgFns;
+use boot_core::networks::juno::JUNO_CHAIN;
 use tokio::runtime::Runtime;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+pub const JUNO_1: NetworkInfo = NetworkInfo {
+    kind: NetworkKind::Mainnet,
+    id: "juno-1",
+    gas_denom: "ujuno",
+    gas_price: 0.0025,
+    grpc_urls: &["http://juno-grpc.polkachu.com:12690"],
+    chain_info: JUNO_CHAIN,
+    lcd_url: None,
+    fcd_url: None,
+};
 
 fn deploy_autocompounder(
     network: NetworkInfo,
@@ -19,7 +31,7 @@ fn deploy_autocompounder(
     let version: Version = CONTRACT_VERSION.parse().unwrap();
 
     let rt = Arc::new(Runtime::new()?);
-    let options = DaemonOptionsBuilder::default().network(network).build();
+    let options = DaemonOptionsBuilder::default().network(JUNO_1).build();
     let (_sender, chain) = instantiate_daemon_env(&rt, options?)?;
 
     let mut autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());

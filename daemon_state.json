@@ -1,5 +1,24 @@
 {
   "juno": {
+    "juno-1": {
+      "code_ids": {
+        "abstract:account-factory": 2686,
+        "abstract:ans-host": 2684,
+        "abstract:manager": 2688,
+        "abstract:module-factory": 2687,
+        "abstract:proxy": 2689,
+        "abstract:version-control": 2685
+      },
+      "default": {
+        "abstract:account-factory": "juno1q0a2j2s4wdwat7jcx9f7yhdr0hu4e5smpqvzfdqa6t2evp2unrlqnmfphn",
+        "abstract:ans-host": "juno16pvpuaqwm4kheq50dcv3vlg38g95r5chx7vkan2a68qdlav5kqescaqsec",
+        "abstract:manager": "juno1dh0j4xtdznp4zjtvs68zsd0qst0m9j6h39fdgcnxcrug4ythat7q6hvndr",
+        "abstract:module-factory": "juno1ccnc4xywe3l52zpu672ugl5dk0dy4affqjmsxs6k9c2ydlrgelyq90gpzq",
+        "abstract:proxy": "juno1muhadzdx9a5su7fmv3uhvjre8uzhfnllrycj9m4z95fep7z0rjwq6u2kgq",
+        "abstract:version-control": "juno1hzvc5u2y7v7as9zckgntddkr4sqy7m466hychxy0nqxe92gahdjqhp7wmn",
+        "wyndex:factory": "juno16adshp473hd9sruwztdqrtsfckgtd69glqm6sqk0hc4q40c296qsxl3u3s"
+      }
+    },
     "uni-6": {
       "code_ids": {
         "4t2:autocompounder": 1642,
