@@ -3,23 +3,24 @@ use std::sync::Arc;
 
 use abstract_boot::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy, VersionControl};
 use abstract_core::{
-    account_factory,
-    api,
-    app,
+    account_factory, api, app,
+    manager::ExecuteMsgFns,
+    objects::module::ModuleInfo,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
     registry::{ACCOUNT_FACTORY, ANS_HOST, MANAGER, PROXY},
     ABSTRACT_EVENT_NAME,
-    objects::module::ModuleInfo,
-    manager::ExecuteMsgFns
 };
 use abstract_cw_staking_api::CW_STAKING;
-use boot_core::{BootError, BootExecute, CwEnv, instantiate_daemon_env, networks::parse_network, ContractInstance, IndexResponse, TxResponse, StateInterface, DaemonOptionsBuilder};
+use boot_core::{
+    instantiate_daemon_env, networks::parse_network, BootError, BootExecute, ContractInstance,
+    CwEnv, DaemonOptionsBuilder, IndexResponse, StateInterface, TxResponse,
+};
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
 
-use log::info;
 use autocompounder::boot::{get_module_address, is_module_installed};
-use autocompounder::msg::{AUTOCOMPOUNDER, AutocompounderInstantiateMsg, BondingPeriodSelector};
+use autocompounder::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER};
+use log::info;
 
 // To deploy the app we need to get the memory and then register it
 // We can then deploy a test Account that uses that new app
@@ -32,7 +33,9 @@ fn create_vault_account<Chain: CwEnv>(
     governance_details: GovernanceDetails<String>,
     assets: Vec<String>,
 ) -> Result<AbstractAccount<Chain>, BootError>
-where  TxResponse<Chain> : IndexResponse {
+where
+    TxResponse<Chain>: IndexResponse,
+{
     let result = factory.execute(
         &account_factory::ExecuteMsg::CreateAccount {
             governance: governance_details,
@@ -61,16 +64,18 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
     let (dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
-        // "uni-6" => ("junoswap", "juno>junox", 4012),
-        // "juno-1" => ("junoswap", "juno>juno", 0),
-        "pisco-1" => ("astroport", "terra2>luna", 83),
+        // "uni-6" => ("wyndex", "juno>junox", 4012),
+        "juno-1" => ("wyndex", "juno>juno", 1),
+        // "pisco-1" => ("astroport", "terra2>luna", 83),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
 
     info!("Using dex: {} and base: {}", dex, base_pair_asset);
 
     // Setup the environment
-    let network = parse_network(&args.network_id);
+    let mut network = parse_network(&args.network_id);
+    // TODO: make grpc url dynamic by removing this line once Boot gets updated
+    network.grpc_urls = &["http://juno-grpc.polkachu.com:12690"];
     let daemon_options = DaemonOptionsBuilder::default().network(network).build()?;
     let (sender, chain) = instantiate_daemon_env(&rt, daemon_options)?;
 
@@ -102,7 +107,9 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     // First uninstall autocompounder if found
     if is_module_installed(&account, AUTOCOMPOUNDER)? {
-        account.manager.uninstall_module(AUTOCOMPOUNDER.to_string())?;
+        account
+            .manager
+            .uninstall_module(AUTOCOMPOUNDER.to_string())?;
     }
 
     // Uninstall cw_staking if found
@@ -113,16 +120,15 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     // Install both modules
     let new_module_version = ModuleVersion::from(MODULE_VERSION);
 
-    account
-        .manager
-        .install_module(CW_STAKING, &Empty {})?;
+    account.manager.install_module(CW_STAKING, &Empty {})?;
 
     account.manager.install_module_version(
         AUTOCOMPOUNDER,
         new_module_version,
         &app::InstantiateMsg {
             base: app::BaseInstantiateMsg {
-                ans_host_address: abstr.version_control
+                ans_host_address: abstr
+                    .version_control
                     .module(ModuleInfo::from_id_latest(ANS_HOST)?)?
                     .reference
                     .unwrap_addr()?

@@ -1,16 +1,16 @@
 use std::str::FromStr;
 
-use boot_core::*;
 use abstract_boot::{Abstract, AbstractBootError};
 use abstract_cw_staking_api::{boot::CwStakingApi, CW_STAKING};
 use abstract_dex_api::msg::DexInstantiateMsg;
 use abstract_dex_api::{boot::DexApi, EXCHANGE};
 use abstract_sdk::core as abstract_core;
 use abstract_sdk::core::api::InstantiateMsg;
+use autocompounder::boot::AutocompounderApp;
+use autocompounder::msg::AUTOCOMPOUNDER;
+use boot_core::*;
 use cosmwasm_std::{Decimal, Empty};
 use cw_multi_test::ContractWrapper;
-use autocompounder::msg::AUTOCOMPOUNDER;
-use autocompounder::boot::AutocompounderApp;
 
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
@@ -45,7 +45,7 @@ pub(crate) fn init_exchange(
 
     let version: semver::Version = version
         .map(|s| s.parse().unwrap())
-        .unwrap_or_else(|| deployment.version.clone());
+        .unwrap_or_else(|| "1.0.0".parse().unwrap());
 
     deployment
         .version_control
@@ -83,7 +83,7 @@ pub(crate) fn init_staking(
 
     let version: semver::Version = version
         .map(|s| s.parse().unwrap())
-        .unwrap_or_else(|| deployment.version.clone());
+        .unwrap_or_else(|| "1.0.0".parse().unwrap());
 
     deployment
         .version_control
@@ -114,7 +114,10 @@ pub(crate) fn init_auto_compounder(
 
     deployment
         .version_control
-        .register_apps(vec![auto_compounder.as_instance()], &deployment.version)
+        .register_apps(
+            vec![auto_compounder.as_instance()],
+            &"1.0.0".parse().unwrap(),
+        )
         .unwrap();
 
     Ok(auto_compounder)

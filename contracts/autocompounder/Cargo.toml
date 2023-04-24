@@ -23,7 +23,13 @@ backtraces = ["cosmwasm-std/backtraces"]
 export = []
 default = ["export"]
 schema = ["abstract-app/schema"]
-boot = ["export", "dep:abstract-boot", "dep:boot-core", "dep:anyhow", "abstract-cw-staking-api/boot"]
+boot = [
+  "export",
+  "dep:abstract-boot",
+  "dep:boot-core",
+  "dep:anyhow",
+  "abstract-cw-staking-api/boot",
+]
 
 [dependencies]
 cosmwasm-std = { workspace = true }
@@ -42,8 +48,8 @@ thiserror = { version = "1.0.21" }
 
 abstract-app = { version = "0.14" }
 abstract-sdk = { version = "0.14" }
-abstract-dex-api = { git = "https://github.com/Abstract-OS/apis.git", tag = "v0.14.2", default-features = false}
-abstract-cw-staking-api = { git = "https://github.com/Abstract-OS/apis.git", tag = "v0.14.2", default-features = false }
+abstract-dex-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.2", default-features = false }
+abstract-cw-staking-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.2", default-features = false }
 forty-two = { workspace = true }
 abstract-boot = { workspace = true, optional = true }
 boot-core = { workspace = true, optional = true }
@@ -52,10 +58,16 @@ anyhow = { workspace = true, optional = true }
 
 [dev-dependencies]
 # forty-two = { workspace = true, features = ["boot"] }
-wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git", tag = "v0.3.0" }
+wyndex-bundle = { git = "https://github.com/AbstractSDK/integration-bundles.git", tag = "v0.3.0" }
 autocompounder = { path = ".", features = ["boot"] }
-abstract-dex-api = { git = "https://github.com/Abstract-OS/apis.git", tag = "v0.14.2", features = ["juno", "boot"] }
-abstract-cw-staking-api = { git = "https://github.com/Abstract-OS/apis.git", tag = "v0.14.2", features = ["juno", "boot"] }
+abstract-dex-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.2", features = [
+  "juno",
+  "boot",
+] }
+abstract-cw-staking-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.2", features = [
+  "juno",
+  "boot",
+] }
 abstract-boot = { workspace = true, features = ["daemon"] }
 abstract-testing = { workspace = true }
 boot-cw-plus = { workspace = true }

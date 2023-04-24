@@ -1,9 +1,5 @@
 [workspace]
-members = [
-  "contracts/*",
-  "packages/*",
-   "scripts",
-]
+members = ["contracts/*", "packages/*", "scripts"]
 # Enable the version 2 feature resolver, which avoids unifying features for targets that are not being built
 #
 # Critically this prevents dev-dependencies from enabling features even when not building a target that
@@ -36,8 +32,8 @@ abstract-core = { version = "0.14" }
 abstract-boot = { version = "0.14" }
 abstract-testing = { version = "0.14" }
 
-abstract-dex-api = { git = "https://github.com/Abstract-OS/apis.git", tag = "v0.14.2", default-features = false }
-abstract-cw-staking-api = { git = "https://github.com/Abstract-OS/apis.git", tag = "v0.14.2", default-features = false  }
+abstract-dex-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.2", default-features = false }
+abstract-cw-staking-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.2", default-features = false }
 forty-two = { version = "0.4.0", path = "packages/forty-two" }
 
 autocompounder = { path = "contracts/autocompounder" }
@@ -68,7 +64,7 @@ env_logger = "0.10.0"
 log = "0.4.14"
 clap = { version = "4.0.32", features = ["derive"] }
 boot-core = { version = "0.10.0" }
-boot-cw-plus = { git = "https://github.com/Abstract-OS/BOOT.git", ref = "v0.10.1" }
+boot-cw-plus = { git = "https://github.com/AbstractSDK/BOOT.git", ref = "v0.10.1" }
 
 [profile.release]
 rpath = false
