@@ -1,7 +1,28 @@
 {
   "juno": {
+    "juno-1": {
+      "code_ids": {
+        "4t2:autocompounder": 2722,
+        "abstract:account-factory": 2686,
+        "abstract:ans-host": 2684,
+        "abstract:manager": 2688,
+        "abstract:module-factory": 2687,
+        "abstract:proxy": 2689,
+        "abstract:version-control": 2685
+      },
+      "default": {
+        "abstract:account-factory": "juno1q0a2j2s4wdwat7jcx9f7yhdr0hu4e5smpqvzfdqa6t2evp2unrlqnmfphn",
+        "abstract:ans-host": "juno16pvpuaqwm4kheq50dcv3vlg38g95r5chx7vkan2a68qdlav5kqescaqsec",
+        "abstract:manager": "juno1kymacwd2ykxe9yxrsqju8ry4mqcvevk96m0qmqvhg8dvzn6luuvsl4zduv",
+        "abstract:module-factory": "juno1ccnc4xywe3l52zpu672ugl5dk0dy4affqjmsxs6k9c2ydlrgelyq90gpzq",
+        "abstract:proxy": "juno1k3krcsn5w0jhw8fv57efvn4hcesd7jtxtgtgf6l8ldfqpflhg9aq63pueg",
+        "abstract:version-control": "juno1hzvc5u2y7v7as9zckgntddkr4sqy7m466hychxy0nqxe92gahdjqhp7wmn",
+        "wyndex:factory": "juno16adshp473hd9sruwztdqrtsfckgtd69glqm6sqk0hc4q40c296qsxl3u3s"
+      }
+    },
     "uni-6": {
       "code_ids": {
+        "4t2:autocompounder": 1642,
         "abstract:account-factory": 1582,
         "abstract:ans-host": 1580,
         "abstract:cw-staking": 1594,
@@ -28,6 +49,7 @@
   "terra": {
     "pisco-1": {
       "code_ids": {
+        "4t2:autocompounder": 8578,
         "abstract:account-factory": 8508,
         "abstract:ans-host": 8506,
         "abstract:cw-staking": 8568,
@@ -43,9 +65,9 @@
         "abstract:ans-host": "terra1j4pmsj5ut4h3twhhu7f6ntp5mxu5sjnf2nd62ug4e0el0e5e7hfsctkgh6",
         "abstract:cw-staking": "terra1y7qnqrawlm4zkc2u43ns4r3wmj3u4xzwz0srkye39rv693zdml6q66w3s5",
         "abstract:dex": "terra1s6qalhnrl4wj83hurkvash9a6ay6jhxa9r9vjp85uj8074yf52yqgp8944",
-        "abstract:manager": "terra1mvnkp3yqgnj23usjfukral6sa5xv4q4cscecrp5956vg8uddy5eql6ztx7",
+        "abstract:manager": "terra1yhryvq67nrfmqxd8cgz38zl6l347gf3n4ahs2v6wf08qwrmm6aus4f949v",
         "abstract:module-factory": "terra1uj4rkn0dgfjl94pdzmjg42uplhn60gdtx2m85tsgp9vm8dnm85qqzfxry7",
-        "abstract:proxy": "terra1fu96uf6gve8t239egvlcjaqt2jtf8jka2dsqn2hr4qtl7tj3pqrqcg5jh5",
+        "abstract:proxy": "terra19s8jm8pqf5d9fjtctcatl33ug3wu33npkxnh7rlf7wcre36q4a4sphj5hd",
         "abstract:tendermint-staking": "terra1tgk92tn9m0utyexhntjankc5hwpjdl7jg7u5twlulze3h2wrucwq2s93sh",
         "abstract:version-control": "terra176q7gvqq8hnft7u2z3gmf0uaht0stypc95fl3r0m3h8877te4kjq0rws67"
       }
