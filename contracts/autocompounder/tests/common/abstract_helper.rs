@@ -10,7 +10,7 @@ use abstract_sdk::core::api::InstantiateMsg;
 use cosmwasm_std::{Decimal, Empty};
 use cw_multi_test::ContractWrapper;
 use autocompounder::msg::AUTOCOMPOUNDER;
-use autocompounder::autocompounder::AutocompounderApp;
+use autocompounder::boot::AutocompounderApp;
 
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
@@ -97,7 +97,7 @@ pub(crate) fn init_auto_compounder(
     chain: Mock,
     deployment: &Abstract<Mock>,
     _version: Option<String>,
-) -> Result<autocompounder::autocompounder::AutocompounderApp<Mock>, AbstractBootError> {
+) -> Result<autocompounder::boot::AutocompounderApp<Mock>, AbstractBootError> {
     let mut auto_compounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
     auto_compounder.as_instance_mut().set_mock(Box::new(

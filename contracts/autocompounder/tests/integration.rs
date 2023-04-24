@@ -1,12 +1,13 @@
-#[cfg(test)]
-mod test_utils;
+mod common;
 
 use abstract_boot::{Abstract, AbstractBootError, ManagerQueryFns};
 use abstract_core::api::{BaseExecuteMsgFns, BaseQueryMsgFns};
 use abstract_core::objects::{AnsAsset, AssetEntry};
 use abstract_sdk::core as abstract_core;
+use boot_cw_plus::Cw20ExecuteMsgFns;
 
 use boot_core::*;
+use boot_cw_plus::Cw20QueryMsgFns;
 use abstract_cw_staking_api::CW_STAKING;
 use abstract_dex_api::msg::*;
 use abstract_dex_api::EXCHANGE;
@@ -25,12 +26,12 @@ use autocompounder::msg::{
     BondingPeriodSelector,
 };
 use autocompounder::msg::{Cw20HookMsg, AUTOCOMPOUNDER};
-use autocompounder::autocompounder::AutocompounderApp;
+use autocompounder::boot::AutocompounderApp;
 use speculoos::assert_that;
 use speculoos::prelude::OrderedAssertions;
-use test_utils::abstract_helper::{self, init_auto_compounder};
-use test_utils::vault::Vault;
-use test_utils::{AResult, DISTRIBUTION, OWNER};
+use common::abstract_helper::{self, init_auto_compounder};
+use common::vault::Vault;
+use common::{AResult, DISTRIBUTION, OWNER};
 
 use wyndex_bundle::*;
 
@@ -107,10 +108,10 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
     // give the autocompounder permissions to call on the dex and cw-staking contracts
     exchange_api
         .call_as(&account.manager.address()?)
-        .update_traders(vec![auto_compounder_addr.clone()], vec![])?;
+        .update_authorized_addresses(vec![auto_compounder_addr.clone()], vec![])?;
     staking_api
         .call_as(&account.manager.address()?)
-        .update_traders(vec![auto_compounder_addr], vec![])?;
+        .update_authorized_addresses(vec![auto_compounder_addr], vec![])?;
 
     // set the vault token address
     let auto_compounder_config = auto_compounder.config()?;
@@ -146,7 +147,7 @@ fn proper_initialisation() {
 /// - Withdraw all from the auto-compounder and check the balances again.
 #[test]
 fn generator_without_reward_proxies_balanced_assets() -> AResult {
-    let owner = Addr::unchecked(test_utils::OWNER);
+    let owner = Addr::unchecked(common::OWNER);
 
     // create testing environment
     let (_state, mock) = instantiate_default_mock_env(&owner)?;
@@ -189,7 +190,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     )?;
 
     // check that the vault token is minted
-    let vault_token_balance = vault_token.balance(&owner)?;
+    let vault_token_balance = vault_token.balance(owner.to_string())?;
     assert_that!(vault_token_balance).is_equal_to(10000u128);
 
     // and eur balance decreased and usd balance stayed the same
@@ -275,7 +276,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 /// - querying the total lp balance of the auto-compounder
 #[test]
 fn generator_without_reward_proxies_single_sided() -> AResult {
-    let owner = Addr::unchecked(test_utils::OWNER);
+    let owner = Addr::unchecked(common::OWNER);
 
     // create testing environment
     let (_state, mock) = instantiate_default_mock_env(&owner)?;
@@ -445,7 +446,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
 /// - checks if the rewards are distributed correctly
 #[test]
 fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
-    let owner = Addr::unchecked(test_utils::OWNER);
+    let owner = Addr::unchecked(common::OWNER);
     let commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
 

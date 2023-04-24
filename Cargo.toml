@@ -68,7 +68,7 @@ env_logger = "0.10.0"
 log = "0.4.14"
 clap = { version = "4.0.32", features = ["derive"] }
 boot-core = { version = "0.10.0" }
-boot-cw-plus = { git = "https://github.com/Abstract-OS/BOOT.git", tag = "v0.10.0" }
+boot-cw-plus = { git = "https://github.com/Abstract-OS/BOOT.git", ref = "v0.10.1" }
 
 [profile.release]
 rpath = false

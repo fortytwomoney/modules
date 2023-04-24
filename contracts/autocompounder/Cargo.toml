@@ -51,8 +51,9 @@ abstract-core = { workspace = true }
 anyhow = { workspace = true, optional = true }
 
 [dev-dependencies]
-forty-two = { workspace = true, features = ["boot"] }
-wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git", tag = "v0.14.0" }
+# forty-two = { workspace = true, features = ["boot"] }
+wyndex-bundle = { git = "https://github.com/Abstract-OS/integration-bundles.git", tag = "v0.3.0" }
+autocompounder = { path = ".", features = ["boot"] }
 abstract-dex-api = { git = "https://github.com/Abstract-OS/apis.git", tag = "v0.14.2", features = ["juno", "boot"] }
 abstract-cw-staking-api = { git = "https://github.com/Abstract-OS/apis.git", tag = "v0.14.2", features = ["juno", "boot"] }
 abstract-boot = { workspace = true, features = ["daemon"] }
