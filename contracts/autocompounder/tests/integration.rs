@@ -1,6 +1,6 @@
 mod common;
 
-use abstract_boot::{Abstract, AbstractBootError, ManagerQueryFns};
+use abstract_boot::{Abstract, AbstractBootError, ManagerQueryFns, VCExecFns};
 use abstract_core::api::{BaseExecuteMsgFns, BaseQueryMsgFns};
 use abstract_core::objects::{AnsAsset, AssetEntry};
 use abstract_sdk::core as abstract_core;
@@ -38,6 +38,7 @@ use wyndex_bundle::*;
 const WYNDEX: &str = "wyndex";
 const COMMISSION_RECEIVER: &str = "commission_receiver";
 const VAULT_TOKEN: &str = "vault_token";
+const TEST_NAMESPACE: &str = "4t2";
 
 fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
     let version = "1.0.0".parse().unwrap();
@@ -49,6 +50,10 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
             monarch: mock.sender.to_string(),
         },
     )?;
+
+    abstract_
+        .version_control
+        .claim_namespaces(0, vec![TEST_NAMESPACE.to_string()])?;
 
     // Deploy mock dex
     let wyndex = WynDex::store_on(mock.clone()).unwrap();
