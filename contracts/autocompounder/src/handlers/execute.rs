@@ -7,24 +7,24 @@ use crate::error::AutocompounderError;
 use crate::state::{
     Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
+use abstract_cw_staking_api::msg::{CwStakingAction, CwStakingExecuteMsg};
+use abstract_cw_staking_api::CW_STAKING;
+use abstract_dex_api::api::DexInterface;
 use abstract_sdk::ApiInterface;
-use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use abstract_sdk::{
-    features::{AbstractNameService, Identification},
-    os::objects::{AnsAsset, AssetEntry, LpToken},
+    core::objects::{AnsAsset, AssetEntry, LpToken},
+    features::{AbstractNameService, AccountIdentification},
     Resolve, TransferInterface,
 };
+use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use cosmwasm_std::{
     from_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
     ReplyOn, Response, StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetList;
-use cw_staking::msg::{CwStakingAction, CwStakingExecuteMsg};
-use cw_staking::CW_STAKING;
 use cw_utils::Duration;
-use dex::api::DexInterface;
-use forty_two::autocompounder::{AutocompounderExecuteMsg, Cw20HookMsg};
+use crate::msg::{AutocompounderExecuteMsg, Cw20HookMsg};
 use std::ops::Add;
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
@@ -123,14 +123,14 @@ pub fn deposit(
     let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>, AbstractSdkError> = claimed_deposits
         .into_iter()
         .map(|asset| {
-            // transfer cw20 tokens to the OS
+            // transfer cw20 tokens to the Account
             // will fail if allowance is not set or if some other assets are sent
             Ok(asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)?)
         })
         .collect();
     msgs.append(cw_20_transfer_msgs_res?.as_mut());
 
-    // transfer received coins to the OS
+    // transfer received coins to the Account
     if !msg_info.funds.is_empty() {
         let bank = app.bank(deps.as_ref());
         msgs.push(bank.deposit_coins(msg_info.funds)?);
@@ -559,7 +559,7 @@ fn unstake_lp_tokens(
 mod test {
     use super::*;
 
-    use crate::{contract::AUTO_COMPOUNDER_APP, test_common::app_init};
+    use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_init};
     use abstract_sdk::base::ExecuteEndpoint;
     use abstract_testing::prelude::TEST_MANAGER;
     use cosmwasm_std::{
@@ -567,7 +567,7 @@ mod test {
         Addr,
     };
     use cw_controllers::AdminError;
-    use forty_two::autocompounder::ExecuteMsg;
+    use crate::msg::ExecuteMsg;
     use speculoos::{assert_that, result::ResultAssertions};
 
     fn execute_as(
@@ -576,7 +576,7 @@ mod test {
         msg: impl Into<ExecuteMsg>,
     ) -> Result<Response, AutocompounderError> {
         let info = mock_info(sender, &[]);
-        AUTO_COMPOUNDER_APP.execute(deps, mock_env(), info, msg.into())
+        AUTOCOMPOUNDER_APP.execute(deps, mock_env(), info, msg.into())
     }
 
     fn execute_as_manager(

@@ -1,55 +1,49 @@
-use abstract_boot::boot_core;
-use abstract_boot::boot_core::{BootUpload, ContractInstance};
-use abstract_boot::VersionControl;
-use boot_core::networks::{parse_network, NetworkInfo};
+use boot_core;
+use abstract_boot::{AppDeployer, VersionControl};
+use boot_core::networks::{parse_network, NetworkInfo, NetworkKind};
 use boot_core::*;
-use cosmwasm_std::Addr;
-use forty_two::autocompounder::AUTOCOMPOUNDER;
-use forty_two_boot::autocompounder::AutocompounderApp;
+use autocompounder::msg::AUTOCOMPOUNDER;
+use autocompounder::boot::AutocompounderApp;
 use std::env;
 use std::sync::Arc;
+use abstract_core::VERSION_CONTROL;
+use abstract_core::version_control::ExecuteMsgFns;
+use boot_core::networks::juno::JUNO_CHAIN;
 use tokio::runtime::Runtime;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub const JUNO_1: NetworkInfo = NetworkInfo {
+    kind: NetworkKind::Mainnet,
+    id: "juno-1",
+    gas_denom: "ujuno",
+    gas_price: 0.0025,
+    grpc_urls: &["http://juno-grpc.polkachu.com:12690"],
+    chain_info: JUNO_CHAIN,
+    lcd_url: None,
+    fcd_url: None,
+};
+
 fn deploy_autocompounder(
     network: NetworkInfo,
-    autocompounder_code_id: Option<u64>,
+    _autocompounder_code_id: Option<u64>,
 ) -> anyhow::Result<()> {
-    // let version: Version = CONTRACT_VERSION.parse().unwrap();
+    let version: Version = CONTRACT_VERSION.parse().unwrap();
 
     let rt = Arc::new(Runtime::new()?);
-    let options = DaemonOptionsBuilder::default().network(network).build();
+    let options = DaemonOptionsBuilder::default().network(JUNO_1).build();
     let (_sender, chain) = instantiate_daemon_env(&rt, options?)?;
 
-    let version_control = VersionControl::load(
-        chain.clone(),
-        &Addr::unchecked(std::env::var("VERSION_CONTROL").expect("VERSION_CONTROL not set")),
-    );
+    let mut autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
 
-    let mut autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
-
-    if let Some(code_id) = autocompounder_code_id {
-        autocompounder.set_code_id(code_id);
-    } else {
-        // panic!("No code id provided, and upload is broken");
-        autocompounder.upload()?;
-    }
-
-    // // Remove beforehand
-    // version_control.remove_module(ModuleInfo {
-    //     name: "autocompounder".into(),
-    //     provider: "4t2".into(),
-    //     version: ModuleVersion::from(CONTRACT_VERSION)
-    // })?;
-
-    let version = CONTRACT_VERSION.parse().unwrap();
-    version_control.register_apps(vec![autocompounder.as_instance()], &version)?;
+    autocompounder.deploy(version)?;
 
     Ok(())
 }
 
 use clap::Parser;
+use semver::Version;
+
 #[derive(Parser, Default, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Arguments {

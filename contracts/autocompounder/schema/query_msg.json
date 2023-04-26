@@ -3,7 +3,7 @@
   "title": "QueryMsg",
   "oneOf": [
     {
-      "description": "A configuration message to the base.",
+      "description": "A query to the base.",
       "type": "object",
       "required": [
         "base"

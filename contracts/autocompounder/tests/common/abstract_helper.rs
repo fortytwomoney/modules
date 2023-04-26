@@ -1,16 +1,16 @@
 use std::str::FromStr;
 
-use abstract_boot::boot_core::*;
 use abstract_boot::{Abstract, AbstractBootError};
-use abstract_sdk::os as abstract_os;
-use abstract_sdk::os::api::InstantiateMsg;
+use abstract_cw_staking_api::{boot::CwStakingApi, CW_STAKING};
+use abstract_dex_api::msg::DexInstantiateMsg;
+use abstract_dex_api::{boot::DexApi, EXCHANGE};
+use abstract_sdk::core as abstract_core;
+use abstract_sdk::core::api::InstantiateMsg;
+use autocompounder::boot::AutocompounderApp;
+use autocompounder::msg::AUTOCOMPOUNDER;
+use boot_core::*;
 use cosmwasm_std::{Decimal, Empty};
 use cw_multi_test::ContractWrapper;
-use cw_staking::{boot::CwStakingApi, CW_STAKING};
-use dex::msg::DexInstantiateMsg;
-use dex::{boot::DexApi, EXCHANGE};
-use forty_two::autocompounder::AUTOCOMPOUNDER;
-use forty_two_boot::autocompounder::AutocompounderApp;
 
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
@@ -23,18 +23,18 @@ pub(crate) fn init_exchange(
     exchange
         .as_instance_mut()
         .set_mock(Box::new(cw_multi_test::ContractWrapper::new_with_empty(
-            ::dex::contract::execute,
-            ::dex::contract::instantiate,
-            ::dex::contract::query,
+            ::abstract_dex_api::contract::execute,
+            ::abstract_dex_api::contract::instantiate,
+            ::abstract_dex_api::contract::query,
         )));
     exchange.upload()?;
     exchange.instantiate(
         &InstantiateMsg {
-            app: DexInstantiateMsg {
+            module: DexInstantiateMsg {
                 swap_fee: Decimal::from_str("0.003")?,
                 recipient_os: 0,
             },
-            base: abstract_os::api::BaseInstantiateMsg {
+            base: abstract_core::api::BaseInstantiateMsg {
                 ans_host_address: deployment.ans_host.addr_str()?,
                 version_control_address: deployment.version_control.addr_str()?,
             },
@@ -45,7 +45,7 @@ pub(crate) fn init_exchange(
 
     let version: semver::Version = version
         .map(|s| s.parse().unwrap())
-        .unwrap_or_else(|| deployment.version.clone());
+        .unwrap_or_else(|| "1.0.0".parse().unwrap());
 
     deployment
         .version_control
@@ -64,15 +64,15 @@ pub(crate) fn init_staking(
     staking
         .as_instance_mut()
         .set_mock(Box::new(cw_multi_test::ContractWrapper::new_with_empty(
-            ::cw_staking::contract::execute,
-            ::cw_staking::contract::instantiate,
-            ::cw_staking::contract::query,
+            ::abstract_cw_staking_api::contract::execute,
+            ::abstract_cw_staking_api::contract::instantiate,
+            ::abstract_cw_staking_api::contract::query,
         )));
     staking.upload()?;
     staking.instantiate(
         &InstantiateMsg {
-            app: Empty {},
-            base: abstract_os::api::BaseInstantiateMsg {
+            module: Empty {},
+            base: abstract_core::api::BaseInstantiateMsg {
                 ans_host_address: deployment.ans_host.addr_str()?,
                 version_control_address: deployment.version_control.addr_str()?,
             },
@@ -83,7 +83,7 @@ pub(crate) fn init_staking(
 
     let version: semver::Version = version
         .map(|s| s.parse().unwrap())
-        .unwrap_or_else(|| deployment.version.clone());
+        .unwrap_or_else(|| "1.0.0".parse().unwrap());
 
     deployment
         .version_control
@@ -97,7 +97,7 @@ pub(crate) fn init_auto_compounder(
     chain: Mock,
     deployment: &Abstract<Mock>,
     _version: Option<String>,
-) -> Result<forty_two_boot::autocompounder::AutocompounderApp<Mock>, AbstractBootError> {
+) -> Result<autocompounder::boot::AutocompounderApp<Mock>, AbstractBootError> {
     let mut auto_compounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
     auto_compounder.as_instance_mut().set_mock(Box::new(
@@ -114,7 +114,10 @@ pub(crate) fn init_auto_compounder(
 
     deployment
         .version_control
-        .register_apps(vec![auto_compounder.as_instance()], &deployment.version)
+        .register_apps(
+            vec![auto_compounder.as_instance()],
+            &"1.0.0".parse().unwrap(),
+        )
         .unwrap();
 
     Ok(auto_compounder)

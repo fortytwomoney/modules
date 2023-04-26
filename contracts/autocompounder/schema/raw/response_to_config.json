@@ -3,31 +3,14 @@
   "title": "Config",
   "type": "object",
   "required": [
-    "commission_addr",
-    "fees",
     "liquidity_token",
     "pool_address",
+    "pool_assets",
     "pool_data",
     "staking_contract",
     "vault_token"
   ],
   "properties": {
-    "commission_addr": {
-      "description": "Address that receives the fee commissions",
-      "allOf": [
-        {
-          "$ref": "#/definitions/Addr"
-        }
-      ]
-    },
-    "fees": {
-      "description": "Vault fee structure",
-      "allOf": [
-        {
-          "$ref": "#/definitions/FeeConfig"
-        }
-      ]
-    },
     "liquidity_token": {
       "description": "Address of the LP token contract",
       "allOf": [
@@ -54,6 +37,13 @@
           "$ref": "#/definitions/PoolAddressBase_for_Addr"
         }
       ]
+    },
+    "pool_assets": {
+      "description": "Resolved pool assets",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/AssetInfoBase_for_Addr"
+      }
     },
     "pool_data": {
       "description": "Pool metadata",
@@ -101,9 +91,34 @@
       "description": "May key to retrieve information on an asset",
       "type": "string"
     },
-    "Decimal": {
-      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
-      "type": "string"
+    "AssetInfoBase_for_Addr": {
+      "description": "Represents the type of an fungible asset.\n\nEach **asset info** instance can be one of three variants:\n\n- Native SDK coins. To create an **asset info** instance of this type, provide the denomination. - CW20 tokens. To create an **asset info** instance of this type, provide the contract address.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "native"
+          ],
+          "properties": {
+            "native": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "cw20"
+          ],
+          "properties": {
+            "cw20": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     },
     "Duration": {
       "description": "Duration is a delta of time. You can add it to a BlockInfo or Expiration to move that further in the future. Note that an height-based Duration and a time-based Expiration cannot be combined",
@@ -138,30 +153,6 @@
           "additionalProperties": false
         }
       ]
-    },
-    "FeeConfig": {
-      "type": "object",
-      "required": [
-        "deposit",
-        "fee_asset",
-        "performance",
-        "withdrawal"
-      ],
-      "properties": {
-        "deposit": {
-          "$ref": "#/definitions/Decimal"
-        },
-        "fee_asset": {
-          "$ref": "#/definitions/AssetEntry"
-        },
-        "performance": {
-          "$ref": "#/definitions/Decimal"
-        },
-        "withdrawal": {
-          "$ref": "#/definitions/Decimal"
-        }
-      },
-      "additionalProperties": false
     },
     "PoolAddressBase_for_Addr": {
       "oneOf": [

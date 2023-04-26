@@ -1,14 +1,14 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::state::{Claim, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS};
-use abstract_sdk::features::Identification;
-use abstract_sdk::os::objects::LpToken;
+use abstract_sdk::core::objects::LpToken;
+use abstract_sdk::features::AccountIdentification;
 use abstract_sdk::ApiInterface;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 
-use cw_staking::{msg::CwStakingQueryMsg, CW_STAKING};
+use abstract_cw_staking_api::{msg::CwStakingQueryMsg, CW_STAKING};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
-use forty_two::autocompounder::{AutocompounderQueryMsg, Config};
+use crate::msg::{AutocompounderQueryMsg, Config};
 
 const DEFAULT_PAGE_SIZE: u8 = 5;
 const MAX_PAGE_SIZE: u8 = 20;
@@ -108,7 +108,7 @@ pub fn query_total_lp_position(
         staker_address: app.proxy_address(deps)?.to_string(),
         unbonding_period: config.unbonding_period,
     };
-    let res: cw_staking::msg::StakeResponse = apis.query(CW_STAKING, query)?;
+    let res: abstract_cw_staking_api::msg::StakeResponse = apis.query(CW_STAKING, query)?;
     Ok(res.amount)
 }
 

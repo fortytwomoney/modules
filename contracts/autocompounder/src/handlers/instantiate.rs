@@ -2,11 +2,15 @@ use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::state::{Config, CONFIG, FEE_CONFIG};
+use abstract_cw_staking_api::{
+    msg::{CwStakingQueryMsg, StakingInfoResponse},
+    CW_STAKING,
+};
 use abstract_sdk::ApiInterface;
 use abstract_sdk::{
+    core::api,
+    core::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
     features::AbstractNameService,
-    os::api,
-    os::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
     Resolve,
 };
 use cosmwasm_std::{
@@ -15,12 +19,8 @@ use cosmwasm_std::{
 };
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
-use cw_staking::{
-    msg::{CwStakingQueryMsg, StakingInfoResponse},
-    CW_STAKING,
-};
 use cw_utils::Duration;
-use forty_two::autocompounder::{
+use crate::msg::{
     AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER,
 };
 
@@ -230,9 +230,9 @@ pub fn query_staking_info(
 
 #[cfg(test)]
 mod test {
-    use crate::{contract::AUTO_COMPOUNDER_APP, test_common::app_base_mock_querier};
+    use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_base_mock_querier};
     use abstract_sdk::base::InstantiateEndpoint;
-    use abstract_sdk::os as abstract_os;
+    use abstract_sdk::core as abstract_core;
     use abstract_testing::prelude::{TEST_ANS_HOST, TEST_MODULE_FACTORY};
     const ASTROPORT: &str = "astroport";
     const COMMISSION_RECEIVER: &str = "commission_receiver";
@@ -273,12 +273,12 @@ mod test {
 
         deps.querier = app_base_mock_querier().build();
 
-        let resp = AUTO_COMPOUNDER_APP.instantiate(
+        let resp = AUTOCOMPOUNDER_APP.instantiate(
             deps.as_mut(),
             mock_env(),
             info,
-            abstract_os::app::InstantiateMsg {
-                app: forty_two::autocompounder::AutocompounderInstantiateMsg {
+            abstract_core::app::InstantiateMsg {
+                module: crate::msg::AutocompounderInstantiateMsg {
                     code_id: 1,
                     commission_addr: COMMISSION_RECEIVER.to_string(),
                     deposit_fees: Decimal::percent(3),
@@ -289,7 +289,7 @@ mod test {
                     withdrawal_fees: Decimal::percent(3),
                     preferred_bonding_period: BondingPeriodSelector::Shortest,
                 },
-                base: abstract_os::app::BaseInstantiateMsg {
+                base: abstract_core::app::BaseInstantiateMsg {
                     ans_host_address: TEST_ANS_HOST.to_string(),
                 },
             },

@@ -8,7 +8,7 @@
   ],
   "properties": {
     "app": {
-      "description": "custom migrate msg attributes",
+      "description": "custom migrate msg",
       "allOf": [
         {
           "$ref": "#/definitions/AutocompounderMigrateMsg"

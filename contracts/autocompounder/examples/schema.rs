@@ -9,6 +9,6 @@ fn main() {
     create_dir_all(&out_dir).unwrap();
     remove_schemas(&out_dir).unwrap();
 
-    // TODO: figure out issue with feature
+    #[cfg(feature = "schema")]
     AutocompounderApp::export_schema(&out_dir);
 }

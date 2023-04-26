@@ -1,19 +1,23 @@
 use std::sync::Arc;
 use abstract_boot::{
-    boot_core::{prelude::*, DaemonOptionsBuilder}, VersionControl,
+    boot_core::{DaemonOptionsBuilder}, VersionControl,
 };
-use abstract_os::{
+use abstract_core::{
     objects::{AnsAsset, PoolMetadata}
+};
+use boot_core::{
+    instantiate_daemon_env,
+    networks::parse_network
 };
 use clap::Parser;
 use cosmwasm_std::{Addr};
 use log::info;
 use speculoos::prelude::*;
-use forty_two::autocompounder::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns as AutocompounderQuery, Config};
-use forty_two_boot::{
-    parse_network
+use autocompounder::{
+    boot::Vault,
+    msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns},
+    state::Config,
 };
-use forty_two_boot::vault::Vault;
 
 fn test_compound(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
@@ -49,13 +53,13 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
         },
         // liquidity_token,
         ..
-    } = AutocompounderQuery::config(&autocompounder)?;
+    } = AutocompounderQueryMsgFns::config(&autocompounder)?;
 
     let lp_balance_before_deposit = autocompounder.balance(sender.to_string())?;
     info!("LP balance before: {}", lp_balance_before_deposit);
 
     // , AnsAsset::new("terra2>luna", 10u128)
-    autocompounder.deposit(vec![AnsAsset::new("terra2>astro", 6942u128)])?;
+    autocompounder.deposit(vec![AnsAsset::new("terra2>astro", 6942u128)], &[])?;
 
 
     let lp_balance_after_deposit = autocompounder.balance(sender.to_string())?;
