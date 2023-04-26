@@ -58,7 +58,7 @@ anyhow = { workspace = true, optional = true }
 
 [dev-dependencies]
 # forty-two = { workspace = true, features = ["boot"] }
-wyndex-bundle = { git = "https://github.com/AbstractSDK/integration-bundles.git", tag = "v0.3.0" }
+wyndex-bundle = { git = "https://github.com/AbstractSDK/integration-bundles.git", tag = "v0.3.1" }
 autocompounder = { path = ".", features = ["boot"] }
 abstract-dex-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.2", features = [
   "juno",
