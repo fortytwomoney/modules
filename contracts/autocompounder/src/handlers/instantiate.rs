@@ -42,7 +42,7 @@ pub fn instantiate_handler(
         commission_addr,
         code_id,
         dex,
-        pool_assets,
+        mut pool_assets,
         preferred_bonding_period,
         max_swap_spread,
     } = msg;
@@ -54,6 +54,8 @@ pub fn instantiate_handler(
     if pool_assets.len() > 2 {
         return Err(AutocompounderError::PoolWithMoreThanTwoAssets {});
     }
+
+    pool_assets.sort();
 
     // verify that pool assets are valid
     pool_assets.resolve(&deps.querier, &ans_host)?;
