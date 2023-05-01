@@ -62,7 +62,7 @@ pub fn convert_to_assets(shares: Uint128, total_assets: Uint128, total_supply: U
 pub fn convert_to_shares(assets: Uint128, total_assets: Uint128, total_supply: Uint128, decimal_offset: u32) -> Uint128 {
     let assets = assets
         .multiply_ratio(
-            total_assets +  Uint128::from(10u128),
+            total_assets +  Uint128::from(1u128),
             total_supply + Uint128::from(10u128).pow(decimal_offset));
     assets
 }
