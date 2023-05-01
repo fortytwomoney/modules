@@ -23,6 +23,7 @@ use autocompounder::msg::{
     BondingPeriodSelector, AutocompounderExecuteMsg,
 };
 
+use wyndex_stake::msg::ExecuteMsg as StakeExecuteMsg;
 use autocompounder::msg::{Cw20HookMsg, AUTOCOMPOUNDER};
 use common::abstract_helper::{self, init_auto_compounder};
 use common::vault::Vault;
@@ -512,7 +513,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     // withdraw all owner funds from the auto-compounder
     vault_token.send(
         Uint128::from(6000u128),
-        auto_compounder_addr,
+        auto_compounder_addr.clone(),
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
 
@@ -960,6 +961,105 @@ fn paginate_all_pending_claims(vault: &Vault<Mock>) -> Result<Vec<(String, Uint1
         start_after = Some(pending_claims.last().unwrap().0.clone());
     }
     Ok(pending_claims)
+}
+
+#[test]
+fn vault_token_inflation_test()-> AResult {
+
+    let owner = Addr::unchecked(common::OWNER);
+    let user1: Addr = Addr::unchecked(common::USER1);
+    let commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
+    let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
+
+    // create testing environment
+    let (_state, mock) = instantiate_default_mock_env(&owner).unwrap();
+
+    // create a vault
+    let mut vault = crate::create_vault(mock.clone()).unwrap();
+    let WynDex {
+        eur_token,
+        usd_token,
+        eur_usd_lp,
+        eur_usd_staking,
+        suite,
+        ..
+    } = vault.wyndex;
+
+    let vault_token = vault.vault_token;
+    let auto_compounder_addr = vault.auto_compounder.addr_str().unwrap();
+    let eur_asset = AssetEntry::new("eur");
+    let usd_asset = AssetEntry::new("usd");
+
+    // check config setup
+    let config = vault.auto_compounder.config().unwrap();
+    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address().unwrap());
+
+    // give user some funds
+    mock.set_balances(&[
+        (
+            &owner,
+            &[
+                coin(100_000u128, eur_token.to_string()),
+                coin(100_000u128, usd_token.to_string()),
+            ],
+        ),
+        (&user1, &[
+            coin(100_000u128, eur_token.to_string()),
+            coin(100_000u128, usd_token.to_string()),
+        ]),
+        ]).unwrap();
+    
+
+
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(eur_asset.clone(), 1u128),
+            AnsAsset::new(usd_asset.clone(), 1u128),
+        ],
+        &[coin(1u128, EUR), coin(1u128, USD)],
+    ).unwrap();
+
+    // query how much lp tokens are in the vault
+    let vault_lp_balance = vault.auto_compounder.total_lp_position().unwrap() as Uint128;
+
+
+    // check that the vault token is minted
+    let vault_token_balance = vault_token.balance(owner.to_string()).unwrap();
+    assert_that!(vault_token_balance.balance.u128()).is_equal_to(1u128);
+
+    // attacker makes donation to liquidity pool
+    // TODO: execute this
+
+    // check the amount of lp tokens staked for the vault by the attacker
+    let lp_staked = vault.auto_compounder.total_lp_position().unwrap() as Uint128;
+
+
+    // user makes deposit into the vault
+    vault.auto_compounder.set_sender(&user1);
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(eur_asset.clone(), 10000u128),
+            AnsAsset::new(usd_asset.clone(), 10000u128),
+        ],
+        &[coin(10000u128, EUR), coin(10000u128, USD)],
+    ).unwrap();
+
+    // attacker withdraws the initial deposit
+    vault_token.send(
+        vault_token_balance.balance,
+        auto_compounder_addr.clone(),
+        to_binary(&Cw20HookMsg::Redeem {})?,
+    )?;
+
+    // attacker unbonds tokens 
+    vault.auto_compounder.batch_unbond().unwrap();
+    let claim: &Claim = &vault.auto_compounder.claims(owner.to_string())?[0];
+    assert_that!(claim.amount_of_lp_tokens_to_unbond.u128()).is_less_than_or_equal_to(lp_staked.u128());
+    mock.wait_blocks(60 * 60 * 24 * 10)?;
+    vault.auto_compounder.withdraw()?; 
+
+
+    Ok(())
 }
 
 fn generator_with_rewards_test_rewards_distribution_with_multiple_users() -> AResult {

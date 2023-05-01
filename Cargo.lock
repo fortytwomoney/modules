@@ -513,6 +513,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "wyndex-bundle",
+ "wyndex-stake",
 ]
 
 [[package]]
