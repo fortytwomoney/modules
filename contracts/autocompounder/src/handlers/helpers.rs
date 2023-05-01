@@ -46,3 +46,23 @@ pub fn check_fee(fee: Decimal) -> Result<(), AutocompounderError> {
     }
     Ok(())
 }
+
+/// Convert vault tokens to lp assets
+pub fn convert_to_assets(shares: Uint128, total_assets: Uint128, total_supply: Uint128, decimal_offset: u32) -> Uint128 {
+    let shares = shares
+        .multiply_ratio(
+            total_supply + Uint128::from(10u128).pow(decimal_offset),
+            total_assets + Uint128::from(1u128));
+    shares
+}
+
+/// Convert lp assets to shares
+/// Uses virtual assets to mitigate asset inflation attack. description: https://gist.github.com/Amxx/ec7992a21499b6587979754206a48632
+/// 
+pub fn convert_to_shares(assets: Uint128, total_assets: Uint128, total_supply: Uint128, decimal_offset: u32) -> Uint128 {
+    let assets = assets
+        .multiply_ratio(
+            total_assets +  Uint128::from(10u128),
+            total_supply + Uint128::from(10u128).pow(decimal_offset));
+    assets
+}

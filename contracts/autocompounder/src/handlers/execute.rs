@@ -1,4 +1,4 @@
-use super::helpers::{check_fee, cw20_total_supply, query_stake};
+use super::helpers::{check_fee, cw20_total_supply, query_stake, convert_to_assets};
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
     LP_WITHDRAWAL_REPLY_ID,
@@ -250,7 +250,7 @@ fn redeem(
     if config.unbonding_period.is_none() {
         // if bonding period is not set, we can just burn the tokens, and withdraw the underlying assets in the lp pool.
         // 1) get the total supply of Vault token
-        let vault_tokens_total_supply = cw20_total_supply(deps.as_ref(), &config)?;
+        let total_supply_vault = cw20_total_supply(deps.as_ref(), &config)?;
         let lp_token = LpToken::from(config.pool_data.clone());
 
         // 2) get total staked lp token
@@ -262,10 +262,11 @@ fn redeem(
             None,
         )?;
 
-        let lp_tokens_withdraw_amount = Decimal::from_ratio(
-            amount_of_vault_tokens_to_be_burned,
-            vault_tokens_total_supply,
-        ) * total_lp_tokens_staked_in_vault;
+        let lp_tokens_withdraw_amount = convert_to_assets(
+            amount_of_vault_tokens_to_be_burned, 
+            total_lp_tokens_staked_in_vault,
+            total_supply_vault,
+            0);
 
         // unstake lp tokens
         let unstake_msg = unstake_lp_tokens(
@@ -280,11 +281,11 @@ fn redeem(
 
         // 3) withdraw lp tokens
         let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
-        let swap_msg: CosmosMsg = dex.withdraw_liquidity(
+        let withdraw_msg: CosmosMsg = dex.withdraw_liquidity(
             LpToken::from(config.pool_data).into(),
             lp_tokens_withdraw_amount,
         )?;
-        let sub_msg = SubMsg::reply_on_success(swap_msg, LP_WITHDRAWAL_REPLY_ID);
+        let sub_msg = SubMsg::reply_on_success(withdraw_msg, LP_WITHDRAWAL_REPLY_ID);
 
         let response = Response::new()
             .add_message(unstake_msg)

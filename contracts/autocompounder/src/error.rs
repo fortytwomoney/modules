@@ -61,4 +61,7 @@ pub enum AutocompounderError {
 
     #[error("No rewards to claim")]
     NoRewards {  },
+
+    #[error("Zero mint amount is not allowed")]
+    ZeroMintAmountError {  },
 }

@@ -1,4 +1,4 @@
-use super::helpers::{cw20_total_supply, query_stake};
+use super::helpers::{cw20_total_supply, query_stake, convert_to_assets, convert_to_shares};
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, FEE_SWAPPED_REPLY,
     SWAPPED_REPLY_ID,
@@ -88,7 +88,13 @@ pub fn lp_provision_reply(
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
     // 3) Calculate the number of vault tokens to mint
-    let mint_amount = compute_mint_amount(staked_lp, current_vault_supply, received_lp);
+    // If the vault has no tokens, the user must deposit at least X tokens.
+    let mut mint_msgs: Vec<CosmosMsg> = vec![];
+
+    let mint_amount = convert_to_shares(received_lp, staked_lp, current_vault_supply, 0);
+    if mint_amount.is_zero() {
+        return Err(AutocompounderError::ZeroMintAmountError{});
+    }
 
     // 4) Mint vault tokens to the user
     let mint_msg = mint_vault_tokens(&config, user_address, mint_amount)?;
@@ -125,22 +131,6 @@ fn mint_vault_tokens(
     )?
     .into();
     Ok(mint_msg)
-}
-
-fn compute_mint_amount(
-    staked_lp: Uint128,
-    current_vault_supply: Uint128,
-    received_lp: Uint128,
-) -> Uint128 {
-    if !staked_lp.is_zero() {
-        // will zero if first deposit
-        current_vault_supply
-            .checked_multiply_ratio(received_lp, staked_lp)
-            .unwrap()
-    } else {
-        // if first deposit, mint the same amount of tokens as the LP tokens received
-        received_lp
-    }
 }
 
 pub fn lp_withdrawal_reply(
