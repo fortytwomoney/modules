@@ -13,9 +13,9 @@
       "default": {
         "abstract:account-factory": "juno1q0a2j2s4wdwat7jcx9f7yhdr0hu4e5smpqvzfdqa6t2evp2unrlqnmfphn",
         "abstract:ans-host": "juno16pvpuaqwm4kheq50dcv3vlg38g95r5chx7vkan2a68qdlav5kqescaqsec",
-        "abstract:manager": "juno1385sa2ppr9ashwrym4jz90a97lfurharr4z79wxkeae7pannlfmqfr2pp8",
+        "abstract:manager": "juno1xn4wkwzt9yh8nluhr5rynsrw7knvdw7lr5pwm02jzd30j3k5tvnqp5xxf5",
         "abstract:module-factory": "juno1ccnc4xywe3l52zpu672ugl5dk0dy4affqjmsxs6k9c2ydlrgelyq90gpzq",
-        "abstract:proxy": "juno1up6ljl95f6agtwp0t2serxrzpzv8ncxc9zuuqwd54jgqgl04e2zsa8heny",
+        "abstract:proxy": "juno1resnsac82fajq4r05lv43f4ffh4fkqeev660hc47dyh2k2vfr2yqg8mj2s",
         "abstract:version-control": "juno1hzvc5u2y7v7as9zckgntddkr4sqy7m466hychxy0nqxe92gahdjqhp7wmn",
         "wyndex:factory": "juno16adshp473hd9sruwztdqrtsfckgtd69glqm6sqk0hc4q40c296qsxl3u3s"
       }

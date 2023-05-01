@@ -16,3 +16,6 @@
 /schema/
 
 .DS_Store
+
+# Artifacts
+/artifacts
