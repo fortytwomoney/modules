@@ -10,7 +10,7 @@ use boot_cw_plus::Cw20ExecuteMsgFns;
 use abstract_cw_staking_api::CW_STAKING;
 use abstract_dex_api::msg::*;
 use abstract_dex_api::EXCHANGE;
-use autocompounder::state::{Claim, Config};
+use autocompounder::state::{Claim, Config, PENDING_CLAIMS};
 use boot_core::*;
 use boot_cw_plus::Cw20Base;
 use boot_cw_plus::Cw20QueryMsgFns;
@@ -230,7 +230,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
     assert_that!(pending_claims.u128()).is_equal_to(4000u128);
 
-    vault.auto_compounder.batch_unbond()?;
+    vault.auto_compounder.batch_unbond(None, None)?;
 
     // checks if the pending claims are now removed
     let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
@@ -272,7 +272,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
         auto_compounder_addr,
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
-    vault.auto_compounder.batch_unbond()?;
+    vault.auto_compounder.batch_unbond(None, None)?;
     mock.wait_blocks(60 * 60 * 24 * 21)?;
     vault.auto_compounder.withdraw()?;
 
@@ -398,7 +398,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     assert_that!(total_lp_balance).is_equal_to(new_position);
 
     // Batch unbond pending claims
-    vault.auto_compounder.batch_unbond()?;
+    vault.auto_compounder.batch_unbond(None, None)?;
 
     // query the claims of the auto-compounder
     let claims = vault.auto_compounder.claims(owner.to_string())?;
@@ -449,7 +449,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
         .into();
     assert_that!(pending_claims).is_equal_to(6000u128); // no unbonding period, so no pending claims
 
-    vault.auto_compounder.batch_unbond()?; // batch unbonding not enabled
+    vault.auto_compounder.batch_unbond(None, None)?; // batch unbonding not enabled
     mock.wait_blocks(60 * 60 * 24 * 10)?;
     vault.auto_compounder.withdraw()?; // withdraw wont have any effect, because there are no pending claims
                                        // mock.next_block()?;
@@ -568,7 +568,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
     )?;
 
     // Unbond tokens & clear pending claims
-    vault.auto_compounder.batch_unbond()?;
+    vault.auto_compounder.batch_unbond(None, None)?;
 
     mock.wait_blocks(1)?;
 
@@ -737,6 +737,21 @@ fn test_owned_funds_stay_in_vault() -> AResult {
     Ok(())
 }
 
+
+
+
+// This test is going to be way easyer to setup if we have the option to deposit lp tokens.
+// #[test]
+// fn batch_unbond_pagination() -> anyhow::Result<()> {
+//     let owner = Addr::unchecked(common::OWNER);
+
+//     let msg = AutocompounderExecuteMsg::BatchUnbond {start_after: None, limit: Some(1)};
+//     // create a set of addresses from addr0 to addr1000 
+//     let addresses: Vec<String> = (0..10001).map(|i| format!("addr{}", i)).collect();
+//     AutocompounderExecuteMsg::BatchUnbond {start_after: Some(addresses.first().unwrap().to_string()), limit: Some(10001)})?;
+//     assert_that!(resp.messages.len()).is_equal_to(10000);
+//     Ok(())
+// }
 
 fn generator_with_rewards_test_rewards_distribution_with_multiple_users() -> AResult {
     // test multiple user deposits and withdrawals

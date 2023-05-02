@@ -662,13 +662,14 @@ mod test {
     #[test]
     fn cannot_batch_unbond_if_unbonding_not_enabled() -> anyhow::Result<()> {
         let mut deps = app_init(false);
-        let msg = AutocompounderExecuteMsg::BatchUnbond {};
+        let msg = AutocompounderExecuteMsg::BatchUnbond {start_after: None, limit: None};
         let resp = execute_as_manager(deps.as_mut(), msg);
         assert_that!(resp)
             .is_err()
             .matches(|e| matches!(e, AutocompounderError::UnbondingNotEnabled {}));
         Ok(())
     }
+
 
     #[test]
     fn cannot_withdraw_liquidity_if_no_claims() -> anyhow::Result<()> {
