@@ -217,7 +217,7 @@ pub fn lp_compound_reply(
         .collect::<Vec<AnsAsset>>();
     
         // 3) (swap and) Send fees to treasury
-        if fees.is_empty() {
+        if !fees.is_empty() {
             let (fee_swap_msgs, fee_swap_submsg) =
             swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
             messages.extend(fee_swap_msgs);
