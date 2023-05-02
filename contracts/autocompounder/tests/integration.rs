@@ -714,13 +714,23 @@ fn test_owned_funds_stay_in_vault() -> AResult {
     mock.wait_blocks(60 * 60 * 24 * 10)?;
 
     // Send EUR to the autocompounder
-    mock.set_balance(&vault.account.proxy.address()?, coins(100_000u128, EUR))?;
+    mock.set_balance(&vault.account.proxy.address()?, 
+    vec![
+        coin(100_000u128, EUR),
+        coin(100_000u128, USD),
+        coin(100_000u128, WYND_TOKEN)
+    ]
+    )?;
 
     // Withdraw EUR and USD tokens to user
     vault.auto_compounder.withdraw()?; // this will call lp_withdraw_reply
 
     let vault_eur_balance = mock.query_balance(&vault.account.proxy.address()?, EUR)?;
+    let vault_usd_balance = mock.query_balance(&vault.account.proxy.address()?, USD)?;
+    let vault_wynd_balance = mock.query_balance(&vault.account.proxy.address()?, WYND_TOKEN)?;
     assert_that!(vault_eur_balance.u128()).is_equal_to(100_000u128);
+    assert_that!(vault_usd_balance.u128()).is_equal_to(100_000u128);
+    assert_that!(vault_wynd_balance.u128()).is_equal_to(100_000u128);
 
     Ok(())
 }
