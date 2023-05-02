@@ -800,7 +800,7 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
     drop(vault_token);
     
     
-    let pending_claims = paginate_all_pending_claims(&vault)?;
+    let pending_claims = paginate_all_pending_claims(())?;
     assert_that!(pending_claims.len()).is_equal_to(100);
 
     let claims = vault.auto_compounder.all_claims(None, None)?;
@@ -815,7 +815,7 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
     let res = vault.auto_compounder.batch_unbond(Some(40), None);
     assert_that!(res).is_ok();
 
-    let all_claims = paginate_all_claims(vault)?;
+    let all_claims = paginate_all_claims(&vault)?;
     assert_that!(all_claims.len()).is_equal_to(100);
 
     Ok(())
