@@ -7,6 +7,7 @@ use crate::error::AutocompounderError;
 use crate::state::{
     Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
     CACHED_ASSETS,
+    DEFAULT_BATCH_SIZE, MAX_BATCH_SIZE,
 };
 use abstract_cw_staking_api::msg::{CwStakingAction, CwStakingExecuteMsg};
 use abstract_cw_staking_api::CW_STAKING;
@@ -24,6 +25,7 @@ use cosmwasm_std::{
 };
 use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetList;
+use cw_storage_plus::Bound;
 use cw_utils::Duration;
 use crate::msg::{AutocompounderExecuteMsg, Cw20HookMsg};
 use std::ops::Add;
@@ -44,7 +46,7 @@ pub fn execute_handler(
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
         AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, env, app, funds),
         AutocompounderExecuteMsg::Withdraw {} => withdraw_claims(deps, app, env, info.sender),
-        AutocompounderExecuteMsg::BatchUnbond {} => batch_unbond(deps, env, app),
+        AutocompounderExecuteMsg::BatchUnbond {start_after, limit } => batch_unbond(deps, env, app, start_after, limit),
         AutocompounderExecuteMsg::Compound {} => compound(deps, app),
     }
 }
@@ -157,7 +159,7 @@ pub fn deposit(
     Ok(app.custom_tag_response(response, "deposit", vec![("4t2", "/AC/Deposit")]))
 }
 
-pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> AutocompounderResult {
+pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp, start_after: Option<String>, limit: Option<u32>) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     if config.unbonding_period.is_none() {
         return Err(AutocompounderError::UnbondingNotEnabled {});
@@ -165,16 +167,22 @@ pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> Autocomp
 
     // check if the cooldown period has passed
     check_unbonding_cooldown(&deps, &config, &env)?;
-
+    
+    let limit = limit.unwrap_or(DEFAULT_BATCH_SIZE).min(MAX_BATCH_SIZE) as usize;
+    let start = start_after.map(|s| Bound::ExclusiveRaw(s.into_bytes()));
     let pending_claims = PENDING_CLAIMS
-        .range(deps.storage, None, None, Order::Ascending)
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
         .collect::<StdResult<Vec<(String, Uint128)>>>()?;
 
     let (total_lp_amount_to_unbond, total_vault_tokens_to_burn, updated_claims) =
-        calculate_withdrawals(deps.as_ref(), &config, &app, pending_claims, env)?;
+        calculate_withdrawals(deps.as_ref(), &config, &app, pending_claims.clone(), env)?;
 
     // clear pending claims
-    PENDING_CLAIMS.clear(deps.storage);
+    for claim in pending_claims.iter() {
+        PENDING_CLAIMS.remove(deps.storage, claim.0.clone());
+    }
+    // PENDING_CLAIMS.clear(deps.storage);
     // update claims
     updated_claims
         .into_iter()

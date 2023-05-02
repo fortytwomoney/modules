@@ -15,3 +15,5 @@ pub const PENDING_CLAIMS: Map<String, Uint128> = Map::new("pending_claims");
 pub const CLAIMS: Map<String, Vec<Claim>> = Map::new("claims");
 pub const CONFIG: Item<Config> = Item::new("config");
 pub const FEE_CONFIG: Item<FeeConfig> = Item::new("fee_config");
+pub const DEFAULT_BATCH_SIZE: u32 = 1000;
+pub const MAX_BATCH_SIZE: u32 = 10000;

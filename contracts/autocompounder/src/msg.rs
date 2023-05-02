@@ -88,7 +88,7 @@ pub enum AutocompounderExecuteMsg {
     /// Compound all rewards in the vault
     Compound {},
     /// Unbond in batches
-    BatchUnbond {},
+    BatchUnbond { start_after: Option<String>, limit: Option<u32> },
 }
 
 #[cosmwasm_schema::cw_serde]
