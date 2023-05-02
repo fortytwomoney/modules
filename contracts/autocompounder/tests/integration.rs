@@ -4,6 +4,7 @@ use abstract_boot::{Abstract, AbstractBootError, ManagerQueryFns, VCExecFns};
 use abstract_core::api::{BaseExecuteMsgFns, BaseQueryMsgFns};
 use abstract_core::objects::{AnsAsset, AssetEntry};
 use abstract_sdk::core as abstract_core;
+use autocompounder::error::AutocompounderError;
 use boot_cw_plus::Cw20ExecuteMsgFns;
 
 use abstract_cw_staking_api::CW_STAKING;
@@ -33,6 +34,7 @@ use cw_utils::Expiration;
 use speculoos::assert_that;
 use speculoos::prelude::OrderedAssertions;
 
+use speculoos::result::ResultAssertions;
 use wyndex_bundle::*;
 
 const WYNDEX: &str = "wyndex";
@@ -267,7 +269,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     // withdraw all from the auto-compounder
     vault_token.send(
         Uint128::from(6000u128),
-        auto_compounder_addr.clone(),
+        auto_compounder_addr,
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
     vault.auto_compounder.batch_unbond()?;
@@ -436,7 +438,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     // withdraw all from the auto-compounder
     vault_token.send(
         Uint128::from(6000u128),
-        auto_compounder_addr.clone(),
+        auto_compounder_addr,
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
 
@@ -561,7 +563,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
     // Redeem vault tokens and create pending claim of user tokens to see if the user actually received more of EUR and USD then they deposited
     vault_token.send(
         vault_token_balance.balance,
-        auto_compounder_addr.clone(),
+        auto_compounder_addr,
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
 
@@ -649,7 +651,7 @@ fn test_owned_funds_stay_in_vault() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
     let (_, mock) = instantiate_default_mock_env(&owner)?;
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
-    let mut vault = crate::create_vault(mock.clone())?;
+    let vault = crate::create_vault(mock.clone())?;
     let WynDex {
         eur_token,
         usd_token,

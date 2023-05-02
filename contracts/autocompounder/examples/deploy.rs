@@ -25,7 +25,7 @@ pub const JUNO_1: NetworkInfo = NetworkInfo {
 };
 
 fn deploy_autocompounder(
-    network: NetworkInfo,
+    _network: NetworkInfo,
     _autocompounder_code_id: Option<u64>,
 ) -> anyhow::Result<()> {
     let version: Version = CONTRACT_VERSION.parse().unwrap();
@@ -34,7 +34,7 @@ fn deploy_autocompounder(
     let options = DaemonOptionsBuilder::default().network(JUNO_1).build();
     let (_sender, chain) = instantiate_daemon_env(&rt, options?)?;
 
-    let mut autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
+    let mut autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
     autocompounder.deploy(version)?;
 

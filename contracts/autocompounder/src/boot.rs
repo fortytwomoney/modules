@@ -90,7 +90,7 @@ pub fn get_module_address<Chain: CwEnv>(
     let module_info = module_infos
         .iter()
         .find(|module_info| module_info.id == module_id)
-        .ok_or(anyhow::anyhow!("Module not found"))?;
+        .ok_or_else(|| anyhow::anyhow!("Module not found"))?;
     Ok(Addr::unchecked(module_info.address.clone()))
 }
 
@@ -116,7 +116,7 @@ impl<Chain: CwEnv> Vault<Chain> {
     pub fn new(chain: Chain, account_id: Option<u32>) -> anyhow::Result<Self> {
         let account = AbstractAccount::new(chain.clone(), account_id);
         let staking = CwStakingApi::new(CW_STAKING, chain.clone());
-        let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
+        let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
         if account_id.is_some() {
             if is_module_installed(&account, CW_STAKING)? {

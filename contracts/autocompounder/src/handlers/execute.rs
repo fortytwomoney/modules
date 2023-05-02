@@ -366,8 +366,8 @@ pub fn withdraw_claims(
 
     if matured_claims.is_empty() {
         eprintln!(
-            "No matured claims at timestamp: {:?}. ongoing claims: {:?}",
-            env.block.time, ongoing_claims
+            "No matured claims at timestamp: {:?}. ongoing claims: {ongoing_claims:?}",
+            env.block.time
         );
         return Err(AutocompounderError::NoMaturedClaims {});
     }
@@ -584,7 +584,6 @@ mod test {
     use abstract_testing::prelude::TEST_MANAGER;
     use cosmwasm_std::{
         testing::{mock_env, mock_info},
-        Addr,
     };
     use cw_controllers::AdminError;
     use crate::msg::ExecuteMsg;

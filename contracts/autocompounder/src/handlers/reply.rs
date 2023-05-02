@@ -198,7 +198,7 @@ pub fn lp_compound_reply(
     // 2.1) query the rewards and filters out zero rewards
     let mut rewards = get_staking_rewards(deps.as_ref(), &app, &config)?;
 
-    if rewards.len() == 0 {
+    if rewards.is_empty() {
         return Err(AutocompounderError::NoRewards {});
     }
 
@@ -217,7 +217,7 @@ pub fn lp_compound_reply(
         .collect::<Vec<AnsAsset>>();
     
         // 3) (swap and) Send fees to treasury
-        if fees.len() > 0 {
+        if fees.is_empty() {
             let (fee_swap_msgs, fee_swap_submsg) =
             swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
             messages.extend(fee_swap_msgs);
