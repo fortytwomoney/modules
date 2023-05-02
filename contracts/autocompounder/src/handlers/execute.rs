@@ -6,6 +6,7 @@ use crate::contract::{
 use crate::error::AutocompounderError;
 use crate::state::{
     Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
+    CACHED_ASSETS,
 };
 use abstract_cw_staking_api::msg::{CwStakingAction, CwStakingExecuteMsg};
 use abstract_cw_staking_api::CW_STAKING;
@@ -331,8 +332,18 @@ pub fn withdraw_claims(
     env: Env,
     address: Addr,
 ) -> AutocompounderResult {
-    CACHED_USER_ADDR.save(deps.storage, &address)?;
     let config = CONFIG.load(deps.storage)?;
+    let pool_assets = config.pool_data.assets.clone();
+    let ans_host = app.ans_host(deps.as_ref())?;
+
+    let owned_assets = owned_assets(pool_assets, &deps, ans_host, &app)?;
+    owned_assets.into_iter().for_each(|(asset, amount)| {
+        CACHED_ASSETS.save(deps.storage, asset, &amount).unwrap();
+    });
+    CACHED_USER_ADDR.save(deps.storage, &address)?;
+    
+    
+
 
     if config.unbonding_period.is_none() {
         return Err(AutocompounderError::UnbondingNotEnabled {});
@@ -396,6 +407,15 @@ pub fn withdraw_claims(
             ("lp_tokens_to_withdraw", lp_tokens_to_withdraw.to_string()),
         ],
     ))
+}
+
+fn owned_assets(for_assets: Vec<AssetEntry>, deps: &DepsMut, ans_host: abstract_sdk::feature_objects::AnsHost, app: &abstract_app::AppContract<AutocompounderError, crate::msg::AutocompounderInstantiateMsg, AutocompounderExecuteMsg, crate::msg::AutocompounderQueryMsg, crate::msg::AutocompounderMigrateMsg, Cw20ReceiveMsg>) -> Result<Vec<(String, Uint128)>, AutocompounderError> {
+    let owned_assets = for_assets.into_iter().map(|asset| {
+        let asset_info = asset.resolve(&deps.querier, &ans_host)?;
+        let amount = asset_info.query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())?;
+        Ok((asset.to_string(), amount))
+    }).collect::<Result<Vec<(String, Uint128)>, AutocompounderError>>()?;
+    Ok(owned_assets)
 }
 
 #[allow(clippy::type_complexity)]

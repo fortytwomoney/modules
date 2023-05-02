@@ -5,7 +5,7 @@ use crate::contract::{
 };
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
-use crate::state::{Config, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
+use crate::state::{Config, CACHED_USER_ADDR, CONFIG, FEE_CONFIG, CACHED_ASSETS, CACHED_FEE_AMOUNT};
 use abstract_cw_staking_api::{
     msg::{CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse},
     CW_STAKING,
@@ -154,14 +154,19 @@ pub fn lp_withdrawal_reply(
     let proxy_address = app.proxy_address(deps.as_ref())?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     CACHED_USER_ADDR.remove(deps.storage);
-
+    
     let mut messages = vec![];
     let mut funds: Vec<AnsAsset> = vec![];
+
     for asset in config.pool_data.assets {
         let asset_info = asset.resolve(&deps.querier, &ans_host)?;
         let amount = asset_info.query_balance(&deps.querier, proxy_address.to_string())?;
+        let prev_amount = CACHED_ASSETS
+            .load(deps.storage, asset_info.to_string())?;
+        let amount = amount.checked_sub(prev_amount)?;
         funds.push(AnsAsset::new(asset, amount));
     }
+    CACHED_ASSETS.clear(deps.storage);
 
     let bank = app.bank(deps.as_ref());
     let transfer_msg = bank.transfer(funds, &user_address)?;
@@ -178,10 +183,14 @@ pub fn lp_compound_reply(
     _reply: Reply,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
-
+    let ans_host = app.ans_host(deps.as_ref())?;
+    
     let fee_config = FEE_CONFIG.load(deps.storage)?;
-
+    let current_fee_balance = fee_config.fee_asset.resolve(&deps.querier, &ans_host)?
+        .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())?;
+    CACHED_FEE_AMOUNT.save(deps.storage, &current_fee_balance)?;
+    
+    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
     // 1) claim rewards (this happened in the execution before this reply)
 
     // 2.1) query the rewards
@@ -331,9 +340,11 @@ pub fn fee_swapped_reply(
     let fee_balance = fee_asset
         .resolve(&deps.querier, &app.ans_host(deps.as_ref())?)?
         .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?)?;
+    let prev_fee_balance = CACHED_FEE_AMOUNT.load(deps.storage)?;
+    CACHED_FEE_AMOUNT.remove(deps.storage);
 
     let transfer_msg = app.bank(deps.as_ref()).transfer(
-        vec![&AnsAsset::new(fee_asset, fee_balance)],
+        vec![&AnsAsset::new(fee_asset, fee_balance - prev_fee_balance)],
         &commission_addr,
     )?;
 
