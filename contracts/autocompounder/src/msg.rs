@@ -104,6 +104,13 @@ pub enum AutocompounderQueryMsg {
     /// Returns [`Uint128`]
     #[returns(Uint128)]
     PendingClaims { address: String },
+    /// Query all pending claims
+    /// Returns [`Vec<Claim>`]
+    #[returns(Vec<(String, Uint128)>)]
+    AllPendingClaims {
+        start_after: Option<String>,
+        limit: Option<u8>,
+    },
     /// Query the amount of claims
     /// Returns [`Vec<Claim>`]
     #[returns(Vec<Claim>)]
