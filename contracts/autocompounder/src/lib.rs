@@ -100,7 +100,7 @@ mod test_common {
                 .unwrap()),
                 _ => {
                     println!();
-                    panic!("Key: {:?} not matched in TEST_ANS mock querier", key);
+                    panic!("Key: {key:?} not matched in TEST_ANS mock querier");
                 }
             })
             // .with_raw_handler(TEST_PROXY, |key| match key {
@@ -114,7 +114,6 @@ mod test_common {
                     "abstract:cw-staking",
                     Addr::unchecked(TEST_CW_STAKING_MODULE),
                 )
-                    .into(),
             )
     }
 
@@ -180,7 +179,7 @@ mod test_common {
                 .unwrap()),
                 _ => {
                     println!();
-                    panic!("Key: {:?} not matched in TEST_ANS mock querier", key);
+                    panic!("Key: {key:?} not matched in TEST_ANS mock querier");
                 }
             })
             // .with_raw_handler(TEST_PROXY, |key| match key {
@@ -194,7 +193,6 @@ mod test_common {
                     "abstract:cw-staking",
                     Addr::unchecked(TEST_CW_STAKING_MODULE),
                 )
-                    .into(),
             )
     }
 

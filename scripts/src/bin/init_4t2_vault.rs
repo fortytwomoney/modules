@@ -1,19 +1,18 @@
 use std::env;
 use std::sync::Arc;
 
-use abstract_boot::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy, VersionControl};
+use abstract_boot::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
 use abstract_core::{
     account_factory, api, app,
     manager::ExecuteMsgFns,
     objects::module::ModuleInfo,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
-    registry::{ACCOUNT_FACTORY, ANS_HOST, MANAGER, PROXY},
+    registry::{ANS_HOST, MANAGER, PROXY},
     ABSTRACT_EVENT_NAME,
 };
 use abstract_cw_staking_api::CW_STAKING;
 use boot_core::{
-    instantiate_daemon_env, networks::parse_network, BootError, BootExecute, ContractInstance,
-    CwEnv, DaemonOptionsBuilder, IndexResponse, StateInterface, TxResponse,
+    instantiate_daemon_env, networks::parse_network, BootError, BootExecute, CwEnv, DaemonOptionsBuilder, IndexResponse, StateInterface, TxResponse,
 };
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};

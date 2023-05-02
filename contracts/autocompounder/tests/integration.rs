@@ -4,6 +4,7 @@ use abstract_boot::{Abstract, AbstractBootError, ManagerQueryFns, VCExecFns};
 use abstract_core::api::{BaseExecuteMsgFns, BaseQueryMsgFns};
 use abstract_core::objects::{AnsAsset, AssetEntry};
 use abstract_sdk::core as abstract_core;
+use autocompounder::error::AutocompounderError;
 use boot_cw_plus::Cw20ExecuteMsgFns;
 
 use abstract_cw_staking_api::CW_STAKING;
@@ -17,7 +18,7 @@ use boot_cw_plus::Cw20QueryMsgFns;
 use autocompounder::boot::AutocompounderApp;
 use autocompounder::msg::{
     AutocompounderExecuteMsgFns, AutocompounderQueryMsg, AutocompounderQueryMsgFns,
-    BondingPeriodSelector,
+    BondingPeriodSelector, AutocompounderExecuteMsg,
 };
 use autocompounder::msg::{Cw20HookMsg, AUTOCOMPOUNDER};
 use common::abstract_helper::{self, init_auto_compounder};
@@ -33,6 +34,7 @@ use cw_utils::Expiration;
 use speculoos::assert_that;
 use speculoos::prelude::OrderedAssertions;
 
+use speculoos::result::ResultAssertions;
 use wyndex_bundle::*;
 
 const WYNDEX: &str = "wyndex";
@@ -267,7 +269,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     // withdraw all from the auto-compounder
     vault_token.send(
         Uint128::from(6000u128),
-        auto_compounder_addr.clone(),
+        auto_compounder_addr,
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
     vault.auto_compounder.batch_unbond()?;
@@ -436,7 +438,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     // withdraw all from the auto-compounder
     vault_token.send(
         Uint128::from(6000u128),
-        auto_compounder_addr.clone(),
+        auto_compounder_addr,
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
 
@@ -561,7 +563,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
     // Redeem vault tokens and create pending claim of user tokens to see if the user actually received more of EUR and USD then they deposited
     vault_token.send(
         vault_token_balance.balance,
-        auto_compounder_addr.clone(),
+        auto_compounder_addr,
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
 
@@ -583,6 +585,158 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
 
     Ok(())
 }
+
+#[test]
+fn test_zero_performance_fees() -> AResult {
+    let owner = Addr::unchecked(common::OWNER);
+    let commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
+    let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
+    let (_, mock) = instantiate_default_mock_env(&owner)?;
+
+    // create a vault
+    let mut vault = crate::create_vault(mock.clone())?;
+    let WynDex {
+        eur_token,
+        usd_token,
+        eur_usd_staking,
+
+        ..
+    } = vault.wyndex;
+    let eur_asset = AssetEntry::new("eur");
+    let usd_asset = AssetEntry::new("usd");
+    // give user some funds
+    mock.set_balances(&[
+        (
+    &owner, &[
+                coin(100_000u128, eur_token.to_string()),
+                coin(100_000u128, usd_token.to_string()),
+            ],
+            
+),
+        (&wyndex_owner, &[coin(1000, WYND_TOKEN)]),
+    ])?;
+    // update performance fees to zero
+    let manager_addr = vault.account.manager.address()?;
+    vault.auto_compounder.call_as(&manager_addr).execute_app(
+        AutocompounderExecuteMsg::UpdateFeeConfig { performance: Some(Decimal::zero()), deposit: None,
+    withdrawal: None }, None)?;
+
+
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(eur_asset, 100_000u128),
+            AnsAsset::new(usd_asset, 100_000u128),
+        ],
+        &[coin(100_000u128, EUR), coin(100_000u128, USD)],
+    )?;
+
+
+    mock.next_block()?;
+    vault.wyndex.suite.distribute_funds(
+        eur_usd_staking,
+        wyndex_owner.as_str(),
+        &coins(1000, WYND_TOKEN),
+    )?; // distribute 1000 EUR
+
+    vault.auto_compounder.compound()?;
+    let commission_received: Uint128 = mock.query_balance(&commission_addr, EUR)?;
+    assert_that!(commission_received.u128()).is_equal_to(0u128);
+    Ok(())
+
+}
+
+#[test]
+fn test_owned_funds_stay_in_vault() -> AResult {
+    // test that the funds in the vault are not used for the autocompounding and fee reward distribution
+    let owner = Addr::unchecked(common::OWNER);
+    let (_, mock) = instantiate_default_mock_env(&owner)?;
+    let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
+    let vault = crate::create_vault(mock.clone())?;
+    let WynDex {
+        eur_token,
+        usd_token,
+        ..
+    } = vault.wyndex;
+    let vault_token = vault.vault_token;
+    let eur_asset = AssetEntry::new("eur");
+    let usd_asset = AssetEntry::new("usd");
+
+    // give user some funds
+    mock.set_balances(&[
+        (
+            &owner,
+            &[
+                coin(100_000u128, eur_token.to_string()),
+                coin(100_000u128, usd_token.to_string()),
+            ],
+        ),
+        (&wyndex_owner, &[coin(1000, WYND_TOKEN)]),
+    ])?;
+
+    // Fee asset is EUR
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(eur_asset, 100_000u128),
+            AnsAsset::new(usd_asset, 100_000u128),
+        ],
+        &[coin(100_000u128, EUR), coin(100_000u128, USD)],
+    )?;
+
+
+    // NOTE: The following commented block shows that the compound function also consumes all funds it has available.
+    // The 3rd audit point was about this, but not in compound. It might even be desired behaviour that
+    // the vault just compounds all funds it has available. this is in favour of users(?)
+
+    // mock.next_block()?;
+    // vault.wyndex.suite.distribute_funds(
+    //     eur_usd_staking,
+    //     wyndex_owner.as_str(),
+    //     &coins(1000, WYND_TOKEN),
+    // )?; // distribute 1000 EUR
+
+    // mock.set_balance(&vault.account.proxy.address()?, coins(100_000u128, EUR))?;
+    // mock.set_balance(&vault.account.proxy.address()?, coins(100_000u128, USD))?;
+    
+    // vault.auto_compounder.compound()?; // this will call fee_swapped_reply
+    // let vault_eur_balance = mock.query_balance(&vault.account.proxy.address()?, EUR)?;
+    // // let vault_usd_balance = mock.query_balance(&vault.account.proxy.address()?, USD)?;
+    // assert_that!(vault_eur_balance.u128()).is_equal_to(100_000u128);
+    // assert_that!(vault_usd_balance.u128()).is_equal_to(100_000u128);
+    
+    
+    let owner_vault_tokens = vault_token.balance(owner.to_string())?.balance;
+    vault_token.send(
+        owner_vault_tokens,
+        vault.auto_compounder.address()?.to_string(),
+        to_binary(&Cw20HookMsg::Redeem {})?,
+    )?;
+    
+    // Unbond tokens & clear pending claims
+    vault.auto_compounder.batch_unbond()?;
+    mock.wait_blocks(60 * 60 * 24 * 10)?;
+
+    // Send EUR to the autocompounder
+    mock.set_balance(&vault.account.proxy.address()?, 
+    vec![
+        coin(100_000u128, EUR),
+        coin(100_000u128, USD),
+        coin(100_000u128, WYND_TOKEN)
+    ]
+    )?;
+
+    // Withdraw EUR and USD tokens to user
+    vault.auto_compounder.withdraw()?; // this will call lp_withdraw_reply
+
+    let vault_eur_balance = mock.query_balance(&vault.account.proxy.address()?, EUR)?;
+    let vault_usd_balance = mock.query_balance(&vault.account.proxy.address()?, USD)?;
+    let vault_wynd_balance = mock.query_balance(&vault.account.proxy.address()?, WYND_TOKEN)?;
+    assert_that!(vault_eur_balance.u128()).is_equal_to(100_000u128);
+    assert_that!(vault_usd_balance.u128()).is_equal_to(100_000u128);
+    assert_that!(vault_wynd_balance.u128()).is_equal_to(100_000u128);
+
+    Ok(())
+}
+
 
 fn generator_with_rewards_test_rewards_distribution_with_multiple_users() -> AResult {
     // test multiple user deposits and withdrawals

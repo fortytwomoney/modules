@@ -58,4 +58,7 @@ pub enum AutocompounderError {
 
     #[error("Unbonding is not enabled for this pool")]
     UnbondingNotEnabled {},
+
+    #[error("No rewards to claim")]
+    NoRewards {  },
 }
