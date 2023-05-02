@@ -162,7 +162,7 @@ pub fn lp_withdrawal_reply(
         let asset_info = asset.resolve(&deps.querier, &ans_host)?;
         let amount = asset_info.query_balance(&deps.querier, proxy_address.to_string())?;
         let prev_amount = CACHED_ASSETS
-            .load(deps.storage, asset_info.to_string())?;
+            .load(deps.storage, asset.to_string())?;
         let amount = amount.checked_sub(prev_amount)?;
         funds.push(AnsAsset::new(asset, amount));
     }
@@ -190,35 +190,45 @@ pub fn lp_compound_reply(
         .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())?;
     CACHED_FEE_AMOUNT.save(deps.storage, &current_fee_balance)?;
     
+    let mut messages = vec![];
+    let mut submessages = vec![];
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
     // 1) claim rewards (this happened in the execution before this reply)
 
-    // 2.1) query the rewards
+    // 2.1) query the rewards and filters out zero rewards
     let mut rewards = get_staking_rewards(deps.as_ref(), &app, &config)?;
 
-    // 2) deduct fee from rewards
-    let fees = rewards
+    if rewards.len() == 0 {
+        return Err(AutocompounderError::NoRewards {});
+    }
+
+    if !fee_config.performance.is_zero() {
+        // 2) deduct fee from rewards
+        let fees = rewards
         .iter_mut()
-        .map(|reward| -> StdResult<AnsAsset> {
+        .map(|reward| -> AnsAsset {
             let fee = reward.amount * fee_config.performance;
-
+            
             reward.amount -= fee;
-
-            Ok(AnsAsset::new(reward.name.clone(), fee))
+            
+            AnsAsset::new(reward.name.clone(), fee)
         })
-        .collect::<StdResult<Vec<AnsAsset>>>()?;
-
-    // 3) (swap and) Send fees to treasury
-    let (fee_swap_msgs, fee_swap_submsg) =
-        swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
-
+        .filter(|fee| fee.amount > Uint128::zero())
+        .collect::<Vec<AnsAsset>>();
+    
+        // 3) (swap and) Send fees to treasury
+        if fees.len() > 0 {
+            let (fee_swap_msgs, fee_swap_submsg) =
+            swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
+            messages.extend(fee_swap_msgs);
+            submessages.push(fee_swap_submsg);
+        }
+    }
     // 3) Swap rewards to token in pool
     // 3.1) check if asset is not in pool assets
     let pool_assets = config.pool_data.assets;
     if rewards.iter().all(|f| pool_assets.contains(&f.name)) {
         // 3.1.1) if all assets are in the pool, we can just provide liquidity
-        //  TODO: but we might need to check the length of the rewards.
-
         // The liquditiy assets are all the pool assets with the amount of the rewards
         let liquidity_assets = pool_assets
             .iter()
@@ -237,24 +247,24 @@ pub fn lp_compound_reply(
         let lp_msg: CosmosMsg =
             dex.provide_liquidity(liquidity_assets, Some(Decimal::percent(50)))?;
 
-        let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
+        submessages.push(SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID));
 
         let response = Response::new()
-            .add_messages(fee_swap_msgs)
-            .add_submessage(fee_swap_submsg)
-            .add_submessage(submsg);
+            .add_messages(messages)
+            .add_submessages(submessages);
+
         Ok(app.tag_response(response, "provide_liquidity"))
     } else {
         let (swap_msgs, submsg) =
             swap_rewards_with_reply(rewards, pool_assets, &dex, SWAPPED_REPLY_ID)?;
+            messages.extend(swap_msgs);
+            submessages.push(submsg);
 
         // adds all swap messages to the response and the submsg -> the submsg will be executed after the last swap message
         // and will trigger the reply SWAPPED_REPLY_ID
         let response = Response::new()
-            .add_messages(fee_swap_msgs)
-            .add_submessage(fee_swap_submsg)
-            .add_messages(swap_msgs)
-            .add_submessage(submsg);
+            .add_messages(messages)
+            .add_submessages(submessages);
         Ok(app.tag_response(response, "swap_rewards"))
     }
     // TODO: stake lp tokens
