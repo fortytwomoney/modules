@@ -12,7 +12,8 @@ use abstract_core::{
 };
 use abstract_cw_staking_api::CW_STAKING;
 use boot_core::{
-    instantiate_daemon_env, networks::parse_network, BootError, BootExecute, CwEnv, DaemonOptionsBuilder, IndexResponse, StateInterface, TxResponse,
+    instantiate_daemon_env, networks::parse_network, BootError, BootExecute, CwEnv,
+    DaemonOptionsBuilder, IndexResponse, StateInterface, TxResponse,
 };
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};

@@ -225,7 +225,7 @@ pub fn receive(
     msg: Cw20ReceiveMsg,
 ) -> AutocompounderResult {
     if msg.amount.is_zero() {
-        return Err(AutocompounderError::ZeroDepositAmount {  });
+        return Err(AutocompounderError::ZeroDepositAmount {});
     }
     // Withdraw fn can only be called by liquidity token or the lp token
     match from_binary(&msg.msg)? {
@@ -295,7 +295,7 @@ fn deposit_lp(
     if mint_amount.is_zero() {
         return Err(AutocompounderError::ZeroMintAmount {});
     }
-    
+
     let mint_msg = mint_vault_tokens(&config, sender, mint_amount)?;
     let stake_msg = stake_lp_tokens(
         deps.as_ref(),

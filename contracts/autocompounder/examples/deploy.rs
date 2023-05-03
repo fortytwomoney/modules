@@ -1,6 +1,5 @@
-use abstract_boot::{AppDeployer, VersionControl};
-use abstract_core::version_control::ExecuteMsgFns;
-use abstract_core::VERSION_CONTROL;
+use abstract_boot::AppDeployer;
+
 use autocompounder::boot::AutocompounderApp;
 use autocompounder::msg::AUTOCOMPOUNDER;
 use boot_core;

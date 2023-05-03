@@ -12,7 +12,7 @@ pub mod boot;
 #[cfg(test)]
 mod test_common {
     use crate::msg::BondingPeriodSelector;
-    use abstract_cw_staking_api::msg::{CwStakingQueryMsg, StakingInfoResponse, StakeResponse};
+    use abstract_cw_staking_api::msg::{CwStakingQueryMsg, StakeResponse, StakingInfoResponse};
     use abstract_sdk::base::InstantiateEndpoint;
     pub use abstract_sdk::core as abstract_core;
     use abstract_sdk::core::{
@@ -71,35 +71,36 @@ mod test_common {
                             max_claims: None,
                         };
                         Ok(to_binary(&resp).unwrap())
-                    },
-                    abstract_cw_staking_api::msg::QueryMsg::Module(CwStakingQueryMsg::Staked { provider, staking_token, staker_address, unbonding_period }) => {
+                    }
+                    abstract_cw_staking_api::msg::QueryMsg::Module(CwStakingQueryMsg::Staked {
+                        provider: _,
+                        staking_token: _,
+                        staker_address: _,
+                        unbonding_period: _,
+                    }) => {
                         let resp = StakeResponse {
                             amount: Uint128::new(100),
                         };
                         Ok(to_binary(&resp).unwrap())
-                    },
+                    }
                     _ => panic!("unexpected message"),
                 }
             })
-            .with_smart_handler(TEST_VAULT_TOKEN, |msg| {
-                match from_binary(msg).unwrap() {
-                    cw20::Cw20QueryMsg::Balance { address: _ } => {
-                        Ok(to_binary(&cw20::BalanceResponse {
-                            balance: Uint128::new(1000),
-                        })
-                        .unwrap())
-                    },
-                    cw20::Cw20QueryMsg::TokenInfo {  } => {
-                        Ok(to_binary(&cw20::TokenInfoResponse {
-                            name: "test_vault_token".to_string(),
-                            symbol: "test_vault_token".to_string(),
-                            decimals: 6,
-                            total_supply: Uint128::new(1000),
-                        })
-                        .unwrap())
-                    },
-                    _ => panic!("unexpected message"),
+            .with_smart_handler(TEST_VAULT_TOKEN, |msg| match from_binary(msg).unwrap() {
+                cw20::Cw20QueryMsg::Balance { address: _ } => {
+                    Ok(to_binary(&cw20::BalanceResponse {
+                        balance: Uint128::new(1000),
+                    })
+                    .unwrap())
                 }
+                cw20::Cw20QueryMsg::TokenInfo {} => Ok(to_binary(&cw20::TokenInfoResponse {
+                    name: "test_vault_token".to_string(),
+                    symbol: "test_vault_token".to_string(),
+                    decimals: 6,
+                    total_supply: Uint128::new(1000),
+                })
+                .unwrap()),
+                _ => panic!("unexpected message"),
             })
             .with_raw_handler(TEST_ANS_HOST, |key| match key {
                 "\0\u{6}assetseur" => Ok(to_binary(&AssetInfo::Native("eur".into())).unwrap()),

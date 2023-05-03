@@ -1,14 +1,12 @@
 use abstract_boot::{
-    boot_core::{networks, networks::NetworkInfo,  DaemonOptionsBuilder},
-    VersionControl, VCExecFns,
+    boot_core::{networks, networks::NetworkInfo, DaemonOptionsBuilder},
+    VCExecFns, VersionControl,
 };
-use abstract_core::{
-    objects::module::{ModuleInfo, ModuleVersion},
-};
+use abstract_core::objects::module::{ModuleInfo, ModuleVersion};
+use boot_core::instantiate_daemon_env;
 use cosmwasm_std::Addr;
 use std::env;
 use std::sync::Arc;
-use boot_core::instantiate_daemon_env;
 
 const NETWORK: NetworkInfo = networks::UNI_6;
 

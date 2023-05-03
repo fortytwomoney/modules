@@ -1,6 +1,5 @@
 mod common;
 
-use std::fmt::Debug;
 use std::ops::Mul;
 
 use abstract_boot::{Abstract, AbstractBootError, ManagerQueryFns, VCExecFns};
@@ -10,31 +9,27 @@ use abstract_sdk::core as abstract_core;
 
 use abstract_cw_staking_api::CW_STAKING;
 use abstract_dex_api::EXCHANGE;
-use autocompounder::state::{Claim, Config, DECIMAL_OFFSET, PENDING_CLAIMS};
+use autocompounder::state::{Claim, Config, DECIMAL_OFFSET};
 use boot_core::*;
 use boot_cw_plus::Cw20Base;
 use boot_cw_plus::Cw20ExecuteMsgFns;
 use boot_cw_plus::Cw20QueryMsgFns;
 
-use autocompounder::boot::AutocompounderApp;
 use autocompounder::msg::{
-    AutocompounderExecuteMsg, AutocompounderExecuteMsgFns, AutocompounderQueryMsg,
-    AutocompounderQueryMsgFns, BondingPeriodSelector,
+    AutocompounderExecuteMsg, AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns,
+    BondingPeriodSelector,
 };
 
 use autocompounder::msg::{Cw20HookMsg, AUTOCOMPOUNDER};
 use common::abstract_helper::{self, init_auto_compounder};
 use common::vault::Vault;
-use common::{AResult, DISTRIBUTION, OWNER};
-use cosmwasm_std::{
-    coin, coins, to_binary, Addr, Binary, Decimal, Empty, StdResult, Timestamp, Uint128, Uint64,
-};
-use cw_asset::Asset;
-use cw_multi_test::{App, ContractWrapper, Executor};
+use common::AResult;
+use cosmwasm_std::{coin, coins, to_binary, Addr, Decimal, Empty, Uint128};
+
 use cw_utils::{Duration, Expiration};
 use speculoos::assert_that;
-use speculoos::prelude::{HashMapAssertions, OrderedAssertions};
-use wyndex_stake::msg::{ExecuteMsg as StakeExecuteMsg, ReceiveDelegationMsg};
+use speculoos::prelude::OrderedAssertions;
+use wyndex_stake::msg::ReceiveDelegationMsg;
 
 use speculoos::result::ResultAssertions;
 use wyndex_bundle::*;
@@ -922,7 +917,7 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
     let claims = vault.auto_compounder.all_claims(None, None)?;
     assert_that!(claims.len()).is_equal_to(0);
 
-    let res = vault.auto_compounder.batch_unbond(Some(60), None)?;
+    let _res = vault.auto_compounder.batch_unbond(Some(60), None)?;
 
     let all_claims = paginate_all_claims(&vault)?;
     assert_that!(all_claims.len()).is_equal_to(60);
@@ -940,29 +935,25 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
 #[test]
 fn test_lp_deposit() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
-    let user1: Addr = Addr::unchecked(common::USER1);
-    let commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
-    let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
+    let _user1: Addr = Addr::unchecked(common::USER1);
+    let _commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
+    let _wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
 
     // create testing environment
     let (_state, mock) = instantiate_default_mock_env(&owner).unwrap();
 
     // create a vault
-    let mut vault = crate::create_vault(mock.clone()).unwrap();
+    let vault = crate::create_vault(mock.clone()).unwrap();
     let WynDex {
-        eur_token,
-        usd_token,
         eur_usd_pair,
         eur_usd_lp,
-        eur_usd_staking,
-        suite,
         ..
     } = vault.wyndex;
 
     let vault_token = vault.vault_token;
-    let auto_compounder_addr = vault.auto_compounder.addr_str().unwrap();
-    let eur_asset = AssetEntry::new("eur");
-    let usd_asset = AssetEntry::new("usd");
+    let _auto_compounder_addr = vault.auto_compounder.addr_str().unwrap();
+    let _eur_asset = AssetEntry::new("eur");
+    let _usd_asset = AssetEntry::new("usd");
 
     // check config setup
     let config: Config = vault.auto_compounder.config().unwrap();
@@ -1038,7 +1029,7 @@ fn vault_token_inflation_attack_original() -> AResult {
     let (_state, mock) = instantiate_default_mock_env(&owner).unwrap();
 
     // create a vault
-    let mut vault = crate::create_vault(mock.clone()).unwrap();
+    let vault = crate::create_vault(mock.clone()).unwrap();
     let WynDex {
         eur_usd_pair,
         eur_usd_lp,
@@ -1142,7 +1133,7 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
     let (_state, mock) = instantiate_default_mock_env(&owner).unwrap();
 
     // create a vault
-    let mut vault = crate::create_vault(mock.clone()).unwrap();
+    let vault = crate::create_vault(mock.clone()).unwrap();
     let WynDex {
         eur_usd_pair,
         eur_usd_lp,
@@ -1159,7 +1150,7 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
     };
 
     let vault_token = vault.vault_token;
-    let auto_compounder_addr = vault.auto_compounder.addr_str().unwrap();
+    let _auto_compounder_addr = vault.auto_compounder.addr_str().unwrap();
 
     let user_deposit = 100_000u128;
     let attacker_deposit = 1u128;
@@ -1206,7 +1197,7 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
         vault.auto_compounder.address()?.to_string(),
         to_binary(&Cw20HookMsg::DepositLp {})?,
     );
-    
+
     // this will mint a zero amount so it will fail
     assert_that!(resp).is_err();
 
