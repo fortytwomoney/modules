@@ -3,6 +3,10 @@
 update:
   cargo update
 
+refresh:
+  cargo clean
+  cargo update
+
 watch:
   cargo watch -x lcheck
 

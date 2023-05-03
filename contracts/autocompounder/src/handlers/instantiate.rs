@@ -134,7 +134,10 @@ pub fn instantiate_handler(
     );
     let mut pool_references = pairing.resolve(&deps.querier, &ans_host)?;
     let pool_reference: PoolReference = pool_references.swap_remove(0);
-    let pool_data = pool_reference.unique_id.resolve(&deps.querier, &ans_host)?;
+    // get the pool data
+    let mut pool_data = pool_reference.unique_id.resolve(&deps.querier, &ans_host)?;
+
+    pool_data.assets.sort();
 
     let resolved_pool_assets = pool_data.assets.resolve(&deps.querier, &ans_host)?;
 

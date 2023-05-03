@@ -11,7 +11,7 @@ members = ["contracts/*", "packages/*", "scripts"]
 resolver = "2"
 
 [workspace.package]
-version = "0.4.2"
+version = "0.4.3"
 authors = []
 edition = "2021"
 
@@ -34,7 +34,7 @@ abstract-testing = { version = "0.14" }
 
 abstract-dex-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.3", default-features = false }
 abstract-cw-staking-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.3", default-features = false }
-forty-two = { version = "0.4.2", path = "packages/forty-two" }
+forty-two = { version = "0.4.3", path = "packages/forty-two" }
 
 autocompounder = { path = "contracts/autocompounder" }
 cosmwasm-std = { version = "1.1" }
