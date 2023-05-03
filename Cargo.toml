@@ -64,7 +64,7 @@ env_logger = "0.10.0"
 log = "0.4.14"
 clap = { version = "4.0.32", features = ["derive"] }
 boot-core = { version = "0.10.0" }
-boot-cw-plus = { git = "https://github.com/AbstractSDK/cw-orchestrator.git", branch = "v0.10.1" }
+boot-cw-plus = { git = "https://github.com/AbstractSDK/cw-orchestrator.git", tag = "v0.10.2" }
 # boot-cw-plus = { git = "https://github.com/AbstractSDK/cw-orchestrator", tag = "v0.10.0" }
 
 [profile.release]
