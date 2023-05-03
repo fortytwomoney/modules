@@ -25,6 +25,9 @@ pub fn query_handler(
         AutocompounderQueryMsg::PendingClaims { address } => {
             Ok(to_binary(&query_pending_claims(deps, address)?)?)
         }
+        AutocompounderQueryMsg::AllPendingClaims { start_after, limit } => {
+            Ok(to_binary(&query_all_pending_claims(deps, start_after, limit)?)?)
+        }
         AutocompounderQueryMsg::Claims { address } => Ok(to_binary(&query_claims(deps, address)?)?),
         AutocompounderQueryMsg::AllClaims { start_after, limit } => {
             Ok(to_binary(&query_all_claims(deps, start_after, limit)?)?)
@@ -58,6 +61,31 @@ pub fn query_pending_claims(deps: Deps, address: String) -> AutocompounderResult
 
     let pending_claims = PENDING_CLAIMS.may_load(deps.storage, address)?;
     Ok(pending_claims.unwrap_or_default())
+}
+
+pub fn query_all_pending_claims(
+    deps: Deps,
+    start_after: Option<String>,
+    limit: Option<u8>,
+) -> AutocompounderResult<Vec<(String, Uint128)>> {
+    let bonding_period = CONFIG.load(deps.storage)?.unbonding_period;
+    if bonding_period.is_none() {
+        return Ok(vec![]);
+    }
+
+    let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE).min(MAX_PAGE_SIZE) as usize;
+    let start = start_after.map(|s| Bound::ExclusiveRaw(s.into_bytes()));
+    let claims = PENDING_CLAIMS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|item| {
+            item.map(|(addr, amount)| -> StdResult<(String, Uint128)> {
+                Ok((addr, amount))
+            })?
+        })
+        .collect::<StdResult<Vec<(String, Uint128)>>>()?;
+
+    Ok(claims)
 }
 
 pub fn query_claims(deps: Deps, address: String) -> AutocompounderResult<Vec<Claim>> {

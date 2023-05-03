@@ -88,7 +88,7 @@ pub enum AutocompounderExecuteMsg {
     /// Compound all rewards in the vault
     Compound {},
     /// Unbond in batches
-    BatchUnbond {},
+    BatchUnbond { start_after: Option<String>, limit: Option<u32> },
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -104,6 +104,13 @@ pub enum AutocompounderQueryMsg {
     /// Returns [`Uint128`]
     #[returns(Uint128)]
     PendingClaims { address: String },
+    /// Query all pending claims
+    /// Returns [`Vec<Claim>`]
+    #[returns(Vec<(String, Uint128)>)]
+    AllPendingClaims {
+        start_after: Option<String>,
+        limit: Option<u8>,
+    },
     /// Query the amount of claims
     /// Returns [`Vec<Claim>`]
     #[returns(Vec<Claim>)]

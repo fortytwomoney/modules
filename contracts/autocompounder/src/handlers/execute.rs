@@ -4,9 +4,10 @@ use crate::contract::{
     LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
+use crate::msg::{AutocompounderExecuteMsg, Cw20HookMsg};
 use crate::state::{
-    Claim, Config, CACHED_USER_ADDR, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
-    CACHED_ASSETS,
+    Claim, Config, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE, FEE_CONFIG,
+    LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS,
 };
 use abstract_cw_staking_api::msg::{CwStakingAction, CwStakingExecuteMsg};
 use abstract_cw_staking_api::CW_STAKING;
@@ -24,8 +25,8 @@ use cosmwasm_std::{
 };
 use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetList;
+use cw_storage_plus::Bound;
 use cw_utils::Duration;
-use crate::msg::{AutocompounderExecuteMsg, Cw20HookMsg};
 use std::ops::Add;
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
@@ -44,7 +45,9 @@ pub fn execute_handler(
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
         AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, env, app, funds),
         AutocompounderExecuteMsg::Withdraw {} => withdraw_claims(deps, app, env, info.sender),
-        AutocompounderExecuteMsg::BatchUnbond {} => batch_unbond(deps, env, app),
+        AutocompounderExecuteMsg::BatchUnbond { start_after, limit } => {
+            batch_unbond(deps, env, app, start_after, limit)
+        }
         AutocompounderExecuteMsg::Compound {} => compound(deps, app),
     }
 }
@@ -157,7 +160,13 @@ pub fn deposit(
     Ok(app.custom_tag_response(response, "deposit", vec![("4t2", "/AC/Deposit")]))
 }
 
-pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> AutocompounderResult {
+pub fn batch_unbond(
+    deps: DepsMut,
+    env: Env,
+    app: AutocompounderApp,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     if config.unbonding_period.is_none() {
         return Err(AutocompounderError::UnbondingNotEnabled {});
@@ -166,15 +175,21 @@ pub fn batch_unbond(deps: DepsMut, env: Env, app: AutocompounderApp) -> Autocomp
     // check if the cooldown period has passed
     check_unbonding_cooldown(&deps, &config, &env)?;
 
+    let limit = limit.unwrap_or(DEFAULT_BATCH_SIZE).min(MAX_BATCH_SIZE) as usize;
+    let start = start_after.map(|s| Bound::ExclusiveRaw(s.into_bytes()));
     let pending_claims = PENDING_CLAIMS
-        .range(deps.storage, None, None, Order::Ascending)
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
         .collect::<StdResult<Vec<(String, Uint128)>>>()?;
 
     let (total_lp_amount_to_unbond, total_vault_tokens_to_burn, updated_claims) =
-        calculate_withdrawals(deps.as_ref(), &config, &app, pending_claims, env)?;
+        calculate_withdrawals(deps.as_ref(), &config, &app, pending_claims.clone(), env)?;
 
     // clear pending claims
-    PENDING_CLAIMS.clear(deps.storage);
+    for claim in pending_claims.iter() {
+        PENDING_CLAIMS.remove(deps.storage, claim.0.clone());
+    }
+    // PENDING_CLAIMS.clear(deps.storage);
     // update claims
     updated_claims
         .into_iter()
@@ -341,9 +356,6 @@ pub fn withdraw_claims(
         CACHED_ASSETS.save(deps.storage, asset, &amount).unwrap();
     });
     CACHED_USER_ADDR.save(deps.storage, &address)?;
-    
-    
-
 
     if config.unbonding_period.is_none() {
         return Err(AutocompounderError::UnbondingNotEnabled {});
@@ -409,12 +421,28 @@ pub fn withdraw_claims(
     ))
 }
 
-fn owned_assets(for_assets: Vec<AssetEntry>, deps: &DepsMut, ans_host: abstract_sdk::feature_objects::AnsHost, app: &abstract_app::AppContract<AutocompounderError, crate::msg::AutocompounderInstantiateMsg, AutocompounderExecuteMsg, crate::msg::AutocompounderQueryMsg, crate::msg::AutocompounderMigrateMsg, Cw20ReceiveMsg>) -> Result<Vec<(String, Uint128)>, AutocompounderError> {
-    let owned_assets = for_assets.into_iter().map(|asset| {
-        let asset_info = asset.resolve(&deps.querier, &ans_host)?;
-        let amount = asset_info.query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())?;
-        Ok((asset.to_string(), amount))
-    }).collect::<Result<Vec<(String, Uint128)>, AutocompounderError>>()?;
+fn owned_assets(
+    for_assets: Vec<AssetEntry>,
+    deps: &DepsMut,
+    ans_host: abstract_sdk::feature_objects::AnsHost,
+    app: &abstract_app::AppContract<
+        AutocompounderError,
+        crate::msg::AutocompounderInstantiateMsg,
+        AutocompounderExecuteMsg,
+        crate::msg::AutocompounderQueryMsg,
+        crate::msg::AutocompounderMigrateMsg,
+        Cw20ReceiveMsg,
+    >,
+) -> Result<Vec<(String, Uint128)>, AutocompounderError> {
+    let owned_assets = for_assets
+        .into_iter()
+        .map(|asset| {
+            let asset_info = asset.resolve(&deps.querier, &ans_host)?;
+            let amount = asset_info
+                .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())?;
+            Ok((asset.to_string(), amount))
+        })
+        .collect::<Result<Vec<(String, Uint128)>, AutocompounderError>>()?;
     Ok(owned_assets)
 }
 
@@ -496,7 +524,7 @@ fn check_unbonding_cooldown(
     let latest_unbonding = LATEST_UNBONDING.may_load(deps.storage)?;
     if let Some(latest_unbonding) = latest_unbonding {
         if let Some(min_cooldown) = config.min_unbonding_cooldown {
-            if latest_unbonding.add(min_cooldown)?.is_expired(&env.block) {
+            if !latest_unbonding.add(min_cooldown)?.is_expired(&env.block) {
                 return Err(AutocompounderError::UnbondingCooldownNotExpired {
                     min_cooldown,
                     latest_unbonding,
@@ -579,14 +607,16 @@ fn unstake_lp_tokens(
 mod test {
     use super::*;
 
+    use crate::msg::ExecuteMsg;
     use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_init};
+    use abstract_core::objects::PoolMetadata;
+    use abstract_core::objects::pool_id::PoolAddressBase;
     use abstract_sdk::base::ExecuteEndpoint;
     use abstract_testing::prelude::TEST_MANAGER;
-    use cosmwasm_std::{
-        testing::{mock_env, mock_info},
-    };
+    use cosmwasm_std::Storage;
+    use cosmwasm_std::testing::{mock_env, mock_info, mock_dependencies};
     use cw_controllers::AdminError;
-    use crate::msg::ExecuteMsg;
+    use cw_utils::Expiration;
     use speculoos::{assert_that, result::ResultAssertions};
 
     fn execute_as(
@@ -603,6 +633,23 @@ mod test {
         msg: impl Into<ExecuteMsg>,
     ) -> Result<Response, AutocompounderError> {
         execute_as(deps, TEST_MANAGER, msg)
+    }
+
+    fn min_cooldown_config(
+        min_unbonding_cooldown: Option<Duration>,
+    ) -> Config {
+        let assets = vec![AssetEntry::new("juno>juno")];
+
+        Config {
+            staking_contract: Addr::unchecked("staking_contract"),
+            pool_address: PoolAddressBase::Contract(Addr::unchecked("pool_address")),
+            pool_data: PoolMetadata::new("wyndex", abstract_core::objects::PoolType::ConstantProduct, assets),
+            pool_assets: vec![],
+            liquidity_token: Addr::unchecked("liquidity_token"),
+            vault_token: Addr::unchecked("vault_token"),
+            unbonding_period: Some(Duration::Time(100)),
+            min_unbonding_cooldown,
+        }
     }
 
     mod fee_config {
@@ -654,7 +701,10 @@ mod test {
     #[test]
     fn cannot_batch_unbond_if_unbonding_not_enabled() -> anyhow::Result<()> {
         let mut deps = app_init(false);
-        let msg = AutocompounderExecuteMsg::BatchUnbond {};
+        let msg = AutocompounderExecuteMsg::BatchUnbond {
+            start_after: None,
+            limit: None,
+        };
         let resp = execute_as_manager(deps.as_mut(), msg);
         assert_that!(resp)
             .is_err()
@@ -672,4 +722,73 @@ mod test {
             .matches(|e| matches!(e, AutocompounderError::NoClaims {}));
         Ok(())
     }
+
+    #[test]
+    fn test_check_unbonding_cooldown_with_no_latest_unbonding() {
+        let mut deps = mock_dependencies();
+
+        let config = min_cooldown_config(Some(Duration::Time(60)));
+        let env = mock_env();
+        let result = check_unbonding_cooldown(&deps.as_mut(), &config, &env);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_unbonding_cooldown_with_expired_unbonding() {
+        let mut deps = mock_dependencies();
+        let config = min_cooldown_config(Some(Duration::Time(60)));
+        let env = mock_env();
+        let latest_unbonding = Expiration::AtTime(env.block.time.minus_seconds(60));
+        
+        // Exactly expired
+        LATEST_UNBONDING.save(deps.as_mut().storage, &latest_unbonding).unwrap();
+        let result = check_unbonding_cooldown(&deps.as_mut(), &config, &env);
+        assert!(result.is_ok());
+
+        // Expired by 1 second
+        let latest_unbonding = Expiration::AtTime(env.block.time.minus_seconds(61));
+        LATEST_UNBONDING.save(deps.as_mut().storage, &latest_unbonding).unwrap();
+        let result = check_unbonding_cooldown(&deps.as_mut(), &config, &env);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_unbonding_cooldown_with_unexpired_unbonding() {
+        let mut deps = mock_dependencies();
+        let config = min_cooldown_config(Some(Duration::Time(60)));
+        let env = mock_env();
+
+        let latest_unbonding = Expiration::AtTime(env.block.time.minus_seconds(59));
+        LATEST_UNBONDING.save(deps.as_mut().storage, &latest_unbonding).unwrap();
+
+        // Exactly 1 second left
+        let result = check_unbonding_cooldown(&deps.as_mut(), &config, &env);
+        match result {
+            Err(AutocompounderError::UnbondingCooldownNotExpired {
+                min_cooldown,
+                latest_unbonding: latest_unbonding_error,
+            }) => {
+                assert_eq!(min_cooldown, Duration::Time(60));
+                assert_eq!(latest_unbonding, latest_unbonding_error);
+            }
+            _ => panic!("Unexpected error: {:?}", result),
+        }
+
+        // 60 seconds left
+        let latest_unbonding = Expiration::AtTime(env.block.time);
+        LATEST_UNBONDING.save(deps.as_mut().storage, &latest_unbonding).unwrap();
+        let result = check_unbonding_cooldown(&deps.as_mut(), &config, &env);
+        match result {
+            Err(AutocompounderError::UnbondingCooldownNotExpired {
+                min_cooldown,
+                latest_unbonding: latest_unbonding_error,
+            }) => {
+                assert_eq!(min_cooldown, Duration::Time(60));
+                assert_eq!(latest_unbonding, latest_unbonding_error);
+            }
+            _ => panic!("Unexpected error: {:?}", result),
+        }
+
+    }
+
 }

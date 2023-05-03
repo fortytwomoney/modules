@@ -1,5 +1,7 @@
 mod common;
 
+use std::fmt::Debug;
+
 use abstract_boot::{Abstract, AbstractBootError, ManagerQueryFns, VCExecFns};
 use abstract_core::api::{BaseExecuteMsgFns, BaseQueryMsgFns};
 use abstract_core::objects::{AnsAsset, AssetEntry};
@@ -10,7 +12,7 @@ use boot_cw_plus::Cw20ExecuteMsgFns;
 use abstract_cw_staking_api::CW_STAKING;
 use abstract_dex_api::msg::*;
 use abstract_dex_api::EXCHANGE;
-use autocompounder::state::{Claim, Config};
+use autocompounder::state::{Claim, Config, PENDING_CLAIMS};
 use boot_core::*;
 use boot_cw_plus::Cw20Base;
 use boot_cw_plus::Cw20QueryMsgFns;
@@ -32,7 +34,7 @@ use cw_asset::Asset;
 use cw_multi_test::{App, ContractWrapper, Executor};
 use cw_utils::Expiration;
 use speculoos::assert_that;
-use speculoos::prelude::OrderedAssertions;
+use speculoos::prelude::{OrderedAssertions, HashMapAssertions};
 
 use speculoos::result::ResultAssertions;
 use wyndex_bundle::*;
@@ -230,7 +232,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
     assert_that!(pending_claims.u128()).is_equal_to(4000u128);
 
-    vault.auto_compounder.batch_unbond()?;
+    vault.auto_compounder.batch_unbond(None, None)?;
 
     // checks if the pending claims are now removed
     let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
@@ -272,7 +274,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
         auto_compounder_addr,
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
-    vault.auto_compounder.batch_unbond()?;
+    vault.auto_compounder.batch_unbond(None, None)?;
     mock.wait_blocks(60 * 60 * 24 * 21)?;
     vault.auto_compounder.withdraw()?;
 
@@ -398,7 +400,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     assert_that!(total_lp_balance).is_equal_to(new_position);
 
     // Batch unbond pending claims
-    vault.auto_compounder.batch_unbond()?;
+    vault.auto_compounder.batch_unbond(None, None)?;
 
     // query the claims of the auto-compounder
     let claims = vault.auto_compounder.claims(owner.to_string())?;
@@ -449,7 +451,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
         .into();
     assert_that!(pending_claims).is_equal_to(6000u128); // no unbonding period, so no pending claims
 
-    vault.auto_compounder.batch_unbond()?; // batch unbonding not enabled
+    vault.auto_compounder.batch_unbond(None, None)?; // batch unbonding not enabled
     mock.wait_blocks(60 * 60 * 24 * 10)?;
     vault.auto_compounder.withdraw()?; // withdraw wont have any effect, because there are no pending claims
                                        // mock.next_block()?;
@@ -568,7 +570,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
     )?;
 
     // Unbond tokens & clear pending claims
-    vault.auto_compounder.batch_unbond()?;
+    vault.auto_compounder.batch_unbond(None, None)?;
 
     mock.wait_blocks(1)?;
 
@@ -712,7 +714,7 @@ fn test_owned_funds_stay_in_vault() -> AResult {
     )?;
     
     // Unbond tokens & clear pending claims
-    vault.auto_compounder.batch_unbond()?;
+    vault.auto_compounder.batch_unbond(None, None)?;
     mock.wait_blocks(60 * 60 * 24 * 10)?;
 
     // Send EUR to the autocompounder
@@ -737,6 +739,114 @@ fn test_owned_funds_stay_in_vault() -> AResult {
     Ok(())
 }
 
+
+
+
+// This test is going to be way easyer to setup if we have the option to deposit lp tokens.
+#[test]
+fn batch_unbond_pagination() -> anyhow::Result<()> {
+    let owner = Addr::unchecked(common::OWNER);
+
+    let (_, mock) = instantiate_default_mock_env(&owner)?;
+    
+    let mut vault = crate::create_vault(mock.clone())?;
+    let mut vault_token = vault.vault_token.to_owned();
+    let WynDex {
+        ..
+    } = vault.wyndex;
+
+    // deposit big amount by owner:
+    mock.set_balance(&owner, vec![coin(100_000u128, EUR), coin(100_000u128, USD)])?;
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(AssetEntry::new("eur"), 100_000u128),
+            AnsAsset::new(AssetEntry::new("usd"), 100_000u128),
+        ],
+        &[coin(100_000u128, EUR), coin(100_000u128, USD)],
+    )?;
+    
+    let fake_addresses = (0..100).map(|i| Addr::unchecked(format!("addr{i:}"))).collect::<Vec<Addr>>();
+    fake_addresses.iter().for_each(
+        |addr| {
+            mock.set_balance(addr, vec![coin(10u128, EUR), coin(10u128, USD)]).unwrap();
+        });
+
+    // deposit 10 EUR for each address
+    for addr in fake_addresses.iter() {
+        vault.auto_compounder.set_sender(addr);
+        vault.auto_compounder.deposit(
+            vec![
+                AnsAsset::new(AssetEntry::new("eur"), 10u128),
+                AnsAsset::new(AssetEntry::new("usd"), 10u128),
+            ],
+            &[coin(10u128, EUR), coin(10u128, USD)])?;
+    }
+
+    for addr in fake_addresses.iter() {
+        let vault_token_balance = vault_token.balance(addr.to_string())?.balance;
+        vault_token.set_sender(addr);
+        vault_token.send(
+            vault_token_balance,
+            vault.auto_compounder.address()?.to_string(),
+            to_binary(&Cw20HookMsg::Redeem {})?,
+        )?;
+    }
+    // max 20 page per call. Test it by doing 30
+    let claims = vault.auto_compounder.all_pending_claims(Some(30), None)?;
+    assert_that!(claims.len()).is_equal_to(20);
+    // loop over all pages of the all_pending_claims and concat to one vector
+    drop(vault_token);
+    
+    
+    let pending_claims = paginate_all_pending_claims(&vault)?;
+    assert_that!(pending_claims.len()).is_equal_to(100);
+
+    let claims = vault.auto_compounder.all_claims(None, None)?;
+    assert_that!(claims.len()).is_equal_to(0);
+
+    let res = vault.auto_compounder.batch_unbond(Some(60), None)?;
+
+    let all_claims = paginate_all_claims(&vault)?;
+    assert_that!(all_claims.len()).is_equal_to(60);
+
+
+    // default batch size is 100 so this should unbond the remaining 40
+    let res = vault.auto_compounder.batch_unbond(None, None);
+    assert_that!(res).is_ok();
+
+    let all_claims = paginate_all_claims(&vault)?;
+    assert_that!(all_claims.len()).is_equal_to(100);
+
+    Ok(())
+}
+
+fn paginate_all_claims(vault: &Vault<Mock>) -> Result<Vec<(String, Vec<Claim>)>, anyhow::Error> {
+    let mut all_claims = vec![];
+    let mut start_after: Option<String> = None;
+    loop {
+        let claims = vault.auto_compounder.all_claims(Some(20), start_after)?;
+        if claims.len() == 0 {
+            break;
+        }
+        all_claims.extend(claims);
+        start_after = Some(all_claims.last().unwrap().0.clone());
+    }
+    Ok(all_claims)
+}
+
+fn paginate_all_pending_claims(vault: &Vault<Mock>) -> Result<Vec<(String, Uint128)>, anyhow::Error> {
+    let mut pending_claims : Vec<(String, Uint128)> = vec![];
+    let mut start_after: Option<String> = None;
+    loop {
+        let claims = vault.auto_compounder.all_pending_claims(Some(30), start_after)?;
+        if claims.len() == 0 {
+            break;
+        }
+        pending_claims.extend(claims);
+        start_after = Some(pending_claims.last().unwrap().0.clone());
+    }
+    Ok(pending_claims)
+}
 
 fn generator_with_rewards_test_rewards_distribution_with_multiple_users() -> AResult {
     // test multiple user deposits and withdrawals
