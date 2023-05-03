@@ -740,8 +740,8 @@ fn test_deposit_and_withdrawal_fees() -> AResult {
     vault.auto_compounder.call_as(&manager_addr).execute_app(
         AutocompounderExecuteMsg::UpdateFeeConfig {
             performance: Some(Decimal::zero()),
-            deposit: None,
-            withdrawal: None,
+            deposit: Some(Decimal::from_str("0.1")?),
+            withdrawal: Some(Decimal::from_str("0.1")?),
         },
         None,
     )?;
