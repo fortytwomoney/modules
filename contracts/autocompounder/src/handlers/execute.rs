@@ -1,17 +1,17 @@
 use super::convert_to_shares;
 use super::helpers::{
     check_fee, convert_to_assets, cw20_total_supply, mint_vault_tokens, query_stake,
-    stake_lp_tokens,
+    stake_lp_tokens, swap_rewards_with_reply,
 };
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
-    LP_WITHDRAWAL_REPLY_ID,
+    LP_WITHDRAWAL_REPLY_ID, FEE_SWAPPED_REPLY,
 };
 use crate::error::AutocompounderError;
 use crate::msg::{AutocompounderExecuteMsg, Cw20HookMsg};
 use crate::state::{
     Claim, Config, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE, FEE_CONFIG,
-    LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS, FeeConfig,
+    LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS, FeeConfig, CACHED_FEE_AMOUNT,
 };
 use abstract_cw_staking_api::msg::{CwStakingAction, CwStakingExecuteMsg};
 use abstract_cw_staking_api::CW_STAKING;
@@ -103,9 +103,15 @@ pub fn deposit(
 ) -> AutocompounderResult {
     // TODO: Check if the pool is valid
     let config = CONFIG.load(deps.storage)?;
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
     let _staking_address = config.staking_contract;
     let ans_host = app.ans_host(deps.as_ref())?;
-    let mut msgs = vec![];
+    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
+    let current_fee_balance = fee_config.fee_asset.resolve(&deps.querier, &ans_host)?
+        .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())?;
+
+    let mut messages = vec![];
+    let mut submessages = vec![];
 
     // TODO: this resolution is probably not necessary as we should store the asset addressses for the configured pool
     let mut claimed_deposits: AssetList = funds.resolve(&deps.querier, &ans_host)?.into();
@@ -116,7 +122,7 @@ pub fn deposit(
         .purge();
 
     // if there is only one asset, we need to add the other asset too, but with zero amount
-    let funds = if funds.len() == 1 {
+    let mut funds = if funds.len() == 1 {
         let mut funds = funds;
         config.pool_data.assets.iter().for_each(|asset| {
             if !funds[0].name.eq(asset) {
@@ -129,22 +135,47 @@ pub fn deposit(
     };
 
     let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>, AbstractSdkError> = claimed_deposits
-        .into_iter()
-        .map(|asset| {
-            // transfer cw20 tokens to the Account
-            // will fail if allowance is not set or if some other assets are sent
-            Ok(asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)?)
+    .into_iter()
+    .map(|asset| {
+        // transfer cw20 tokens to the Account
+        // will fail if allowance is not set or if some other assets are sent
+        Ok(asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)?)
         })
         .collect();
-    msgs.append(cw_20_transfer_msgs_res?.as_mut());
-
+    messages.append(cw_20_transfer_msgs_res?.as_mut());
+    
     // transfer received coins to the Account
     if !msg_info.funds.is_empty() {
         let bank = app.bank(deps.as_ref());
-        msgs.push(bank.deposit_coins(msg_info.funds)?);
+        messages.push(bank.deposit_coins(msg_info.funds)?);
     }
 
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
+    // deduct deposit fee
+    if !fee_config.deposit.is_zero() {
+            let mut fees = vec![];
+            funds = funds
+            .into_iter()
+            .filter(|asset| !asset.amount.is_zero())
+            .map(|mut asset| {
+                let fee = asset.amount * fee_config.deposit;
+                let fee_asset = AnsAsset::new(asset.name.clone(), fee);
+                asset.amount -= fee;
+                if !fee.is_zero() {
+                    fees.push(fee_asset);
+                }
+                asset
+            })
+            .collect::<Vec<_>>();
+        
+        // 3) (swap and) Send fees to treasury
+        if !fees.is_empty() {
+            let (fee_swap_msgs, fee_swap_submsg) =
+            swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
+            messages.extend(fee_swap_msgs);
+            submessages.push(fee_swap_submsg);
+        }
+    }
+
     let provide_liquidity_msg: CosmosMsg = dex.provide_liquidity(
         funds,
         // TODO: let the user provide this
@@ -157,10 +188,16 @@ pub fn deposit(
         gas_limit: None,
         reply_on: ReplyOn::Success,
     };
+    submessages.push(sub_msg);
+    
 
     // save the user address to the cache for later use in reply
+    CACHED_FEE_AMOUNT.save(deps.storage, &current_fee_balance)?;
     CACHED_USER_ADDR.save(deps.storage, &msg_info.sender)?;
-    let response = Response::new().add_messages(msgs).add_submessage(sub_msg);
+
+    let response = Response::new()
+        .add_messages(messages)
+        .add_submessages(submessages);
     Ok(app.custom_tag_response(response, "deposit", vec![("4t2", "/AC/Deposit")]))
 }
 

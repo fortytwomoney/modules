@@ -1,5 +1,6 @@
 use super::helpers::{
-    convert_to_shares, cw20_total_supply, mint_vault_tokens, query_stake, stake_lp_tokens,
+    convert_to_shares, cw20_total_supply, mint_vault_tokens, query_stake,
+    stake_lp_tokens, swap_rewards_with_reply,
 };
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, FEE_SWAPPED_REPLY,
@@ -391,33 +392,7 @@ fn query_rewards(
     Ok(tokens)
 }
 
-/// swaps all rewards that are not in the target assets and add a reply id to the latest swapmsg
-fn swap_rewards_with_reply(
-    rewards: Vec<AnsAsset>,
-    target_assets: Vec<AssetEntry>,
-    dex: &Dex<AutocompounderApp>,
-    reply_id: u64,
-) -> Result<(Vec<CosmosMsg>, SubMsg), AutocompounderError> {
-    let mut swap_msgs: Vec<CosmosMsg> = vec![];
-    rewards
-        .iter()
-        .try_for_each(|reward: &AnsAsset| -> AbstractSdkResult<_> {
-            if !target_assets.contains(&reward.name) {
-                // 3.2) swap to asset in pool
-                let swap_msg = dex.swap(
-                    reward.clone(),
-                    target_assets.get(0).unwrap().clone(),
-                    Some(Decimal::percent(50)),
-                    None,
-                )?;
-                swap_msgs.push(swap_msg);
-            }
-            Ok(())
-        })?;
-    let swap_msg = swap_msgs.pop().unwrap();
-    let submsg = SubMsg::reply_on_success(swap_msg, reply_id);
-    Ok((swap_msgs, submsg))
-}
+
 
 /// queries available staking rewards assets and the corresponding balances
 fn get_staking_rewards(
