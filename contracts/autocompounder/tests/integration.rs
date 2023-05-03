@@ -1031,10 +1031,10 @@ fn vault_token_inflation_test()-> AResult {
 
     // attacker makes donation to liquidity pool
     // TODO: execute this
-    eur_usd_lp.mint();
+    // eur_usd_lp.mint();
     eur_usd_lp.call_as(&eur_usd_pair).mint(
-        vault.account.proxy.address()?,
         100000u128.into(),
+        vault.account.proxy.address()?.to_string(),
     )?;
     
 
