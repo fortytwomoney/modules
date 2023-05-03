@@ -12,7 +12,7 @@ pub mod boot;
 #[cfg(test)]
 mod test_common {
     use crate::msg::BondingPeriodSelector;
-    use abstract_cw_staking_api::msg::{CwStakingQueryMsg, StakingInfoResponse};
+    use abstract_cw_staking_api::msg::{CwStakingQueryMsg, StakingInfoResponse, StakeResponse};
     use abstract_sdk::base::InstantiateEndpoint;
     pub use abstract_sdk::core as abstract_core;
     use abstract_sdk::core::{
@@ -26,7 +26,7 @@ mod test_common {
         MockDeps, MockQuerierBuilder,
     };
     pub use cosmwasm_std::testing::*;
-    use cosmwasm_std::{from_binary, to_binary, Addr, Decimal};
+    use cosmwasm_std::{from_binary, to_binary, Addr, Decimal, Uint128};
     use cw_asset::AssetInfo;
     use cw_utils::Duration;
     pub use speculoos::prelude::*;
@@ -36,6 +36,7 @@ mod test_common {
     const COMMISSION_RECEIVER: &str = "commission_receiver";
     const TEST_CW_STAKING_MODULE: &str = "cw_staking";
     const TEST_POOL_ADDR: &str = "test_pool";
+    pub const TEST_VAULT_TOKEN: &str = "test_vault_token";
 
     // Mock Querier with a smart-query handler for the module factory
     // Because that query is performed when the App is instantiated to get the manager's address and set it as the Admin
@@ -70,7 +71,33 @@ mod test_common {
                             max_claims: None,
                         };
                         Ok(to_binary(&resp).unwrap())
-                    }
+                    },
+                    abstract_cw_staking_api::msg::QueryMsg::Module(CwStakingQueryMsg::Staked { provider, staking_token, staker_address, unbonding_period }) => {
+                        let resp = StakeResponse {
+                            amount: Uint128::new(100),
+                        };
+                        Ok(to_binary(&resp).unwrap())
+                    },
+                    _ => panic!("unexpected message"),
+                }
+            })
+            .with_smart_handler(TEST_VAULT_TOKEN, |msg| {
+                match from_binary(msg).unwrap() {
+                    cw20::Cw20QueryMsg::Balance { address: _ } => {
+                        Ok(to_binary(&cw20::BalanceResponse {
+                            balance: Uint128::new(1000),
+                        })
+                        .unwrap())
+                    },
+                    cw20::Cw20QueryMsg::TokenInfo {  } => {
+                        Ok(to_binary(&cw20::TokenInfoResponse {
+                            name: "test_vault_token".to_string(),
+                            symbol: "test_vault_token".to_string(),
+                            decimals: 6,
+                            total_supply: Uint128::new(1000),
+                        })
+                        .unwrap())
+                    },
                     _ => panic!("unexpected message"),
                 }
             })
