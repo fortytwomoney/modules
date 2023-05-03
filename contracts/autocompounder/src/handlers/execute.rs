@@ -216,6 +216,7 @@ pub fn batch_unbond(
 
     // check if the cooldown period has passed
     check_unbonding_cooldown(&deps, &config, &env)?;
+    LATEST_UNBONDING.save(deps.storage, &cw_utils::Expiration::AtTime(env.block.time))?;
 
     let limit = limit.unwrap_or(DEFAULT_BATCH_SIZE).min(MAX_BATCH_SIZE) as usize;
     let start = start_after.map(|s| Bound::ExclusiveRaw(s.into_bytes()));
