@@ -6,16 +6,16 @@ use abstract_boot::{Abstract, AbstractBootError, ManagerQueryFns, VCExecFns};
 use abstract_core::api::{BaseExecuteMsgFns, BaseQueryMsgFns};
 use abstract_core::objects::{AnsAsset, AssetEntry};
 use abstract_sdk::core as abstract_core;
-use autocompounder::error::AutocompounderError;
-use boot_cw_plus::Cw20ExecuteMsgFns;
 
 use abstract_cw_staking_api::CW_STAKING;
-use abstract_dex_api::msg::*;
 use abstract_dex_api::EXCHANGE;
 use autocompounder::state::{Claim, Config, PENDING_CLAIMS};
 use boot_core::*;
 use boot_cw_plus::Cw20Base;
 use boot_cw_plus::Cw20QueryMsgFns;
+use boot_cw_plus::Cw20ExecuteMsgFns;
+
+
 
 use autocompounder::boot::AutocompounderApp;
 use autocompounder::msg::{
@@ -31,12 +31,12 @@ use common::{AResult, DISTRIBUTION, OWNER};
 use cosmwasm_std::{
     coin, coins, to_binary, Addr, Binary, Decimal, Empty, StdResult, Timestamp, Uint128, Uint64,
 };
-use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_asset::Asset;
 use cw_multi_test::{App, ContractWrapper, Executor};
 use cw_utils::Expiration;
 use speculoos::assert_that;
 use speculoos::prelude::{OrderedAssertions, HashMapAssertions};
+
 
 use speculoos::result::ResultAssertions;
 use wyndex_bundle::*;
@@ -979,9 +979,11 @@ fn vault_token_inflation_test()-> AResult {
     let WynDex {
         eur_token,
         usd_token,
+        eur_usd_pair,
         eur_usd_lp,
         eur_usd_staking,
         suite,
+
         ..
     } = vault.wyndex;
 
@@ -1029,6 +1031,12 @@ fn vault_token_inflation_test()-> AResult {
 
     // attacker makes donation to liquidity pool
     // TODO: execute this
+    eur_usd_lp.mint();
+    eur_usd_lp.call_as(&eur_usd_pair).mint(
+        vault.account.proxy.address()?,
+        100000u128.into(),
+    )?;
+    
 
     // check the amount of lp tokens staked for the vault by the attacker
     let lp_staked = vault.auto_compounder.total_lp_position().unwrap() as Uint128;
