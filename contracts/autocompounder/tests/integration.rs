@@ -23,7 +23,7 @@ use autocompounder::msg::{
     BondingPeriodSelector, AutocompounderExecuteMsg,
 };
 
-use wyndex_stake::msg::ExecuteMsg as StakeExecuteMsg;
+use wyndex_stake::msg::{ExecuteMsg as StakeExecuteMsg, ReceiveDelegationMsg};
 use autocompounder::msg::{Cw20HookMsg, AUTOCOMPOUNDER};
 use common::abstract_helper::{self, init_auto_compounder};
 use common::vault::Vault;
@@ -33,7 +33,7 @@ use cosmwasm_std::{
 };
 use cw_asset::Asset;
 use cw_multi_test::{App, ContractWrapper, Executor};
-use cw_utils::Expiration;
+use cw_utils::{Expiration, Duration};
 use speculoos::assert_that;
 use speculoos::prelude::{OrderedAssertions, HashMapAssertions};
 
@@ -560,7 +560,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
         .into();
     assert_that!(pending_claims).is_equal_to(vault_token_balance_user1.u128());
 
-    vault.auto_compounder.batch_unbond()?;
+    vault.auto_compounder.batch_unbond(None, None)?;
 
     let claims = vault.auto_compounder.claims(user1.to_string())?;
     let expected_claim = Claim {
@@ -993,7 +993,7 @@ fn vault_token_inflation_test()-> AResult {
     let usd_asset = AssetEntry::new("usd");
 
     // check config setup
-    let config = vault.auto_compounder.config().unwrap();
+    let config: Config = vault.auto_compounder.config().unwrap();
     assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address().unwrap());
 
     // give user some funds
@@ -1030,38 +1030,53 @@ fn vault_token_inflation_test()-> AResult {
     assert_that!(vault_token_balance.balance.u128()).is_equal_to(1u128);
 
     // attacker makes donation to liquidity pool
-    // TODO: execute this
-    // eur_usd_lp.mint();
+    // We mimic this by minting some lp tokens to the proxy and staking it
     eur_usd_lp.call_as(&eur_usd_pair).mint(
-        100000u128.into(),
+        50001u128.into(),
         vault.account.proxy.address()?.to_string(),
     )?;
-    
+    let unbonding_secs = if let Duration::Time(unbonding_secs) = config.unbonding_period.unwrap() {
+        unbonding_secs
+    } else { panic!("unbonding period not in seconds")};
+
+    // stake the lp tokens as the proxy
+    eur_usd_lp.call_as(&vault.account.proxy.address()?).send(
+        50001u128.into(),
+        eur_usd_staking.to_string(),
+        to_binary(&ReceiveDelegationMsg::Delegate { unbonding_period: unbonding_secs, delegate_as: None })?,
+    )?;
 
     // check the amount of lp tokens staked for the vault by the attacker
     let lp_staked = vault.auto_compounder.total_lp_position().unwrap() as Uint128;
+    assert_that!(lp_staked.u128()).is_equal_to(vault_lp_balance.u128() + 50001u128);
 
 
     // user makes deposit into the vault
     vault.auto_compounder.call_as(&user1).deposit(
         vec![
-            AnsAsset::new(eur_asset.clone(), 10000u128),
-            AnsAsset::new(usd_asset.clone(), 10000u128),
+            AnsAsset::new(eur_asset.clone(), 100000u128),
+            AnsAsset::new(usd_asset.clone(), 100000u128),
         ],
-        &[coin(10000u128, EUR), coin(10000u128, USD)],
+        &[coin(100000u128, EUR), coin(100000u128, USD)],
     ).unwrap();
 
+
+
     // attacker withdraws the initial deposit
-    vault_token.call_as(&user1).send(
+    vault_token.call_as(&owner).send(
         vault_token_balance.balance,
         auto_compounder_addr.clone(),
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
 
+    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
+    assert_that!(pending_claims.u128()).is_equal_to(1u128);
+
     // attacker unbonds tokens 
-    vault.auto_compounder.batch_unbond().unwrap();
+    vault.auto_compounder.batch_unbond(None, None).unwrap();
     let claim: &Claim = &vault.auto_compounder.claims(owner.to_string())?[0];
     assert_that!(claim.amount_of_lp_tokens_to_unbond.u128()).is_less_than_or_equal_to(lp_staked.u128());
+
     mock.wait_blocks(60 * 60 * 24 * 10)?;
     vault.auto_compounder.call_as(&owner).withdraw()?;
 
