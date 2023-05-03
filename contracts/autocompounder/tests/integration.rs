@@ -752,8 +752,6 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
     let mut vault = crate::create_vault(mock.clone())?;
     let mut vault_token = vault.vault_token.to_owned();
     let WynDex {
-        eur_token,
-        usd_token,
         ..
     } = vault.wyndex;
 
@@ -800,7 +798,7 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
     drop(vault_token);
     
     
-    let pending_claims = paginate_all_pending_claims(())?;
+    let pending_claims = paginate_all_pending_claims(&vault)?;
     assert_that!(pending_claims.len()).is_equal_to(100);
 
     let claims = vault.auto_compounder.all_claims(None, None)?;
@@ -812,7 +810,8 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
     assert_that!(all_claims.len()).is_equal_to(60);
 
 
-    let res = vault.auto_compounder.batch_unbond(Some(40), None);
+    // default batch size is 100 so this should unbond the remaining 40
+    let res = vault.auto_compounder.batch_unbond(None, None);
     assert_that!(res).is_ok();
 
     let all_claims = paginate_all_claims(&vault)?;
