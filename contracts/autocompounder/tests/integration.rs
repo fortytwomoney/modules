@@ -1,6 +1,7 @@
 mod common;
 
 use std::ops::Mul;
+use std::str::FromStr;
 
 use abstract_boot::{Abstract, AbstractBootError, ManagerQueryFns, VCExecFns};
 use abstract_core::api::{BaseExecuteMsgFns, BaseQueryMsgFns};
@@ -9,7 +10,7 @@ use abstract_sdk::core as abstract_core;
 
 use abstract_cw_staking_api::CW_STAKING;
 use abstract_dex_api::EXCHANGE;
-use autocompounder::state::{Claim, Config, DECIMAL_OFFSET};
+use autocompounder::state::{Claim, Config, DECIMAL_OFFSET, PENDING_CLAIMS, FeeConfig};
 use boot_core::*;
 use boot_cw_plus::Cw20Base;
 use boot_cw_plus::Cw20ExecuteMsgFns;
@@ -700,6 +701,91 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
     // the user should have received more of EUR and USD then they deposited
     assert_that!(eur_diff).is_greater_than(100_000u128); // estimated value
     assert_that!(usd_diff).is_greater_than(100_000u128);
+
+    Ok(())
+}
+
+#[test]
+fn test_deposit_and_withdrawal_fees() -> AResult {
+    let owner = Addr::unchecked(common::OWNER);
+    let commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
+    let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
+    let (_, mock) = instantiate_default_mock_env(&owner)?;
+
+    // create a vault
+    let mut vault = crate::create_vault(mock.clone())?;
+    let WynDex {
+        eur_token,
+        usd_token,
+        eur_usd_staking,
+
+        ..
+    } = vault.wyndex;
+    let vault_token = vault.vault_token;
+    let eur_asset = AssetEntry::new("eur");
+    let usd_asset = AssetEntry::new("usd");
+    // give user some funds
+    mock.set_balances(&[
+        (
+            &owner,
+            &[
+                coin(100_000u128, eur_token.to_string()),
+                coin(100_000u128, usd_token.to_string()),
+            ],
+        ),
+        (&wyndex_owner, &[coin(1000, WYND_TOKEN)]),
+    ])?;
+    // update performance fees to zero and deposit/withdrawal fees to 10%
+    let manager_addr = vault.account.manager.address()?;
+    vault.auto_compounder.call_as(&manager_addr).execute_app(
+        AutocompounderExecuteMsg::UpdateFeeConfig {
+            performance: Some(Decimal::zero()),
+            deposit: None,
+            withdrawal: None,
+        },
+        None,
+    )?;
+
+    let fee_config: FeeConfig = vault.auto_compounder.fee_config()?;
+    assert_that!(fee_config.deposit).is_equal_to(Decimal::from_str("0.1")?);
+    assert_that!(fee_config.withdrawal).is_equal_to(Decimal::from_str("0.1")?);
+    assert_that!(fee_config.performance).is_equal_to(Decimal::zero());
+
+
+    // deposit 1000 EUR
+    vault.auto_compounder.deposit(vec![
+        AnsAsset::new(eur_asset.clone(), 100_000u128),
+        AnsAsset::new(usd_asset.clone(), 100_000u128),
+    ], &[coin(100_000u128, EUR), coin(100_000u128, USD)])?;
+
+    // deposit should be 10% less due to deposit fee
+    let new_vault_lp_balance: Uint128 = vault.auto_compounder.total_lp_position()?;
+    
+    let expected_new_value: Uint128 = new_vault_lp_balance * fee_config.deposit; // 90% of the previous position
+    let owner_balance = vault_token.balance(owner.to_string())?.balance;
+    assert_that!(owner_balance).is_equal_to(expected_new_value);
+    
+
+    vault_token.send(
+        owner_balance,
+        vault.auto_compounder.addr_str()?,
+        to_binary(&Cw20HookMsg::Redeem {})?,
+    )?;
+
+    let amount: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
+    assert_that!(amount).is_equal_to(owner_balance);
+
+    // Unbond tokens & clear pending claims
+    vault.auto_compounder.batch_unbond(None, None)?;
+
+    mock.wait_blocks(60 * 60 * 24 * 10)?;
+    vault.auto_compounder.withdraw()?;
+
+    // TODO: Recompute the expected amount here
+    let new_owner_balance = mock.query_all_balances(&owner)?;
+    assert_that!(new_owner_balance[0].amount.u128()).is_equal_to(81_000u128); // estimated value
+    assert_that!(new_owner_balance[1].amount.u128()).is_equal_to(81_000u128); // estimated value
+
 
     Ok(())
 }

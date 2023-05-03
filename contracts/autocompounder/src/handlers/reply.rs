@@ -6,9 +6,9 @@ use crate::contract::{
     SWAPPED_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::msg::FeeConfig;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{
+    FeeConfig,
     Config, CACHED_ASSETS, CACHED_FEE_AMOUNT, CACHED_USER_ADDR, CONFIG, FEE_CONFIG,
 };
 use abstract_cw_staking_api::{
@@ -66,6 +66,7 @@ pub fn lp_provision_reply(
     _reply: Reply,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     let proxy_address = app.proxy_address(deps.as_ref())?;
     let ans_host = app.ans_host(deps.as_ref())?;
@@ -80,6 +81,9 @@ pub fn lp_provision_reply(
         .resolve(&deps.querier, &ans_host)?
         .query_balance(&deps.querier, proxy_address.to_string())?;
 
+    // subtract the deposit fee from the received LP tokens
+    let user_allocated_lp = received_lp.checked_sub(received_lp * fee_config.deposit)?;
+
     let staked_lp = query_stake(
         deps.as_ref(),
         &app,
@@ -90,7 +94,7 @@ pub fn lp_provision_reply(
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
     // 3) Calculate the number of vault tokens to mint
-    let mint_amount = convert_to_shares(received_lp, staked_lp, current_vault_supply);
+    let mint_amount = convert_to_shares(user_allocated_lp, staked_lp, current_vault_supply);
     if mint_amount.is_zero() {
         return Err(AutocompounderError::ZeroMintAmount {});
     }
@@ -103,7 +107,7 @@ pub fn lp_provision_reply(
         deps.as_ref(),
         &app,
         config.pool_data.dex,
-        AnsAsset::new(lp_token, received_lp),
+        AnsAsset::new(lp_token, received_lp), // stake the total amount of LP tokens received
         config.unbonding_period,
     )?;
 

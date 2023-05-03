@@ -1,13 +1,13 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::state::{
-    Claim, FeeConfig, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
+    Claim, FeeConfig, Config, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
 use abstract_sdk::core::objects::LpToken;
 use abstract_sdk::features::AccountIdentification;
 use abstract_sdk::ApiInterface;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 
-use crate::msg::{AutocompounderQueryMsg, Config};
+use crate::msg::AutocompounderQueryMsg;
 use abstract_cw_staking_api::{msg::CwStakingQueryMsg, CW_STAKING};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
@@ -26,6 +26,7 @@ pub fn query_handler(
 ) -> AutocompounderResult<Binary> {
     match msg {
         AutocompounderQueryMsg::Config {} => Ok(to_binary(&query_config(deps)?)?),
+        AutocompounderQueryMsg::FeeConfig {  } => Ok(to_binary(&query_fee_config(deps)?)?),
         AutocompounderQueryMsg::PendingClaims { address } => {
             Ok(to_binary(&query_pending_claims(deps, address)?)?)
         }

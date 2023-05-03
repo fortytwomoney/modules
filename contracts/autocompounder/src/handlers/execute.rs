@@ -11,7 +11,7 @@ use crate::error::AutocompounderError;
 use crate::msg::{AutocompounderExecuteMsg, Cw20HookMsg};
 use crate::state::{
     Claim, Config, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE, FEE_CONFIG,
-    LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS,
+    LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS, FeeConfig,
 };
 use abstract_cw_staking_api::msg::{CwStakingAction, CwStakingExecuteMsg};
 use abstract_cw_staking_api::CW_STAKING;
@@ -172,6 +172,7 @@ pub fn batch_unbond(
     limit: Option<u32>,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
     if config.unbonding_period.is_none() {
         return Err(AutocompounderError::UnbondingNotEnabled {});
     }
@@ -187,7 +188,7 @@ pub fn batch_unbond(
         .collect::<StdResult<Vec<(String, Uint128)>>>()?;
 
     let (total_lp_amount_to_unbond, total_vault_tokens_to_burn, updated_claims) =
-        calculate_withdrawals(deps.as_ref(), &config, &app, pending_claims.clone(), env)?;
+        calculate_withdrawals(deps.as_ref(), &config, &fee_config, &app, pending_claims.clone(), env)?;
 
     // clear pending claims
     for claim in pending_claims.iter() {
@@ -327,6 +328,7 @@ fn redeem(
     if cw20_sender != config.vault_token {
         return Err(AutocompounderError::SenderIsNotVaultToken {});
     }
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
 
     // parse sender
     let sender = deps.api.addr_validate(&sender)?;
@@ -355,6 +357,9 @@ fn redeem(
             total_supply_vault,
         );
 
+        // Substract withdrawal fee from the amount of lp tokens allocated to the user
+        let lp_tokens_withdraw_amount = lp_tokens_withdraw_amount.checked_sub(lp_tokens_withdraw_amount * fee_config.withdrawal)?;
+
         // unstake lp tokens
         let unstake_msg = unstake_lp_tokens(
             deps.as_ref(),
@@ -382,6 +387,7 @@ fn redeem(
     } else {
         // if bonding period is set, we need to register the user's pending claim, that will be processed in the next batch unbonding
         if let Some(pending_claim) = PENDING_CLAIMS.may_load(deps.storage, sender.to_string())? {
+
             let new_pending_claim = pending_claim
                 .checked_add(amount_of_vault_tokens_to_be_burned)
                 .unwrap();
@@ -539,6 +545,7 @@ fn owned_assets(
 fn calculate_withdrawals(
     deps: Deps,
     config: &Config,
+    fee_config: &FeeConfig,
     app: &AutocompounderApp,
     pending_claims: Vec<(String, Uint128)>,
     env: Env,
@@ -574,6 +581,10 @@ fn calculate_withdrawals(
             total_lp_tokens_staked_in_vault,
             vault_tokens_total_supply,
         );
+
+        // substract withdrawal fees from the amount of lp tokens to unbond
+        let user_lp_tokens_withdraw_amount = user_lp_tokens_withdraw_amount.checked_sub(
+            user_lp_tokens_withdraw_amount * fee_config.withdrawal)?;
 
         total_lp_amount_to_unbond = total_lp_amount_to_unbond
             .checked_add(user_lp_tokens_withdraw_amount)
