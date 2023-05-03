@@ -1043,8 +1043,7 @@ fn vault_token_inflation_test()-> AResult {
 
 
     // user makes deposit into the vault
-    vault.auto_compounder.set_sender(&user1);
-    vault.auto_compounder.deposit(
+    vault.auto_compounder.call_as(&user1).deposit(
         vec![
             AnsAsset::new(eur_asset.clone(), 10000u128),
             AnsAsset::new(usd_asset.clone(), 10000u128),
@@ -1053,7 +1052,7 @@ fn vault_token_inflation_test()-> AResult {
     ).unwrap();
 
     // attacker withdraws the initial deposit
-    vault_token.send(
+    vault_token.call_as(&user1).send(
         vault_token_balance.balance,
         auto_compounder_addr.clone(),
         to_binary(&Cw20HookMsg::Redeem {})?,
@@ -1064,7 +1063,9 @@ fn vault_token_inflation_test()-> AResult {
     let claim: &Claim = &vault.auto_compounder.claims(owner.to_string())?[0];
     assert_that!(claim.amount_of_lp_tokens_to_unbond.u128()).is_less_than_or_equal_to(lp_staked.u128());
     mock.wait_blocks(60 * 60 * 24 * 10)?;
-    vault.auto_compounder.withdraw()?; 
+    vault.auto_compounder.call_as(&owner).withdraw()?;
+
+    
 
 
     Ok(())
