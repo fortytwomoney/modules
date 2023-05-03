@@ -200,6 +200,7 @@ mod test {
     use abstract_sdk::base::ExecuteEndpoint;
     use abstract_sdk::base::QueryEndpoint;
     use abstract_testing::prelude::TEST_MANAGER;
+    use cosmwasm_std::Decimal;
     use cosmwasm_std::from_binary;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Addr, DepsMut, Response};
@@ -247,6 +248,7 @@ mod test {
             vault_token: Addr::unchecked("vault_token"),
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown: Some(Duration::Time(10)),
+            max_swap_spread: Decimal::percent(50),
         }
     }
 

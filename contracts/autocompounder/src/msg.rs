@@ -69,6 +69,8 @@ pub struct AutocompounderInstantiateMsg {
     pub pool_assets: Vec<AssetEntry>,
     /// Bonding period selector
     pub preferred_bonding_period: BondingPeriodSelector,
+    /// max swap spread
+    pub max_swap_spread: Option<Decimal>,
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -187,6 +189,8 @@ pub struct Config {
     pub unbonding_period: Option<Duration>,
     /// minimum unbonding cooldown
     pub min_unbonding_cooldown: Option<Duration>,
+    /// maximum compound spread
+    pub max_swap_spread: Decimal,
 }
 
 #[cosmwasm_schema::cw_serde]

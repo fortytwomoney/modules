@@ -16,7 +16,7 @@ use abstract_sdk::{
 };
 use cosmwasm_std::{
     to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, StdResult,
-    SubMsg, WasmMsg,
+    SubMsg, WasmMsg, Decimal,
 };
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
@@ -44,6 +44,7 @@ pub fn instantiate_handler(
         dex,
         pool_assets,
         preferred_bonding_period,
+        max_swap_spread,
     } = msg;
 
     check_fee(performance_fees)?;
@@ -134,6 +135,9 @@ pub fn instantiate_handler(
     // TODO: use ResolvedPoolMetadata
     let resolved_pool_assets = pool_data.assets.resolve(&deps.querier, &ans_host)?;
 
+    // default max swap spread
+    let max_swap_spread = max_swap_spread.unwrap_or(Decimal::percent(20));
+
     let config: Config = Config {
         vault_token: Addr::unchecked(""),
         staking_contract: staking_info.staking_contract_address,
@@ -143,6 +147,7 @@ pub fn instantiate_handler(
         pool_address: pool_reference.pool_address,
         unbonding_period,
         min_unbonding_cooldown,
+        max_swap_spread, 
     };
 
     CONFIG.save(deps.storage, &config)?;
@@ -286,6 +291,7 @@ mod test {
                     pool_assets: vec!["eur".into(), "usd".into(), "juno".into()],
                     withdrawal_fees: Decimal::percent(3),
                     preferred_bonding_period: BondingPeriodSelector::Shortest,
+                    max_swap_spread: None,
                 },
                 base: abstract_core::app::BaseInstantiateMsg {
                     ans_host_address: TEST_ANS_HOST.to_string(),

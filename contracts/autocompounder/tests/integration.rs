@@ -123,6 +123,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
                 pool_assets: vec![eur_asset, usd_asset],
                 withdrawal_fees: Decimal::percent(0),
                 preferred_bonding_period: BondingPeriodSelector::Shortest,
+                max_swap_spread: None,
             },
             base: abstract_core::app::BaseInstantiateMsg {
                 ans_host_address: abstract_.ans_host.addr_str()?,
@@ -733,7 +734,6 @@ fn test_deposit_and_withdrawal_fees() -> AResult {
                 coin(100_000u128, usd_token.to_string()),
             ],
         ),
-        (&wyndex_owner, &[coin(1000, WYND_TOKEN)]),
     ])?;
     // update performance fees to zero and deposit/withdrawal fees to 10%
     let manager_addr = vault.account.manager.address()?;

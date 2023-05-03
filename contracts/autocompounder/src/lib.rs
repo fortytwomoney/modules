@@ -250,6 +250,7 @@ mod test_common {
                         pool_assets: vec!["eur".into(), "usd".into()],
                         withdrawal_fees: Decimal::percent(3),
                         preferred_bonding_period: BondingPeriodSelector::Shortest,
+                        max_swap_spread: None,
                     },
                     base: abstract_core::app::BaseInstantiateMsg {
                         ans_host_address: TEST_ANS_HOST.to_string(),

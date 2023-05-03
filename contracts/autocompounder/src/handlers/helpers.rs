@@ -111,6 +111,7 @@ pub fn swap_rewards_with_reply(
     target_assets: Vec<AssetEntry>,
     dex: &Dex<AutocompounderApp>,
     reply_id: u64,
+    max_spread: Decimal,
 ) -> Result<(Vec<CosmosMsg>, SubMsg), AutocompounderError> {
     let mut swap_msgs: Vec<CosmosMsg> = vec![];
     rewards
@@ -121,7 +122,7 @@ pub fn swap_rewards_with_reply(
                 let swap_msg = dex.swap(
                     reward.clone(),
                     target_assets.get(0).unwrap().clone(),
-                    Some(Decimal::percent(50)),
+                    Some(max_spread),
                     None,
                 )?;
                 swap_msgs.push(swap_msg);

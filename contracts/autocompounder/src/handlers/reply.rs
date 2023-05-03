@@ -197,7 +197,7 @@ pub fn lp_compound_reply(
         // 3) (swap and) Send fees to treasury
         if !fees.is_empty() {
             let (fee_swap_msgs, fee_swap_submsg) =
-                swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
+                swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY, config.max_swap_spread)?;
             messages.extend(fee_swap_msgs);
             submessages.push(fee_swap_submsg);
         }
@@ -234,7 +234,7 @@ pub fn lp_compound_reply(
         Ok(app.tag_response(response, "provide_liquidity"))
     } else {
         let (swap_msgs, submsg) =
-            swap_rewards_with_reply(rewards, pool_assets, &dex, SWAPPED_REPLY_ID)?;
+            swap_rewards_with_reply(rewards, pool_assets, &dex, SWAPPED_REPLY_ID, config.max_swap_spread)?;
         messages.extend(swap_msgs);
         submessages.push(submsg);
 
@@ -365,7 +365,7 @@ pub fn lp_fee_withdrawal_reply(
     }
 
     let (fee_swap_msgs, fee_swap_submsg) =
-        swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
+        swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY, config.max_swap_spread)?;
     messages.extend(fee_swap_msgs);
     submessages.push(fee_swap_submsg);
 

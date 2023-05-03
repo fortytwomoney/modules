@@ -170,7 +170,7 @@ pub fn deposit(
         // 3) (swap and) Send fees to treasury
         if !fees.is_empty() {
             let (fee_swap_msgs, fee_swap_submsg) =
-            swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
+            swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY, config.max_swap_spread)?;
             messages.extend(fee_swap_msgs);
             submessages.push(fee_swap_submsg);
         }
@@ -787,6 +787,7 @@ mod test {
             vault_token: Addr::unchecked("vault_token"),
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown,
+            max_swap_spread: Decimal::percent(50),
         }
     }
 

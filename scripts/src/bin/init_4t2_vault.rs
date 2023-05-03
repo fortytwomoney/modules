@@ -148,6 +148,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                 /// Assets in the pool
                 pool_assets: pair_assets.into_iter().map(Into::into).collect(),
                 preferred_bonding_period: BondingPeriodSelector::Shortest,
+                max_swap_spread: Some(Decimal::percent(10)),
             },
         },
     )?;
