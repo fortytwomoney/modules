@@ -1,4 +1,5 @@
 use crate::msg::Config;
+use crate::state::DECIMAL_OFFSET;
 use crate::{
     contract::{AutocompounderApp, AutocompounderResult},
     error::AutocompounderError,
@@ -91,11 +92,10 @@ pub fn convert_to_assets(
     shares: Uint128,
     total_assets: Uint128,
     total_supply: Uint128,
-    decimal_offset: u32,
 ) -> Uint128 {
     let shares = shares.multiply_ratio(
         total_assets + Uint128::from(1u128),
-        total_supply + Uint128::from(10u128).pow(decimal_offset),
+        total_supply + Uint128::from(10u128).pow(DECIMAL_OFFSET),
     );
     shares
 }
@@ -106,10 +106,9 @@ pub fn convert_to_shares(
     assets: Uint128,
     total_assets: Uint128,
     total_supply: Uint128,
-    decimal_offset: u32,
 ) -> Uint128 {
     let assets = assets.multiply_ratio(
-        total_supply + Uint128::from(10u128).pow(decimal_offset),
+        total_supply + Uint128::from(10u128).pow(DECIMAL_OFFSET),
         total_assets + Uint128::from(1u128),
     );
     assets

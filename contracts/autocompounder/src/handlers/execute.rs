@@ -287,7 +287,7 @@ fn deposit_lp(
         amount
     };
 
-    let mint_amount = convert_to_shares(assigned_amount, staked_lp, current_vault_supply, 0);
+    let mint_amount = convert_to_shares(assigned_amount, staked_lp, current_vault_supply);
     let mint_msg = mint_vault_tokens(&config, sender, mint_amount)?;
     let stake_msg = stake_lp_tokens(
         deps.as_ref(),
@@ -345,7 +345,6 @@ fn redeem(
             amount_of_vault_tokens_to_be_burned,
             total_lp_tokens_staked_in_vault,
             total_supply_vault,
-            0,
         );
 
         // unstake lp tokens
@@ -563,7 +562,7 @@ fn calculate_withdrawals(
         let user_amount_of_vault_tokens_to_be_burned = pending_claim.1;
 
         let user_lp_tokens_withdraw_amount = convert_to_assets(user_amount_of_vault_tokens_to_be_burned, 
-            total_lp_tokens_staked_in_vault, vault_tokens_total_supply, 0);
+            total_lp_tokens_staked_in_vault, vault_tokens_total_supply);
 
         total_lp_amount_to_unbond = total_lp_amount_to_unbond
             .checked_add(user_lp_tokens_withdraw_amount)
