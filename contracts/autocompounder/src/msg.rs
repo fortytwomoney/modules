@@ -88,7 +88,10 @@ pub enum AutocompounderExecuteMsg {
     /// Compound all rewards in the vault
     Compound {},
     /// Unbond in batches
-    BatchUnbond { start_after: Option<String>, limit: Option<u32> },
+    BatchUnbond {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -100,6 +103,10 @@ pub enum AutocompounderQueryMsg {
     /// Returns [`Config`]
     #[returns(Config)]
     Config {},
+    /// Query the fee config of the autocompounder
+    /// Returns [`FeeConfig`]
+    #[returns(FeeConfig)]
+    FeeConfig {},
     /// Query the amount of pending claims
     /// Returns [`Uint128`]
     #[returns(Uint128)]
@@ -130,6 +137,14 @@ pub enum AutocompounderQueryMsg {
     /// Returns [`Uint128`]
     #[returns(Uint128)]
     TotalLpPosition {},
+    /// Query the vault token supply
+    /// Returns [`Uint128`]
+    #[returns(Uint128)]
+    TotalSupply {},
+    /// Query the number of assets per share(s) in the vault
+    /// Returns ['Uint128']
+    #[returns(Uint128)]
+    AssetsPerShares { shares: Option<Uint128> },
     /// Query the balance of vault tokens of a given address
     /// Returns [`Uint128`]
     #[returns(Uint128)]
@@ -140,6 +155,7 @@ pub enum AutocompounderQueryMsg {
 pub enum Cw20HookMsg {
     /// Withdraws a given amount from the vault.
     Redeem {},
+    DepositLp {},
 }
 
 /// Vault fee structure

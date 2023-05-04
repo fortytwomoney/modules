@@ -1,6 +1,6 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult};
-use cosmwasm_std::{DepsMut, Env, Response};
 use crate::msg::AutocompounderMigrateMsg;
+use cosmwasm_std::{DepsMut, Env, Response};
 
 /// Unused for now but provided here as an example
 /// Contract version is migrated automatically

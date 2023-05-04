@@ -1,6 +1,7 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
+use crate::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER};
 use crate::state::{Config, CONFIG, FEE_CONFIG};
 use abstract_cw_staking_api::{
     msg::{CwStakingQueryMsg, StakingInfoResponse},
@@ -20,9 +21,6 @@ use cosmwasm_std::{
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use cw_utils::Duration;
-use crate::msg::{
-    AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER,
-};
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
