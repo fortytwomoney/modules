@@ -35,8 +35,11 @@ pub enum AutocompounderError {
     #[error("The update would exceed the configured max count")]
     ExceededMaxCount {},
 
-    #[error("Withdraw function can only be called by the liquidity token")]
+    #[error("Withdraw function can only be called by the vault token")]
     SenderIsNotVaultToken {},
+
+    #[error("Deposit can only be called by the lp token")]
+    SenderIsNotLpToken {},
 
     #[error("mismatch of sent {sent} but specified deposit amount of {wanted}")]
     FundsMismatch { sent: Uint128, wanted: Uint128 },
@@ -60,8 +63,8 @@ pub enum AutocompounderError {
     UnbondingNotEnabled {},
 
     #[error("No rewards to claim")]
-    NoRewards {  },
+    NoRewards {},
 
     #[error("Zero mint amount is not allowed")]
-    ZeroMintAmountError {  },
+    ZeroMintAmountError {},
 }

@@ -5,10 +5,10 @@ use abstract_sdk::features::AccountIdentification;
 use abstract_sdk::ApiInterface;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 
+use crate::msg::{AutocompounderQueryMsg, Config};
 use abstract_cw_staking_api::{msg::CwStakingQueryMsg, CW_STAKING};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
-use crate::msg::{AutocompounderQueryMsg, Config};
 
 const DEFAULT_PAGE_SIZE: u8 = 5;
 const MAX_PAGE_SIZE: u8 = 20;
@@ -25,9 +25,9 @@ pub fn query_handler(
         AutocompounderQueryMsg::PendingClaims { address } => {
             Ok(to_binary(&query_pending_claims(deps, address)?)?)
         }
-        AutocompounderQueryMsg::AllPendingClaims { start_after, limit } => {
-            Ok(to_binary(&query_all_pending_claims(deps, start_after, limit)?)?)
-        }
+        AutocompounderQueryMsg::AllPendingClaims { start_after, limit } => Ok(to_binary(
+            &query_all_pending_claims(deps, start_after, limit)?,
+        )?),
         AutocompounderQueryMsg::Claims { address } => Ok(to_binary(&query_claims(deps, address)?)?),
         AutocompounderQueryMsg::AllClaims { start_after, limit } => {
             Ok(to_binary(&query_all_claims(deps, start_after, limit)?)?)
@@ -79,9 +79,7 @@ pub fn query_all_pending_claims(
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
-            item.map(|(addr, amount)| -> StdResult<(String, Uint128)> {
-                Ok((addr, amount))
-            })?
+            item.map(|(addr, amount)| -> StdResult<(String, Uint128)> { Ok((addr, amount)) })?
         })
         .collect::<StdResult<Vec<(String, Uint128)>>>()?;
 

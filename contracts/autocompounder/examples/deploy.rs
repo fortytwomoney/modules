@@ -1,14 +1,14 @@
-use boot_core;
 use abstract_boot::{AppDeployer, VersionControl};
+use abstract_core::version_control::ExecuteMsgFns;
+use abstract_core::VERSION_CONTROL;
+use autocompounder::boot::AutocompounderApp;
+use autocompounder::msg::AUTOCOMPOUNDER;
+use boot_core;
+use boot_core::networks::juno::JUNO_CHAIN;
 use boot_core::networks::{parse_network, NetworkInfo, NetworkKind};
 use boot_core::*;
-use autocompounder::msg::AUTOCOMPOUNDER;
-use autocompounder::boot::AutocompounderApp;
 use std::env;
 use std::sync::Arc;
-use abstract_core::VERSION_CONTROL;
-use abstract_core::version_control::ExecuteMsgFns;
-use boot_core::networks::juno::JUNO_CHAIN;
 use tokio::runtime::Runtime;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");

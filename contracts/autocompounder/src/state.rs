@@ -1,8 +1,8 @@
+pub use crate::msg::{Claim, Config, FeeConfig};
 use cosmwasm_std::Addr;
 use cosmwasm_std::Uint128;
 use cw_storage_plus::{Item, Map};
 use cw_utils::Expiration;
-pub use crate::msg::{Claim, Config, FeeConfig};
 
 pub const CACHED_USER_ADDR: Item<Addr> = Item::new("cached_user_addr");
 pub const CACHED_ASSETS: Map<String, Uint128> = Map::new("cached_assets");

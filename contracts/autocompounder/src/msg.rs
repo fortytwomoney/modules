@@ -88,7 +88,10 @@ pub enum AutocompounderExecuteMsg {
     /// Compound all rewards in the vault
     Compound {},
     /// Unbond in batches
-    BatchUnbond { start_after: Option<String>, limit: Option<u32> },
+    BatchUnbond {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -140,6 +143,7 @@ pub enum AutocompounderQueryMsg {
 pub enum Cw20HookMsg {
     /// Withdraws a given amount from the vault.
     Redeem {},
+    DepositLp {},
 }
 
 /// Vault fee structure

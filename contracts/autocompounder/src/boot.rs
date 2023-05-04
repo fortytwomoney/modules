@@ -1,39 +1,16 @@
 use abstract_boot::{AbstractAccount, AppDeployer, ManagerQueryFns};
-use abstract_cw_staking_api::{
-    boot::CwStakingApi,
-    CW_STAKING
-};
+use abstract_cw_staking_api::{boot::CwStakingApi, CW_STAKING};
 use abstract_sdk::core::app;
 use abstract_sdk::core::app::BaseExecuteMsg;
-use boot_core::{
-    BootError,
-    BootExecute,
-    contract,
-    Contract,
-    ContractWrapper,
-    CwEnv,
-    IndexResponse,
-    TxResponse
-};
 use boot_core::*;
-use cosmwasm_std::{
-    Addr,
-    Coin,
-    Empty
+use boot_core::{
+    contract, BootError, BootExecute, Contract, ContractWrapper, CwEnv, IndexResponse, TxResponse,
 };
+use cosmwasm_std::{Addr, Coin, Empty};
 
-use abstract_core::{
-    app::MigrateMsg
-};
+use abstract_core::app::MigrateMsg;
 
-use crate::{
-    msg::{
-        *,
-        AUTOCOMPOUNDER,
-        AutocompounderExecuteMsg
-    },
-
-};
+use crate::msg::{AutocompounderExecuteMsg, AUTOCOMPOUNDER, *};
 
 /// Contract wrapper for deploying with BOOT
 #[contract(InstantiateMsg, ExecuteMsg, QueryMsg, MigrateMsg)]
@@ -44,22 +21,23 @@ impl<Chain: CwEnv> AppDeployer<Chain> for AutocompounderApp<Chain> {}
 impl<Chain: CwEnv> AutocompounderApp<Chain> {
     pub fn new(name: &str, chain: Chain) -> Self {
         let mut contract = Contract::new(name, chain);
-        contract = contract.with_wasm_path("autocompounder").with_mock(Box::new(
-            ContractWrapper::new_with_empty(
-                crate::contract::execute,
-                crate::contract::instantiate,
-                crate::contract::query,
-            )
+        contract = contract
+            .with_wasm_path("autocompounder")
+            .with_mock(Box::new(
+                ContractWrapper::new_with_empty(
+                    crate::contract::execute,
+                    crate::contract::instantiate,
+                    crate::contract::query,
+                )
                 .with_reply(crate::contract::reply),
-        ));
+            ));
         Self(contract)
     }
 }
 
-
 impl<Chain: CwEnv> AutocompounderApp<Chain>
-    where
-        TxResponse<Chain>: IndexResponse,
+where
+    TxResponse<Chain>: IndexResponse,
 {
     /// Temporary helper to execute the app explicitly
     pub fn execute_app(
@@ -79,7 +57,6 @@ impl<Chain: CwEnv> AutocompounderApp<Chain>
         self.execute(&app::ExecuteMsg::Base(execute_msg), coins)
     }
 }
-
 
 /// TODO: abstract-boot
 pub fn get_module_address<Chain: CwEnv>(
@@ -105,7 +82,6 @@ pub fn is_module_installed<Chain: CwEnv>(
         .any(|module_info| module_info.id == module_id))
 }
 
-
 pub struct Vault<Chain: CwEnv> {
     pub account: AbstractAccount<Chain>,
     pub staking: CwStakingApi<Chain>,
@@ -120,7 +96,7 @@ impl<Chain: CwEnv> Vault<Chain> {
 
         if account_id.is_some() {
             if is_module_installed(&account, CW_STAKING)? {
-                let cw_staking_address =  get_module_address(&account, CW_STAKING)?;
+                let cw_staking_address = get_module_address(&account, CW_STAKING)?;
                 staking.set_address(&cw_staking_address);
             }
             if is_module_installed(&account, AUTOCOMPOUNDER)? {
@@ -151,4 +127,3 @@ impl<Chain: CwEnv> Vault<Chain> {
         Ok(())
     }
 }
-

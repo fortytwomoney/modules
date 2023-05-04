@@ -2,15 +2,16 @@ pub mod contract;
 mod dependencies;
 pub mod error;
 mod handlers;
+pub mod msg;
 pub mod response;
 pub mod state;
-pub mod msg;
 
 #[cfg(feature = "boot")]
 pub mod boot;
 
 #[cfg(test)]
 mod test_common {
+    use crate::msg::BondingPeriodSelector;
     use abstract_cw_staking_api::msg::{CwStakingQueryMsg, StakingInfoResponse};
     use abstract_sdk::base::InstantiateEndpoint;
     pub use abstract_sdk::core as abstract_core;
@@ -21,14 +22,13 @@ mod test_common {
     };
     use abstract_testing::{
         addresses::{TEST_MANAGER, TEST_MODULE_FACTORY, TEST_PROXY},
-        MockDeps,
-        MockQuerierBuilder, prelude::{AbstractMockQuerierBuilder, TEST_ANS_HOST},
+        prelude::{AbstractMockQuerierBuilder, TEST_ANS_HOST},
+        MockDeps, MockQuerierBuilder,
     };
     pub use cosmwasm_std::testing::*;
-    use cosmwasm_std::{Addr, Decimal, from_binary, to_binary};
+    use cosmwasm_std::{from_binary, to_binary, Addr, Decimal};
     use cw_asset::AssetInfo;
     use cw_utils::Duration;
-    use crate::msg::BondingPeriodSelector;
     pub use speculoos::prelude::*;
 
     use crate::contract::AUTOCOMPOUNDER_APP;
@@ -113,7 +113,7 @@ mod test_common {
                 (
                     "abstract:cw-staking",
                     Addr::unchecked(TEST_CW_STAKING_MODULE),
-                )
+                ),
             )
     }
 
@@ -192,7 +192,7 @@ mod test_common {
                 (
                     "abstract:cw-staking",
                     Addr::unchecked(TEST_CW_STAKING_MODULE),
-                )
+                ),
             )
     }
 

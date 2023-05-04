@@ -1,11 +1,17 @@
-use super::helpers::{cw20_total_supply, query_stake, convert_to_assets, convert_to_shares};
+use super::helpers::{
+    convert_to_assets, convert_to_shares, cw20_total_supply, mint_vault_tokens, query_stake,
+    stake_lp_tokens,
+};
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, FEE_SWAPPED_REPLY,
     SWAPPED_REPLY_ID,
 };
 use crate::error::AutocompounderError;
+use crate::msg::FeeConfig;
 use crate::response::MsgInstantiateContractResponse;
-use crate::state::{Config, CACHED_USER_ADDR, CONFIG, FEE_CONFIG, CACHED_ASSETS, CACHED_FEE_AMOUNT};
+use crate::state::{
+    Config, CACHED_ASSETS, CACHED_FEE_AMOUNT, CACHED_USER_ADDR, CONFIG, FEE_CONFIG,
+};
 use abstract_cw_staking_api::{
     msg::{CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse},
     CW_STAKING,
@@ -23,10 +29,8 @@ use cosmwasm_std::{
     wasm_execute, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError,
     StdResult, SubMsg, Uint128,
 };
-use cw20_base::msg::ExecuteMsg::Mint;
 use cw_asset::{Asset, AssetInfo};
 use cw_utils::Duration;
-use crate::msg::FeeConfig;
 use protobuf::Message;
 
 /// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.
@@ -88,12 +92,9 @@ pub fn lp_provision_reply(
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
     // 3) Calculate the number of vault tokens to mint
-    // If the vault has no tokens, the user must deposit at least X tokens.
-    let mut mint_msgs: Vec<CosmosMsg> = vec![];
-
     let mint_amount = convert_to_shares(received_lp, staked_lp, current_vault_supply, 0);
     if mint_amount.is_zero() {
-        return Err(AutocompounderError::ZeroMintAmountError{});
+        return Err(AutocompounderError::ZeroMintAmountError {});
     }
 
     // 4) Mint vault tokens to the user
@@ -116,23 +117,6 @@ pub fn lp_provision_reply(
     ))
 }
 
-fn mint_vault_tokens(
-    config: &Config,
-    user_address: Addr,
-    mint_amount: Uint128,
-) -> Result<CosmosMsg, AutocompounderError> {
-    let mint_msg = wasm_execute(
-        config.vault_token.to_string(),
-        &Mint {
-            recipient: user_address.to_string(),
-            amount: mint_amount,
-        },
-        vec![],
-    )?
-    .into();
-    Ok(mint_msg)
-}
-
 pub fn lp_withdrawal_reply(
     deps: DepsMut,
     _env: Env,
@@ -144,15 +128,14 @@ pub fn lp_withdrawal_reply(
     let proxy_address = app.proxy_address(deps.as_ref())?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     CACHED_USER_ADDR.remove(deps.storage);
-    
+
     let mut messages = vec![];
     let mut funds: Vec<AnsAsset> = vec![];
 
     for asset in config.pool_data.assets {
         let asset_info = asset.resolve(&deps.querier, &ans_host)?;
         let amount = asset_info.query_balance(&deps.querier, proxy_address.to_string())?;
-        let prev_amount = CACHED_ASSETS
-            .load(deps.storage, asset.to_string())?;
+        let prev_amount = CACHED_ASSETS.load(deps.storage, asset.to_string())?;
         let amount = amount.checked_sub(prev_amount)?;
         funds.push(AnsAsset::new(asset, amount));
     }
@@ -174,16 +157,18 @@ pub fn lp_compound_reply(
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let ans_host = app.ans_host(deps.as_ref())?;
-    
+
     let fee_config = FEE_CONFIG.load(deps.storage)?;
-    let current_fee_balance = fee_config.fee_asset.resolve(&deps.querier, &ans_host)?
+    let current_fee_balance = fee_config
+        .fee_asset
+        .resolve(&deps.querier, &ans_host)?
         .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())?;
     CACHED_FEE_AMOUNT.save(deps.storage, &current_fee_balance)?;
-    
+
     let mut messages = vec![];
     let mut submessages = vec![];
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
     // 1) claim rewards (this happened in the execution before this reply)
+    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
 
     // 2.1) query the rewards and filters out zero rewards
     let mut rewards = get_staking_rewards(deps.as_ref(), &app, &config)?;
@@ -195,21 +180,21 @@ pub fn lp_compound_reply(
     if !fee_config.performance.is_zero() {
         // 2) deduct fee from rewards
         let fees = rewards
-        .iter_mut()
-        .map(|reward| -> AnsAsset {
-            let fee = reward.amount * fee_config.performance;
-            
-            reward.amount -= fee;
-            
-            AnsAsset::new(reward.name.clone(), fee)
-        })
-        .filter(|fee| fee.amount > Uint128::zero())
-        .collect::<Vec<AnsAsset>>();
-    
+            .iter_mut()
+            .map(|reward| -> AnsAsset {
+                let fee = reward.amount * fee_config.performance;
+
+                reward.amount -= fee;
+
+                AnsAsset::new(reward.name.clone(), fee)
+            })
+            .filter(|fee| fee.amount > Uint128::zero())
+            .collect::<Vec<AnsAsset>>();
+
         // 3) (swap and) Send fees to treasury
         if !fees.is_empty() {
             let (fee_swap_msgs, fee_swap_submsg) =
-            swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
+                swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
             messages.extend(fee_swap_msgs);
             submessages.push(fee_swap_submsg);
         }
@@ -247,8 +232,8 @@ pub fn lp_compound_reply(
     } else {
         let (swap_msgs, submsg) =
             swap_rewards_with_reply(rewards, pool_assets, &dex, SWAPPED_REPLY_ID)?;
-            messages.extend(swap_msgs);
-            submessages.push(submsg);
+        messages.extend(swap_msgs);
+        submessages.push(submsg);
 
         // adds all swap messages to the response and the submsg -> the submsg will be executed after the last swap message
         // and will trigger the reply SWAPPED_REPLY_ID
@@ -352,6 +337,43 @@ pub fn fee_swapped_reply(
     Ok(app.tag_response(response, "transfer_platform_fees"))
 }
 
+/// Reply after lp deposit fee has been withdrawn from pool
+pub fn lp_fee_withdrawal_reply(
+    deps: DepsMut,
+    _env: Env,
+    app: AutocompounderApp,
+    _reply: Reply,
+) -> AutocompounderResult {
+    let config = CONFIG.load(deps.storage)?;
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
+    let ans_host = app.ans_host(deps.as_ref())?;
+    let proxy_address = app.proxy_address(deps.as_ref())?;
+    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
+    let mut messages = vec![];
+    let mut submessages = vec![];
+
+    let mut fees = vec![];
+    for pool_asset in config.pool_data.assets {
+        let asset = pool_asset.resolve(&deps.querier, &ans_host)?;
+        let balance = asset.query_balance(&deps.querier, &proxy_address)?;
+        let substracted_balance =
+            balance.checked_sub(CACHED_ASSETS.load(deps.storage, pool_asset.to_string())?)?;
+        fees.push(AnsAsset::new(pool_asset, substracted_balance));
+    }
+
+    let (fee_swap_msgs, fee_swap_submsg) =
+        swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
+    messages.extend(fee_swap_msgs);
+    submessages.push(fee_swap_submsg);
+
+    Ok(app.tag_response(
+        Response::new()
+            .add_messages(messages)
+            .add_submessages(submessages),
+        "lp_fee_withdrawal_reply",
+    ))
+}
+
 fn query_rewards(
     deps: Deps,
     app: &AutocompounderApp,
@@ -366,27 +388,6 @@ fn query_rewards(
     let RewardTokensResponse { tokens } = apis.query(CW_STAKING, query)?;
 
     Ok(tokens)
-}
-
-// TODO: move to cw_staking SDK
-fn stake_lp_tokens(
-    deps: Deps,
-    app: &AutocompounderApp,
-    provider: String,
-    asset: AnsAsset,
-    unbonding_period: Option<Duration>,
-) -> AbstractSdkResult<CosmosMsg> {
-    let apis = app.apis(deps);
-    apis.request(
-        CW_STAKING,
-        CwStakingExecuteMsg {
-            provider,
-            action: CwStakingAction::Stake {
-                staking_token: asset,
-                unbonding_period,
-            },
-        },
-    )
 }
 
 /// swaps all rewards that are not in the target assets and add a reply id to the latest swapmsg

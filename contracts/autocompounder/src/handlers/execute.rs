@@ -1,4 +1,8 @@
-use super::helpers::{check_fee, cw20_total_supply, query_stake, convert_to_assets};
+use super::convert_to_shares;
+use super::helpers::{
+    check_fee, convert_to_assets, cw20_total_supply, mint_vault_tokens, query_stake,
+    stake_lp_tokens,
+};
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
     LP_WITHDRAWAL_REPLY_ID,
@@ -220,26 +224,97 @@ pub fn receive(
     app: AutocompounderApp,
     msg: Cw20ReceiveMsg,
 ) -> AutocompounderResult {
-    // Withdraw fn can only be called by liquidity token
-    let config = CONFIG.load(deps.storage)?;
-
-    if info.sender != config.vault_token {
-        return Err(AutocompounderError::SenderIsNotVaultToken {});
-    }
-
+    // Withdraw fn can only be called by liquidity token or the lp token
     match from_binary(&msg.msg)? {
-        Cw20HookMsg::Redeem {} => redeem(deps, env, app, msg.sender, msg.amount),
+        Cw20HookMsg::Redeem {} => redeem(deps, env, app, info.sender, msg.sender, msg.amount),
+        Cw20HookMsg::DepositLp {} => {
+            deposit_lp(deps, env, app, info.sender, msg.sender, msg.amount)
+        }
     }
+}
+
+fn deposit_lp(
+    deps: DepsMut,
+    _env: Env,
+    app: AutocompounderApp,
+    cw20_sender: Addr,
+    sender: String,
+    amount: Uint128,
+) -> AutocompounderResult {
+    let config = CONFIG.load(deps.storage)?;
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
+    let ans_host = app.ans_host(deps.as_ref())?;
+    let mut submessages = vec![];
+    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
+    if cw20_sender != config.liquidity_token {
+        return Err(AutocompounderError::SenderIsNotLpToken {});
+    };
+
+    let sender = deps.api.addr_validate(&sender)?;
+    let lp_token = LpToken::from(config.pool_data.clone());
+
+    let staked_lp = query_stake(
+        deps.as_ref(),
+        &app,
+        config.pool_data.dex.clone(),
+        lp_token.clone().into(),
+        config.unbonding_period,
+    )?;
+    let current_vault_supply = cw20_total_supply(deps.as_ref(), &config)?;
+
+    let assigned_amount = if !fee_config.deposit.is_zero() {
+        let fee = amount * fee_config.deposit;
+        let withdraw_msg = dex.withdraw_liquidity(lp_token.clone().into(), amount)?;
+        let withdraw_sub_msg = SubMsg {
+            id: LP_WITHDRAWAL_REPLY_ID,
+            msg: withdraw_msg,
+            gas_limit: None,
+            reply_on: ReplyOn::Success,
+        };
+        submessages.push(withdraw_sub_msg);
+
+        // save cached assets
+        let owned_assets = owned_assets(config.pool_data.assets.clone(), &deps, ans_host, &app)?;
+        for (owned_asset, owned_amount) in owned_assets {
+            CACHED_ASSETS.save(deps.storage, owned_asset, &owned_amount)?;
+        }
+
+        amount - fee
+    } else {
+        amount
+    };
+
+    let mint_amount = convert_to_shares(assigned_amount, staked_lp, current_vault_supply, 0);
+    let mint_msg = mint_vault_tokens(&config, sender, mint_amount)?;
+    let stake_msg = stake_lp_tokens(
+        deps.as_ref(),
+        &app,
+        config.pool_data.dex,
+        AnsAsset::new(lp_token, amount),
+        config.unbonding_period,
+    )?;
+
+    Ok(app.custom_tag_response(
+        Response::new()
+            .add_messages(vec![mint_msg, stake_msg])
+            .add_submessages(submessages),
+        "deposit-lp",
+        vec![("4t2", "/AC/DepositLP")],
+    ))
 }
 
 fn redeem(
     deps: DepsMut,
     _env: Env,
     app: AutocompounderApp,
+    cw20_sender: Addr,
     sender: String,
     amount_of_vault_tokens_to_be_burned: Uint128,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
+    if cw20_sender != config.vault_token {
+        return Err(AutocompounderError::SenderIsNotVaultToken {});
+    }
 
     // parse sender
     let sender = deps.api.addr_validate(&sender)?;
@@ -263,10 +338,11 @@ fn redeem(
         )?;
 
         let lp_tokens_withdraw_amount = convert_to_assets(
-            amount_of_vault_tokens_to_be_burned, 
+            amount_of_vault_tokens_to_be_burned,
             total_lp_tokens_staked_in_vault,
             total_supply_vault,
-            0);
+            0,
+        );
 
         // unstake lp tokens
         let unstake_msg = unstake_lp_tokens(
@@ -610,12 +686,12 @@ mod test {
 
     use crate::msg::ExecuteMsg;
     use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_init};
-    use abstract_core::objects::PoolMetadata;
     use abstract_core::objects::pool_id::PoolAddressBase;
+    use abstract_core::objects::PoolMetadata;
     use abstract_sdk::base::ExecuteEndpoint;
     use abstract_testing::prelude::TEST_MANAGER;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::Storage;
-    use cosmwasm_std::testing::{mock_env, mock_info, mock_dependencies};
     use cw_controllers::AdminError;
     use cw_utils::Expiration;
     use speculoos::{assert_that, result::ResultAssertions};
@@ -636,15 +712,17 @@ mod test {
         execute_as(deps, TEST_MANAGER, msg)
     }
 
-    fn min_cooldown_config(
-        min_unbonding_cooldown: Option<Duration>,
-    ) -> Config {
+    fn min_cooldown_config(min_unbonding_cooldown: Option<Duration>) -> Config {
         let assets = vec![AssetEntry::new("juno>juno")];
 
         Config {
             staking_contract: Addr::unchecked("staking_contract"),
             pool_address: PoolAddressBase::Contract(Addr::unchecked("pool_address")),
-            pool_data: PoolMetadata::new("wyndex", abstract_core::objects::PoolType::ConstantProduct, assets),
+            pool_data: PoolMetadata::new(
+                "wyndex",
+                abstract_core::objects::PoolType::ConstantProduct,
+                assets,
+            ),
             pool_assets: vec![],
             liquidity_token: Addr::unchecked("liquidity_token"),
             vault_token: Addr::unchecked("vault_token"),
@@ -740,15 +818,19 @@ mod test {
         let config = min_cooldown_config(Some(Duration::Time(60)));
         let env = mock_env();
         let latest_unbonding = Expiration::AtTime(env.block.time.minus_seconds(60));
-        
+
         // Exactly expired
-        LATEST_UNBONDING.save(deps.as_mut().storage, &latest_unbonding).unwrap();
+        LATEST_UNBONDING
+            .save(deps.as_mut().storage, &latest_unbonding)
+            .unwrap();
         let result = check_unbonding_cooldown(&deps.as_mut(), &config, &env);
         assert!(result.is_ok());
 
         // Expired by 1 second
         let latest_unbonding = Expiration::AtTime(env.block.time.minus_seconds(61));
-        LATEST_UNBONDING.save(deps.as_mut().storage, &latest_unbonding).unwrap();
+        LATEST_UNBONDING
+            .save(deps.as_mut().storage, &latest_unbonding)
+            .unwrap();
         let result = check_unbonding_cooldown(&deps.as_mut(), &config, &env);
         assert!(result.is_ok());
     }
@@ -760,7 +842,9 @@ mod test {
         let env = mock_env();
 
         let latest_unbonding = Expiration::AtTime(env.block.time.minus_seconds(59));
-        LATEST_UNBONDING.save(deps.as_mut().storage, &latest_unbonding).unwrap();
+        LATEST_UNBONDING
+            .save(deps.as_mut().storage, &latest_unbonding)
+            .unwrap();
 
         // Exactly 1 second left
         let result = check_unbonding_cooldown(&deps.as_mut(), &config, &env);
@@ -777,7 +861,9 @@ mod test {
 
         // 60 seconds left
         let latest_unbonding = Expiration::AtTime(env.block.time);
-        LATEST_UNBONDING.save(deps.as_mut().storage, &latest_unbonding).unwrap();
+        LATEST_UNBONDING
+            .save(deps.as_mut().storage, &latest_unbonding)
+            .unwrap();
         let result = check_unbonding_cooldown(&deps.as_mut(), &config, &env);
         match result {
             Err(AutocompounderError::UnbondingCooldownNotExpired {
@@ -789,7 +875,5 @@ mod test {
             }
             _ => panic!("Unexpected error: {:?}", result),
         }
-
     }
-
 }
