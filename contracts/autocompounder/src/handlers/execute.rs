@@ -28,7 +28,7 @@ use cosmwasm_std::{
     ReplyOn, Response, StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
-use cw_asset::AssetList;
+use cw_asset::{AssetList, AssetInfoBase, AssetBase};
 use cw_storage_plus::Bound;
 use cw_utils::Duration;
 use std::ops::Add;
@@ -249,9 +249,12 @@ fn deposit_lp(
     if cw20_sender != config.liquidity_token {
         return Err(AutocompounderError::SenderIsNotLpToken {});
     };
+    let lp_token = LpToken::from(config.pool_data.clone());
+    let transfer_msgs = app.bank(deps.as_ref()).deposit(vec![
+            AnsAsset::new(AssetEntry::from(lp_token.clone()),amount)
+        ])?;
 
     let sender = deps.api.addr_validate(&sender)?;
-    let lp_token = LpToken::from(config.pool_data.clone());
 
     let staked_lp = query_stake(
         deps.as_ref(),
@@ -297,6 +300,7 @@ fn deposit_lp(
     Ok(app.custom_tag_response(
         Response::new()
             .add_messages(vec![mint_msg, stake_msg])
+            .add_messages(transfer_msgs)
             .add_submessages(submessages),
         "deposit-lp",
         vec![("4t2", "/AC/DepositLP")],

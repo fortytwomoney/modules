@@ -386,7 +386,6 @@ fn query_rewards(
         staking_token: LpToken::from(pool_data).into(),
     };
     let RewardTokensResponse { tokens } = apis.query(CW_STAKING, query)?;
-
     Ok(tokens)
 }
 
