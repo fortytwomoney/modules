@@ -1,5 +1,5 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult};
-use crate::state::{Claim, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS};
+use crate::state::{Claim, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS, FEE_CONFIG, FeeConfig};
 use abstract_sdk::core::objects::LpToken;
 use abstract_sdk::features::AccountIdentification;
 use abstract_sdk::ApiInterface;
@@ -9,6 +9,8 @@ use crate::msg::{AutocompounderQueryMsg, Config};
 use abstract_cw_staking_api::{msg::CwStakingQueryMsg, CW_STAKING};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
+
+use super::convert_to_assets;
 
 const DEFAULT_PAGE_SIZE: u8 = 5;
 const MAX_PAGE_SIZE: u8 = 20;
@@ -41,6 +43,15 @@ pub fn query_handler(
         AutocompounderQueryMsg::Balance { address } => {
             Ok(to_binary(&query_balance(deps, address)?)?)
         }
+        AutocompounderQueryMsg::FeeConfig {  } => {
+            Ok(to_binary(&query_fee_config(deps)?)?)
+        },
+        AutocompounderQueryMsg::TotalSupply {  } => {
+            Ok(to_binary(&query_total_supply(deps)?)?)
+        },
+        AutocompounderQueryMsg::AssetsPerShares { shares } => {
+            Ok(to_binary(&query_assets_per_shares(app, deps, shares)?)?)
+        },
     }
 }
 
@@ -49,6 +60,11 @@ pub fn query_config(deps: Deps) -> AutocompounderResult<Config> {
     let config = CONFIG.load(deps.storage)?;
     // crate ConfigResponse from config
     Ok(config)
+}
+
+pub fn query_fee_config(deps: Deps) -> AutocompounderResult<FeeConfig> {
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
+    Ok(fee_config)
 }
 
 // write query functions for all State const variables: Claims, PendingClaims, LatestUnbonding
@@ -144,4 +160,25 @@ pub fn query_balance(deps: Deps, address: String) -> AutocompounderResult<Uint12
         .querier
         .query_wasm_smart(config.vault_token, &cw20::Cw20QueryMsg::Balance { address })?;
     Ok(vault_balance.balance)
+}
+
+pub fn query_total_supply(deps: Deps) -> AutocompounderResult<Uint128> {
+    let config = CONFIG.load(deps.storage)?;
+    let token_info: cw20::TokenInfoResponse =
+        deps.querier.query_wasm_smart(config.vault_token, &cw20::Cw20QueryMsg::TokenInfo {  })?;
+    Ok(token_info.total_supply)
+}
+
+pub fn query_assets_per_shares(app: &AutocompounderApp, deps: Deps, shares: Option<Uint128>) -> AutocompounderResult<Uint128> {
+    let shares = if let Some(shares) = shares {
+        shares
+    } else {
+        Uint128::one()
+    };
+
+    let total_lp_position = query_total_lp_position(app, deps)?;
+    let total_supply = query_total_supply(deps)?;
+    let assets = convert_to_assets(shares, total_lp_position, total_supply);
+
+    Ok(assets)
 }

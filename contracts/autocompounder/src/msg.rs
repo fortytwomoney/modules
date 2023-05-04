@@ -103,6 +103,10 @@ pub enum AutocompounderQueryMsg {
     /// Returns [`Config`]
     #[returns(Config)]
     Config {},
+    /// Query the fee config of the autocompounder
+    /// Returns [`FeeConfig`]
+    #[returns(FeeConfig)]
+    FeeConfig {},
     /// Query the amount of pending claims
     /// Returns [`Uint128`]
     #[returns(Uint128)]
@@ -133,6 +137,14 @@ pub enum AutocompounderQueryMsg {
     /// Returns [`Uint128`]
     #[returns(Uint128)]
     TotalLpPosition {},
+    /// Query the vault token supply 
+    /// Returns [`Uint128`]
+    #[returns(Uint128)]
+    TotalSupply {},
+    /// Query the number of assets per share(s) in the vault
+    /// Returns ['Uint128']
+    #[returns(Uint128)]
+    AssetsPerShares { shares: Option<Uint128> },
     /// Query the balance of vault tokens of a given address
     /// Returns [`Uint128`]
     #[returns(Uint128)]
