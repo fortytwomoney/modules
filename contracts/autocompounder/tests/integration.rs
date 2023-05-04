@@ -1201,44 +1201,15 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
     assert_that!(lp_staked.u128()).is_equal_to(attacker_donation + 1);
 
     // user deposits lps to vault
-    eur_usd_lp.call_as(&user1).send(
+    let resp = eur_usd_lp.call_as(&user1).send(
         user_deposit.into(),
         vault.auto_compounder.address()?.to_string(),
         to_binary(&Cw20HookMsg::DepositLp {})?,
-    )?;
+    );
+    
+    // this will mint a zero amount so it will fail
+    assert_that!(resp).is_err();
 
-    // check the amount of lp tokens staked by the vault in total
-    let total_lp_staked = vault.auto_compounder.total_lp_position().unwrap() as Uint128;
-    assert_that!(total_lp_staked.u128())
-        .is_equal_to(user_deposit + attacker_donation + attacker_deposit);
-
-    // check the amount of vault token the user has
-    let user1_vault_token_balance = vault_token.balance(user1.to_string())?.balance;
-    assert_that!(user1_vault_token_balance.u128()).is_equal_to(0u128);
-
-    // attacker withdraws the initial deposit
-    vault_token.call_as(&attacker).send(
-        1u128.into(),
-        auto_compounder_addr.clone(),
-        to_binary(&Cw20HookMsg::Redeem {})?,
-    )?;
-
-    // attacker unbonds tokens
-    let pending_claims: Uint128 =
-        vault.auto_compounder.pending_claims(attacker.to_string())? as Uint128;
-    assert_that!(pending_claims.u128()).is_equal_to(1u128);
-    mock.wait_blocks(1)?;
-    vault.auto_compounder.batch_unbond(None, None)?;
-
-    let claim: Vec<Claim> = vault.auto_compounder.claims(attacker.to_string())?;
-    let attackers_claim_amount = claim.first().unwrap().amount_of_lp_tokens_to_unbond.u128();
-    assert_that!(attackers_claim_amount).is_less_than(attacker_donation);
-    // attackers donation is higher than the amount it retreives from the attack!
-    let total_lp_position: Uint128 = vault.auto_compounder.total_lp_position()?;
-    assert_that!(total_lp_position.u128())
-        .is_equal_to(user_deposit + attacker_deposit + attacker_donation - attackers_claim_amount);
-
-    mock.wait_blocks(60 * 60 * 24 * 10)?;
     Ok(())
 }
 

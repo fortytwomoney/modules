@@ -66,5 +66,8 @@ pub enum AutocompounderError {
     NoRewards {},
 
     #[error("Zero mint amount is not allowed")]
-    ZeroMintAmountError {},
+    ZeroMintAmount {},
+
+    #[error("Zero deposit amount is not allowed")]
+    ZeroDepositAmount {},
 }
