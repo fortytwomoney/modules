@@ -28,7 +28,7 @@ use cosmwasm_std::{
     ReplyOn, Response, StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
-use cw_asset::{AssetList, AssetInfoBase, AssetBase};
+use cw_asset::AssetList;
 use cw_storage_plus::Bound;
 use cw_utils::Duration;
 use std::ops::Add;
@@ -250,9 +250,10 @@ fn deposit_lp(
         return Err(AutocompounderError::SenderIsNotLpToken {});
     };
     let lp_token = LpToken::from(config.pool_data.clone());
-    let transfer_msgs = app.bank(deps.as_ref()).deposit(vec![
-            AnsAsset::new(AssetEntry::from(lp_token.clone()),amount)
-        ])?;
+    let transfer_msgs = app.bank(deps.as_ref()).deposit(vec![AnsAsset::new(
+        AssetEntry::from(lp_token.clone()),
+        amount,
+    )])?;
 
     let sender = deps.api.addr_validate(&sender)?;
 
@@ -561,8 +562,11 @@ fn calculate_withdrawals(
         let user_address = pending_claim.0;
         let user_amount_of_vault_tokens_to_be_burned = pending_claim.1;
 
-        let user_lp_tokens_withdraw_amount = convert_to_assets(user_amount_of_vault_tokens_to_be_burned, 
-            total_lp_tokens_staked_in_vault, vault_tokens_total_supply);
+        let user_lp_tokens_withdraw_amount = convert_to_assets(
+            user_amount_of_vault_tokens_to_be_burned,
+            total_lp_tokens_staked_in_vault,
+            vault_tokens_total_supply,
+        );
 
         total_lp_amount_to_unbond = total_lp_amount_to_unbond
             .checked_add(user_lp_tokens_withdraw_amount)
@@ -692,7 +696,6 @@ mod test {
     use abstract_sdk::base::ExecuteEndpoint;
     use abstract_testing::prelude::TEST_MANAGER;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::Storage;
     use cw_controllers::AdminError;
     use cw_utils::Expiration;
     use speculoos::{assert_that, result::ResultAssertions};

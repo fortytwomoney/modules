@@ -137,7 +137,7 @@ pub enum AutocompounderQueryMsg {
     /// Returns [`Uint128`]
     #[returns(Uint128)]
     TotalLpPosition {},
-    /// Query the vault token supply 
+    /// Query the vault token supply
     /// Returns [`Uint128`]
     #[returns(Uint128)]
     TotalSupply {},

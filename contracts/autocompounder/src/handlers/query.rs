@@ -1,5 +1,7 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult};
-use crate::state::{Claim, CLAIMS, CONFIG, LATEST_UNBONDING, PENDING_CLAIMS, FEE_CONFIG, FeeConfig};
+use crate::state::{
+    Claim, FeeConfig, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
+};
 use abstract_sdk::core::objects::LpToken;
 use abstract_sdk::features::AccountIdentification;
 use abstract_sdk::ApiInterface;
@@ -43,15 +45,11 @@ pub fn query_handler(
         AutocompounderQueryMsg::Balance { address } => {
             Ok(to_binary(&query_balance(deps, address)?)?)
         }
-        AutocompounderQueryMsg::FeeConfig {  } => {
-            Ok(to_binary(&query_fee_config(deps)?)?)
-        },
-        AutocompounderQueryMsg::TotalSupply {  } => {
-            Ok(to_binary(&query_total_supply(deps)?)?)
-        },
+        AutocompounderQueryMsg::FeeConfig {} => Ok(to_binary(&query_fee_config(deps)?)?),
+        AutocompounderQueryMsg::TotalSupply {} => Ok(to_binary(&query_total_supply(deps)?)?),
         AutocompounderQueryMsg::AssetsPerShares { shares } => {
             Ok(to_binary(&query_assets_per_shares(app, deps, shares)?)?)
-        },
+        }
     }
 }
 
@@ -164,12 +162,17 @@ pub fn query_balance(deps: Deps, address: String) -> AutocompounderResult<Uint12
 
 pub fn query_total_supply(deps: Deps) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
-    let token_info: cw20::TokenInfoResponse =
-        deps.querier.query_wasm_smart(config.vault_token, &cw20::Cw20QueryMsg::TokenInfo {  })?;
+    let token_info: cw20::TokenInfoResponse = deps
+        .querier
+        .query_wasm_smart(config.vault_token, &cw20::Cw20QueryMsg::TokenInfo {})?;
     Ok(token_info.total_supply)
 }
 
-pub fn query_assets_per_shares(app: &AutocompounderApp, deps: Deps, shares: Option<Uint128>) -> AutocompounderResult<Uint128> {
+pub fn query_assets_per_shares(
+    app: &AutocompounderApp,
+    deps: Deps,
+    shares: Option<Uint128>,
+) -> AutocompounderResult<Uint128> {
     let shares = if let Some(shares) = shares {
         shares
     } else {

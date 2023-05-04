@@ -1,5 +1,5 @@
 use super::helpers::{
-    convert_to_assets, convert_to_shares, cw20_total_supply, mint_vault_tokens, query_stake,
+    convert_to_shares, cw20_total_supply, mint_vault_tokens, query_stake,
     stake_lp_tokens,
 };
 use crate::contract::{
@@ -13,7 +13,7 @@ use crate::state::{
     Config, CACHED_ASSETS, CACHED_FEE_AMOUNT, CACHED_USER_ADDR, CONFIG, FEE_CONFIG,
 };
 use abstract_cw_staking_api::{
-    msg::{CwStakingAction, CwStakingExecuteMsg, CwStakingQueryMsg, RewardTokensResponse},
+    msg::{CwStakingQueryMsg, RewardTokensResponse},
     CW_STAKING,
 };
 use abstract_dex_api::api::{Dex, DexInterface};
@@ -26,11 +26,10 @@ use abstract_sdk::{
     AbstractSdkResult, Resolve, TransferInterface,
 };
 use cosmwasm_std::{
-    wasm_execute, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError,
+   Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError,
     StdResult, SubMsg, Uint128,
 };
 use cw_asset::{Asset, AssetInfo};
-use cw_utils::Duration;
 use protobuf::Message;
 
 /// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.
@@ -355,7 +354,7 @@ pub fn lp_fee_withdrawal_reply(
     let mut fees = vec![];
     for pool_asset in config.pool_data.assets {
         let asset = pool_asset.resolve(&deps.querier, &ans_host)?;
-        let balance = asset.query_balance(&deps.querier, &proxy_address)?;
+        let balance = asset.query_balance(&deps.querier, proxy_address.clone())?;
         let substracted_balance =
             balance.checked_sub(CACHED_ASSETS.load(deps.storage, pool_asset.to_string())?)?;
         fees.push(AnsAsset::new(pool_asset, substracted_balance));
