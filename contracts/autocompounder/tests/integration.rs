@@ -1074,8 +1074,8 @@ fn vault_token_inflation_test() -> AResult {
     )?;
 
     // check the number of vault tokens the attacker has
-    let vault_token_balance = vault_token.balance(attacker.to_string())?.balance;
-    assert_that!(vault_token_balance.u128()).is_equal_to(1u128);
+    let attacker_vault_token_balance = vault_token.balance(attacker.to_string())?.balance;
+    assert_that!(attacker_vault_token_balance.u128()).is_equal_to(1u128);
 
     // attacker makes donation to liquidity pool
     let attacker_donation = user_deposit / 2 + 1u128;
@@ -1114,12 +1114,12 @@ fn vault_token_inflation_test() -> AResult {
     )?;
 
     // attacker unbonds tokens
-    mock.wait_blocks(1)?;
-    vault.auto_compounder.batch_unbond(None, None)?;
     let pending_claims: Uint128 = vault.auto_compounder.pending_claims(attacker.to_string())?;
     assert_that!(pending_claims.u128()).is_equal_to(1u128);
+    mock.wait_blocks(1)?;
+    vault.auto_compounder.batch_unbond(None, None)?;
 
-    let claim: Vec<Claim> = vault.auto_compounder.claims(owner.to_string())?;
+    let claim: Vec<Claim> = vault.auto_compounder.claims(attacker.to_string())?;
     assert_that!(claim.first().unwrap().amount_of_lp_tokens_to_unbond.u128())
         .is_less_than_or_equal_to(attacker_donation);
 
