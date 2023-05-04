@@ -562,10 +562,8 @@ fn calculate_withdrawals(
         let user_address = pending_claim.0;
         let user_amount_of_vault_tokens_to_be_burned = pending_claim.1;
 
-        let user_lp_tokens_withdraw_amount = Decimal::from_ratio(
-            user_amount_of_vault_tokens_to_be_burned,
-            vault_tokens_total_supply,
-        ) * total_lp_tokens_staked_in_vault;
+        let user_lp_tokens_withdraw_amount = convert_to_assets(user_amount_of_vault_tokens_to_be_burned, 
+            total_lp_tokens_staked_in_vault, vault_tokens_total_supply, 0);
 
         total_lp_amount_to_unbond = total_lp_amount_to_unbond
             .checked_add(user_lp_tokens_withdraw_amount)

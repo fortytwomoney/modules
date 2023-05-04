@@ -102,7 +102,6 @@ pub fn convert_to_assets(
 
 /// Convert lp assets to shares
 /// Uses virtual assets to mitigate asset inflation attack. description: https://gist.github.com/Amxx/ec7992a21499b6587979754206a48632
-///
 pub fn convert_to_shares(
     assets: Uint128,
     total_assets: Uint128,

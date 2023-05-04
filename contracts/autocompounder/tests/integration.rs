@@ -43,7 +43,6 @@ const COMMISSION_RECEIVER: &str = "commission_receiver";
 const VAULT_TOKEN: &str = "vault_token";
 const TEST_NAMESPACE: &str = "4t2";
 const ATTACKER: &str = "attacker";
-
 /// Convert vault tokens to lp assets
 pub fn convert_to_assets(
     shares: Uint128,
@@ -52,15 +51,14 @@ pub fn convert_to_assets(
     decimal_offset: u32,
 ) -> Uint128 {
     let shares = shares.multiply_ratio(
-        total_supply + Uint128::from(10u128).pow(decimal_offset),
         total_assets + Uint128::from(1u128),
+        total_supply + Uint128::from(10u128).pow(decimal_offset),
     );
     shares
 }
 
 /// Convert lp assets to shares
 /// Uses virtual assets to mitigate asset inflation attack. description: https://gist.github.com/Amxx/ec7992a21499b6587979754206a48632
-///
 pub fn convert_to_shares(
     assets: Uint128,
     total_assets: Uint128,
@@ -68,8 +66,8 @@ pub fn convert_to_shares(
     decimal_offset: u32,
 ) -> Uint128 {
     let assets = assets.multiply_ratio(
-        total_assets + Uint128::from(1u128),
         total_supply + Uint128::from(10u128).pow(decimal_offset),
+        total_assets + Uint128::from(1u128),
     );
     assets
 }
@@ -482,7 +480,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     let expected_claim = Claim {
         unbonding_timestamp: Expiration::AtTime(mock.block_info()?.time.plus_seconds(1)),
         amount_of_vault_tokens_to_burn: 4000u128.into(),
-        amount_of_lp_tokens_to_unbond: 3999u128.into(), // 1 lp token is accuired by the virtual assets
+        amount_of_lp_tokens_to_unbond: 4000u128.into(), // 1 lp token is accuired by the virtual assets
     };
     assert_that!(claims).is_equal_to(vec![expected_claim]);
 
@@ -496,8 +494,8 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     // and eur and usd balance increased
     let balances = mock.query_all_balances(&owner)?;
     assert_that!(balances).is_equal_to(vec![
-        coin(94_001u128, eur_token.to_string()),
-        coin(94_001u128, usd_token.to_string()),
+        coin(94_002u128, eur_token.to_string()),
+        coin(94_002u128, usd_token.to_string()),
     ]);
 
     let position = new_position;
@@ -512,7 +510,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
         .stakes[0]
         .stake;
     assert_that!(generator_staked_balance.u128())
-        .is_equal_to(prev_generator_staked_balance.u128() - 3999u128);
+        .is_equal_to(prev_generator_staked_balance.u128() - 4000u128);
 
     // withdraw all owner funds from the auto-compounder
     vault_token.send(
@@ -537,12 +535,9 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     assert_that!(balances).is_equal_to(vec![
         // coin(99_993u128, eur_token.to_string()),
         // coin(99_993u128, usd_token.to_string()),
-        coin(100_005u128, eur_token.to_string()),
-        coin(100_005u128, usd_token.to_string()),
+        coin(100_006u128, eur_token.to_string()),
+        coin(100_006u128, usd_token.to_string()),
     ]);
-
-    let new_position = vault.auto_compounder.total_lp_position()?;
-    // assert_that!(new_position).is_equal_to();
 
     // Withdraw user1 funds
     let prev_vault_token_balance_user1 = vault_token_balance_user1;
@@ -570,7 +565,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     let expected_claim = Claim {
         unbonding_timestamp: Expiration::AtTime(mock.block_info()?.time.plus_seconds(1)),
         amount_of_vault_tokens_to_burn: vault_token_balance_user1.into(),
-        amount_of_lp_tokens_to_unbond: user1_lp_tokens_voucher + Uint128::from(1u128), // NOTE: I dont know why the vault adds 1 lp token here.
+        amount_of_lp_tokens_to_unbond: user1_lp_tokens_voucher,
     };
     assert_that!(claims).is_equal_to(vec![expected_claim]);
 
@@ -580,8 +575,8 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     // a relative loss is experienced by the user due to swap fees and drainage of the pool to 0
     let balances = mock.query_all_balances(&user1)?;
     assert_that!(balances).is_equal_to(vec![
-        coin(99_987u128, eur_token.to_string()),
-        coin(99_987u128, usd_token.to_string()),
+        coin(99_986u128, eur_token.to_string()),
+        coin(99_986u128, usd_token.to_string()),
     ]);
 
     Ok(())
@@ -1026,7 +1021,7 @@ fn paginate_all_pending_claims(
 }
 
 #[test]
-fn vault_token_inflation_test() -> AResult {
+fn vault_token_inflation_attack_original() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
     let user1: Addr = Addr::unchecked(common::USER1);
     let attacker: Addr = Addr::unchecked(ATTACKER);
@@ -1104,6 +1099,7 @@ fn vault_token_inflation_test() -> AResult {
 
     // check the amount of vault token the user has
     let user1_vault_token_balance = vault_token.balance(user1.to_string())?.balance;
+    // including virual assets and 0 dec.offset: 100000 * ( 1 + 1) / (50001 + 1) = 3.999 -> 3
     assert_that!(user1_vault_token_balance.u128()).is_equal_to(3u128);
 
     // attacker withdraws the initial deposit
@@ -1122,6 +1118,114 @@ fn vault_token_inflation_test() -> AResult {
     let claim: Vec<Claim> = vault.auto_compounder.claims(attacker.to_string())?;
     assert_that!(claim.first().unwrap().amount_of_lp_tokens_to_unbond.u128())
         .is_less_than_or_equal_to(attacker_donation);
+    // attackers donation is higher than the amount it retreives from the attack!
+
+    mock.wait_blocks(60 * 60 * 24 * 10)?;
+    Ok(())
+}
+#[test]
+fn vault_token_inflation_attack_full_dilute() -> AResult {
+    let owner = Addr::unchecked(common::OWNER);
+    let user1: Addr = Addr::unchecked(common::USER1);
+    let attacker: Addr = Addr::unchecked(ATTACKER);
+
+    // create testing environment
+    let (_state, mock) = instantiate_default_mock_env(&owner).unwrap();
+
+    // create a vault
+    let mut vault = crate::create_vault(mock.clone()).unwrap();
+    let WynDex {
+        eur_usd_pair,
+        eur_usd_lp,
+        eur_usd_staking,
+        ..
+    } = vault.wyndex;
+
+    let config: Config = vault.auto_compounder.config().unwrap();
+    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address().unwrap());
+
+    let unbonding_secs = match config.unbonding_period {
+        Some(Duration::Time(secs)) => secs,
+        _ => panic!("unbonding period not in seconds"),
+    };
+
+    let vault_token = vault.vault_token;
+    let auto_compounder_addr = vault.auto_compounder.addr_str().unwrap();
+
+    let user_deposit = 100_000u128;
+    let attacker_deposit = 1u128;
+    let fully_dilute_donation = (user_deposit -1)*(attacker_deposit + 1) + 1;
+    // mint lp tokens to the user and the attacker
+    eur_usd_lp.call_as(&eur_usd_pair).mint(
+        (fully_dilute_donation + attacker_deposit).into(),
+        attacker.to_string(),
+    )?;
+
+    eur_usd_lp.call_as(&eur_usd_pair).mint(
+        100000u128.into(),
+        user1.to_string(),
+    )?;
+
+    // attacker makes initial deposit to vault pool
+    eur_usd_lp.call_as(&attacker).send(
+        1u128.into(),
+        vault.auto_compounder.address()?.to_string(),
+        to_binary(&Cw20HookMsg::DepositLp {  })?,
+    )?;
+
+    // check the number of vault tokens the attacker has
+    let attacker_vault_token_balance = vault_token.balance(attacker.to_string())?.balance;
+    assert_that!(attacker_vault_token_balance.u128()).is_equal_to(1u128);
+
+    // attacker makes donation to liquidity pool
+    let attacker_donation = fully_dilute_donation;
+    eur_usd_lp.call_as(&attacker).send(
+        attacker_donation.into(),
+        eur_usd_staking.to_string(),
+        to_binary(&ReceiveDelegationMsg::Delegate {
+            unbonding_period: unbonding_secs,
+            delegate_as: Some(vault.account.proxy.addr_str()?),
+        })?,
+    )?;
+
+    let lp_staked = vault.auto_compounder.total_lp_position().unwrap() as Uint128;
+    assert_that!(lp_staked.u128()).is_equal_to(attacker_donation + 1);
+
+    // user deposits lps to vault
+    eur_usd_lp.call_as(&user1).send(
+        100000u128.into(),
+        vault.auto_compounder.address()?.to_string(),
+        to_binary(&Cw20HookMsg::DepositLp {  })?,
+    )?;
+
+    // check the amount of lp tokens staked by the vault in total
+    let total_lp_staked = vault.auto_compounder.total_lp_position().unwrap() as Uint128;
+    assert_that!(total_lp_staked.u128()).is_equal_to(300000);
+
+    // check the amount of vault token the user has
+    let user1_vault_token_balance = vault_token.balance(user1.to_string())?.balance;
+    assert_that!(user1_vault_token_balance.u128()).is_equal_to(0u128);
+
+    // attacker withdraws the initial deposit
+    vault_token.call_as(&attacker).send(
+        1u128.into(),
+        auto_compounder_addr.clone(),
+        to_binary(&Cw20HookMsg::Redeem {})?,
+    )?;
+
+    // attacker unbonds tokens
+    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(attacker.to_string())? as Uint128;
+    assert_that!(pending_claims.u128()).is_equal_to(1u128);
+    mock.wait_blocks(1)?;
+    vault.auto_compounder.batch_unbond(None, None)?;
+
+    let claim: Vec<Claim> = vault.auto_compounder.claims(attacker.to_string())?;
+    let attackers_claim_amount = claim.first().unwrap().amount_of_lp_tokens_to_unbond.u128();
+    assert_that!(attackers_claim_amount)
+        .is_less_than(attacker_donation);
+    // attackers donation is higher than the amount it retreives from the attack!
+    let total_lp_position: Uint128 = vault.auto_compounder.total_lp_position()?;
+    assert_that!(total_lp_position.u128()).is_equal_to(user_deposit + attacker_deposit + attacker_donation - attackers_claim_amount);
 
     mock.wait_blocks(60 * 60 * 24 * 10)?;
     Ok(())
