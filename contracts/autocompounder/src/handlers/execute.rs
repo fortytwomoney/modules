@@ -299,8 +299,8 @@ fn deposit_lp(
 
     Ok(app.custom_tag_response(
         Response::new()
-            .add_messages(vec![mint_msg, stake_msg])
             .add_messages(transfer_msgs)
+            .add_messages(vec![mint_msg, stake_msg])
             .add_submessages(submessages),
         "deposit-lp",
         vec![("4t2", "/AC/DepositLP")],

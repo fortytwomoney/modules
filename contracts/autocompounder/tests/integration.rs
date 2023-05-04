@@ -121,12 +121,12 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
             module: autocompounder::msg::AutocompounderInstantiateMsg {
                 code_id: vault_toke_code_id,
                 commission_addr: COMMISSION_RECEIVER.to_string(),
-                deposit_fees: Decimal::percent(3),
+                deposit_fees: Decimal::percent(0),
                 dex: WYNDEX.to_string(),
                 fee_asset: eur_asset.to_string(),
                 performance_fees: Decimal::percent(3),
                 pool_assets: vec![eur_asset, usd_asset],
-                withdrawal_fees: Decimal::percent(3),
+                withdrawal_fees: Decimal::percent(0),
                 preferred_bonding_period: BondingPeriodSelector::Shortest,
             },
             base: abstract_core::app::BaseInstantiateMsg {
@@ -1073,6 +1073,10 @@ fn vault_token_inflation_test() -> AResult {
         to_binary(&Cw20HookMsg::DepositLp {  })?,
     )?;
 
+    // check the number of vault tokens the attacker has
+    let vault_token_balance = vault_token.balance(attacker.to_string())?.balance;
+    assert_that!(vault_token_balance.u128()).is_equal_to(1u128);
+
     // attacker makes donation to liquidity pool
     let attacker_donation = user_deposit / 2 + 1u128;
     eur_usd_lp.call_as(&attacker).send(
@@ -1110,9 +1114,13 @@ fn vault_token_inflation_test() -> AResult {
     )?;
 
     // attacker unbonds tokens
-    vault.auto_compounder.batch_unbond(None, None).unwrap();
-    let claim: &Claim = &vault.auto_compounder.claims(owner.to_string())?[0];
-    assert_that!(claim.amount_of_lp_tokens_to_unbond.u128())
+    mock.wait_blocks(1)?;
+    vault.auto_compounder.batch_unbond(None, None)?;
+    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(attacker.to_string())?;
+    assert_that!(pending_claims.u128()).is_equal_to(1u128);
+
+    let claim: Vec<Claim> = vault.auto_compounder.claims(owner.to_string())?;
+    assert_that!(claim.first().unwrap().amount_of_lp_tokens_to_unbond.u128())
         .is_less_than_or_equal_to(attacker_donation);
 
     mock.wait_blocks(60 * 60 * 24 * 10)?;
