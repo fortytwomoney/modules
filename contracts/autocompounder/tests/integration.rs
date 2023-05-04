@@ -1,6 +1,7 @@
 mod common;
 
 use std::fmt::Debug;
+use std::ops::Mul;
 
 use abstract_boot::{Abstract, AbstractBootError, ManagerQueryFns, VCExecFns};
 use abstract_core::api::{BaseExecuteMsgFns, BaseQueryMsgFns};
@@ -9,7 +10,7 @@ use abstract_sdk::core as abstract_core;
 
 use abstract_cw_staking_api::CW_STAKING;
 use abstract_dex_api::EXCHANGE;
-use autocompounder::state::{Claim, Config, PENDING_CLAIMS};
+use autocompounder::state::{Claim, Config, PENDING_CLAIMS, DECIMAL_OFFSET};
 use boot_core::*;
 use boot_cw_plus::Cw20Base;
 use boot_cw_plus::Cw20ExecuteMsgFns;
@@ -228,7 +229,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(owner.to_string())?;
-    assert_that!(vault_token_balance.balance.u128()).is_equal_to(10000u128);
+    assert_that!(vault_token_balance.balance.u128()).is_equal_to(100000u128);
 
     // and eur balance decreased and usd balance stayed the same
     let balances = mock.query_all_balances(&owner)?;
@@ -241,24 +242,24 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 
     // withdraw part from the auto-compounder
     vault_token.send(
-        Uint128::from(2000u128),
+        Uint128::from(20000u128),
         auto_compounder_addr.clone(),
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
     // check that the vault token decreased
     let vault_token_balance = vault_token.balance(owner.to_string())?;
     let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
-    assert_that!(vault_token_balance.balance.u128()).is_equal_to(8000u128);
-    assert_that!(pending_claims.u128()).is_equal_to(2000u128);
+    assert_that!(vault_token_balance.balance.u128()).is_equal_to(80000u128);
+    assert_that!(pending_claims.u128()).is_equal_to(20000u128);
 
     // check that the pending claims are updated
     vault_token.send(
-        Uint128::from(2000u128),
+        Uint128::from(20000u128),
         auto_compounder_addr.clone(),
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
     let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
-    assert_that!(pending_claims.u128()).is_equal_to(4000u128);
+    assert_that!(pending_claims.u128()).is_equal_to(40000u128);
 
     vault.auto_compounder.batch_unbond(None, None)?;
 
@@ -298,7 +299,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 
     // withdraw all from the auto-compounder
     vault_token.send(
-        Uint128::from(6000u128),
+        Uint128::from(60000u128),
         auto_compounder_addr,
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
@@ -385,7 +386,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     assert_that!(position).is_equal_to(Uint128::from(10_000u128));
 
     let balance_owner = vault_token.balance(owner.to_string())?;
-    assert_that!(balance_owner.balance.u128()).is_equal_to(10_000u128);
+    assert_that!(balance_owner.balance.u128()).is_equal_to(10_000u128 * 10u128.pow(DECIMAL_OFFSET));
 
     // single asset deposit from different address
     vault.auto_compounder.set_sender(&user1);
@@ -396,11 +397,11 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
 
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(owner.to_string())?;
-    assert_that!(vault_token_balance.balance.u128()).is_equal_to(10000u128);
+    assert_that!(vault_token_balance.balance.u128()).is_equal_to(10000u128 * 10u128.pow(DECIMAL_OFFSET));
     let new_position = vault.auto_compounder.total_lp_position()?;
     // check if the user1 balance is correct
     let vault_token_balance_user1 = vault_token.balance(user1.to_string())?;
-    assert_that!(vault_token_balance_user1.balance.u128()).is_equal_to(487u128);
+    assert_that!(vault_token_balance_user1.balance.u128()).is_equal_to(487u128 * 10u128.pow(DECIMAL_OFFSET));
     assert_that!(new_position).is_greater_than(position);
 
     vault.auto_compounder.deposit(
@@ -410,10 +411,10 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
 
     // check that the vault owner balance remains the same
     let vault_token_balance = vault_token.balance(owner.to_string())?.balance;
-    assert_that!(vault_token_balance.u128()).is_equal_to(10000u128);
+    assert_that!(vault_token_balance.u128()).is_equal_to(10000u128 * 10u128.pow(DECIMAL_OFFSET));
     // check if the user1 balance is correct
     let vault_token_balance_user1 = vault_token.balance(user1.to_string())?.balance;
-    assert_that!(vault_token_balance_user1.u128()).is_equal_to(986u128);
+    assert_that!(vault_token_balance_user1.u128()).is_equal_to(986u128 * 10u128.pow(DECIMAL_OFFSET));
 
     // check if the vault balance query functions properly:
     let vault_balance_queried = vault.auto_compounder.balance(owner.to_string())?;
@@ -448,18 +449,18 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     // withdraw part from the auto-compounder
     vault.auto_compounder.set_sender(&owner);
     vault_token.send(
-        Uint128::from(4000u128),
+        Uint128::from(4000u128 * 10u128.pow(DECIMAL_OFFSET)),
         auto_compounder_addr.clone(),
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
     // check that the vault token decreased
     let vault_token_balance = vault_token.balance(owner.to_string())?;
-    assert_that!(vault_token_balance.balance.u128()).is_equal_to(6000u128);
+    assert_that!(vault_token_balance.balance.u128()).is_equal_to(6000u128 * 10u128.pow(DECIMAL_OFFSET));
 
     let pending_claim = vault.auto_compounder.pending_claims(owner.to_string())?;
-    assert_that!(pending_claim.u128()).is_equal_to(4000u128);
+    assert_that!(pending_claim.u128()).is_equal_to(4000u128 * 10u128.pow(DECIMAL_OFFSET));
     let vault_token_balance = vault_token.balance(vault.auto_compounder.address()?.to_string())?;
-    assert_that!(vault_token_balance.balance.u128()).is_equal_to(4000u128);
+    assert_that!(vault_token_balance.balance.u128()).is_equal_to(4000u128 * 10u128.pow(DECIMAL_OFFSET));
 
     let total_lp_balance = vault.auto_compounder.total_lp_position()?;
     assert_that!(total_lp_balance).is_equal_to(new_position);
@@ -479,7 +480,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     let claims = vault.auto_compounder.claims(owner.to_string())?;
     let expected_claim = Claim {
         unbonding_timestamp: Expiration::AtTime(mock.block_info()?.time.plus_seconds(1)),
-        amount_of_vault_tokens_to_burn: 4000u128.into(),
+        amount_of_vault_tokens_to_burn: (4000u128 * 10u128.pow(DECIMAL_OFFSET)).into(),
         amount_of_lp_tokens_to_unbond: 4000u128.into(), // 1 lp token is accuired by the virtual assets
     };
     assert_that!(claims).is_equal_to(vec![expected_claim]);
@@ -514,7 +515,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
 
     // withdraw all owner funds from the auto-compounder
     vault_token.send(
-        Uint128::from(6000u128),
+        Uint128::from(6000u128 * 10u128.pow(DECIMAL_OFFSET)),
         auto_compounder_addr.clone(),
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
@@ -524,7 +525,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
         .auto_compounder
         .pending_claims(owner.to_string())?
         .into();
-    assert_that!(pending_claims).is_equal_to(6000u128); // no unbonding period, so no pending claims
+    assert_that!(pending_claims).is_equal_to(6000u128 * 10u128.pow(DECIMAL_OFFSET)); // no unbonding period, so no pending claims
 
     vault.auto_compounder.batch_unbond(None, None)?; // batch unbonding not enabled
     mock.wait_blocks(60 * 60 * 24 * 10)?;
@@ -643,7 +644,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
 
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(owner.to_string())?;
-    assert_that!(vault_token_balance.balance.u128()).is_equal_to(100_000u128);
+    assert_that!(vault_token_balance.balance.u128()).is_equal_to(100_000u128 * 10u128.pow(DECIMAL_OFFSET));
     let ownerbalance = mock.query_balance(&owner, EUR)?;
     assert_that!(ownerbalance.u128()).is_equal_to(0u128);
 
@@ -983,7 +984,7 @@ fn test_lp_deposit() -> AResult {
     )?;
 
     assert_that!(vault.auto_compounder.total_lp_position().unwrap().u128()).is_equal_to(100_000u128);
-    assert_that!(vault_token.balance(owner.to_string())?.balance.u128()).is_equal_to(100_000u128);
+    assert_that!(vault_token.balance(owner.to_string())?.balance.u128()).is_equal_to(100_000u128 * 10u128.pow(DECIMAL_OFFSET));
 
     Ok(())
 }
@@ -1070,7 +1071,7 @@ fn vault_token_inflation_attack_original() -> AResult {
 
     // check the number of vault tokens the attacker has
     let attacker_vault_token_balance = vault_token.balance(attacker.to_string())?.balance;
-    assert_that!(attacker_vault_token_balance.u128()).is_equal_to(1u128);
+    assert_that!(attacker_vault_token_balance.u128()).is_equal_to(1u128 * 10u128.pow(DECIMAL_OFFSET));
 
     // attacker makes donation to liquidity pool
     let attacker_donation = user_deposit / 2 + 1u128;
@@ -1100,18 +1101,19 @@ fn vault_token_inflation_attack_original() -> AResult {
     // check the amount of vault token the user has
     let user1_vault_token_balance = vault_token.balance(user1.to_string())?.balance;
     // including virual assets and 0 dec.offset: 100000 * ( 1 + 1) / (50001 + 1) = 3.999 -> 3
-    assert_that!(user1_vault_token_balance.u128()).is_equal_to(3u128);
+    // including virual assets and 1 dec.offset: 100000 * ( 1 + 10) / (50001 + 1) = 39.99 -> 39
+    assert_that!(user1_vault_token_balance.u128()).is_equal_to(3.99_f32.mul(10.0_f32.powf(DECIMAL_OFFSET as f32)) as u128);
 
     // attacker withdraws the initial deposit
     vault_token.call_as(&attacker).send(
-        1u128.into(),
+        (1u128 * 10u128.pow(DECIMAL_OFFSET)).into(),
         auto_compounder_addr.clone(),
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
 
     // attacker unbonds tokens
     let pending_claims: Uint128 = vault.auto_compounder.pending_claims(attacker.to_string())?;
-    assert_that!(pending_claims.u128()).is_equal_to(1u128);
+    assert_that!(pending_claims.u128()).is_equal_to(1u128 * 10u128.pow(DECIMAL_OFFSET));
     mock.wait_blocks(1)?;
     vault.auto_compounder.batch_unbond(None, None)?;
 
@@ -1154,7 +1156,7 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
 
     let user_deposit = 100_000u128;
     let attacker_deposit = 1u128;
-    let fully_dilute_donation = (user_deposit -1)*(attacker_deposit + 1) + 1;
+    let fully_dilute_donation = (10u128.pow(DECIMAL_OFFSET) * user_deposit -1)*(attacker_deposit + 1) + 1;
     // mint lp tokens to the user and the attacker
     eur_usd_lp.call_as(&eur_usd_pair).mint(
         (fully_dilute_donation + attacker_deposit).into(),
@@ -1175,7 +1177,7 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
 
     // check the number of vault tokens the attacker has
     let attacker_vault_token_balance = vault_token.balance(attacker.to_string())?.balance;
-    assert_that!(attacker_vault_token_balance.u128()).is_equal_to(1u128);
+    assert_that!(attacker_vault_token_balance.u128()).is_equal_to(10u128);
 
     // attacker makes donation to liquidity pool
     let attacker_donation = fully_dilute_donation;
@@ -1193,14 +1195,14 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
 
     // user deposits lps to vault
     eur_usd_lp.call_as(&user1).send(
-        100000u128.into(),
+        user_deposit.into(),
         vault.auto_compounder.address()?.to_string(),
         to_binary(&Cw20HookMsg::DepositLp {  })?,
     )?;
 
     // check the amount of lp tokens staked by the vault in total
     let total_lp_staked = vault.auto_compounder.total_lp_position().unwrap() as Uint128;
-    assert_that!(total_lp_staked.u128()).is_equal_to(300000);
+    assert_that!(total_lp_staked.u128()).is_equal_to(user_deposit + attacker_donation + attacker_deposit);
 
     // check the amount of vault token the user has
     let user1_vault_token_balance = vault_token.balance(user1.to_string())?.balance;
