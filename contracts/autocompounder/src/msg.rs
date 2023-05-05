@@ -84,7 +84,7 @@ pub enum AutocompounderExecuteMsg {
     },
     /// Join vault by depositing one or more funds
     #[cfg_attr(feature = "boot", payable)]
-    Deposit { funds: Vec<OfferAsset> },
+    Deposit { funds: Vec<OfferAsset>, max_spread: Option<Decimal> },
     /// Withdraw all unbonded funds
     Withdraw {},
     /// Compound all rewards in the vault

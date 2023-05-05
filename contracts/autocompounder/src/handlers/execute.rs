@@ -11,7 +11,7 @@ use crate::error::AutocompounderError;
 use crate::msg::{AutocompounderExecuteMsg, Cw20HookMsg};
 use crate::state::{
     Claim, Config, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE, FEE_CONFIG,
-    LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS, FeeConfig, CACHED_FEE_AMOUNT,
+    LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS, FeeConfig, CACHED_FEE_AMOUNT, DEFAULT_MAX_SPREAD,
 };
 use abstract_cw_staking_api::msg::{CwStakingAction, CwStakingExecuteMsg};
 use abstract_cw_staking_api::CW_STAKING;
@@ -47,7 +47,7 @@ pub fn execute_handler(
             withdrawal,
             deposit,
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
-        AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, env, app, funds),
+        AutocompounderExecuteMsg::Deposit { funds , max_spread } => deposit(deps, info, env, app, funds, max_spread),
         AutocompounderExecuteMsg::Withdraw {} => withdraw_claims(deps, app, env, info.sender),
         AutocompounderExecuteMsg::BatchUnbond { start_after, limit } => {
             batch_unbond(deps, env, app, start_after, limit)
@@ -99,16 +99,17 @@ pub fn deposit(
     msg_info: MessageInfo,
     _env: Env,
     app: AutocompounderApp,
-    funds: Vec<AnsAsset>,
+    mut funds: Vec<AnsAsset>,
+    max_spread: Option<Decimal>,
 ) -> AutocompounderResult {
     // TODO: Check if the pool is valid
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
+
     let _staking_address = config.staking_contract;
     let ans_host = app.ans_host(deps.as_ref())?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex);
-    let current_fee_balance = fee_config.fee_asset.resolve(&deps.querier, &ans_host)?
-        .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())?;
+    let mut current_fee_balance = Uint128::zero();
 
     let mut messages = vec![];
     let mut submessages = vec![];
@@ -122,18 +123,6 @@ pub fn deposit(
         .purge();
 
     // if there is only one asset, we need to add the other asset too, but with zero amount
-    let mut funds = if funds.len() == 1 {
-        let mut funds = funds;
-        config.pool_data.assets.iter().for_each(|asset| {
-            if !funds[0].name.eq(asset) {
-                funds.push(AnsAsset::new(asset.clone(), 0u128))
-            }
-        });
-        funds
-    } else {
-        funds
-    };
-
     let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>, AbstractSdkError> = claimed_deposits
     .into_iter()
     .map(|asset| {
@@ -167,19 +156,46 @@ pub fn deposit(
             })
             .collect::<Vec<_>>();
         
+        
         // 3) (swap and) Send fees to treasury
-        if !fees.is_empty() {
-            let (fee_swap_msgs, fee_swap_submsg) =
-            swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY, config.max_swap_spread)?;
-            messages.extend(fee_swap_msgs);
-            submessages.push(fee_swap_submsg);
+        if !fees.is_empty() { 
+            current_fee_balance = 
+                fee_config.fee_asset.resolve(&deps.querier, &ans_host)?
+                    .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())? 
+                + funds
+                    .iter()
+                    .find(|asset| asset.name.eq(&fee_config.fee_asset))
+                    .map(|asset| asset.amount)
+                    .unwrap_or_default();
+            
+            if fees.len() == 1 && fees[0].name.eq(&fee_config.fee_asset) {
+                let fee_transfer_msg = app.bank(deps.as_ref()).transfer(fees, &fee_config.commission_addr)?;
+                messages.push(fee_transfer_msg);
+            } else {
+                let (fee_swap_msgs, fee_swap_submsg) =
+                swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY, config.max_swap_spread)?;
+                messages.extend(fee_swap_msgs);
+                submessages.push(fee_swap_submsg);
+            }
         }
     }
+
+    let funds = if funds.len() == 1 {
+        let mut funds = funds;
+        config.pool_data.assets.iter().for_each(|asset| {
+            if !funds[0].name.eq(asset) {
+                funds.push(AnsAsset::new(asset.clone(), 0u128))
+            }
+        });
+        funds
+    } else {
+        funds
+    };
 
     let provide_liquidity_msg: CosmosMsg = dex.provide_liquidity(
         funds,
         // TODO: let the user provide this
-        Some(Decimal::percent(5)),
+        Some(max_spread.unwrap_or(Decimal::percent(DEFAULT_MAX_SPREAD.into()))),
     )?;
 
     let sub_msg = SubMsg {

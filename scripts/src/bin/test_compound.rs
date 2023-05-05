@@ -55,7 +55,7 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
     info!("LP balance before: {}", lp_balance_before_deposit);
 
     // , AnsAsset::new("terra2>luna", 10u128)
-    autocompounder.deposit(vec![AnsAsset::new("terra2>astro", 6942u128)], &[])?;
+    autocompounder.deposit(vec![AnsAsset::new("terra2>astro", 6942u128)], None, &[])?;
 
     let lp_balance_after_deposit = autocompounder.balance(sender.to_string())?;
     info!("LP balance after: {}", lp_balance_after_deposit);
