@@ -254,7 +254,6 @@ pub fn lp_compound_reply(
             .add_submessages(submessages);
         Ok(app.tag_response(response, "swap_rewards"))
     }
-    // TODO: stake lp tokens
 }
 
 /// Queries the balances of pool assets and provides liquidity to the pool

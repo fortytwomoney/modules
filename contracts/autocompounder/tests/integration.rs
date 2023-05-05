@@ -787,7 +787,6 @@ fn test_deposit_fees_fee_token_and_withdraw_fees() -> AResult {
     mock.wait_blocks(60 * 60 * 24 * 10)?;
     vault.auto_compounder.withdraw()?;
 
-    // TODO: Recompute the expected amount here
     let new_owner_balance = mock.query_all_balances(&owner)?;
     assert_that!(new_owner_balance[0].amount.u128()).is_equal_to(443u128); // estimated value
     assert_that!(new_owner_balance[1].amount.u128()).is_equal_to(403u128); // estimated value
@@ -863,7 +862,6 @@ fn test_deposit_fees_non_fee_token() -> AResult {
     mock.wait_blocks(60 * 60 * 24 * 10)?;
     vault.auto_compounder.withdraw()?;
 
-    // TODO: Recompute the expected amount here
     let new_owner_balance = mock.query_all_balances(&owner)?;
     assert_that!(new_owner_balance[0].amount.u128()).is_equal_to(403u128); // estimated value
     assert_that!(new_owner_balance[1].amount.u128()).is_equal_to(444u128); // estimated value

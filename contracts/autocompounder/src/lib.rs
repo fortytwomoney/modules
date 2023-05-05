@@ -210,10 +210,7 @@ mod test_common {
                     panic!("Key: {key:?} not matched in TEST_ANS mock querier");
                 }
             })
-            // .with_raw_handler(TEST_PROXY, |key| match key {
-            //     "admin" => Ok(to_binary(&Some(Addr::unchecked(TEST_MANAGER))).unwrap()),
-            //     _ => panic!("unexpected raw key"),
-            // })
+
             .with_contract_map_entry(
                 TEST_MANAGER,
                 abstract_core::manager::state::ACCOUNT_MODULES,
