@@ -35,6 +35,9 @@ pub enum AutocompounderError {
     #[error("The asset {asset} is not in the pool of this vault")]
     AssetNotInPool { asset: String },
 
+    #[error("The coin with denom {denom} is not in the pool of this vault")]
+    CoinNotInPool { denom: String },
+
     #[error("The update would exceed the configured max count")]
     ExceededMaxCount {},
 

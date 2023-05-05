@@ -27,12 +27,13 @@ use abstract_sdk::{
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use cosmwasm_std::{
     from_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
-    ReplyOn, Response, StdResult, SubMsg, Uint128,
+    ReplyOn, Response, StdResult, SubMsg, Uint128, Coin,
 };
 use cw20::Cw20ReceiveMsg;
-use cw_asset::AssetList;
+use cw_asset::{AssetList, AssetInfo};
 use cw_storage_plus::Bound;
 use cw_utils::Duration;
+use std::f32::consts::E;
 use std::ops::Add;
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
@@ -112,9 +113,17 @@ pub fn deposit(
     let ans_host = app.ans_host(deps.as_ref())?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex);
     let mut current_fee_balance = Uint128::zero();
+    let resolved_pool_assets = config.pool_data.assets.resolve(&deps.querier, &ans_host)?;
 
     let mut messages = vec![];
     let mut submessages = vec![];
+
+    // check if sent coins are only correct coins
+    for Coin{denom, amount: _} in msg_info.funds.iter() {
+        if !resolved_pool_assets.contains(&AssetInfo::Native(denom.clone())) {
+            return Err(AutocompounderError::CoinNotInPool {denom: denom.clone()});
+        }
+    };
 
     // check if all the assets in funds are present in the pool
     for asset in funds.iter() {
@@ -791,6 +800,7 @@ mod test {
     use abstract_core::objects::PoolMetadata;
     use abstract_sdk::base::ExecuteEndpoint;
     use abstract_testing::prelude::TEST_MANAGER;
+    use cosmwasm_std::Coin;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cw_controllers::AdminError;
     use cw_utils::Expiration;
@@ -800,8 +810,9 @@ mod test {
         deps: DepsMut,
         sender: &str,
         msg: impl Into<ExecuteMsg>,
+        funds: &[Coin],
     ) -> Result<Response, AutocompounderError> {
-        let info = mock_info(sender, &[]);
+        let info = mock_info(sender, funds);
         AUTOCOMPOUNDER_APP.execute(deps, mock_env(), info, msg.into())
     }
 
@@ -809,7 +820,7 @@ mod test {
         deps: DepsMut,
         msg: impl Into<ExecuteMsg>,
     ) -> Result<Response, AutocompounderError> {
-        execute_as(deps, TEST_MANAGER, msg)
+        execute_as(deps, TEST_MANAGER, msg, &[])
     }
 
     fn min_cooldown_config(min_unbonding_cooldown: Option<Duration>) -> Config {
@@ -848,7 +859,7 @@ mod test {
                 withdrawal: None,
             };
 
-            let resp = execute_as(deps.as_mut(), "not_mananger", msg.clone());
+            let resp = execute_as(deps.as_mut(), "not_mananger", msg.clone(), &[]);
             assert_that!(resp)
                 .is_err()
                 .matches(|e| matches!(e, AutocompounderError::Admin(AdminError::NotAdmin {})));
@@ -889,6 +900,27 @@ mod test {
         assert_that!(resp)
             .is_err()
             .matches(|e| matches!(e, AutocompounderError::UnbondingNotEnabled {}));
+        Ok(())
+    }
+
+    #[test]
+    fn cannot_send_wrong_coins() -> anyhow::Result<()> {
+        let mut deps = app_init(true);
+        let msg = AutocompounderExecuteMsg::Deposit {
+            funds: vec![AnsAsset::new("eur", Uint128::one())],
+            max_spread: None,
+        };
+        
+        let wrong_coin = "juno".to_string();
+        let resp = execute_as(
+            deps.as_mut(),
+            "user", 
+            msg, 
+        &[Coin::new(1u128, "eur"), Coin::new(1u128, wrong_coin.clone())],
+    );
+        assert_that!(resp)
+            .is_err()
+            .matches(|e| matches!(e, AutocompounderError::CoinNotInPool { denom: wrong_denom }));
         Ok(())
     }
 
