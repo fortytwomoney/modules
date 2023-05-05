@@ -15,8 +15,8 @@ use abstract_sdk::{
     Resolve,
 };
 use cosmwasm_std::{
-    to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, StdResult,
-    SubMsg, WasmMsg, Decimal,
+    to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError,
+    StdResult, SubMsg, WasmMsg,
 };
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
@@ -136,7 +136,7 @@ pub fn instantiate_handler(
     let resolved_pool_assets = pool_data.assets.resolve(&deps.querier, &ans_host)?;
 
     // default max swap spread
-    let max_swap_spread = max_swap_spread.unwrap_or(Decimal::percent(20));
+    let max_swap_spread = max_swap_spread.unwrap_or_else(|| Decimal::percent(20));
 
     let config: Config = Config {
         vault_token: Addr::unchecked(""),
@@ -147,7 +147,7 @@ pub fn instantiate_handler(
         pool_address: pool_reference.pool_address,
         unbonding_period,
         min_unbonding_cooldown,
-        max_swap_spread, 
+        max_swap_spread,
     };
 
     CONFIG.save(deps.storage, &config)?;

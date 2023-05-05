@@ -1,6 +1,6 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::state::{
-    Claim, FeeConfig, Config, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
+    Claim, Config, FeeConfig, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
 use abstract_sdk::core::objects::LpToken;
 use abstract_sdk::features::AccountIdentification;
@@ -26,7 +26,7 @@ pub fn query_handler(
 ) -> AutocompounderResult<Binary> {
     match msg {
         AutocompounderQueryMsg::Config {} => Ok(to_binary(&query_config(deps)?)?),
-        AutocompounderQueryMsg::FeeConfig {  } => Ok(to_binary(&query_fee_config(deps)?)?),
+        AutocompounderQueryMsg::FeeConfig {} => Ok(to_binary(&query_fee_config(deps)?)?),
         AutocompounderQueryMsg::PendingClaims { address } => {
             Ok(to_binary(&query_pending_claims(deps, address)?)?)
         }
@@ -46,7 +46,6 @@ pub fn query_handler(
         AutocompounderQueryMsg::Balance { address } => {
             Ok(to_binary(&query_balance(deps, address)?)?)
         }
-        AutocompounderQueryMsg::FeeConfig {} => Ok(to_binary(&query_fee_config(deps)?)?),
         AutocompounderQueryMsg::TotalSupply {} => Ok(to_binary(&query_total_supply(deps)?)?),
         AutocompounderQueryMsg::AssetsPerShares { shares } => {
             Ok(to_binary(&query_assets_per_shares(app, deps, shares)?)?)
@@ -191,46 +190,15 @@ pub fn query_assets_per_shares(
 mod test {
     use super::*;
 
-    use crate::error::AutocompounderError;
-    use crate::msg::ExecuteMsg;
-    use crate::msg::QueryMsg;
-    use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_init};
+    use crate::test_common::app_init;
     use abstract_core::objects::pool_id::PoolAddressBase;
     use abstract_core::objects::{AssetEntry, PoolMetadata};
-    use abstract_sdk::base::ExecuteEndpoint;
-    use abstract_sdk::base::QueryEndpoint;
-    use abstract_testing::prelude::TEST_MANAGER;
+    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::Addr;
     use cosmwasm_std::Decimal;
-    use cosmwasm_std::from_binary;
-    use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{Addr, DepsMut, Response};
 
     use cw_utils::{Duration, Expiration};
     use speculoos::assert_that;
-
-    fn execute_as(
-        deps: DepsMut,
-        sender: &str,
-        msg: impl Into<ExecuteMsg>,
-    ) -> Result<Response, AutocompounderError> {
-        let info = mock_info(sender, &[]);
-        AUTOCOMPOUNDER_APP.execute(deps, mock_env(), info, msg.into())
-    }
-
-    fn query<T: for<'de> cosmwasm_schema::serde::Deserialize<'de>>(
-        deps: Deps,
-        msg: impl Into<QueryMsg>,
-    ) -> Result<T, AutocompounderError> {
-        let res = AUTOCOMPOUNDER_APP.query(deps, mock_env(), msg.into())?;
-        Ok(from_binary(&res)?)
-    }
-
-    fn execute_as_manager(
-        deps: DepsMut,
-        msg: impl Into<ExecuteMsg>,
-    ) -> Result<Response, AutocompounderError> {
-        execute_as(deps, TEST_MANAGER, msg)
-    }
 
     fn default_config() -> Config {
         let assets = vec![AssetEntry::new("juno>juno")];

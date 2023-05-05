@@ -1,6 +1,6 @@
 use super::helpers::{
-    convert_to_shares, cw20_total_supply, mint_vault_tokens, query_stake,
-    stake_lp_tokens, swap_rewards_with_reply,
+    convert_to_shares, cw20_total_supply, mint_vault_tokens, query_stake, stake_lp_tokens,
+    swap_rewards_with_reply,
 };
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, FEE_SWAPPED_REPLY,
@@ -9,14 +9,13 @@ use crate::contract::{
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{
-    FeeConfig,
-    Config, CACHED_ASSETS, CACHED_FEE_AMOUNT, CACHED_USER_ADDR, CONFIG, FEE_CONFIG,
+    Config, FeeConfig, CACHED_ASSETS, CACHED_FEE_AMOUNT, CACHED_USER_ADDR, CONFIG, FEE_CONFIG,
 };
 use abstract_cw_staking_api::{
     msg::{CwStakingQueryMsg, RewardTokensResponse},
     CW_STAKING,
 };
-use abstract_dex_api::api::{Dex, DexInterface};
+use abstract_dex_api::api::DexInterface;
 use abstract_dex_api::msg::OfferAsset;
 use abstract_sdk::ApiInterface;
 use abstract_sdk::{
@@ -196,8 +195,13 @@ pub fn lp_compound_reply(
 
         // 3) (swap and) Send fees to treasury
         if !fees.is_empty() {
-            let (fee_swap_msgs, fee_swap_submsg) =
-                swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY, config.max_swap_spread)?;
+            let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
+                fees,
+                vec![fee_config.fee_asset],
+                &dex,
+                FEE_SWAPPED_REPLY,
+                config.max_swap_spread,
+            )?;
             messages.extend(fee_swap_msgs);
             submessages.push(fee_swap_submsg);
         }
@@ -233,8 +237,13 @@ pub fn lp_compound_reply(
 
         Ok(app.tag_response(response, "provide_liquidity"))
     } else {
-        let (swap_msgs, submsg) =
-            swap_rewards_with_reply(rewards, pool_assets, &dex, SWAPPED_REPLY_ID, config.max_swap_spread)?;
+        let (swap_msgs, submsg) = swap_rewards_with_reply(
+            rewards,
+            pool_assets,
+            &dex,
+            SWAPPED_REPLY_ID,
+            config.max_swap_spread,
+        )?;
         messages.extend(swap_msgs);
         submessages.push(submsg);
 
@@ -364,8 +373,13 @@ pub fn lp_fee_withdrawal_reply(
         fees.push(AnsAsset::new(pool_asset, substracted_balance));
     }
 
-    let (fee_swap_msgs, fee_swap_submsg) =
-        swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY, config.max_swap_spread)?;
+    let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
+        fees,
+        vec![fee_config.fee_asset],
+        &dex,
+        FEE_SWAPPED_REPLY,
+        config.max_swap_spread,
+    )?;
     messages.extend(fee_swap_msgs);
     submessages.push(fee_swap_submsg);
 
@@ -391,8 +405,6 @@ fn query_rewards(
     let RewardTokensResponse { tokens } = apis.query(CW_STAKING, query)?;
     Ok(tokens)
 }
-
-
 
 /// queries available staking rewards assets and the corresponding balances
 fn get_staking_rewards(
