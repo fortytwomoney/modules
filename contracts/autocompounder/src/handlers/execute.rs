@@ -573,11 +573,11 @@ pub fn withdraw_claims(
 
     // 3) withdraw lp tokens
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
-    let swap_msg: CosmosMsg = dex.withdraw_liquidity(
+    let withdraw_msg: CosmosMsg = dex.withdraw_liquidity(
         LpToken::from(config.pool_data).into(),
         lp_tokens_to_withdraw,
     )?;
-    let sub_msg = SubMsg::reply_on_success(swap_msg, LP_WITHDRAWAL_REPLY_ID);
+    let sub_msg = SubMsg::reply_on_success(withdraw_msg, LP_WITHDRAWAL_REPLY_ID);
 
     let response = Response::new()
         .add_message(claim_msg)
