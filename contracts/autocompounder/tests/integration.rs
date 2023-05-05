@@ -10,6 +10,7 @@ use abstract_sdk::core as abstract_core;
 
 use abstract_cw_staking_api::CW_STAKING;
 use abstract_dex_api::EXCHANGE;
+use autocompounder::error::AutocompounderError;
 use autocompounder::state::{Claim, Config, DECIMAL_OFFSET, PENDING_CLAIMS, FeeConfig};
 use boot_core::*;
 use boot_cw_plus::Cw20Base;
@@ -177,6 +178,7 @@ fn proper_initialisation() {
 /// - Withdraw a part from the auto-compounder and check the pending claims.
 /// - Check that the pending claims are updated after another withdraw.
 /// - Batch unbond and check the pending claims are removed.
+/// - Batch unbond errors when already called recently.
 /// - Withdraw and check the removal of claims.
 /// - Check the balances and staked balances.
 /// - Withdraw all from the auto-compounder and check the balances again.
@@ -259,6 +261,10 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     assert_that!(pending_claims.u128()).is_equal_to(40000u128);
 
     vault.auto_compounder.batch_unbond(None, None)?;
+    /// wyndex seems not to have a limit on the number of open claims per address so this will always work
+    let _err = vault.auto_compounder.batch_unbond(None, None).unwrap_err();
+    // assert_that!(err).is_equal_to(AutocompounderError::UnbondingCooldownNotExpired { min_cooldown: (), latest_unbonding: () } {});
+
 
     // checks if the pending claims are now removed
     let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
