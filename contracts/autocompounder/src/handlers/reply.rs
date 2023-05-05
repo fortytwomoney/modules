@@ -1,6 +1,5 @@
 use super::helpers::{
-    convert_to_shares, cw20_total_supply, mint_vault_tokens, query_stake,
-    stake_lp_tokens,
+    convert_to_shares, cw20_total_supply, mint_vault_tokens, query_stake, stake_lp_tokens,
 };
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, FEE_SWAPPED_REPLY,
@@ -26,8 +25,8 @@ use abstract_sdk::{
     AbstractSdkResult, Resolve, TransferInterface,
 };
 use cosmwasm_std::{
-   Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError,
-    StdResult, SubMsg, Uint128,
+    Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg,
+    Uint128,
 };
 use cw_asset::{Asset, AssetInfo};
 use protobuf::Message;
