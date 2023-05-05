@@ -630,6 +630,7 @@ fn calculate_withdrawals(
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
     let unbonding_timestamp = config
         .unbonding_period
+        .ok_or(AutocompounderError::UnbondingNotEnabled {  })
         .unwrap_or(Duration::Height(0))
         .after(&env.block);
 
