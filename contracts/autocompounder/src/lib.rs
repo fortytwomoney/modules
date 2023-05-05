@@ -210,10 +210,6 @@ mod test_common {
                     panic!("Key: {key:?} not matched in TEST_ANS mock querier");
                 }
             })
-            // .with_raw_handler(TEST_PROXY, |key| match key {
-            //     "admin" => Ok(to_binary(&Some(Addr::unchecked(TEST_MANAGER))).unwrap()),
-            //     _ => panic!("unexpected raw key"),
-            // })
             .with_contract_map_entry(
                 TEST_MANAGER,
                 abstract_core::manager::state::ACCOUNT_MODULES,
@@ -250,6 +246,7 @@ mod test_common {
                         pool_assets: vec!["eur".into(), "usd".into()],
                         withdrawal_fees: Decimal::percent(3),
                         preferred_bonding_period: BondingPeriodSelector::Shortest,
+                        max_swap_spread: None,
                     },
                     base: abstract_core::app::BaseInstantiateMsg {
                         ans_host_address: TEST_ANS_HOST.to_string(),

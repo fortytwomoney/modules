@@ -5,4 +5,3 @@ pub type AResult = anyhow::Result<()>;
 
 pub(crate) const OWNER: &str = "owner";
 pub(crate) const USER1: &str = "user1";
-pub(crate) const DISTRIBUTION: &str = "distribution_addr";

@@ -1,17 +1,19 @@
 use super::convert_to_shares;
 use super::helpers::{
     check_fee, convert_to_assets, cw20_total_supply, mint_vault_tokens, query_stake,
-    stake_lp_tokens,
+    stake_lp_tokens, swap_rewards_with_reply,
 };
+
 use crate::contract::{
-    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
-    LP_WITHDRAWAL_REPLY_ID,
+    AutocompounderApp, AutocompounderResult, FEE_SWAPPED_REPLY, LP_COMPOUND_REPLY_ID,
+    LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::msg::{AutocompounderExecuteMsg, Cw20HookMsg};
 use crate::state::{
-    Claim, Config, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE, FEE_CONFIG,
-    LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS,
+    Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_FEE_AMOUNT, CACHED_USER_ADDR, CLAIMS, CONFIG,
+    DEFAULT_BATCH_SIZE, DEFAULT_MAX_SPREAD, FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE,
+    PENDING_CLAIMS,
 };
 use abstract_cw_staking_api::msg::{CwStakingAction, CwStakingExecuteMsg};
 use abstract_cw_staking_api::CW_STAKING;
@@ -24,11 +26,11 @@ use abstract_sdk::{
 };
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use cosmwasm_std::{
-    from_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
-    ReplyOn, Response, StdResult, SubMsg, Uint128,
+    from_binary, wasm_execute, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
+    Order, ReplyOn, Response, StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
-use cw_asset::AssetList;
+use cw_asset::{AssetInfo, AssetList};
 use cw_storage_plus::Bound;
 use cw_utils::Duration;
 use std::ops::Add;
@@ -47,7 +49,9 @@ pub fn execute_handler(
             withdrawal,
             deposit,
         } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
-        AutocompounderExecuteMsg::Deposit { funds } => deposit(deps, info, env, app, funds),
+        AutocompounderExecuteMsg::Deposit { funds, max_spread } => {
+            deposit(deps, info, env, app, funds, max_spread)
+        }
         AutocompounderExecuteMsg::Withdraw {} => withdraw_claims(deps, app, env, info.sender),
         AutocompounderExecuteMsg::BatchUnbond { start_after, limit } => {
             batch_unbond(deps, env, app, start_after, limit)
@@ -99,15 +103,38 @@ pub fn deposit(
     msg_info: MessageInfo,
     _env: Env,
     app: AutocompounderApp,
-    funds: Vec<AnsAsset>,
+    mut funds: Vec<AnsAsset>,
+    max_spread: Option<Decimal>,
 ) -> AutocompounderResult {
-    // TODO: Check if the pool is valid
     let config = CONFIG.load(deps.storage)?;
-    let _staking_address = config.staking_contract;
-    let ans_host = app.ans_host(deps.as_ref())?;
-    let mut msgs = vec![];
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
 
-    // TODO: this resolution is probably not necessary as we should store the asset addressses for the configured pool
+    let ans_host = app.ans_host(deps.as_ref())?;
+    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
+    let mut current_fee_balance = Uint128::zero();
+    let resolved_pool_assets = config.pool_data.assets.resolve(&deps.querier, &ans_host)?;
+
+    let mut messages = vec![];
+    let mut submessages = vec![];
+
+    // check if sent coins are only correct coins
+    for Coin { denom, amount: _ } in msg_info.funds.iter() {
+        if !resolved_pool_assets.contains(&AssetInfo::Native(denom.clone())) {
+            return Err(AutocompounderError::CoinNotInPool {
+                denom: denom.clone(),
+            });
+        }
+    }
+
+    // check if all the assets in funds are present in the pool
+    for asset in funds.iter() {
+        if !config.pool_data.assets.contains(&asset.name) {
+            return Err(AutocompounderError::AssetNotInPool {
+                asset: asset.name.to_string(),
+            });
+        }
+    }
+
     let mut claimed_deposits: AssetList = funds.resolve(&deps.querier, &ans_host)?.into();
     // deduct all the received `Coin`s from the claimed deposit, errors if not enough funds were provided
     // what's left should be the remaining cw20s
@@ -116,6 +143,70 @@ pub fn deposit(
         .purge();
 
     // if there is only one asset, we need to add the other asset too, but with zero amount
+    let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>, AbstractSdkError> = claimed_deposits
+        .into_iter()
+        .map(|asset| {
+            // transfer cw20 tokens to the Account
+            // will fail if allowance is not set or if some other assets are sent
+            Ok(asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)?)
+        })
+        .collect();
+    messages.append(cw_20_transfer_msgs_res?.as_mut());
+
+    // transfer received coins to the Account
+    if !msg_info.funds.is_empty() {
+        let bank = app.bank(deps.as_ref());
+        messages.push(bank.deposit_coins(msg_info.funds)?);
+    }
+
+    // deduct deposit fee
+    if !fee_config.deposit.is_zero() {
+        let mut fees = vec![];
+        funds = funds
+            .into_iter()
+            .map(|mut asset| {
+                let fee = asset.amount * fee_config.deposit;
+                let fee_asset = AnsAsset::new(asset.name.clone(), fee);
+                asset.amount -= fee;
+                if !fee.is_zero() {
+                    fees.push(fee_asset);
+                }
+                asset
+            })
+            .collect::<Vec<_>>();
+
+        // 3) (swap and) Send fees to treasury
+        if !fees.is_empty() {
+            current_fee_balance = fee_config
+                .fee_asset
+                .resolve(&deps.querier, &ans_host)?
+                .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())?
+                + funds
+                    .iter()
+                    .find(|asset| asset.name.eq(&fee_config.fee_asset))
+                    .map(|asset| asset.amount)
+                    .unwrap_or_default();
+
+            if fees.len() == 1 && fees[0].name.eq(&fee_config.fee_asset) {
+                let fee_transfer_msg = app
+                    .bank(deps.as_ref())
+                    .transfer(fees, &fee_config.commission_addr)?;
+                messages.push(fee_transfer_msg);
+            } else {
+                let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
+                    fees,
+                    vec![fee_config.fee_asset],
+                    &dex,
+                    FEE_SWAPPED_REPLY,
+                    config.max_swap_spread,
+                )?;
+                messages.extend(fee_swap_msgs);
+                submessages.push(fee_swap_submsg);
+            }
+        }
+    }
+
+    // Add the other asset if there is only one asset for liquidity provision
     let funds = if funds.len() == 1 {
         let mut funds = funds;
         config.pool_data.assets.iter().for_each(|asset| {
@@ -128,27 +219,9 @@ pub fn deposit(
         funds
     };
 
-    let cw_20_transfer_msgs_res: Result<Vec<CosmosMsg>, AbstractSdkError> = claimed_deposits
-        .into_iter()
-        .map(|asset| {
-            // transfer cw20 tokens to the Account
-            // will fail if allowance is not set or if some other assets are sent
-            Ok(asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)?)
-        })
-        .collect();
-    msgs.append(cw_20_transfer_msgs_res?.as_mut());
-
-    // transfer received coins to the Account
-    if !msg_info.funds.is_empty() {
-        let bank = app.bank(deps.as_ref());
-        msgs.push(bank.deposit_coins(msg_info.funds)?);
-    }
-
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
     let provide_liquidity_msg: CosmosMsg = dex.provide_liquidity(
         funds,
-        // TODO: let the user provide this
-        Some(Decimal::percent(5)),
+        Some(max_spread.unwrap_or_else(|| Decimal::percent(DEFAULT_MAX_SPREAD.into()))),
     )?;
 
     let sub_msg = SubMsg {
@@ -157,10 +230,15 @@ pub fn deposit(
         gas_limit: None,
         reply_on: ReplyOn::Success,
     };
+    submessages.push(sub_msg);
 
     // save the user address to the cache for later use in reply
+    CACHED_FEE_AMOUNT.save(deps.storage, &current_fee_balance)?;
     CACHED_USER_ADDR.save(deps.storage, &msg_info.sender)?;
-    let response = Response::new().add_messages(msgs).add_submessage(sub_msg);
+
+    let response = Response::new()
+        .add_messages(messages)
+        .add_submessages(submessages);
     Ok(app.custom_tag_response(response, "deposit", vec![("4t2", "/AC/Deposit")]))
 }
 
@@ -172,12 +250,14 @@ pub fn batch_unbond(
     limit: Option<u32>,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
     if config.unbonding_period.is_none() {
         return Err(AutocompounderError::UnbondingNotEnabled {});
     }
 
     // check if the cooldown period has passed
     check_unbonding_cooldown(&deps, &config, &env)?;
+    LATEST_UNBONDING.save(deps.storage, &cw_utils::Expiration::AtTime(env.block.time))?;
 
     let limit = limit.unwrap_or(DEFAULT_BATCH_SIZE).min(MAX_BATCH_SIZE) as usize;
     let start = start_after.map(|s| Bound::ExclusiveRaw(s.into_bytes()));
@@ -187,7 +267,14 @@ pub fn batch_unbond(
         .collect::<StdResult<Vec<(String, Uint128)>>>()?;
 
     let (total_lp_amount_to_unbond, total_vault_tokens_to_burn, updated_claims) =
-        calculate_withdrawals(deps.as_ref(), &config, &app, pending_claims.clone(), env)?;
+        calculate_withdrawals(
+            deps.as_ref(),
+            &config,
+            &fee_config,
+            &app,
+            pending_claims.clone(),
+            env,
+        )?;
 
     // clear pending claims
     for claim in pending_claims.iter() {
@@ -327,6 +414,7 @@ fn redeem(
     if cw20_sender != config.vault_token {
         return Err(AutocompounderError::SenderIsNotVaultToken {});
     }
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
 
     // parse sender
     let sender = deps.api.addr_validate(&sender)?;
@@ -354,6 +442,10 @@ fn redeem(
             total_lp_tokens_staked_in_vault,
             total_supply_vault,
         );
+
+        // Substract withdrawal fee from the amount of lp tokens allocated to the user
+        let lp_tokens_withdraw_amount = lp_tokens_withdraw_amount
+            .checked_sub(lp_tokens_withdraw_amount * fee_config.withdrawal)?;
 
         // unstake lp tokens
         let unstake_msg = unstake_lp_tokens(
@@ -465,10 +557,6 @@ pub fn withdraw_claims(
     });
 
     if matured_claims.is_empty() {
-        eprintln!(
-            "No matured claims at timestamp: {:?}. ongoing claims: {ongoing_claims:?}",
-            env.block.time
-        );
         return Err(AutocompounderError::NoMaturedClaims {});
     }
 
@@ -490,11 +578,11 @@ pub fn withdraw_claims(
 
     // 3) withdraw lp tokens
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
-    let swap_msg: CosmosMsg = dex.withdraw_liquidity(
+    let withdraw_msg: CosmosMsg = dex.withdraw_liquidity(
         LpToken::from(config.pool_data).into(),
         lp_tokens_to_withdraw,
     )?;
-    let sub_msg = SubMsg::reply_on_success(swap_msg, LP_WITHDRAWAL_REPLY_ID);
+    let sub_msg = SubMsg::reply_on_success(withdraw_msg, LP_WITHDRAWAL_REPLY_ID);
 
     let response = Response::new()
         .add_message(claim_msg)
@@ -539,6 +627,7 @@ fn owned_assets(
 fn calculate_withdrawals(
     deps: Deps,
     config: &Config,
+    fee_config: &FeeConfig,
     app: &AutocompounderApp,
     pending_claims: Vec<(String, Uint128)>,
     env: Env,
@@ -546,6 +635,7 @@ fn calculate_withdrawals(
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
     let unbonding_timestamp = config
         .unbonding_period
+        .ok_or(AutocompounderError::UnbondingNotEnabled {})
         .unwrap_or(Duration::Height(0))
         .after(&env.block);
 
@@ -574,6 +664,10 @@ fn calculate_withdrawals(
             total_lp_tokens_staked_in_vault,
             vault_tokens_total_supply,
         );
+
+        // substract withdrawal fees from the amount of lp tokens to unbond
+        let user_lp_tokens_withdraw_amount = user_lp_tokens_withdraw_amount
+            .checked_sub(user_lp_tokens_withdraw_amount * fee_config.withdrawal)?;
 
         total_lp_amount_to_unbond = total_lp_amount_to_unbond
             .checked_add(user_lp_tokens_withdraw_amount)
@@ -703,6 +797,7 @@ mod test {
     use abstract_sdk::base::ExecuteEndpoint;
     use abstract_testing::prelude::TEST_MANAGER;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::Coin;
     use cw_controllers::AdminError;
     use cw_utils::Expiration;
     use speculoos::{assert_that, result::ResultAssertions};
@@ -711,8 +806,9 @@ mod test {
         deps: DepsMut,
         sender: &str,
         msg: impl Into<ExecuteMsg>,
+        funds: &[Coin],
     ) -> Result<Response, AutocompounderError> {
-        let info = mock_info(sender, &[]);
+        let info = mock_info(sender, funds);
         AUTOCOMPOUNDER_APP.execute(deps, mock_env(), info, msg.into())
     }
 
@@ -720,7 +816,7 @@ mod test {
         deps: DepsMut,
         msg: impl Into<ExecuteMsg>,
     ) -> Result<Response, AutocompounderError> {
-        execute_as(deps, TEST_MANAGER, msg)
+        execute_as(deps, TEST_MANAGER, msg, &[])
     }
 
     fn min_cooldown_config(min_unbonding_cooldown: Option<Duration>) -> Config {
@@ -739,6 +835,7 @@ mod test {
             vault_token: Addr::unchecked("vault_token"),
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown,
+            max_swap_spread: Decimal::percent(50),
         }
     }
 
@@ -758,7 +855,7 @@ mod test {
                 withdrawal: None,
             };
 
-            let resp = execute_as(deps.as_mut(), "not_mananger", msg.clone());
+            let resp = execute_as(deps.as_mut(), "not_mananger", msg.clone(), &[]);
             assert_that!(resp)
                 .is_err()
                 .matches(|e| matches!(e, AutocompounderError::Admin(AdminError::NotAdmin {})));
@@ -799,6 +896,35 @@ mod test {
         assert_that!(resp)
             .is_err()
             .matches(|e| matches!(e, AutocompounderError::UnbondingNotEnabled {}));
+        Ok(())
+    }
+
+    #[test]
+    fn cannot_send_wrong_coins() -> anyhow::Result<()> {
+        let mut deps = app_init(true);
+        let msg = AutocompounderExecuteMsg::Deposit {
+            funds: vec![AnsAsset::new("eur", Uint128::one())],
+            max_spread: None,
+        };
+
+        let wrong_coin = "juno".to_string();
+        let resp = execute_as(
+            deps.as_mut(),
+            "user",
+            msg,
+            &[
+                Coin::new(1u128, "eur"),
+                Coin::new(1u128, wrong_coin.clone()),
+            ],
+        );
+        assert_that!(resp).is_err().matches(|e| {
+            matches!(
+                e,
+                AutocompounderError::CoinNotInPool {
+                    denom: _wrong_denom
+                }
+            )
+        });
         Ok(())
     }
 

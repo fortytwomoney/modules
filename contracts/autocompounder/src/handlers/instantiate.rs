@@ -15,8 +15,8 @@ use abstract_sdk::{
     Resolve,
 };
 use cosmwasm_std::{
-    to_binary, Addr, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError, StdResult,
-    SubMsg, WasmMsg,
+    to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError,
+    StdResult, SubMsg, WasmMsg,
 };
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
@@ -44,6 +44,7 @@ pub fn instantiate_handler(
         dex,
         pool_assets,
         preferred_bonding_period,
+        max_swap_spread,
     } = msg;
 
     check_fee(performance_fees)?;
@@ -73,27 +74,34 @@ pub fn instantiate_handler(
 
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
-    // sort pool_assets then join
-    // staking/astroport/crab,juno
-    // let staking_contract_name = ["staking", &lp_token.to_string()].join("/");
-    // let staking_contract_entry = UncheckedContractEntry::new(&dex, staking_contract_name).check();
-    // let staking_contract_addr = ans.query(&staking_contract_entry)?;
-
     // get staking info
     let staking_info = query_staking_info(deps.as_ref(), &app, lp_token.into(), dex.clone())?;
     let (unbonding_period, min_unbonding_cooldown) =
         if let (max_claims, Some(mut unbonding_periods)) =
             (staking_info.max_claims, staking_info.unbonding_periods)
         {
+            if !(unbonding_periods
+                .iter()
+                .all(|x| matches!(x, Duration::Height(_))))
+                && !(unbonding_periods
+                    .iter()
+                    .all(|x| matches!(x, Duration::Time(_))))
+            {
+                return Err(AutocompounderError::Std(StdError::generic_err(
+                    "Unbonding periods are not all heights or all times",
+                )));
+            }
+
             unbonding_periods.sort_by(|a, b| {
                 if let (Duration::Height(a), Duration::Height(b)) = (a, b) {
                     a.cmp(b)
                 } else if let (Duration::Time(a), Duration::Time(b)) = (a, b) {
                     a.cmp(b)
                 } else {
-                    panic!("Unbonding periods are not all heights or all times")
-                }
+                    unreachable!()
+                } // This part is unreachable because of the check above
             });
+
             let unbonding_duration = match preferred_bonding_period {
                 BondingPeriodSelector::Shortest => *unbonding_periods.first().unwrap(),
                 BondingPeriodSelector::Longest => *unbonding_periods.last().unwrap(),
@@ -117,22 +125,19 @@ pub fn instantiate_handler(
             (None, None)
         };
 
-    // TODO: Store this in the config
     let pairing = DexAssetPairing::new(
         pool_assets_slice[0].clone(),
         pool_assets_slice[1].clone(),
         &dex,
     );
     let mut pool_references = pairing.resolve(&deps.querier, &ans_host)?;
-
-    assert_eq!(pool_references.len(), 1);
-    // Takes the value from the vector
     let pool_reference: PoolReference = pool_references.swap_remove(0);
-    // get the pool data
     let pool_data = pool_reference.unique_id.resolve(&deps.querier, &ans_host)?;
 
-    // TODO: use ResolvedPoolMetadata
     let resolved_pool_assets = pool_data.assets.resolve(&deps.querier, &ans_host)?;
+
+    // default max swap spread
+    let max_swap_spread = max_swap_spread.unwrap_or_else(|| Decimal::percent(20));
 
     let config: Config = Config {
         vault_token: Addr::unchecked(""),
@@ -143,6 +148,7 @@ pub fn instantiate_handler(
         pool_address: pool_reference.pool_address,
         unbonding_period,
         min_unbonding_cooldown,
+        max_swap_spread,
     };
 
     CONFIG.save(deps.storage, &config)?;
@@ -286,6 +292,7 @@ mod test {
                     pool_assets: vec!["eur".into(), "usd".into(), "juno".into()],
                     withdrawal_fees: Decimal::percent(3),
                     preferred_bonding_period: BondingPeriodSelector::Shortest,
+                    max_swap_spread: None,
                 },
                 base: abstract_core::app::BaseInstantiateMsg {
                     ans_host_address: TEST_ANS_HOST.to_string(),

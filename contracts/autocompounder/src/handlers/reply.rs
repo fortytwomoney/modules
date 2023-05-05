@@ -1,21 +1,21 @@
 use super::helpers::{
     convert_to_shares, cw20_total_supply, mint_vault_tokens, query_stake, stake_lp_tokens,
+    swap_rewards_with_reply,
 };
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, FEE_SWAPPED_REPLY,
     SWAPPED_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::msg::FeeConfig;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{
-    Config, CACHED_ASSETS, CACHED_FEE_AMOUNT, CACHED_USER_ADDR, CONFIG, FEE_CONFIG,
+    Config, FeeConfig, CACHED_ASSETS, CACHED_FEE_AMOUNT, CACHED_USER_ADDR, CONFIG, FEE_CONFIG,
 };
 use abstract_cw_staking_api::{
     msg::{CwStakingQueryMsg, RewardTokensResponse},
     CW_STAKING,
 };
-use abstract_dex_api::api::{Dex, DexInterface};
+use abstract_dex_api::api::DexInterface;
 use abstract_dex_api::msg::OfferAsset;
 use abstract_sdk::ApiInterface;
 use abstract_sdk::{
@@ -66,6 +66,7 @@ pub fn lp_provision_reply(
     _reply: Reply,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     let proxy_address = app.proxy_address(deps.as_ref())?;
     let ans_host = app.ans_host(deps.as_ref())?;
@@ -80,6 +81,9 @@ pub fn lp_provision_reply(
         .resolve(&deps.querier, &ans_host)?
         .query_balance(&deps.querier, proxy_address.to_string())?;
 
+    // subtract the deposit fee from the received LP tokens
+    let user_allocated_lp = received_lp.checked_sub(received_lp * fee_config.deposit)?;
+
     let staked_lp = query_stake(
         deps.as_ref(),
         &app,
@@ -90,7 +94,7 @@ pub fn lp_provision_reply(
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
     // 3) Calculate the number of vault tokens to mint
-    let mint_amount = convert_to_shares(received_lp, staked_lp, current_vault_supply);
+    let mint_amount = convert_to_shares(user_allocated_lp, staked_lp, current_vault_supply);
     if mint_amount.is_zero() {
         return Err(AutocompounderError::ZeroMintAmount {});
     }
@@ -103,7 +107,7 @@ pub fn lp_provision_reply(
         deps.as_ref(),
         &app,
         config.pool_data.dex,
-        AnsAsset::new(lp_token, received_lp),
+        AnsAsset::new(lp_token, received_lp), // stake the total amount of LP tokens received
         config.unbonding_period,
     )?;
 
@@ -191,8 +195,13 @@ pub fn lp_compound_reply(
 
         // 3) (swap and) Send fees to treasury
         if !fees.is_empty() {
-            let (fee_swap_msgs, fee_swap_submsg) =
-                swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
+            let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
+                fees,
+                vec![fee_config.fee_asset],
+                &dex,
+                FEE_SWAPPED_REPLY,
+                config.max_swap_spread,
+            )?;
             messages.extend(fee_swap_msgs);
             submessages.push(fee_swap_submsg);
         }
@@ -228,8 +237,13 @@ pub fn lp_compound_reply(
 
         Ok(app.tag_response(response, "provide_liquidity"))
     } else {
-        let (swap_msgs, submsg) =
-            swap_rewards_with_reply(rewards, pool_assets, &dex, SWAPPED_REPLY_ID)?;
+        let (swap_msgs, submsg) = swap_rewards_with_reply(
+            rewards,
+            pool_assets,
+            &dex,
+            SWAPPED_REPLY_ID,
+            config.max_swap_spread,
+        )?;
         messages.extend(swap_msgs);
         submessages.push(submsg);
 
@@ -240,7 +254,6 @@ pub fn lp_compound_reply(
             .add_submessages(submessages);
         Ok(app.tag_response(response, "swap_rewards"))
     }
-    // TODO: stake lp tokens
 }
 
 /// Queries the balances of pool assets and provides liquidity to the pool
@@ -359,8 +372,13 @@ pub fn lp_fee_withdrawal_reply(
         fees.push(AnsAsset::new(pool_asset, substracted_balance));
     }
 
-    let (fee_swap_msgs, fee_swap_submsg) =
-        swap_rewards_with_reply(fees, vec![fee_config.fee_asset], &dex, FEE_SWAPPED_REPLY)?;
+    let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
+        fees,
+        vec![fee_config.fee_asset],
+        &dex,
+        FEE_SWAPPED_REPLY,
+        config.max_swap_spread,
+    )?;
     messages.extend(fee_swap_msgs);
     submessages.push(fee_swap_submsg);
 
@@ -385,34 +403,6 @@ fn query_rewards(
     };
     let RewardTokensResponse { tokens } = apis.query(CW_STAKING, query)?;
     Ok(tokens)
-}
-
-/// swaps all rewards that are not in the target assets and add a reply id to the latest swapmsg
-fn swap_rewards_with_reply(
-    rewards: Vec<AnsAsset>,
-    target_assets: Vec<AssetEntry>,
-    dex: &Dex<AutocompounderApp>,
-    reply_id: u64,
-) -> Result<(Vec<CosmosMsg>, SubMsg), AutocompounderError> {
-    let mut swap_msgs: Vec<CosmosMsg> = vec![];
-    rewards
-        .iter()
-        .try_for_each(|reward: &AnsAsset| -> AbstractSdkResult<_> {
-            if !target_assets.contains(&reward.name) {
-                // 3.2) swap to asset in pool
-                let swap_msg = dex.swap(
-                    reward.clone(),
-                    target_assets.get(0).unwrap().clone(),
-                    Some(Decimal::percent(50)),
-                    None,
-                )?;
-                swap_msgs.push(swap_msg);
-            }
-            Ok(())
-        })?;
-    let swap_msg = swap_msgs.pop().unwrap();
-    let submsg = SubMsg::reply_on_success(swap_msg, reply_id);
-    Ok((swap_msgs, submsg))
 }
 
 /// queries available staking rewards assets and the corresponding balances
