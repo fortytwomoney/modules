@@ -29,6 +29,9 @@ pub enum AutocompounderError {
     #[error("The configured max count has an error, {}", msg)]
     MaxCountError { msg: String },
 
+    #[error("The unbonding periods from the pool are incoherent. They show both block and time durations.")]
+    UnbondingPeriodsIncoherent {},
+
     #[error("Fee cannot exceed 1")]
     InvalidFee {},
 

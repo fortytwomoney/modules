@@ -80,15 +80,22 @@ pub fn instantiate_handler(
         if let (max_claims, Some(mut unbonding_periods)) =
             (staking_info.max_claims, staking_info.unbonding_periods)
         {
+
+            if !(unbonding_periods.iter().all(|x| matches!(x, Duration::Height(_)))) || 
+            !(unbonding_periods.iter().all(|x| matches!(x, Duration::Time(_)))) {
+                return Err(AutocompounderError::Std(StdError::generic_err(
+                    "Unbonding periods are not all heights or all times"
+                )))
+            }
+
             unbonding_periods.sort_by(|a, b| {
                 if let (Duration::Height(a), Duration::Height(b)) = (a, b) {
                     a.cmp(b)
                 } else if let (Duration::Time(a), Duration::Time(b)) = (a, b) {
                     a.cmp(b)
-                } else {
-                    panic!("Unbonding periods are not all heights or all times")
-                }
+                } else { unreachable!() } // This part is unreachable because of the check above
             });
+
             let unbonding_duration = match preferred_bonding_period {
                 BondingPeriodSelector::Shortest => *unbonding_periods.first().unwrap(),
                 BondingPeriodSelector::Longest => *unbonding_periods.last().unwrap(),
