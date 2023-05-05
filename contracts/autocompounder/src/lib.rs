@@ -210,7 +210,6 @@ mod test_common {
                     panic!("Key: {key:?} not matched in TEST_ANS mock querier");
                 }
             })
-
             .with_contract_map_entry(
                 TEST_MANAGER,
                 abstract_core::manager::state::ACCOUNT_MODULES,

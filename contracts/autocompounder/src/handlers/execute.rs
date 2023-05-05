@@ -26,14 +26,13 @@ use abstract_sdk::{
 };
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use cosmwasm_std::{
-    from_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
-    ReplyOn, Response, StdResult, SubMsg, Uint128, Coin,
+    from_binary, wasm_execute, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
+    Order, ReplyOn, Response, StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
-use cw_asset::{AssetList, AssetInfo};
+use cw_asset::{AssetInfo, AssetList};
 use cw_storage_plus::Bound;
 use cw_utils::Duration;
-use std::f32::consts::E;
 use std::ops::Add;
 
 /// Handle the `AutocompounderExecuteMsg`s sent to this app.
@@ -119,11 +118,13 @@ pub fn deposit(
     let mut submessages = vec![];
 
     // check if sent coins are only correct coins
-    for Coin{denom, amount: _} in msg_info.funds.iter() {
+    for Coin { denom, amount: _ } in msg_info.funds.iter() {
         if !resolved_pool_assets.contains(&AssetInfo::Native(denom.clone())) {
-            return Err(AutocompounderError::CoinNotInPool {denom: denom.clone()});
+            return Err(AutocompounderError::CoinNotInPool {
+                denom: denom.clone(),
+            });
         }
-    };
+    }
 
     // check if all the assets in funds are present in the pool
     for asset in funds.iter() {
@@ -634,7 +635,7 @@ fn calculate_withdrawals(
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
     let unbonding_timestamp = config
         .unbonding_period
-        .ok_or(AutocompounderError::UnbondingNotEnabled {  })
+        .ok_or(AutocompounderError::UnbondingNotEnabled {})
         .unwrap_or(Duration::Height(0))
         .after(&env.block);
 
@@ -795,8 +796,8 @@ mod test {
     use abstract_core::objects::PoolMetadata;
     use abstract_sdk::base::ExecuteEndpoint;
     use abstract_testing::prelude::TEST_MANAGER;
-    use cosmwasm_std::Coin;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::Coin;
     use cw_controllers::AdminError;
     use cw_utils::Expiration;
     use speculoos::{assert_that, result::ResultAssertions};
@@ -905,17 +906,25 @@ mod test {
             funds: vec![AnsAsset::new("eur", Uint128::one())],
             max_spread: None,
         };
-        
+
         let wrong_coin = "juno".to_string();
         let resp = execute_as(
             deps.as_mut(),
-            "user", 
-            msg, 
-        &[Coin::new(1u128, "eur"), Coin::new(1u128, wrong_coin.clone())],
-    );
-        assert_that!(resp)
-            .is_err()
-            .matches(|e| matches!(e, AutocompounderError::CoinNotInPool { denom: wrong_denom }));
+            "user",
+            msg,
+            &[
+                Coin::new(1u128, "eur"),
+                Coin::new(1u128, wrong_coin.clone()),
+            ],
+        );
+        assert_that!(resp).is_err().matches(|e| {
+            matches!(
+                e,
+                AutocompounderError::CoinNotInPool {
+                    denom: _wrong_denom
+                }
+            )
+        });
         Ok(())
     }
 
