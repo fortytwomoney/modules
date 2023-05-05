@@ -3,6 +3,7 @@ use super::helpers::{
     check_fee, convert_to_assets, cw20_total_supply, mint_vault_tokens, query_stake,
     stake_lp_tokens, swap_rewards_with_reply,
 };
+
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, FEE_SWAPPED_REPLY, LP_COMPOUND_REPLY_ID,
     LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
@@ -105,11 +106,9 @@ pub fn deposit(
     mut funds: Vec<AnsAsset>,
     max_spread: Option<Decimal>,
 ) -> AutocompounderResult {
-    // TODO: Check if the pool is valid
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
 
-    let _staking_address = config.staking_contract;
     let ans_host = app.ans_host(deps.as_ref())?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex);
     let mut current_fee_balance = Uint128::zero();
@@ -117,7 +116,15 @@ pub fn deposit(
     let mut messages = vec![];
     let mut submessages = vec![];
 
-    // TODO: this resolution is probably not necessary as we should store the asset addressses for the configured pool
+    // check if all the assets in funds are present in the pool
+    for asset in funds.iter() {
+        if !config.pool_data.assets.contains(&asset.name) {
+            return Err(AutocompounderError::AssetNotInPool {
+                asset: asset.name.to_string(),
+            });
+        }
+    }
+
     let mut claimed_deposits: AssetList = funds.resolve(&deps.querier, &ans_host)?.into();
     // deduct all the received `Coin`s from the claimed deposit, errors if not enough funds were provided
     // what's left should be the remaining cw20s
@@ -147,7 +154,6 @@ pub fn deposit(
         let mut fees = vec![];
         funds = funds
             .into_iter()
-            .filter(|asset| !asset.amount.is_zero())
             .map(|mut asset| {
                 let fee = asset.amount * fee_config.deposit;
                 let fee_asset = AnsAsset::new(asset.name.clone(), fee);
@@ -190,6 +196,7 @@ pub fn deposit(
         }
     }
 
+    // Add the other asset if there is only one asset for liquidity provision
     let funds = if funds.len() == 1 {
         let mut funds = funds;
         config.pool_data.assets.iter().for_each(|asset| {

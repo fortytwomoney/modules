@@ -32,6 +32,9 @@ pub enum AutocompounderError {
     #[error("Fee cannot exceed 1")]
     InvalidFee {},
 
+    #[error("The asset {asset} is not in the pool of this vault")]
+    AssetNotInPool { asset: String },
+
     #[error("The update would exceed the configured max count")]
     ExceededMaxCount {},
 

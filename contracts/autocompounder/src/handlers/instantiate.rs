@@ -74,12 +74,6 @@ pub fn instantiate_handler(
 
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
-    // sort pool_assets then join
-    // staking/astroport/crab,juno
-    // let staking_contract_name = ["staking", &lp_token.to_string()].join("/");
-    // let staking_contract_entry = UncheckedContractEntry::new(&dex, staking_contract_name).check();
-    // let staking_contract_addr = ans.query(&staking_contract_entry)?;
-
     // get staking info
     let staking_info = query_staking_info(deps.as_ref(), &app, lp_token.into(), dex.clone())?;
     let (unbonding_period, min_unbonding_cooldown) =
@@ -118,21 +112,15 @@ pub fn instantiate_handler(
             (None, None)
         };
 
-    // TODO: Store this in the config
     let pairing = DexAssetPairing::new(
         pool_assets_slice[0].clone(),
         pool_assets_slice[1].clone(),
         &dex,
     );
     let mut pool_references = pairing.resolve(&deps.querier, &ans_host)?;
-
-    assert_eq!(pool_references.len(), 1);
-    // Takes the value from the vector
     let pool_reference: PoolReference = pool_references.swap_remove(0);
-    // get the pool data
     let pool_data = pool_reference.unique_id.resolve(&deps.querier, &ans_host)?;
 
-    // TODO: use ResolvedPoolMetadata
     let resolved_pool_assets = pool_data.assets.resolve(&deps.querier, &ans_host)?;
 
     // default max swap spread
