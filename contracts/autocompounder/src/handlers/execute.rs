@@ -557,10 +557,6 @@ pub fn withdraw_claims(
     });
 
     if matured_claims.is_empty() {
-        eprintln!(
-            "No matured claims at timestamp: {:?}. ongoing claims: {ongoing_claims:?}",
-            env.block.time
-        );
         return Err(AutocompounderError::NoMaturedClaims {});
     }
 
