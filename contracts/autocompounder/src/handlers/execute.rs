@@ -328,7 +328,7 @@ fn deposit_lp(
         return Err(AutocompounderError::SenderIsNotLpToken {});
     };
     let lp_token = LpToken::from(config.pool_data.clone());
-    let transfer_msgs = app.bank(deps.as_ref()).deposit(vec![AnsAsset::new(
+    let mut transfer_msgs = app.bank(deps.as_ref()).deposit(vec![AnsAsset::new(
         AssetEntry::from(lp_token.clone()),
         amount,
     )])?;
@@ -346,14 +346,11 @@ fn deposit_lp(
 
     let amount = if !fee_config.deposit.is_zero() {
         let fee = amount * fee_config.deposit;
-        let withdraw_msg = dex.withdraw_liquidity(lp_token.clone().into(), fee)?;
-        let withdraw_sub_msg = SubMsg {
-            id: LP_FEE_WITHDRAWAL_REPLY_ID,
-            msg: withdraw_msg,
-            gas_limit: None,
-            reply_on: ReplyOn::Success,
-        };
-        submessages.push(withdraw_sub_msg);
+        let transfer_msg = app.bank(deps.as_ref()).transfer(
+            vec![AnsAsset::new(AssetEntry::from(lp_token.clone()), fee)],
+            &fee_config.commission_addr,
+        )?;
+        transfer_msgs.push(transfer_msg);
 
         // save cached assets
         let owned_assets = owned_assets(
