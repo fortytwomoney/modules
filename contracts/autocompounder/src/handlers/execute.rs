@@ -175,7 +175,7 @@ pub fn deposit(
             })
             .collect::<Vec<_>>();
 
-        // 3) (swap and) Send fees to treasury
+        // 3) Send fees to the feecollector
         if !fees.is_empty() {
             current_fee_balance = fee_config
                 .fee_asset
@@ -187,22 +187,9 @@ pub fn deposit(
                     .map(|asset| asset.amount)
                     .unwrap_or_default();
 
-            if fees.len() == 1 && fees[0].name.eq(&fee_config.fee_asset) {
-                let fee_transfer_msg = app
-                    .bank(deps.as_ref())
-                    .transfer(fees, &fee_config.commission_addr)?;
-                messages.push(fee_transfer_msg);
-            } else {
-                let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
-                    fees,
-                    vec![fee_config.fee_asset],
-                    &dex,
-                    FEE_SWAPPED_REPLY,
-                    config.max_swap_spread,
-                )?;
-                messages.extend(fee_swap_msgs);
-                submessages.push(fee_swap_submsg);
-            }
+            let transfer_msg = app.bank(deps.as_ref())
+                .transfer(fees, &fee_config.commission_addr)?;
+            messages.push(transfer_msg);
         }
     }
 
