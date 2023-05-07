@@ -6,7 +6,7 @@ use super::helpers::{
 
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, FEE_SWAPPED_REPLY, LP_COMPOUND_REPLY_ID,
-    LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
+    LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID, LP_FEE_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::msg::{AutocompounderExecuteMsg, Cw20HookMsg};
@@ -358,9 +358,9 @@ fn deposit_lp(
 
     let assigned_amount = if !fee_config.deposit.is_zero() {
         let fee = amount * fee_config.deposit;
-        let withdraw_msg = dex.withdraw_liquidity(lp_token.clone().into(), amount)?;
+        let withdraw_msg = dex.withdraw_liquidity(lp_token.clone().into(), fee)?;
         let withdraw_sub_msg = SubMsg {
-            id: LP_WITHDRAWAL_REPLY_ID,
+            id: LP_FEE_WITHDRAWAL_REPLY_ID,
             msg: withdraw_msg,
             gas_limit: None,
             reply_on: ReplyOn::Success,
