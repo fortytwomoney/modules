@@ -1124,7 +1124,7 @@ fn test_lp_deposit() -> AResult {
     let _usd_asset = AssetEntry::new("usd");
     let deposit_fee = Decimal::from_str("0.1")?;
     let one_min_deposit_fee = Decimal::one() - deposit_fee;
-    
+
     let manager_addr = vault.account.manager.address()?;
     vault.auto_compounder.call_as(&manager_addr).execute_app(
         AutocompounderExecuteMsg::UpdateFeeConfig {
@@ -1160,9 +1160,10 @@ fn test_lp_deposit() -> AResult {
     )?;
 
     assert_that!(vault.auto_compounder.total_lp_position().unwrap())
-        .is_equal_to(Uint128::from(100_000u128) * one_min_deposit_fee );
-    assert_that!(vault_token.balance(owner.to_string())?.balance.u128())
-        .is_equal_to(100_000u128 * (Uint128::from(10u128.pow(DECIMAL_OFFSET)) * one_min_deposit_fee).u128() );
+        .is_equal_to(Uint128::from(100_000u128) * one_min_deposit_fee);
+    assert_that!(vault_token.balance(owner.to_string())?.balance.u128()).is_equal_to(
+        100_000u128 * (Uint128::from(10u128.pow(DECIMAL_OFFSET)) * one_min_deposit_fee).u128(),
+    );
 
     Ok(())
 }

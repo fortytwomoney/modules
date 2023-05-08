@@ -6,7 +6,7 @@ use super::helpers::{
 
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, FEE_SWAPPED_REPLY, LP_COMPOUND_REPLY_ID,
-    LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID, LP_FEE_WITHDRAWAL_REPLY_ID,
+    LP_FEE_WITHDRAWAL_REPLY_ID, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::msg::{AutocompounderExecuteMsg, Cw20HookMsg};
@@ -334,7 +334,6 @@ fn deposit_lp(
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let ans_host = app.ans_host(deps.as_ref())?;
-    let mut current_fee_balance = Uint128::zero();
 
     let mut submessages = vec![];
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
@@ -370,12 +369,17 @@ fn deposit_lp(
         submessages.push(withdraw_sub_msg);
 
         // save cached assets
-        let owned_assets = owned_assets(config.pool_data.assets.clone(), &deps, ans_host.clone(), &app)?;
+        let owned_assets = owned_assets(
+            config.pool_data.assets.clone(),
+            &deps,
+            ans_host.clone(),
+            &app,
+        )?;
         for (owned_asset, owned_amount) in owned_assets {
             CACHED_ASSETS.save(deps.storage, owned_asset, &owned_amount)?;
         }
 
-        current_fee_balance = fee_config
+        let current_fee_balance = fee_config
             .fee_asset
             .resolve(&deps.querier, &ans_host)?
             .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())?;
