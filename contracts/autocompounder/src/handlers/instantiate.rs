@@ -158,7 +158,7 @@ pub fn instantiate_handler(
         deposit: deposit_fees,
         withdrawal: withdrawal_fees,
         fee_asset: AssetEntry::from(fee_asset),
-        commission_addr: deps.api.addr_validate(&commission_addr)?,
+        fee_collector_addr: deps.api.addr_validate(&commission_addr)?,
     };
 
     FEE_CONFIG.save(deps.storage, &fee_config)?;
@@ -265,7 +265,7 @@ mod test {
             deposit: Decimal::percent(3),
             withdrawal: Decimal::percent(3),
             fee_asset: "eur".to_string().into(),
-            commission_addr: Addr::unchecked("commission_receiver".to_string()),
+            fee_collector_addr: Addr::unchecked("commission_receiver".to_string()),
         });
         Ok(())
     }

@@ -188,7 +188,7 @@ pub fn deposit(
                     .unwrap_or_default();
 
             let transfer_msg = app.bank(deps.as_ref())
-                .transfer(fees, &fee_config.commission_addr)?;
+                .transfer(fees, &fee_config.fee_collector_addr)?;
             messages.push(transfer_msg);
         }
     }
@@ -345,7 +345,7 @@ fn deposit_lp(
         let fee = amount * fee_config.deposit;
         let transfer_msg = app.bank(deps.as_ref()).transfer(
             vec![AnsAsset::new(AssetEntry::from(lp_token.clone()), fee)],
-            &fee_config.commission_addr,
+            &fee_config.fee_collector_addr,
         )?;
         transfer_msgs.push(transfer_msg);
 

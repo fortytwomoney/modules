@@ -171,7 +171,7 @@ pub struct FeeConfig {
     pub withdrawal: Decimal,
     pub fee_asset: AssetEntry,
     /// Address that receives the fee commissions
-    pub commission_addr: Addr,
+    pub fee_collector_addr: Addr,
 }
 
 #[cosmwasm_schema::cw_serde]

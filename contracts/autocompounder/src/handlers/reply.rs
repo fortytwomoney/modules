@@ -197,7 +197,7 @@ pub fn lp_compound_reply(
         if !fees.is_empty() {
             let transfer_msg = app
                 .bank(deps.as_ref())
-                .transfer(fees.clone(), &fee_config.commission_addr)?;
+                .transfer(fees.clone(), &fee_config.fee_collector_addr)?;
             // let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
             //     fees,
             //     vec![fee_config.fee_asset],

@@ -1170,7 +1170,7 @@ fn test_lp_deposit() -> AResult {
     assert_that!(vault_token.balance(owner.to_string())?.balance.u128())
         .is_equal_to(99_000u128 * 10u128.pow(DECIMAL_OFFSET));
 
-    assert_that!(eur_usd_lp.balance(fee_config.commission_addr.to_string())?.balance.u128())
+    assert_that!(eur_usd_lp.balance(fee_config.fee_collector_addr.to_string())?.balance.u128())
         .is_equal_to(1_000u128);
     Ok(())
 }
