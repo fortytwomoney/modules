@@ -321,9 +321,6 @@ fn deposit_lp(
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let ans_host = app.ans_host(deps.as_ref())?;
-
-    let mut submessages = vec![];
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
     if cw20_sender != config.liquidity_token {
         return Err(AutocompounderError::SenderIsNotLpToken {});
     };
@@ -353,16 +350,6 @@ fn deposit_lp(
         transfer_msgs.push(transfer_msg);
 
         // save cached assets
-        let owned_assets = owned_assets(
-            config.pool_data.assets.clone(),
-            &deps,
-            ans_host.clone(),
-            &app,
-        )?;
-        for (owned_asset, owned_amount) in owned_assets {
-            CACHED_ASSETS.save(deps.storage, owned_asset, &owned_amount)?;
-        }
-
         let current_fee_balance = fee_config
             .fee_asset
             .resolve(&deps.querier, &ans_host)?
@@ -392,8 +379,7 @@ fn deposit_lp(
     Ok(app.custom_tag_response(
         Response::new()
             .add_messages(transfer_msgs)
-            .add_messages(vec![mint_msg, stake_msg])
-            .add_submessages(submessages),
+            .add_messages(vec![mint_msg, stake_msg]),
         "deposit-lp",
         vec![("4t2", "/AC/DepositLP")],
     ))

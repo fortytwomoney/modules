@@ -195,15 +195,18 @@ pub fn lp_compound_reply(
 
         // 3) (swap and) Send fees to treasury
         if !fees.is_empty() {
-            let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
-                fees,
-                vec![fee_config.fee_asset],
-                &dex,
-                FEE_SWAPPED_REPLY,
-                config.max_swap_spread,
-            )?;
-            messages.extend(fee_swap_msgs);
-            submessages.push(fee_swap_submsg);
+            let transfer_msg = app
+                .bank(deps.as_ref())
+                .transfer(fees.clone(), &fee_config.commission_addr)?;
+            // let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
+            //     fees,
+            //     vec![fee_config.fee_asset],
+            //     &dex,
+            //     FEE_SWAPPED_REPLY,
+            //     config.max_swap_spread,
+            // )?;
+            messages.push(transfer_msg);
+            // submessages.push(fee_swap_submsg);
         }
     }
     // 3) Swap rewards to token in pool
