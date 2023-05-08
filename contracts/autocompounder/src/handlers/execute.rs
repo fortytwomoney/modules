@@ -6,7 +6,7 @@ use super::helpers::{
 
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, FEE_SWAPPED_REPLY, LP_COMPOUND_REPLY_ID,
-    LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
+    LP_FEE_WITHDRAWAL_REPLY_ID, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::msg::{AutocompounderExecuteMsg, Cw20HookMsg};
@@ -334,6 +334,7 @@ fn deposit_lp(
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let ans_host = app.ans_host(deps.as_ref())?;
+
     let mut submessages = vec![];
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
     if cw20_sender != config.liquidity_token {
@@ -356,11 +357,11 @@ fn deposit_lp(
     )?;
     let current_vault_supply = cw20_total_supply(deps.as_ref(), &config)?;
 
-    let assigned_amount = if !fee_config.deposit.is_zero() {
+    let amount = if !fee_config.deposit.is_zero() {
         let fee = amount * fee_config.deposit;
-        let withdraw_msg = dex.withdraw_liquidity(lp_token.clone().into(), amount)?;
+        let withdraw_msg = dex.withdraw_liquidity(lp_token.clone().into(), fee)?;
         let withdraw_sub_msg = SubMsg {
-            id: LP_WITHDRAWAL_REPLY_ID,
+            id: LP_FEE_WITHDRAWAL_REPLY_ID,
             msg: withdraw_msg,
             gas_limit: None,
             reply_on: ReplyOn::Success,
@@ -368,17 +369,29 @@ fn deposit_lp(
         submessages.push(withdraw_sub_msg);
 
         // save cached assets
-        let owned_assets = owned_assets(config.pool_data.assets.clone(), &deps, ans_host, &app)?;
+        let owned_assets = owned_assets(
+            config.pool_data.assets.clone(),
+            &deps,
+            ans_host.clone(),
+            &app,
+        )?;
         for (owned_asset, owned_amount) in owned_assets {
             CACHED_ASSETS.save(deps.storage, owned_asset, &owned_amount)?;
         }
+
+        let current_fee_balance = fee_config
+            .fee_asset
+            .resolve(&deps.querier, &ans_host)?
+            .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())?;
+
+        CACHED_FEE_AMOUNT.save(deps.storage, &current_fee_balance)?;
 
         amount - fee
     } else {
         amount
     };
 
-    let mint_amount = convert_to_shares(assigned_amount, staked_lp, current_vault_supply);
+    let mint_amount = convert_to_shares(amount, staked_lp, current_vault_supply);
     if mint_amount.is_zero() {
         return Err(AutocompounderError::ZeroMintAmount {});
     }

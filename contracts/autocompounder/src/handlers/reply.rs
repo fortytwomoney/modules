@@ -357,6 +357,7 @@ pub fn lp_fee_withdrawal_reply(
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
+
     let ans_host = app.ans_host(deps.as_ref())?;
     let proxy_address = app.proxy_address(deps.as_ref())?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex);

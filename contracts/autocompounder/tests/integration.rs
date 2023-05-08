@@ -1122,6 +1122,18 @@ fn test_lp_deposit() -> AResult {
     let _auto_compounder_addr = vault.auto_compounder.addr_str().unwrap();
     let _eur_asset = AssetEntry::new("eur");
     let _usd_asset = AssetEntry::new("usd");
+    let deposit_fee = Decimal::from_str("0.1")?;
+    let one_min_deposit_fee = Decimal::one() - deposit_fee;
+
+    let manager_addr = vault.account.manager.address()?;
+    vault.auto_compounder.call_as(&manager_addr).execute_app(
+        AutocompounderExecuteMsg::UpdateFeeConfig {
+            performance: Some(Decimal::zero()),
+            deposit: Some(deposit_fee),
+            withdrawal: Some(Decimal::from_str("0.1")?),
+        },
+        None,
+    )?;
 
     // check config setup
     let config: Config = vault.auto_compounder.config().unwrap();
@@ -1147,10 +1159,11 @@ fn test_lp_deposit() -> AResult {
         to_binary(&Cw20HookMsg::DepositLp {})?,
     )?;
 
-    assert_that!(vault.auto_compounder.total_lp_position().unwrap().u128())
-        .is_equal_to(100_000u128);
-    assert_that!(vault_token.balance(owner.to_string())?.balance.u128())
-        .is_equal_to(100_000u128 * 10u128.pow(DECIMAL_OFFSET));
+    assert_that!(vault.auto_compounder.total_lp_position().unwrap())
+        .is_equal_to(Uint128::from(100_000u128) * one_min_deposit_fee);
+    assert_that!(vault_token.balance(owner.to_string())?.balance.u128()).is_equal_to(
+        100_000u128 * (Uint128::from(10u128.pow(DECIMAL_OFFSET)) * one_min_deposit_fee).u128(),
+    );
 
     Ok(())
 }
