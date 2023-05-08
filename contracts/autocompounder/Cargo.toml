@@ -55,6 +55,7 @@ abstract-boot = { workspace = true, optional = true }
 boot-core = { workspace = true, optional = true }
 abstract-core = { workspace = true }
 anyhow = { workspace = true, optional = true }
+semver = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
 # forty-two = { workspace = true, features = ["boot"] }
@@ -78,7 +79,6 @@ cw-multi-test = { workspace = true }
 anyhow = { workspace = true }
 rstest = { workspace = true }
 speculoos = { workspace = true }
-semver = { workspace = true, features = ["serde"] }
 tokio = { workspace = true }
 dotenv = { workspace = true }
 env_logger = { workspace = true }

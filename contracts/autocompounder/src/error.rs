@@ -79,4 +79,10 @@ pub enum AutocompounderError {
 
     #[error("Zero deposit amount is not allowed")]
     ZeroDepositAmount {},
+
+    #[error("Contract version has a lower version than the one you want to migrate to. Storage version: {storage_version:?}, migrate version: {version:?}")]
+    InvalidContractVersion {
+        storage_version: String,
+        version: String,
+    },
 }
