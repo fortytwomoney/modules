@@ -1159,10 +1159,10 @@ fn test_lp_deposit() -> AResult {
         to_binary(&Cw20HookMsg::DepositLp {})?,
     )?;
 
-    assert_that!(vault.auto_compounder.total_lp_position().unwrap().u128())
-        .is_equal_to(100_000u128);
+    assert_that!(vault.auto_compounder.total_lp_position().unwrap())
+        .is_equal_to(Uint128::from(100_000u128) * one_min_deposit_fee );
     assert_that!(vault_token.balance(owner.to_string())?.balance.u128())
-        .is_equal_to(100_000u128 * 10u128.pow(DECIMAL_OFFSET).checked_mul(one_min_deposit_fee)?);
+        .is_equal_to(100_000u128 * (Uint128::from(10u128.pow(DECIMAL_OFFSET)) * one_min_deposit_fee).u128() );
 
     Ok(())
 }
