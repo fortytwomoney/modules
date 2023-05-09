@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Array_of_AssetEntry",
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/AssetEntry"
+  },
+  "definitions": {
+    "AssetEntry": {
+      "description": "May key to retrieve information on an asset",
+      "type": "string"
+    }
+  }
+}

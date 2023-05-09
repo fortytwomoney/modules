@@ -286,6 +286,8 @@ checksum = "5b9f25c0a7f44c6453e53ee64960833dce7fffc680c880e0d40e1ab06e304876"
 dependencies = [
  "abstract-core",
  "abstract-macros",
+ "abstract-testing",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cw-asset",
  "cw-controllers 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1995,6 +1997,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e51093e27b0797c359783294ca4f0a911c270184cb10f85783b118614a1501be"
 dependencies = [
  "instant",
+]
+
+[[package]]
+name = "fee-collector-app"
+version = "0.0.1"
+dependencies = [
+ "abstract-app",
+ "abstract-boot",
+ "abstract-core",
+ "abstract-cw-staking-api",
+ "abstract-dex-api",
+ "abstract-sdk",
+ "abstract-testing",
+ "anyhow",
+ "boot-core",
+ "boot-cw-plus",
+ "clap",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-asset",
+ "cw-controllers 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cw-multi-test",
+ "cw-storage-plus 1.0.1",
+ "cw20 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cw20-base 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dotenv",
+ "env_logger",
+ "fee-collector-app",
+ "protobuf",
+ "schemars",
+ "semver",
+ "speculoos",
+ "thiserror",
+ "tokio",
+ "wyndex-bundle",
 ]
 
 [[package]]
