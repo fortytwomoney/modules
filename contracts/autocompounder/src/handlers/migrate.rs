@@ -29,3 +29,35 @@ pub fn migrate_handler(
     }
     Ok(Response::default())
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{contract::AUTOCOMPOUNDER_APP, msg::MigrateMsg};
+    use abstract_sdk::base::MigrateEndpoint;
+    use abstract_sdk::core as abstract_core;
+    use abstract_testing::prelude::TEST_MANAGER;
+    const ASTROPORT: &str = "astroport";
+    const COMMISSION_RECEIVER: &str = "commission_receiver";
+    use crate::test_common::app_init;
+    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cw_asset::AssetInfo;
+    use speculoos::{assert_that, result::ResultAssertions};
+
+    use super::*;
+
+    fn execute_as_manager(
+        deps: DepsMut,
+        msg: impl Into<MigrateMsg>,
+    ) -> Result<Response, AutocompounderError> {
+        let info = mock_info(TEST_MANAGER, &[]);
+        AUTOCOMPOUNDER_APP.migrate(deps, mock_env(), msg.into())
+    }
+
+    #[test]
+    fn test_migration() -> anyhow::Result<()> {
+        let mut deps = app_init(false);
+        let msg = AutocompounderMigrateMsg {};
+        execute_as_manager(deps.as_mut(), msg)?;
+        Ok(())
+    }
+}
