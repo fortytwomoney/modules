@@ -27,7 +27,7 @@ pub type FeeCollectorApp = AppContract<
     Cw20ReceiveMsg,
 >;
 
-const TEMPLATE_APP: FeeCollectorApp = FeeCollectorApp::new(FEE_COLLECTOR, MODULE_VERSION, None)
+pub const FEE_COLLECTOR_APP: FeeCollectorApp = FeeCollectorApp::new(FEE_COLLECTOR, MODULE_VERSION, None)
     .with_instantiate(handlers::instantiate_handler)
     .with_execute(handlers::execute_handler)
     .with_query(handlers::query_handler)
@@ -41,4 +41,4 @@ const TEMPLATE_APP: FeeCollectorApp = FeeCollectorApp::new(FEE_COLLECTOR, MODULE
 
 // Export handlers
 #[cfg(feature = "export")]
-abstract_app::export_endpoints!(TEMPLATE_APP, FeeCollectorApp);
+abstract_app::export_endpoints!(FEE_COLLECTOR_APP, FeeCollectorApp);

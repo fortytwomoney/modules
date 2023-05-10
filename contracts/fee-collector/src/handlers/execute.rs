@@ -91,6 +91,11 @@ fn add_allowed_assets(
 ) -> FeeCollectorResult {
     // Only the admin should be able to call this
     app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
+
+    if assets.is_empty() {
+        return Err(crate::error::FeeCollectorError::NoAssetsProvided {  });
+    }
+
     let mut supported_assets = ALLOWED_ASSETS.load(deps.storage)?;
     let config = CONFIG.load(deps.storage)?;
 

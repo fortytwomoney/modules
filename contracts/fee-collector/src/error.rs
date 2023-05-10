@@ -64,4 +64,7 @@ pub enum FeeCollectorError {
 
     #[error("The provided asset is the fee asset and cannot be added to the allowed assets")]
     FeeAssetNotAllowed {},
+
+    #[error("No assets were provided")]
+    NoAssetsProvided {},
 }

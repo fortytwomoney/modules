@@ -216,6 +216,13 @@ fn test_update_config() -> AResult {
         .add_allowed_assets(vec![eur_asset.clone(), usd_asset.clone()])
         .unwrap_err();
 
+    // Adding no assets is not allowed
+    let _err = app
+        .fee_collector
+        .call_as(&app.account.manager.address()?)
+        .add_allowed_assets(vec![])
+        .unwrap_err();
+
     // Adding non fee assets
     app.fee_collector
         .call_as(&app.account.manager.address()?)
