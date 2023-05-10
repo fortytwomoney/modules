@@ -42,7 +42,7 @@ pub fn instantiate_handler(
         commission_addr,
         code_id,
         dex,
-        pool_assets,
+        mut pool_assets,
         preferred_bonding_period,
         max_swap_spread,
     } = msg;
@@ -54,6 +54,8 @@ pub fn instantiate_handler(
     if pool_assets.len() > 2 {
         return Err(AutocompounderError::PoolWithMoreThanTwoAssets {});
     }
+
+    pool_assets.sort();
 
     // verify that pool assets are valid
     pool_assets.resolve(&deps.querier, &ans_host)?;
@@ -132,7 +134,10 @@ pub fn instantiate_handler(
     );
     let mut pool_references = pairing.resolve(&deps.querier, &ans_host)?;
     let pool_reference: PoolReference = pool_references.swap_remove(0);
-    let pool_data = pool_reference.unique_id.resolve(&deps.querier, &ans_host)?;
+    // get the pool data
+    let mut pool_data = pool_reference.unique_id.resolve(&deps.querier, &ans_host)?;
+
+    pool_data.assets.sort();
 
     let resolved_pool_assets = pool_data.assets.resolve(&deps.querier, &ans_host)?;
 

@@ -48,8 +48,8 @@ thiserror = { version = "1.0.21" }
 
 abstract-app = { version = "0.14" }
 abstract-sdk = { version = "0.14" }
-abstract-dex-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.2", default-features = false }
-abstract-cw-staking-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.2", default-features = false }
+abstract-dex-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.3", default-features = false }
+abstract-cw-staking-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.3", default-features = false }
 forty-two = { workspace = true }
 abstract-boot = { workspace = true, optional = true }
 boot-core = { workspace = true, optional = true }
@@ -61,18 +61,18 @@ anyhow = { workspace = true, optional = true }
 wyndex-bundle = { git = "https://github.com/AbstractSDK/integration-bundles.git", tag = "v0.3.1" }
 wyndex-stake = { git = "https://github.com/cosmorama/wynddex.git", rev = "v1.1.2" }
 autocompounder = { path = ".", features = ["boot"] }
-abstract-dex-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.2", features = [
+abstract-dex-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.3", features = [
   "juno",
   "boot",
 ] }
-abstract-cw-staking-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.2", features = [
+abstract-cw-staking-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.3", features = [
   "juno",
   "boot",
 ] }
 abstract-boot = { workspace = true, features = ["daemon"] }
 abstract-testing = { workspace = true }
 boot-cw-plus = { workspace = true }
-abstract-core = { workpsace = true }
+abstract-core = { workspace = true }
 
 cw-multi-test = { workspace = true }
 anyhow = { workspace = true }

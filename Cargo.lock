@@ -142,7 +142,7 @@ dependencies = [
 [[package]]
 name = "abstract-cw-staking-api"
 version = "0.14.2"
-source = "git+https://github.com/AbstractSDK/apis.git?tag=v0.14.2#3589f990a4f651aa77db2f45773ef130e89f931f"
+source = "git+https://github.com/AbstractSDK/apis.git?tag=v0.14.3#90de87388c4f5c50d8a85ad6e89e734383fdfd1a"
 dependencies = [
  "abstract-api",
  "abstract-boot",
@@ -169,7 +169,7 @@ dependencies = [
 [[package]]
 name = "abstract-dex-api"
 version = "0.14.2"
-source = "git+https://github.com/AbstractSDK/apis.git?tag=v0.14.2#3589f990a4f651aa77db2f45773ef130e89f931f"
+source = "git+https://github.com/AbstractSDK/apis.git?tag=v0.14.3#90de87388c4f5c50d8a85ad6e89e734383fdfd1a"
 dependencies = [
  "abstract-api",
  "abstract-boot",
@@ -477,7 +477,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "autocompounder"
-version = "0.4.0"
+version = "0.4.3"
 dependencies = [
  "abstract-app",
  "abstract-boot",
@@ -2058,7 +2058,7 @@ dependencies = [
 
 [[package]]
 name = "forty-two"
-version = "0.4.0"
+version = "0.4.3"
 dependencies = [
  "abstract-dex-api",
  "abstract-sdk",
@@ -3567,7 +3567,7 @@ checksum = "1792db035ce95be60c3f8853017b3999209281c24e2ba5bc8e59bf97a0c590c1"
 
 [[package]]
 name = "scripts"
-version = "0.4.0"
+version = "0.4.3"
 dependencies = [
  "abstract-boot",
  "abstract-core",
