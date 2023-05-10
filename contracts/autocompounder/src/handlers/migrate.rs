@@ -32,32 +32,40 @@ pub fn migrate_handler(
 
 #[cfg(test)]
 mod test {
-    use crate::{contract::AUTOCOMPOUNDER_APP, msg::MigrateMsg};
-    use abstract_sdk::base::MigrateEndpoint;
-    use abstract_sdk::core as abstract_core;
-    use abstract_testing::prelude::TEST_MANAGER;
-    const ASTROPORT: &str = "astroport";
-    const COMMISSION_RECEIVER: &str = "commission_receiver";
+    
+
     use crate::test_common::app_init;
-    use cosmwasm_std::testing::{mock_env, mock_info};
-    use cw_asset::AssetInfo;
-    use speculoos::{assert_that, result::ResultAssertions};
+    use crate::{contract::AUTOCOMPOUNDER_APP};
+    
+    
+    use cw2::CONTRACT;
+
+    use cosmwasm_std::testing::{mock_env};
 
     use super::*;
 
-    fn execute_as_manager(
-        deps: DepsMut,
-        msg: impl Into<MigrateMsg>,
-    ) -> Result<Response, AutocompounderError> {
-        let info = mock_info(TEST_MANAGER, &[]);
-        AUTOCOMPOUNDER_APP.migrate(deps, mock_env(), msg.into())
-    }
-
     #[test]
-    fn test_migration() -> anyhow::Result<()> {
+    fn test_migration_version() -> anyhow::Result<()> {
         let mut deps = app_init(false);
+        let prev_version = cw2::ContractVersion {
+            contract: "4t2:autocompounder".to_string(),
+            version: "0.4.0".to_string(),
+        };
+
+        CONTRACT.save(deps.as_mut().storage, &prev_version)?;
         let msg = AutocompounderMigrateMsg {};
-        execute_as_manager(deps.as_mut(), msg)?;
+        // version of new contract is equal to the version of the contract in storage -> fail
+        let _err = migrate_handler(deps.as_mut(), mock_env(), AUTOCOMPOUNDER_APP, msg.clone())
+            .unwrap_err();
+
+        let prev_version = cw2::ContractVersion {
+            contract: "4t2:autocompounder".to_string(),
+            version: "0.3.0".to_string(),
+        };
+        CONTRACT.save(deps.as_mut().storage, &prev_version)?;
+        // version of new contract is greater than the version of the contract in storage -> success
+        migrate_handler(deps.as_mut(), mock_env(), AUTOCOMPOUNDER_APP, msg)?;
+
         Ok(())
     }
 }
