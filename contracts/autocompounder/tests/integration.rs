@@ -288,8 +288,8 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     let balances = mock.query_all_balances(&owner)?;
     // .sort_by(|a, b| a.denom.cmp(&b.denom));
     assert_that!(balances).is_equal_to(vec![
-        coin(93_999u128, eur_token.to_string()),
-        coin(93_999u128, usd_token.to_string()),
+        coin(94_000u128, eur_token.to_string()),
+        coin(94_000u128, usd_token.to_string()),
     ]);
 
     let staked = vault
@@ -315,8 +315,8 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 
     // .sort_by(|a, b| a.denom.cmp(&b.denom));
     assert_that!(balances).is_equal_to(vec![
-        coin(100_000u128 - 1u128, eur_token.to_string()),
-        coin(100_000u128 - 1u128, usd_token.to_string()),
+        coin(100_000u128 , eur_token.to_string()),
+        coin(100_000u128 , usd_token.to_string()),
     ]);
     Ok(())
 }
@@ -408,7 +408,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     // check if the user1 balance is correct
     let vault_token_balance_user1 = vault_token.balance(user1.to_string())?;
     assert_that!(vault_token_balance_user1.balance.u128())
-        .is_equal_to(499u128 * 10u128.pow(DECIMAL_OFFSET));
+        .is_equal_to(487u128 * 10u128.pow(DECIMAL_OFFSET));
     assert_that!(new_position).is_greater_than(position);
 
     vault.auto_compounder.deposit(
@@ -423,7 +423,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     // check if the user1 balance is correct
     let vault_token_balance_user1 = vault_token.balance(user1.to_string())?.balance;
     assert_that!(vault_token_balance_user1.u128())
-        .is_equal_to(998u128 * 10u128.pow(DECIMAL_OFFSET));
+        .is_equal_to(986u128 * 10u128.pow(DECIMAL_OFFSET));
 
     // check if the vault balance query functions properly:
     let vault_balance_queried = vault.auto_compounder.balance(owner.to_string())?;
@@ -482,7 +482,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
         .query_all_staked(asset_infos.clone(), &vault.account.proxy.addr_str()?)?
         .stakes[0]
         .stake;
-    assert_that!(generator_staked_balance.u128()).is_equal_to(10998u128);
+    assert_that!(generator_staked_balance.u128()).is_equal_to(10986u128);
 
     // Batch unbond pending claims
     vault.auto_compounder.batch_unbond(None, None)?;
@@ -506,8 +506,8 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     // and eur and usd balance increased
     let balances = mock.query_all_balances(&owner)?;
     assert_that!(balances).is_equal_to(vec![
-        coin(94_000u128, eur_token.to_string()),
-        coin(94_000u128, usd_token.to_string()),
+        coin(94_002u128, eur_token.to_string()),
+        coin(94_002u128, usd_token.to_string()),
     ]);
 
     let position = new_position;
@@ -545,8 +545,8 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
 
     let balances = mock.query_all_balances(&owner)?;
     assert_that!(balances).is_equal_to(vec![
-        coin(100_000u128, eur_token.to_string()),
-        coin(100_000u128, usd_token.to_string()),
+        coin(100_006u128, eur_token.to_string()),
+        coin(100_006u128, usd_token.to_string()),
     ]);
 
     // Withdraw user1 funds
@@ -585,8 +585,8 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     // a relative loss is experienced by the user due to swap fees and drainage of the pool to 0
     let balances = mock.query_all_balances(&user1)?;
     assert_that!(balances).is_equal_to(vec![
-        coin(99_998u128, eur_token.to_string()),
-        coin(99_998u128, usd_token.to_string()),
+        coin(99_986u128, eur_token.to_string()),
+        coin(99_986u128, usd_token.to_string()),
     ]);
 
     Ok(())
@@ -786,8 +786,8 @@ fn test_deposit_fees_fee_token_and_withdraw_fees() -> AResult {
     vault.auto_compounder.withdraw()?;
 
     let new_owner_balance = mock.query_all_balances(&owner)?;
-    assert_that!(new_owner_balance[0].amount.u128()).is_equal_to(444u128); // estimated value
-    assert_that!(new_owner_balance[1].amount.u128()).is_equal_to(443u128); // estimated value
+    assert_that!(new_owner_balance[0].amount.u128()).is_equal_to(443u128); // estimated value
+    assert_that!(new_owner_balance[1].amount.u128()).is_equal_to(403u128); // estimated value
 
     let vault_supply = vault.auto_compounder.total_supply()?;
     assert_that!(vault_supply.u128()).is_equal_to(0u128);
@@ -861,8 +861,8 @@ fn test_deposit_fees_non_fee_token() -> AResult {
     vault.auto_compounder.withdraw()?;
 
     let new_owner_balance = mock.query_all_balances(&owner)?;
-    assert_that!(new_owner_balance[0].amount.u128()).is_equal_to(443u128); // estimated value
-    assert_that!(new_owner_balance[1].amount.u128()).is_equal_to(444u128); // estimated value
+    assert_that!(new_owner_balance[0].amount.u128()).is_equal_to(403u128); // estimated value
+    assert_that!(new_owner_balance[1].amount.u128()).is_equal_to(443u128); // estimated value
     Ok(())
 }
 

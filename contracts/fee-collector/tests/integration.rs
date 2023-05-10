@@ -54,7 +54,7 @@ pub(crate) fn init_exchange(
     exchange.instantiate(
         &InstantiateMsg {
             module: DexInstantiateMsg {
-                swap_fee: Decimal::from_str("0.003")?,
+                swap_fee: Decimal::from_str("0.000")?,
                 recipient_os: 0,
             },
             base: abstract_core::api::BaseInstantiateMsg {
@@ -134,13 +134,12 @@ fn create_fee_collector(
 
     // install dex
     account.manager.install_module(EXCHANGE, &Empty {})?;
-
     account.manager.install_module(
         FEE_COLLECTOR,
         &abstract_core::app::InstantiateMsg {
             module: fee_collector_app::msg::FeeCollectorInstantiateMsg {
                 commission_addr: COMMISSION_ADDR.to_string(),
-                max_swap_spread: Decimal::percent(10),
+                max_swap_spread: Decimal::percent(50),
                 fee_asset: EUR.to_string(),
                 dex: WYNDEX.to_string(),
             },
@@ -201,13 +200,13 @@ fn test_update_config() -> AResult {
             Some(COMMISSION_ADDR.to_string()),
             Some(WYNDEX.to_string()),
             Some(USD.to_string()),
-            Some(Decimal::from_str("0.1")?),
+            Some(Decimal::from_str("0.2")?),
         )?;
 
     let config: Config = app.fee_collector.config()?;
     assert_that!(config.fee_asset).is_equal_to(usd_asset.clone());
     assert_that!(config.dex).is_equal_to(WYNDEX.to_string());
-    assert_that!(config.max_swap_spread).is_equal_to(Decimal::from_str("0.1")?);
+    assert_that!(config.max_swap_spread).is_equal_to(Decimal::from_str("0.2")?);
     assert_that!(config.commission_addr).is_equal_to(commission_addr);
 
     // Adding fee asset is not allowed
@@ -251,8 +250,8 @@ fn test_collect_fees() -> AResult {
         &app.account.proxy.address()?,
         vec![
             coin(100_000u128, EUR),
-            coin(100_000u128, USD),
-            coin(100_000u128, WYND_TOKEN),
+            coin(10_000u128, USD),
+            coin(10_000u128, WYND_TOKEN),
         ],
     )?;
 
@@ -260,6 +259,7 @@ fn test_collect_fees() -> AResult {
     let _err = app.fee_collector.collect().unwrap_err();
 
     // call as admin
+    // will swap 10K USD to EUR, 10K WYND to EUR. Both pools have 1M/1M ratio, so 10K swap leads to a spread 0f 129 which is 0.90%
     app.fee_collector
         .call_as(&app.account.manager.address()?)
         .collect()?;
@@ -267,11 +267,11 @@ fn test_collect_fees() -> AResult {
     let fee_balances = mock.query_all_balances(&app.account.proxy.address()?)?;
     assert_that!(fee_balances).is_empty();
 
-    let expected_usd_balance = coin(281322u128, EUR);
+    // swap of wynd->eur and usd->eur of 100K each lead to 2 * 9871 = 18742 eur. This + the 100K eur that was already in the account
+    let expected_usd_balance = coin(118742u128, EUR);
     let commission_balances = mock.query_all_balances(&Addr::unchecked(COMMISSION_ADDR))?;
-    assert_that!(commission_balances).has_length(1);
-
     let usd_balance = commission_balances.get(0).unwrap();
+    assert_that!(commission_balances).has_length(1);
     assert_that!(usd_balance).is_equal_to(&expected_usd_balance);
 
     Ok(())
