@@ -1,12 +1,12 @@
 use super::convert_to_shares;
 use super::helpers::{
     check_fee, convert_to_assets, cw20_total_supply, mint_vault_tokens, query_stake,
-    stake_lp_tokens, swap_rewards_with_reply,
+    stake_lp_tokens, 
 };
 
 use crate::contract::{
-    AutocompounderApp, AutocompounderResult, FEE_SWAPPED_REPLY, LP_COMPOUND_REPLY_ID,
-    LP_FEE_WITHDRAWAL_REPLY_ID, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
+    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID,
+    LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::msg::{AutocompounderExecuteMsg, Cw20HookMsg};

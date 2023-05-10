@@ -1122,7 +1122,6 @@ fn test_lp_deposit() -> AResult {
     let _eur_asset = AssetEntry::new("eur");
     let _usd_asset = AssetEntry::new("usd");
     let deposit_fee = Decimal::from_str("0.1")?;
-    let one_min_deposit_fee = Decimal::one() - deposit_fee;
 
     let manager_addr = vault.account.manager.address()?;
     vault.auto_compounder.call_as(&manager_addr).execute_app(

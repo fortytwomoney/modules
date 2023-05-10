@@ -267,7 +267,7 @@ fn test_collect_fees() -> AResult {
     let fee_balances = mock.query_all_balances(&app.account.proxy.address()?)?;
     assert_that!(fee_balances).is_empty();
 
-    // swap of wynd->eur and usd->eur of 100K each lead to 2 * 909 = 1818 eur. This + the 1K eur that was already in the account
+    // swap of wynd->eur and usd->eur of 1K each lead to 2 * 909 = 1818 eur. This + the 1K eur that was already in the account
     let expected_usd_balance = coin(2818u128, EUR);
     let commission_balances = mock.query_all_balances(&Addr::unchecked(COMMISSION_ADDR))?;
     let usd_balance = commission_balances.get(0).unwrap();
