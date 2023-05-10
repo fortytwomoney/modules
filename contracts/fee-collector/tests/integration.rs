@@ -139,7 +139,7 @@ fn create_fee_collector(
         &abstract_core::app::InstantiateMsg {
             module: fee_collector_app::msg::FeeCollectorInstantiateMsg {
                 commission_addr: COMMISSION_ADDR.to_string(),
-                max_swap_spread: Decimal::percent(50),
+                max_swap_spread: Decimal::percent(25),
                 fee_asset: EUR.to_string(),
                 dex: WYNDEX.to_string(),
             },
@@ -249,9 +249,9 @@ fn test_collect_fees() -> AResult {
     mock.set_balance(
         &app.account.proxy.address()?,
         vec![
-            coin(100_000u128, EUR),
-            coin(10_000u128, USD),
-            coin(10_000u128, WYND_TOKEN),
+            coin(1_000u128, EUR),
+            coin(1_000u128, USD),
+            coin(1_000u128, WYND_TOKEN),
         ],
     )?;
 
@@ -259,7 +259,7 @@ fn test_collect_fees() -> AResult {
     let _err = app.fee_collector.collect().unwrap_err();
 
     // call as admin
-    // will swap 10K USD to EUR, 10K WYND to EUR. Both pools have 1M/1M ratio, so 10K swap leads to a spread 0f 129 which is 0.90%
+    // will swap 1K USD to EUR, 1K WYND to EUR. Both pools have 10K/10K ratio, so 10K swap leads to a spread 0f 129 which is 0.90%
     app.fee_collector
         .call_as(&app.account.manager.address()?)
         .collect()?;
@@ -267,8 +267,8 @@ fn test_collect_fees() -> AResult {
     let fee_balances = mock.query_all_balances(&app.account.proxy.address()?)?;
     assert_that!(fee_balances).is_empty();
 
-    // swap of wynd->eur and usd->eur of 100K each lead to 2 * 9871 = 18742 eur. This + the 100K eur that was already in the account
-    let expected_usd_balance = coin(118742u128, EUR);
+    // swap of wynd->eur and usd->eur of 100K each lead to 2 * 909 = 1818 eur. This + the 1K eur that was already in the account
+    let expected_usd_balance = coin(2818u128, EUR);
     let commission_balances = mock.query_all_balances(&Addr::unchecked(COMMISSION_ADDR))?;
     let usd_balance = commission_balances.get(0).unwrap();
     assert_that!(commission_balances).has_length(1);
