@@ -79,53 +79,10 @@ pub fn instantiate_handler(
     // get staking info
     let staking_info = query_staking_info(deps.as_ref(), &app, lp_token.into(), dex.clone())?;
     let (unbonding_period, min_unbonding_cooldown) =
-        if let (max_claims, Some(mut unbonding_periods)) =
-            (staking_info.max_claims, staking_info.unbonding_periods)
-        {
-            if !(unbonding_periods
-                .iter()
-                .all(|x| matches!(x, Duration::Height(_))))
-                && !(unbonding_periods
-                    .iter()
-                    .all(|x| matches!(x, Duration::Time(_))))
-            {
-                return Err(AutocompounderError::Std(StdError::generic_err(
-                    "Unbonding periods are not all heights or all times",
-                )));
-            }
-
-            unbonding_periods.sort_by(|a, b| {
-                if let (Duration::Height(a), Duration::Height(b)) = (a, b) {
-                    a.cmp(b)
-                } else if let (Duration::Time(a), Duration::Time(b)) = (a, b) {
-                    a.cmp(b)
-                } else {
-                    unreachable!()
-                } // This part is unreachable because of the check above
-            });
-
-            let unbonding_duration = match preferred_bonding_period {
-                BondingPeriodSelector::Shortest => *unbonding_periods.first().unwrap(),
-                BondingPeriodSelector::Longest => *unbonding_periods.last().unwrap(),
-                BondingPeriodSelector::Custom(duration) => {
-                    // check if the duration is in the unbonding periods
-                    if unbonding_periods.contains(&duration) {
-                        duration
-                    } else {
-                        return Err(AutocompounderError::Std(StdError::generic_err(
-                            "Custom bonding period is not in the dex's unbonding periods",
-                        )));
-                    }
-                }
-            };
-            let min_unbonding_cooldown = max_claims.map(|max| match &unbonding_duration {
-                Duration::Height(block) => Duration::Height(block.saturating_div(max.into())),
-                Duration::Time(secs) => Duration::Time(secs.saturating_div(max.into())),
-            });
-            (Some(unbonding_duration), min_unbonding_cooldown)
-        } else {
-            (None, None)
-        };
+        get_unbonding_period_and_min_unbonding_cooldown(
+            staking_info.clone(),
+            preferred_bonding_period,
+        )?;
 
     let pairing = DexAssetPairing::new(
         pool_assets_slice[0].clone(),
@@ -235,6 +192,59 @@ pub fn query_staking_info(
         ))
     })?;
     Ok(res)
+}
+
+pub fn get_unbonding_period_and_min_unbonding_cooldown(
+    staking_info: StakingInfoResponse,
+    preferred_bonding_period: BondingPeriodSelector,
+) -> Result<(Option<Duration>, Option<Duration>), AutocompounderError> {
+    if let (max_claims, Some(mut unbonding_periods)) =
+        (staking_info.max_claims, staking_info.unbonding_periods)
+    {
+        if !(unbonding_periods
+            .iter()
+            .all(|x| matches!(x, Duration::Height(_))))
+            && !(unbonding_periods
+                .iter()
+                .all(|x| matches!(x, Duration::Time(_))))
+        {
+            return Err(AutocompounderError::Std(StdError::generic_err(
+                "Unbonding periods are not all heights or all times",
+            )));
+        }
+
+        unbonding_periods.sort_by(|a, b| {
+            if let (Duration::Height(a), Duration::Height(b)) = (a, b) {
+                a.cmp(b)
+            } else if let (Duration::Time(a), Duration::Time(b)) = (a, b) {
+                a.cmp(b)
+            } else {
+                unreachable!()
+            } // This part is unreachable because of the check above
+        });
+
+        let unbonding_duration = match preferred_bonding_period {
+            BondingPeriodSelector::Shortest => *unbonding_periods.first().unwrap(),
+            BondingPeriodSelector::Longest => *unbonding_periods.last().unwrap(),
+            BondingPeriodSelector::Custom(duration) => {
+                // check if the duration is in the unbonding periods
+                if unbonding_periods.contains(&duration) {
+                    duration
+                } else {
+                    return Err(AutocompounderError::Std(StdError::generic_err(
+                        "Custom bonding period is not in the dex's unbonding periods",
+                    )));
+                }
+            }
+        };
+        let min_unbonding_cooldown = max_claims.map(|max| match &unbonding_duration {
+            Duration::Height(block) => Duration::Height(block.saturating_div(max.into())),
+            Duration::Time(secs) => Duration::Time(secs.saturating_div(max.into())),
+        });
+        Ok((Some(unbonding_duration), min_unbonding_cooldown))
+    } else {
+        Ok((None, None))
+    }
 }
 
 #[cfg(test)]

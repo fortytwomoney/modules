@@ -173,7 +173,10 @@ mod test_common {
                         let resp = StakingInfoResponse {
                             staking_contract_address: Addr::unchecked("staking_addr"),
                             staking_token: AssetInfo::cw20(Addr::unchecked("usd_eur_lp")),
-                            unbonding_periods: Some(vec![Duration::Time(3600)]),
+                            unbonding_periods: Some(vec![
+                                Duration::Time(3600),
+                                Duration::Time(7200),
+                            ]),
                             max_claims: None,
                         };
                         Ok(to_binary(&resp).unwrap())
