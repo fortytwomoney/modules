@@ -57,7 +57,6 @@ boot-cw-plus = { git = "https://github.com/AbstractSDK/cw-orchestrator.git", tag
 
 abstract-boot = { version = "0.14", optional = true }
 abstract-dex-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.2", default-features = false }
-abstract-cw-staking-api = { git = "https://github.com/AbstractSDK/apis.git", tag = "v0.14.2", default-features = false }
 cw-multi-test = "0.16"
 
 [dev-dependencies]

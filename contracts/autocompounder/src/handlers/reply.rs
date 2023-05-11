@@ -31,7 +31,7 @@ use cosmwasm_std::{
 use cw_asset::{Asset, AssetInfo};
 use protobuf::Message;
 
-/// Handle a relpy for the [`INSTANTIATE_REPLY_ID`] reply.
+/// Handle a reply for the [`INSTANTIATE_REPLY_ID`] reply.
 pub fn instantiate_reply(
     deps: DepsMut,
     _env: Env,
@@ -72,10 +72,10 @@ pub fn lp_provision_reply(
     let ans_host = app.ans_host(deps.as_ref())?;
     CACHED_USER_ADDR.remove(deps.storage);
 
-    // 1) get the total supply of Vault token
+    // get the total supply of Vault token
     let current_vault_supply = cw20_total_supply(deps.as_ref(), &config)?;
 
-    // 2) Retrieve the number of LP tokens minted/staked.
+    // Retrieve the number of LP tokens minted/staked.
     let lp_token = LpToken::from(config.pool_data.clone());
     let received_lp = lp_token
         .resolve(&deps.querier, &ans_host)?
@@ -93,16 +93,16 @@ pub fn lp_provision_reply(
     )?;
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
-    // 3) Calculate the number of vault tokens to mint
+    // Calculate the number of vault tokens to mint
     let mint_amount = convert_to_shares(user_allocated_lp, staked_lp, current_vault_supply);
     if mint_amount.is_zero() {
         return Err(AutocompounderError::ZeroMintAmount {});
     }
 
-    // 4) Mint vault tokens to the user
+    // Mint vault tokens to the user
     let mint_msg = mint_vault_tokens(&config, user_address, mint_amount)?;
 
-    // 5) Stake the LP tokens
+    // Stake the LP tokens
     let stake_msg = stake_lp_tokens(
         deps.as_ref(),
         &app,
@@ -169,10 +169,10 @@ pub fn lp_compound_reply(
 
     let mut messages = vec![];
     let mut submessages = vec![];
-    // 1) claim rewards (this happened in the execution before this reply)
+    // claim rewards (this happened in the execution before this reply)
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
 
-    // 2.1) query the rewards and filters out zero rewards
+    // query the rewards and filters out zero rewards
     let mut rewards = get_staking_rewards(deps.as_ref(), &app, &config)?;
 
     if rewards.is_empty() {
@@ -180,7 +180,7 @@ pub fn lp_compound_reply(
     }
 
     if !fee_config.performance.is_zero() {
-        // 2) deduct fee from rewards
+        // deduct fee from rewards
         let fees = rewards
             .iter_mut()
             .map(|reward| -> AnsAsset {
@@ -193,27 +193,19 @@ pub fn lp_compound_reply(
             .filter(|fee| fee.amount > Uint128::zero())
             .collect::<Vec<AnsAsset>>();
 
-        // 3) (swap and) Send fees to treasury
+        // Send fees to the fee collector
         if !fees.is_empty() {
             let transfer_msg = app
                 .bank(deps.as_ref())
                 .transfer(fees, &fee_config.fee_collector_addr)?;
-            // let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
-            //     fees,
-            //     vec![fee_config.fee_asset],
-            //     &dex,
-            //     FEE_SWAPPED_REPLY,
-            //     config.max_swap_spread,
-            // )?;
             messages.push(transfer_msg);
-            // submessages.push(fee_swap_submsg);
         }
     }
-    // 3) Swap rewards to token in pool
-    // 3.1) check if asset is not in pool assets
+    // Swap rewards to token in pool
+    // check if asset is not in pool assets
     let pool_assets = config.pool_data.assets;
     if rewards.iter().all(|f| pool_assets.contains(&f.name)) {
-        // 3.1.1) if all assets are in the pool, we can just provide liquidity
+        // if all assets are in the pool, we can just provide liquidity
         // The liquditiy assets are all the pool assets with the amount of the rewards
         let liquidity_assets = pool_assets
             .iter()
@@ -228,7 +220,7 @@ pub fn lp_compound_reply(
             })
             .collect::<Vec<OfferAsset>>();
 
-        // 3.1.2) provide liquidity
+        // provide liquidity
         let lp_msg: CosmosMsg =
             dex.provide_liquidity(liquidity_assets, Some(Decimal::percent(50)))?;
 
@@ -273,7 +265,7 @@ pub fn swapped_reply(
     let config = CONFIG.load(deps.storage)?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex);
 
-    // 1) query balance of pool tokens
+    // query balance of pool tokens
     let rewards = config
         .pool_data
         .assets
@@ -285,7 +277,7 @@ pub fn swapped_reply(
         })
         .collect::<AbstractSdkResult<Vec<AnsAsset>>>()?;
 
-    // 2) provide liquidity
+    // provide liquidity
     let lp_msg: CosmosMsg = dex.provide_liquidity(rewards, Some(Decimal::percent(10)))?;
     let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
@@ -305,12 +297,12 @@ pub fn compound_lp_provision_reply(
 
     let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
 
-    // 1) query balance of lp tokens
+    // query balance of lp tokens
     let lp_balance = lp_token
         .resolve(&deps.querier, &ans_host)?
         .query_balance(&deps.querier, proxy)?;
 
-    // 2) stake lp tokens
+    // stake lp tokens
     let stake_msg = stake_lp_tokens(
         deps.as_ref(),
         &app,
@@ -352,7 +344,7 @@ fn get_staking_rewards(
     let rewards = rewards
         .into_iter()
         .map(|tkn| -> AbstractSdkResult<Asset> {
-            // 2) get the number of LP tokens minted in this transaction
+            //  get the number of LP tokens minted in this transaction
             let balance = tkn.query_balance(&deps.querier, app.proxy_address(deps)?)?;
             Ok(Asset::new(tkn, balance))
         })

@@ -267,7 +267,6 @@ pub fn batch_unbond(
     for claim in pending_claims.iter() {
         PENDING_CLAIMS.remove(deps.storage, claim.0.clone());
     }
-    // PENDING_CLAIMS.clear(deps.storage);
     // update claims
     updated_claims
         .into_iter()
@@ -580,6 +579,7 @@ pub fn withdraw_claims(
     ))
 }
 
+/// Query the balances for assets owned by the contract
 fn owned_assets(
     for_assets: Vec<AssetEntry>,
     deps: &DepsMut,
@@ -701,6 +701,7 @@ fn check_unbonding_cooldown(
     Ok(())
 }
 
+/// Creates the message to claim the rewards from the staking api
 fn claim_lp_rewards(
     deps: Deps,
     app: &AutocompounderApp,
@@ -720,6 +721,8 @@ fn claim_lp_rewards(
     )
     .unwrap()
 }
+
+/// Creates the message to claim the unbonded tokens from the staking api
 fn claim_unbonded_tokens(
     deps: Deps,
     app: &AutocompounderApp,
@@ -740,12 +743,14 @@ fn claim_unbonded_tokens(
     .unwrap()
 }
 
+/// Creates the message to burn tokens from contract
 fn get_burn_msg(contract: &Addr, amount: Uint128) -> StdResult<CosmosMsg> {
     let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
 
     Ok(wasm_execute(contract.to_string(), &msg, vec![])?.into())
 }
 
+/// Creates the the message to unstake lp tokens from the staking api
 fn unstake_lp_tokens(
     deps: Deps,
     app: &AutocompounderApp,
