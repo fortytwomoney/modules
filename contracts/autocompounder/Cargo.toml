@@ -89,6 +89,6 @@ lto = true
 debug = false
 debug-assertions = false
 opt-level = "s"
-overflow-checks = false
+overflow-checks = true
 panic = "abort"
 rpath = false
