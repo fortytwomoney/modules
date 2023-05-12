@@ -98,7 +98,7 @@ pub enum AutocompounderExecuteMsg {
         limit: Option<u32>,
     },
     // Updates min_unbonding_cooldown and unbonding_period in the config with the latest staking contract data
-    UpdateConfigWithStakingContractData {
+    UpdateStakingConfig {
         preferred_bonding_period: BondingPeriodSelector,
     },
 }

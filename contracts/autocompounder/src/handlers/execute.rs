@@ -58,13 +58,13 @@ pub fn execute_handler(
             batch_unbond(deps, env, app, start_after, limit)
         }
         AutocompounderExecuteMsg::Compound {} => compound(deps, app),
-        AutocompounderExecuteMsg::UpdateConfigWithStakingContractData {
+        AutocompounderExecuteMsg::UpdateStakingConfig {
             preferred_bonding_period,
-        } => update_config_with_staking_contract_data(deps, app, info, preferred_bonding_period),
+        } => update_staking_config(deps, app, info, preferred_bonding_period),
     }
 }
 
-pub fn update_config_with_staking_contract_data(
+pub fn update_staking_config(
     deps: DepsMut,
     app: AutocompounderApp,
     info: MessageInfo,
@@ -948,9 +948,9 @@ mod test {
         use super::*;
 
         #[test]
-        fn update_config_with_staking_contract_data_only_admin() -> anyhow::Result<()> {
+        fn update_staking_config_only_admin() -> anyhow::Result<()> {
             let mut deps = app_init(true);
-            let msg = AutocompounderExecuteMsg::UpdateConfigWithStakingContractData {
+            let msg = AutocompounderExecuteMsg::UpdateStakingConfig {
                 preferred_bonding_period: BondingPeriodSelector::Longest,
             };
 
