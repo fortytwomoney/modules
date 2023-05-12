@@ -97,6 +97,10 @@ pub enum AutocompounderExecuteMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+    // Updates min_unbonding_cooldown and unbonding_period in the config with the latest staking contract data
+    UpdateStakingConfig {
+        preferred_bonding_period: BondingPeriodSelector,
+    },
 }
 
 #[cosmwasm_schema::cw_serde]

@@ -3,13 +3,14 @@ use super::helpers::{
     check_fee, convert_to_assets, cw20_total_supply, mint_vault_tokens, query_stake,
     stake_lp_tokens, swap_rewards_with_reply,
 };
+use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, FEE_SWAPPED_REPLY, LP_COMPOUND_REPLY_ID,
     LP_FEE_WITHDRAWAL_REPLY_ID, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::msg::{AutocompounderExecuteMsg, Cw20HookMsg};
+use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector, Cw20HookMsg};
 use crate::state::{
     Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_FEE_AMOUNT, CACHED_USER_ADDR, CLAIMS, CONFIG,
     DEFAULT_BATCH_SIZE, DEFAULT_MAX_SPREAD, FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE,
@@ -57,7 +58,43 @@ pub fn execute_handler(
             batch_unbond(deps, env, app, start_after, limit)
         }
         AutocompounderExecuteMsg::Compound {} => compound(deps, app),
+        AutocompounderExecuteMsg::UpdateStakingConfig {
+            preferred_bonding_period,
+        } => update_staking_config(deps, app, info, preferred_bonding_period),
     }
+}
+
+pub fn update_staking_config(
+    deps: DepsMut,
+    app: AutocompounderApp,
+    info: MessageInfo,
+    preferred_bonding_period: BondingPeriodSelector,
+) -> AutocompounderResult {
+    app.admin.assert_admin(deps.as_ref(), &info.sender)?;
+
+    let mut config = CONFIG.load(deps.storage)?;
+
+    let lp_token = LpToken {
+        dex: config.pool_data.dex.clone(),
+        assets: config.pool_data.assets.clone(),
+    };
+
+    // get staking info
+    let staking_info =
+        query_staking_info(deps.as_ref(), &app, lp_token.clone().into(), lp_token.dex)?;
+    let (unbonding_period, min_unbonding_cooldown) =
+        get_unbonding_period_and_min_unbonding_cooldown(staking_info, preferred_bonding_period)?;
+
+    config.unbonding_period = unbonding_period;
+    config.min_unbonding_cooldown = min_unbonding_cooldown;
+
+    CONFIG.save(deps.storage, &config)?;
+
+    Ok(app.custom_tag_response(
+        Response::new(),
+        "update_config_with_staking_contract_data",
+        vec![("4t2", "/AC/UpdateConfigWithStakingContractData")],
+    ))
 }
 
 /// Update the application configuration.
@@ -894,6 +931,40 @@ mod test {
             assert_that!(resp)
                 .is_err()
                 .matches(|e| matches!(e, AutocompounderError::InvalidFee {}));
+            Ok(())
+        }
+    }
+
+    mod config {
+
+        use cw_controllers::AdminError;
+        use speculoos::assert_that;
+
+        use crate::error::AutocompounderError;
+        use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector};
+        use crate::state::{Config, CONFIG};
+        use crate::test_common::app_init;
+
+        use super::*;
+
+        #[test]
+        fn update_staking_config_only_admin() -> anyhow::Result<()> {
+            let mut deps = app_init(true);
+            let msg = AutocompounderExecuteMsg::UpdateStakingConfig {
+                preferred_bonding_period: BondingPeriodSelector::Longest,
+            };
+
+            let resp = execute_as(deps.as_mut(), "not_mananger", msg.clone(), &[]);
+            assert_that!(resp)
+                .is_err()
+                .matches(|e| matches!(e, AutocompounderError::Admin(AdminError::NotAdmin {})));
+
+            // successfully update the fee config as the manager (also the admin)
+            execute_as_manager(deps.as_mut(), msg)?;
+
+            let new_config: Config = CONFIG.load(deps.as_ref().storage)?;
+
+            assert_that!(new_config.unbonding_period).is_equal_to(Some(Duration::Time(7200)));
             Ok(())
         }
     }
