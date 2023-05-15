@@ -51,11 +51,6 @@ pub const AUTOCOMPOUNDER_APP: AutocompounderApp =
             (LP_COMPOUND_REPLY_ID, handlers::lp_compound_reply),
             (SWAPPED_REPLY_ID, handlers::swapped_reply),
             (CP_PROVISION_REPLY_ID, handlers::compound_lp_provision_reply),
-            (FEE_SWAPPED_REPLY, handlers::fee_swapped_reply),
-            (
-                LP_FEE_WITHDRAWAL_REPLY_ID,
-                handlers::lp_fee_withdrawal_reply,
-            ),
         ])
         .with_receive(handlers::receive)
         .with_dependencies(AUTOCOMPOUNDER_DEPS);
