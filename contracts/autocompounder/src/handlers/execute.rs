@@ -1,13 +1,13 @@
 use super::convert_to_shares;
 use super::helpers::{
     check_fee, convert_to_assets, cw20_total_supply, mint_vault_tokens, query_stake,
-    stake_lp_tokens, swap_rewards_with_reply,
+    stake_lp_tokens, 
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
 use crate::contract::{
-    AutocompounderApp, AutocompounderResult, FEE_SWAPPED_REPLY, LP_COMPOUND_REPLY_ID,
-    LP_FEE_WITHDRAWAL_REPLY_ID, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
+    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID,
+    LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector, Cw20HookMsg};
@@ -212,7 +212,7 @@ pub fn deposit(
             })
             .collect::<Vec<_>>();
 
-        // 3) (swap and) Send fees to treasury
+        // 3) Send fees to the feecollector
         if !fees.is_empty() {
             current_fee_balance = fee_config
                 .fee_asset
@@ -224,22 +224,9 @@ pub fn deposit(
                     .map(|asset| asset.amount)
                     .unwrap_or_default();
 
-            if fees.len() == 1 && fees[0].name.eq(&fee_config.fee_asset) {
-                let fee_transfer_msg = app
-                    .bank(deps.as_ref())
-                    .transfer(fees, &fee_config.commission_addr)?;
-                messages.push(fee_transfer_msg);
-            } else {
-                let (fee_swap_msgs, fee_swap_submsg) = swap_rewards_with_reply(
-                    fees,
-                    vec![fee_config.fee_asset],
-                    &dex,
-                    FEE_SWAPPED_REPLY,
-                    config.max_swap_spread,
-                )?;
-                messages.extend(fee_swap_msgs);
-                submessages.push(fee_swap_submsg);
-            }
+            let transfer_msg = app.bank(deps.as_ref())
+                .transfer(fees, &fee_config.fee_collector_addr)?;
+            messages.push(transfer_msg);
         }
     }
 
@@ -317,7 +304,6 @@ pub fn batch_unbond(
     for claim in pending_claims.iter() {
         PENDING_CLAIMS.remove(deps.storage, claim.0.clone());
     }
-    // PENDING_CLAIMS.clear(deps.storage);
     // update claims
     updated_claims
         .into_iter()
@@ -371,14 +357,11 @@ fn deposit_lp(
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let ans_host = app.ans_host(deps.as_ref())?;
-
-    let mut submessages = vec![];
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
     if cw20_sender != config.liquidity_token {
         return Err(AutocompounderError::SenderIsNotLpToken {});
     };
     let lp_token = LpToken::from(config.pool_data.clone());
-    let transfer_msgs = app.bank(deps.as_ref()).deposit(vec![AnsAsset::new(
+    let mut transfer_msgs = app.bank(deps.as_ref()).deposit(vec![AnsAsset::new(
         AssetEntry::from(lp_token.clone()),
         amount,
     )])?;
@@ -396,26 +379,13 @@ fn deposit_lp(
 
     let amount = if !fee_config.deposit.is_zero() {
         let fee = amount * fee_config.deposit;
-        let withdraw_msg = dex.withdraw_liquidity(lp_token.clone().into(), fee)?;
-        let withdraw_sub_msg = SubMsg {
-            id: LP_FEE_WITHDRAWAL_REPLY_ID,
-            msg: withdraw_msg,
-            gas_limit: None,
-            reply_on: ReplyOn::Success,
-        };
-        submessages.push(withdraw_sub_msg);
+        let transfer_msg = app.bank(deps.as_ref()).transfer(
+            vec![AnsAsset::new(AssetEntry::from(lp_token.clone()), fee)],
+            &fee_config.fee_collector_addr,
+        )?;
+        transfer_msgs.push(transfer_msg);
 
         // save cached assets
-        let owned_assets = owned_assets(
-            config.pool_data.assets.clone(),
-            &deps,
-            ans_host.clone(),
-            &app,
-        )?;
-        for (owned_asset, owned_amount) in owned_assets {
-            CACHED_ASSETS.save(deps.storage, owned_asset, &owned_amount)?;
-        }
-
         let current_fee_balance = fee_config
             .fee_asset
             .resolve(&deps.querier, &ans_host)?
@@ -445,8 +415,7 @@ fn deposit_lp(
     Ok(app.custom_tag_response(
         Response::new()
             .add_messages(transfer_msgs)
-            .add_messages(vec![mint_msg, stake_msg])
-            .add_submessages(submessages),
+            .add_messages(vec![mint_msg, stake_msg]),
         "deposit-lp",
         vec![("4t2", "/AC/DepositLP")],
     ))
@@ -647,6 +616,7 @@ pub fn withdraw_claims(
     ))
 }
 
+/// Query the balances for assets owned by the contract
 fn owned_assets(
     for_assets: Vec<AssetEntry>,
     deps: &DepsMut,
@@ -768,6 +738,7 @@ fn check_unbonding_cooldown(
     Ok(())
 }
 
+/// Creates the message to claim the rewards from the staking api
 fn claim_lp_rewards(
     deps: Deps,
     app: &AutocompounderApp,
@@ -787,6 +758,8 @@ fn claim_lp_rewards(
     )
     .unwrap()
 }
+
+/// Creates the message to claim the unbonded tokens from the staking api
 fn claim_unbonded_tokens(
     deps: Deps,
     app: &AutocompounderApp,
@@ -807,12 +780,14 @@ fn claim_unbonded_tokens(
     .unwrap()
 }
 
+/// Creates the message to burn tokens from contract
 fn get_burn_msg(contract: &Addr, amount: Uint128) -> StdResult<CosmosMsg> {
     let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
 
     Ok(wasm_execute(contract.to_string(), &msg, vec![])?.into())
 }
 
+/// Creates the the message to unstake lp tokens from the staking api
 fn unstake_lp_tokens(
     deps: Deps,
     app: &AutocompounderApp,

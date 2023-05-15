@@ -315,8 +315,8 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 
     // .sort_by(|a, b| a.denom.cmp(&b.denom));
     assert_that!(balances).is_equal_to(vec![
-        coin(100_000u128, eur_token.to_string()),
-        coin(100_000u128, usd_token.to_string()),
+        coin(100_000u128 , eur_token.to_string()),
+        coin(100_000u128 , usd_token.to_string()),
     ]);
     Ok(())
 }
@@ -545,8 +545,6 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
 
     let balances = mock.query_all_balances(&owner)?;
     assert_that!(balances).is_equal_to(vec![
-        // coin(99_993u128, eur_token.to_string()),
-        // coin(99_993u128, usd_token.to_string()),
         coin(100_006u128, eur_token.to_string()),
         coin(100_006u128, usd_token.to_string()),
     ]);
@@ -677,8 +675,8 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
     // which will result in a 29 EUR fee for the autocompounder due to spread + rounding.
     vault.auto_compounder.compound()?;
 
-    let commission_received: Uint128 = mock.query_balance(&commission_addr, EUR)?;
-    assert_that!(commission_received.u128()).is_equal_to(29u128);
+    let commission_received: Uint128 = mock.query_balance(&commission_addr, WYND_TOKEN)?;
+    assert_that!(commission_received.u128()).is_equal_to(30u128);
 
     // The reward for the user is then 970 WYND which is then swapped using the WYND/EUR pair
     // this will be swapped for ~880 EUR, which then is provided using single sided provide_liquidity
@@ -831,8 +829,8 @@ fn test_deposit_fees_non_fee_token() -> AResult {
     )?;
 
     // deposit should be 10% less due to deposit fee
-    let received_fee = mock.query_balance(&commission_addr, EUR)?;
-    assert_that!(received_fee.into()).is_equal_to(Uint128::new(9u128)); // one less due to swap
+    let received_fee = mock.query_balance(&commission_addr, USD)?;
+    assert_that!(received_fee.into()).is_equal_to(Uint128::new(10u128)); // one less due to swap
 
     let owner_balance = vault_token.balance(owner.to_string())?.balance;
 
@@ -864,9 +862,10 @@ fn test_deposit_fees_non_fee_token() -> AResult {
 
     let new_owner_balance = mock.query_all_balances(&owner)?;
     assert_that!(new_owner_balance[0].amount.u128()).is_equal_to(403u128); // estimated value
-    assert_that!(new_owner_balance[1].amount.u128()).is_equal_to(444u128); // estimated value
+    assert_that!(new_owner_balance[1].amount.u128()).is_equal_to(443u128); // estimated value
     Ok(())
 }
+
 
 #[test]
 fn test_zero_performance_fees() -> AResult {
@@ -1123,7 +1122,6 @@ fn test_lp_deposit() -> AResult {
     let _eur_asset = AssetEntry::new("eur");
     let _usd_asset = AssetEntry::new("usd");
     let deposit_fee = Decimal::from_str("0.1")?;
-    let one_min_deposit_fee = Decimal::one() - deposit_fee;
 
     let manager_addr = vault.account.manager.address()?;
     vault.auto_compounder.call_as(&manager_addr).execute_app(
@@ -1139,18 +1137,23 @@ fn test_lp_deposit() -> AResult {
     let config: Config = vault.auto_compounder.config().unwrap();
     assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address().unwrap());
 
+    // update fee_config to include deposit fee
+    let manager_addr = vault.account.manager.address()?;
+    vault.auto_compounder.call_as(&manager_addr).execute_app(
+        AutocompounderExecuteMsg::UpdateFeeConfig {
+            performance: Some(Decimal::zero()),
+            deposit: Some(Decimal::from_str("0.01")?),
+            withdrawal: Some(Decimal::from_str("0.1")?),
+        },
+        None,
+    )?;
+
+    let fee_config: FeeConfig = vault.auto_compounder.fee_config()?; 
+
     // give the user some lp tokens
     eur_usd_lp
         .call_as(&eur_usd_pair)
         .mint(100_000u128.into(), owner.to_string())?;
-
-    // query how much lp tokens are in the vault
-    let vault_lp_balance = vault.auto_compounder.total_lp_position().unwrap() as Uint128;
-    assert_that!(vault_lp_balance.u128()).is_equal_to(0u128);
-
-    // check that the vault token is minted
-    let vault_token_balance = vault_token.balance(owner.to_string())?.balance;
-    assert_that!(vault_token_balance.u128()).is_equal_to(0u128);
 
     // Deposit lps into the vault by owner
     eur_usd_lp.call_as(&owner).send(
@@ -1159,12 +1162,13 @@ fn test_lp_deposit() -> AResult {
         to_binary(&Cw20HookMsg::DepositLp {})?,
     )?;
 
-    assert_that!(vault.auto_compounder.total_lp_position().unwrap())
-        .is_equal_to(Uint128::from(100_000u128) * one_min_deposit_fee);
-    assert_that!(vault_token.balance(owner.to_string())?.balance.u128()).is_equal_to(
-        100_000u128 * (Uint128::from(10u128.pow(DECIMAL_OFFSET)) * one_min_deposit_fee).u128(),
-    );
+    assert_that!(vault.auto_compounder.total_lp_position().unwrap().u128())
+        .is_equal_to(99_000u128);
+    assert_that!(vault_token.balance(owner.to_string())?.balance.u128())
+        .is_equal_to(99_000u128 * 10u128.pow(DECIMAL_OFFSET));
 
+    assert_that!(eur_usd_lp.balance(fee_config.fee_collector_addr.to_string())?.balance.u128())
+        .is_equal_to(1_000u128);
     Ok(())
 }
 

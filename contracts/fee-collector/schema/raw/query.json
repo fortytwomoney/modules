@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "description": "FeeCollector query messages",
+  "oneOf": [
+    {
+      "description": "Query the configuration Returns [`ConfigResponse`]",
+      "type": "object",
+      "required": [
+        "config"
+      ],
+      "properties": {
+        "config": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Query the list of allowed assets Returns [`Vec<String>`]",
+      "type": "object",
+      "required": [
+        "allowed_assets"
+      ],
+      "properties": {
+        "allowed_assets": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}
