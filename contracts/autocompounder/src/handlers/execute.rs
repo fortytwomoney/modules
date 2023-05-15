@@ -149,7 +149,7 @@ pub fn deposit(
     let ans_host = app.ans_host(deps.as_ref())?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex);
     let mut current_fee_balance = Uint128::zero();
-    let resolved_pool_assets = config.pool_data.assets.resolve(&deps.querier, &ans_host)?;
+    let resolved_pool_assets = config.pool_assets;
 
     let mut messages = vec![];
     let mut submessages = vec![];
