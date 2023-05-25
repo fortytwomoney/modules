@@ -1,14 +1,17 @@
 use abstract_boot::{boot_core::DaemonOptionsBuilder, VersionControl};
-use abstract_core::objects::{AnsAsset, PoolMetadata};
+use abstract_core::objects::{AnsAsset, PoolMetadata, module::ModuleVersion};
 use autocompounder::{
     boot::Vault,
     msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns},
     state::Config,
 };
-use boot_core::{instantiate_daemon_env, networks::parse_network};
+use boot_core::{instantiate_daemon_env, };
+use cw_orch::daemon::networks::parse_network;
 use clap::Parser;
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, coins};
 use log::info;
+
+const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 use speculoos::prelude::*;
 use std::sync::Arc;
 
@@ -19,19 +22,21 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
         "uni-5" => ("junoswap", "junox"),
         "juno-1" => ("junoswap", "juno"),
         "pisco-1" => ("astroport", "terra2>luna"),
+        "pion-1" => ("astroport", "neutron>ntrn"),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
 
     info!("Using dex: {} and base: {}", dex, base_pair_asset);
     let network = parse_network(&args.network_id);
     let daemon_options = DaemonOptionsBuilder::default().network(network).build()?;
+    let new_module_version = ModuleVersion::from(MODULE_VERSION);
     // Setup the environment
     let (sender, chain) = instantiate_daemon_env(&rt, daemon_options)?;
 
     // Set version control address
     let _vc = VersionControl::load(
         chain.clone(),
-        &Addr::unchecked(std::env::var("VERSION_CONTROL").expect("VERSION_CONTROL not set")),
+        &Addr::unchecked(MODULE_VERSION),
     );
 
     let mut vault: Vault<_> = Vault::new(chain, Some(args.vault_id))?;
@@ -55,7 +60,7 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
     info!("LP balance before: {}", lp_balance_before_deposit);
 
     // , AnsAsset::new("terra2>luna", 10u128)
-    autocompounder.deposit(vec![AnsAsset::new("terra2>astro", 6942u128)], None, &[])?;
+    autocompounder.deposit(vec![AnsAsset::new("neutron>ntrn", 100000u128)], None, &coins(10000, "ntrn"))?;
 
     let lp_balance_after_deposit = autocompounder.balance(sender.to_string())?;
     info!("LP balance after: {}", lp_balance_after_deposit);

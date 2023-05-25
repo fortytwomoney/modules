@@ -20,6 +20,9 @@ lintfix:
 create-vault network paired +args='':
   (cd scripts && cargo +nightly run --bin init_4t2_vault -- --network-id {{network}} --paired-asset {{paired}} {{args}})
 
+deposit-vault network vault-id:
+  (cd scripts && cargo +nightly run --bin test_compound -- --network-id {{network}} --vault-id {{vault-id}})
+
 build:
   cargo build
 

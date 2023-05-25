@@ -4,6 +4,7 @@ use autocompounder::boot::AutocompounderApp;
 use autocompounder::msg::AUTOCOMPOUNDER;
 use boot_core;
 use boot_core::networks::juno::JUNO_CHAIN;
+use boot_core::networks::neutron::NEUTRON_CHAIN;
 use boot_core::networks::{parse_network, NetworkInfo, NetworkKind};
 use boot_core::*;
 use std::env;
@@ -22,6 +23,16 @@ pub const JUNO_1: NetworkInfo = NetworkInfo {
     lcd_url: None,
     fcd_url: None,
 };
+pub const PION_1: NetworkInfo = NetworkInfo {
+    kind: NetworkKind::Testnet,
+    id: "pion-1",
+    gas_denom: "untrn",
+    gas_price: 0.001,
+    grpc_urls: &["http://grpc-palvus.pion-1.ntrn.tech:80"],
+    chain_info: NEUTRON_CHAIN,
+    lcd_url: Some("https://rest-palvus.pion-1.ntrn.tech"),
+    fcd_url: None,
+};
 
 fn deploy_autocompounder(
     _network: NetworkInfo,
@@ -30,8 +41,9 @@ fn deploy_autocompounder(
     let version: Version = CONTRACT_VERSION.parse().unwrap();
 
     let rt = Arc::new(Runtime::new()?);
-    let options = DaemonOptionsBuilder::default().network(JUNO_1).build();
-    let (_sender, chain) = instantiate_daemon_env(&rt, options?)?;
+    let options = DaemonOptionsBuilder::default().network(PION_1).build();
+    let (_sender, mut chain) = instantiate_daemon_env(&rt, options?)?;
+
 
     let mut autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
@@ -61,7 +73,7 @@ fn main() -> anyhow::Result<()> {
 
     let args = Arguments::parse();
 
-    let network = parse_network(&args.network_id);
+    let network = PION_1;
 
     deploy_autocompounder(network, args.code_id)
 }

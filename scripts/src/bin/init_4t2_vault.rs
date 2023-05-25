@@ -12,9 +12,10 @@ use abstract_core::{
 };
 use abstract_cw_staking_api::CW_STAKING;
 use boot_core::{
-    instantiate_daemon_env, networks::parse_network, BootError, BootExecute, CwEnv,
+    instantiate_daemon_env, BootError, BootExecute, CwEnv,
     DaemonOptionsBuilder, IndexResponse, StateInterface, TxResponse,
 };
+use cw_orch::daemon::networks::parse_network;
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
 
@@ -66,6 +67,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let (dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
         // "uni-6" => ("wyndex", "juno>junox", 4012),
         "juno-1" => ("wyndex", "juno>juno", 1),
+        "pion-1" => ("astroport", "neutron>astro", 188),
         // "pisco-1" => ("astroport", "terra2>luna", 83),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
@@ -73,15 +75,15 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     info!("Using dex: {} and base: {}", dex, base_pair_asset);
 
     // Setup the environment
-    let mut network = parse_network(&args.network_id);
+    let network = parse_network(&args.network_id);
+    
     // TODO: make grpc url dynamic by removing this line once Boot gets updated
-    network.grpc_urls = &["http://juno-grpc.polkachu.com:12690"];
     let daemon_options = DaemonOptionsBuilder::default().network(network).build()?;
     let (sender, chain) = instantiate_daemon_env(&rt, daemon_options)?;
 
     let abstr = Abstract::new(chain.clone());
 
-    let mut pair_assets = vec![args.paired_asset, base_pair_asset.to_string()];
+    let mut pair_assets = vec![args.paired_asset, args.other_asset];
     pair_assets.sort();
 
     let account = if let Some(account_id) = args.account_id {
@@ -105,6 +107,10 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         account.manager.install_module("abstract:dex", &Empty {})?;
     }
 
+    // install the staking module
+    if !is_module_installed(&account, CW_STAKING)? {
+        account.manager.install_module(CW_STAKING, &Empty {})?;
+    }
     // First uninstall autocompounder if found
     if is_module_installed(&account, AUTOCOMPOUNDER)? {
         account
@@ -112,15 +118,11 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             .uninstall_module(AUTOCOMPOUNDER.to_string())?;
     }
 
-    // Uninstall cw_staking if found
-    if is_module_installed(&account, CW_STAKING)? {
-        account.manager.uninstall_module(CW_STAKING.to_string())?;
-    }
 
     // Install both modules
     let new_module_version = ModuleVersion::from(MODULE_VERSION);
 
-    account.manager.install_module(CW_STAKING, &Empty {})?;
+    // account.manager.install_module(CW_STAKING, &Empty {})?;
 
     account.manager.install_module_version(
         AUTOCOMPOUNDER,
@@ -184,6 +186,9 @@ struct Arguments {
     /// Paired asset in the pool
     #[arg(short, long)]
     paired_asset: String,
+    /// Asset1 in the pool
+    #[arg(short, long)]
+    other_asset: String,
     /// Network to deploy on
     #[arg(short, long)]
     network_id: String,

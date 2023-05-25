@@ -46,6 +46,26 @@
       }
     }
   },
+  "neutron": {
+    "pion-1": {
+      "code_ids": {
+        "abstract:account-factory": 552,
+        "abstract:ans-host": 550,
+        "abstract:manager": 554,
+        "abstract:module-factory": 553,
+        "abstract:proxy": 555,
+        "abstract:version-control": 551
+      },
+      "default": {
+        "abstract:account-factory": "neutron1nsjguajxk0sf3ras8w0c9nts27h82zadr0mknvxk97r6e0ctu36qexgz8t",
+        "abstract:ans-host": "neutron1thrsla0thcphzrnmuf9z0ckhqz2e2y0qzcpqvkuqqq8sagkz77psepu77r",
+        "abstract:manager": "neutron1gvrvp25tfjvfpmnpt0ar5d3rqyu9p40sd99afxtn2eppy8zlz6uq4ymt9m",
+        "abstract:module-factory": "neutron1kkadjcrgv6csux5qq7ejs3g2whkjzua03rwc6c3l4ye2jkf0yq5s9zzvw3",
+        "abstract:proxy": "neutron167ena6g5nx6mkp3r7wf5ck7ldk3dk365tm0tzmmjkjp4v6u86eqs6yq7up",
+        "abstract:version-control": "0.4.3"
+      }
+    }
+  },
   "terra": {
     "pisco-1": {
       "code_ids": {

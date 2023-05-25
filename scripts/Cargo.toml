@@ -10,6 +10,7 @@ edition.workspace = true
 boot-core = { workspace = true, features = ["daemon"] }
 boot-cw-plus = { workspace = true }
 abstract-boot = { workspace = true, features = ["daemon"] }
+cw-orch = { git = "https://github.com/AbstractSDK/cw-orchestrator", rev="92b2448ff990c81093174eb9baf2e9452b7a8c37", features = ["daemon"]}
 
 log = { workspace = true }
 cosmwasm-std = { workspace = true }
