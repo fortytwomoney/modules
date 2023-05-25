@@ -161,12 +161,6 @@ pub fn lp_compound_reply(
     let ans_host = app.ans_host(deps.as_ref())?;
 
     let fee_config = FEE_CONFIG.load(deps.storage)?;
-    let current_fee_balance = fee_config
-        .fee_asset
-        .resolve(&deps.querier, &ans_host)?
-        .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())?;
-    CACHED_FEE_AMOUNT.save(deps.storage, &current_fee_balance)?;
-
     let mut messages = vec![];
     let mut submessages = vec![];
     // claim rewards (this happened in the execution before this reply)

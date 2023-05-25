@@ -146,7 +146,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                 code_id: cw20_code_id,
                 /// Name of the target dex
                 dex: dex.into(),
-                fee_asset: base_pair_asset.into(),
                 /// Assets in the pool
                 pool_assets: pair_assets.into_iter().map(Into::into).collect(),
                 preferred_bonding_period: BondingPeriodSelector::Shortest,

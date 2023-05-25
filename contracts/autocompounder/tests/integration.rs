@@ -119,7 +119,6 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractBootError> {
                 commission_addr: COMMISSION_RECEIVER.to_string(),
                 deposit_fees: Decimal::percent(0),
                 dex: WYNDEX.to_string(),
-                fee_asset: eur_asset.to_string(),
                 performance_fees: Decimal::percent(3),
                 pool_assets: vec![eur_asset, usd_asset],
                 withdrawal_fees: Decimal::percent(0),
