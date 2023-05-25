@@ -5,7 +5,7 @@ use autocompounder::msg::AUTOCOMPOUNDER;
 use boot_core;
 use boot_core::networks::juno::JUNO_CHAIN;
 use boot_core::networks::neutron::NEUTRON_CHAIN;
-use boot_core::networks::{parse_network, NetworkInfo, NetworkKind};
+use boot_core::networks::{ NetworkInfo, NetworkKind};
 use boot_core::*;
 use std::env;
 use std::sync::Arc;
@@ -42,8 +42,7 @@ fn deploy_autocompounder(
 
     let rt = Arc::new(Runtime::new()?);
     let options = DaemonOptionsBuilder::default().network(PION_1).build();
-    let (_sender, mut chain) = instantiate_daemon_env(&rt, options?)?;
-
+    let (_sender, chain) = instantiate_daemon_env(&rt, options?)?;
 
     let mut autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 

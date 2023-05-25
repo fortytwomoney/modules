@@ -93,7 +93,7 @@ fn add_allowed_assets(
     app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
 
     if assets.is_empty() {
-        return Err(crate::error::FeeCollectorError::NoAssetsProvided {  });
+        return Err(crate::error::FeeCollectorError::NoAssetsProvided {});
     }
 
     let mut supported_assets = ALLOWED_ASSETS.load(deps.storage)?;

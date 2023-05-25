@@ -1,20 +1,19 @@
 use super::convert_to_shares;
 use super::helpers::{
     check_fee, convert_to_assets, cw20_total_supply, mint_vault_tokens, query_stake,
-    stake_lp_tokens, 
+    stake_lp_tokens,
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
 use crate::contract::{
-    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID,
-    LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
+    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
+    LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector, Cw20HookMsg};
 use crate::state::{
-    Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_FEE_AMOUNT, CACHED_USER_ADDR, CLAIMS, CONFIG,
-    DEFAULT_BATCH_SIZE, DEFAULT_MAX_SPREAD, FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE,
-    PENDING_CLAIMS,
+    Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
+    DEFAULT_MAX_SPREAD, FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS,
 };
 use abstract_cw_staking_api::msg::{CwStakingAction, CwStakingExecuteMsg};
 use abstract_cw_staking_api::CW_STAKING;
@@ -148,7 +147,6 @@ pub fn deposit(
 
     let ans_host = app.ans_host(deps.as_ref())?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex);
-    let mut current_fee_balance = Uint128::zero();
     let resolved_pool_assets = config.pool_data.assets.resolve(&deps.querier, &ans_host)?;
 
     let mut messages = vec![];
@@ -214,17 +212,8 @@ pub fn deposit(
 
         // 3) Send fees to the feecollector
         if !fees.is_empty() {
-            current_fee_balance = fee_config
-                .fee_asset
-                .resolve(&deps.querier, &ans_host)?
-                .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())?
-                + funds
-                    .iter()
-                    .find(|asset| asset.name.eq(&fee_config.fee_asset))
-                    .map(|asset| asset.amount)
-                    .unwrap_or_default();
-
-            let transfer_msg = app.bank(deps.as_ref())
+            let transfer_msg = app
+                .bank(deps.as_ref())
                 .transfer(fees, &fee_config.fee_collector_addr)?;
             messages.push(transfer_msg);
         }
@@ -257,7 +246,7 @@ pub fn deposit(
     submessages.push(sub_msg);
 
     // save the user address to the cache for later use in reply
-    CACHED_FEE_AMOUNT.save(deps.storage, &current_fee_balance)?;
+    // CACHED_FEE_AMOUNT.save(deps.storage, &current_fee_balance)?;
     CACHED_USER_ADDR.save(deps.storage, &msg_info.sender)?;
 
     let response = Response::new()
@@ -356,7 +345,6 @@ fn deposit_lp(
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
-    let ans_host = app.ans_host(deps.as_ref())?;
     if cw20_sender != config.liquidity_token {
         return Err(AutocompounderError::SenderIsNotLpToken {});
     };
@@ -384,14 +372,6 @@ fn deposit_lp(
             &fee_config.fee_collector_addr,
         )?;
         transfer_msgs.push(transfer_msg);
-
-        // save cached assets
-        let current_fee_balance = fee_config
-            .fee_asset
-            .resolve(&deps.querier, &ans_host)?
-            .query_balance(&deps.querier, app.proxy_address(deps.as_ref())?.to_string())?;
-
-        CACHED_FEE_AMOUNT.save(deps.storage, &current_fee_balance)?;
 
         amount - fee
     } else {

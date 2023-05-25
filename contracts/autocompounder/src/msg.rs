@@ -58,7 +58,6 @@ pub struct AutocompounderInstantiateMsg {
     pub performance_fees: Decimal,
     pub deposit_fees: Decimal,
     pub withdrawal_fees: Decimal,
-    pub fee_asset: String,
     /// address that receives the fee commissions
     pub commission_addr: String,
     /// cw20 code id
@@ -173,7 +172,6 @@ pub struct FeeConfig {
     pub performance: Decimal,
     pub deposit: Decimal,
     pub withdrawal: Decimal,
-    pub fee_asset: AssetEntry,
     /// Address that receives the fee commissions
     pub fee_collector_addr: Addr,
 }

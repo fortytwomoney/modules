@@ -244,7 +244,6 @@ mod test_common {
                         commission_addr: COMMISSION_RECEIVER.to_string(),
                         deposit_fees: Decimal::percent(3),
                         dex: WYNDEX.to_string(),
-                        fee_asset: "eur".to_string(),
                         performance_fees: Decimal::percent(3),
                         pool_assets: vec!["eur".into(), "usd".into()],
                         withdrawal_fees: Decimal::percent(3),

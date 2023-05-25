@@ -38,7 +38,6 @@ pub fn instantiate_handler(
         performance_fees,
         deposit_fees,
         withdrawal_fees,
-        fee_asset,
         commission_addr,
         code_id,
         dex,
@@ -119,7 +118,6 @@ pub fn instantiate_handler(
         performance: performance_fees,
         deposit: deposit_fees,
         withdrawal: withdrawal_fees,
-        fee_asset: AssetEntry::from(fee_asset),
         fee_collector_addr: deps.api.addr_validate(&commission_addr)?,
     };
 
@@ -279,7 +277,6 @@ mod test {
             performance: Decimal::percent(3),
             deposit: Decimal::percent(3),
             withdrawal: Decimal::percent(3),
-            fee_asset: "eur".to_string().into(),
             fee_collector_addr: Addr::unchecked("commission_receiver".to_string()),
         });
         Ok(())
@@ -302,7 +299,6 @@ mod test {
                     commission_addr: COMMISSION_RECEIVER.to_string(),
                     deposit_fees: Decimal::percent(3),
                     dex: ASTROPORT.to_string(),
-                    fee_asset: "eur".to_string(),
                     performance_fees: Decimal::percent(3),
                     pool_assets: vec!["eur".into(), "usd".into(), "juno".into()],
                     withdrawal_fees: Decimal::percent(3),
