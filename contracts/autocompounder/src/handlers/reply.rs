@@ -3,14 +3,11 @@ use super::helpers::{
     swap_rewards_with_reply,
 };
 use crate::contract::{
-    AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID,
-    SWAPPED_REPLY_ID,
+    AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, SWAPPED_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
-use crate::state::{
-    Config,  CACHED_ASSETS, CACHED_FEE_AMOUNT, CACHED_USER_ADDR, CONFIG, FEE_CONFIG,
-};
+use crate::state::{Config, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
 use abstract_cw_staking_api::{
     msg::{CwStakingQueryMsg, RewardTokensResponse},
     CW_STAKING,
@@ -158,7 +155,6 @@ pub fn lp_compound_reply(
     _reply: Reply,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
-    let ans_host = app.ans_host(deps.as_ref())?;
 
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let mut messages = vec![];
@@ -309,7 +305,6 @@ pub fn compound_lp_provision_reply(
 
     Ok(app.tag_response(response, "stake"))
 }
-
 
 fn query_rewards(
     deps: Deps,

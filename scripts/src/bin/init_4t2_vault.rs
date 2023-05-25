@@ -12,12 +12,12 @@ use abstract_core::{
 };
 use abstract_cw_staking_api::CW_STAKING;
 use boot_core::{
-    instantiate_daemon_env, BootError, BootExecute, CwEnv,
-    DaemonOptionsBuilder, IndexResponse, StateInterface, TxResponse,
+    instantiate_daemon_env, BootError, BootExecute, CwEnv, DaemonOptionsBuilder, IndexResponse,
+    StateInterface, TxResponse,
 };
-use cw_orch::daemon::networks::parse_network;
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
+use cw_orch::daemon::networks::parse_network;
 
 use autocompounder::boot::{get_module_address, is_module_installed};
 use autocompounder::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER};
@@ -76,7 +76,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     // Setup the environment
     let network = parse_network(&args.network_id);
-    
+
     // TODO: make grpc url dynamic by removing this line once Boot gets updated
     let daemon_options = DaemonOptionsBuilder::default().network(network).build()?;
     let (sender, chain) = instantiate_daemon_env(&rt, daemon_options)?;
@@ -117,7 +117,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             .manager
             .uninstall_module(AUTOCOMPOUNDER.to_string())?;
     }
-
 
     // Install both modules
     let new_module_version = ModuleVersion::from(MODULE_VERSION);

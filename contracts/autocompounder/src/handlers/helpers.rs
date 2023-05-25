@@ -7,10 +7,9 @@ use crate::{
 use abstract_core::objects::AnsAsset;
 use abstract_cw_staking_api::{msg::*, CW_STAKING};
 use abstract_dex_api::api::Dex;
-use abstract_sdk::feature_objects::AnsHost;
 use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
 use abstract_sdk::{AbstractSdkResult, ApiInterface};
-use cosmwasm_std::{wasm_execute, Addr, CosmosMsg, Decimal, Deps, SubMsg, Uint128, QuerierWrapper};
+use cosmwasm_std::{wasm_execute, Addr, CosmosMsg, Decimal, Deps, SubMsg, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw_utils::Duration;
@@ -51,12 +50,6 @@ pub fn check_fee(fee: Decimal) -> Result<(), AutocompounderError> {
     }
     Ok(())
 }
-
-pub fn check_asset_with_ans(fee_asset: &AssetEntry, ans_host: &AnsHost, querier: &QuerierWrapper) -> Result<(), AutocompounderError> {
-    let _ = ans_host.query_asset(querier, fee_asset).map_err(|err| AutocompounderError::SenderIsNotLpToken {  })?;
-    Ok(())
-}
-
 
 pub fn mint_vault_tokens(
     config: &Config,

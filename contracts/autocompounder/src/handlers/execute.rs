@@ -1,20 +1,19 @@
 use super::convert_to_shares;
 use super::helpers::{
     check_fee, convert_to_assets, cw20_total_supply, mint_vault_tokens, query_stake,
-    stake_lp_tokens, check_asset_with_ans,
+    stake_lp_tokens,
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
 use crate::contract::{
-    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID,
-    LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
+    AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
+    LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector, Cw20HookMsg};
 use crate::state::{
-    Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_FEE_AMOUNT, CACHED_USER_ADDR, CLAIMS, CONFIG,
-    DEFAULT_BATCH_SIZE, DEFAULT_MAX_SPREAD, FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE,
-    PENDING_CLAIMS,
+    Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
+    DEFAULT_MAX_SPREAD, FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS,
 };
 use abstract_cw_staking_api::msg::{CwStakingAction, CwStakingExecuteMsg};
 use abstract_cw_staking_api::CW_STAKING;
@@ -107,7 +106,6 @@ pub fn update_fee_config(
     deposit: Option<Decimal>,
 ) -> AutocompounderResult {
     app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
-    let ans_host = app.ans_host(deps.as_ref())?;
 
     let mut config = FEE_CONFIG.load(deps.storage)?;
     let mut updates = vec![];
@@ -214,7 +212,8 @@ pub fn deposit(
 
         // 3) Send fees to the feecollector
         if !fees.is_empty() {
-            let transfer_msg = app.bank(deps.as_ref())
+            let transfer_msg = app
+                .bank(deps.as_ref())
                 .transfer(fees, &fee_config.fee_collector_addr)?;
             messages.push(transfer_msg);
         }
@@ -346,7 +345,6 @@ fn deposit_lp(
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
-    let ans_host = app.ans_host(deps.as_ref())?;
     if cw20_sender != config.liquidity_token {
         return Err(AutocompounderError::SenderIsNotLpToken {});
     };
@@ -890,7 +888,6 @@ mod test {
                 .matches(|e| matches!(e, AutocompounderError::InvalidFee {}));
             Ok(())
         }
-
     }
 
     mod config {

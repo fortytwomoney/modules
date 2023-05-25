@@ -76,7 +76,7 @@
 
 //     // Setup the environment
 //     let mut network = parse_network(&args.network_id);
-    
+
 //     // TODO: make grpc url dynamic by removing this line once Boot gets updated
 //     let daemon_options = DaemonOptionsBuilder::default().network(network).build()?;
 //     let (sender, chain) = instantiate_daemon_env(&rt, daemon_options)?;
@@ -106,7 +106,7 @@
 //     if !is_module_installed(&account, "abstract:dex")? {
 //         account.manager.install_module("abstract:dex", &Empty {})?;
 //     }
-    
+
 //     // Install both modules
 //     let new_module_version = ModuleVersion::from(MODULE_VERSION);
 

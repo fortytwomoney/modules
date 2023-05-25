@@ -314,8 +314,8 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 
     // .sort_by(|a, b| a.denom.cmp(&b.denom));
     assert_that!(balances).is_equal_to(vec![
-        coin(100_000u128 , eur_token.to_string()),
-        coin(100_000u128 , usd_token.to_string()),
+        coin(100_000u128, eur_token.to_string()),
+        coin(100_000u128, usd_token.to_string()),
     ]);
     Ok(())
 }
@@ -865,7 +865,6 @@ fn test_deposit_fees_non_fee_token() -> AResult {
     Ok(())
 }
 
-
 #[test]
 fn test_zero_performance_fees() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
@@ -1147,7 +1146,7 @@ fn test_lp_deposit() -> AResult {
         None,
     )?;
 
-    let fee_config: FeeConfig = vault.auto_compounder.fee_config()?; 
+    let fee_config: FeeConfig = vault.auto_compounder.fee_config()?;
 
     // give the user some lp tokens
     eur_usd_lp
@@ -1161,13 +1160,15 @@ fn test_lp_deposit() -> AResult {
         to_binary(&Cw20HookMsg::DepositLp {})?,
     )?;
 
-    assert_that!(vault.auto_compounder.total_lp_position().unwrap().u128())
-        .is_equal_to(99_000u128);
+    assert_that!(vault.auto_compounder.total_lp_position().unwrap().u128()).is_equal_to(99_000u128);
     assert_that!(vault_token.balance(owner.to_string())?.balance.u128())
         .is_equal_to(99_000u128 * 10u128.pow(DECIMAL_OFFSET));
 
-    assert_that!(eur_usd_lp.balance(fee_config.fee_collector_addr.to_string())?.balance.u128())
-        .is_equal_to(1_000u128);
+    assert_that!(eur_usd_lp
+        .balance(fee_config.fee_collector_addr.to_string())?
+        .balance
+        .u128())
+    .is_equal_to(1_000u128);
     Ok(())
 }
 

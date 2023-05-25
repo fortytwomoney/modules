@@ -1,6 +1,6 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
 use crate::error::AutocompounderError;
-use crate::handlers::helpers::{check_fee, check_asset_with_ans};
+use crate::handlers::helpers::check_fee;
 use crate::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER};
 use crate::state::{Config, CONFIG, FEE_CONFIG};
 use abstract_cw_staking_api::{
@@ -8,7 +8,6 @@ use abstract_cw_staking_api::{
     CW_STAKING,
 };
 use abstract_sdk::ApiInterface;
-use abstract_sdk::feature_objects::AnsHost;
 use abstract_sdk::{
     core::api,
     core::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
@@ -50,7 +49,6 @@ pub fn instantiate_handler(
     check_fee(performance_fees)?;
     check_fee(deposit_fees)?;
     check_fee(withdrawal_fees)?;
-
 
     if pool_assets.len() > 2 {
         return Err(AutocompounderError::PoolWithMoreThanTwoAssets {});
@@ -140,7 +138,6 @@ pub fn instantiate_handler(
         .add_attribute("action", "instantiate")
         .add_attribute("contract", AUTOCOMPOUNDER))
 }
-
 
 /// create a SubMsg to instantiate the Vault token.
 fn create_lp_token_submsg(
