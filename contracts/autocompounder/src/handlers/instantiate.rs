@@ -110,6 +110,8 @@ pub fn instantiate_handler(
         unbonding_period,
         min_unbonding_cooldown,
         max_swap_spread,
+        deposit_enabled: true,
+        withdraw_enabled: true,
     };
 
     CONFIG.save(deps.storage, &config)?;

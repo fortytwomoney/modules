@@ -217,6 +217,8 @@ mod test {
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown: Some(Duration::Time(10)),
             max_swap_spread: Decimal::percent(50),
+            withdraw_enabled: true,
+            deposit_enabled: true,
         }
     }
 

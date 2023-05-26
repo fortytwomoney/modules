@@ -10,7 +10,9 @@ use crate::contract::{
     LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector, Cw20HookMsg};
+use crate::msg::{
+    AutocompounderExecuteMsg, BondingPeriodSelector, Cw20HookMsg, UpdateConfigParams,
+};
 use crate::state::{
     Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
     DEFAULT_MAX_SPREAD, FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS,
@@ -48,7 +50,16 @@ pub fn execute_handler(
             performance,
             withdrawal,
             deposit,
-        } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
+            fee_collector_addr,
+        } => update_fee_config(
+            deps,
+            info,
+            app,
+            performance,
+            withdrawal,
+            deposit,
+            fee_collector_addr,
+        ),
         AutocompounderExecuteMsg::Deposit { funds, max_spread } => {
             deposit(deps, info, env, app, funds, max_spread)
         }
@@ -60,6 +71,9 @@ pub fn execute_handler(
         AutocompounderExecuteMsg::UpdateStakingConfig {
             preferred_bonding_period,
         } => update_staking_config(deps, app, info, preferred_bonding_period),
+        AutocompounderExecuteMsg::UpdateConfig {
+            update_config_params,
+        } => update_config(deps, info, app, update_config_params),
     }
 }
 
@@ -96,6 +110,31 @@ pub fn update_staking_config(
     ))
 }
 
+pub fn update_config(
+    deps: DepsMut,
+    info: MessageInfo,
+    app: AutocompounderApp,
+    update_config_params: UpdateConfigParams,
+) -> AutocompounderResult {
+    app.admin.assert_admin(deps.as_ref(), &info.sender)?;
+
+    let mut config = CONFIG.load(deps.storage)?;
+    let mut updates = vec![];
+
+    if let Some(deposit_enabled) = update_config_params.deposit_enabled {
+        updates.push(("deposit_enabled", deposit_enabled.to_string()));
+        config.deposit_enabled = deposit_enabled;
+    }
+
+    if let Some(withdraw_enabled) = update_config_params.withdraw_enabled {
+        updates.push(("withdraw_enabled", withdraw_enabled.to_string()));
+        config.withdraw_enabled = withdraw_enabled;
+    }
+
+    CONFIG.save(deps.storage, &config)?;
+    Ok(app.custom_tag_response(Response::new(), "update_config", updates))
+}
+
 /// Update the application configuration.
 pub fn update_fee_config(
     deps: DepsMut,
@@ -104,6 +143,7 @@ pub fn update_fee_config(
     fee: Option<Decimal>,
     withdrawal: Option<Decimal>,
     deposit: Option<Decimal>,
+    fee_collector_addr: Option<String>,
 ) -> AutocompounderResult {
     app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
 
@@ -128,6 +168,15 @@ pub fn update_fee_config(
         config.deposit = deposit;
     }
 
+    if let Some(fee_collector_addr) = fee_collector_addr {
+        let fee_collector_addr_validated = deps.api.addr_validate(&fee_collector_addr)?;
+        updates.push((
+            "fee_collector_addr",
+            fee_collector_addr_validated.to_string(),
+        ));
+        config.fee_collector_addr = fee_collector_addr_validated;
+    }
+
     FEE_CONFIG.save(deps.storage, &config)?;
 
     Ok(app.custom_tag_response(Response::new(), "update_fee_config", updates))
@@ -143,6 +192,12 @@ pub fn deposit(
     max_spread: Option<Decimal>,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
+
+    // check that deposits are enabled
+    if !config.deposit_enabled {
+        return Err(AutocompounderError::DepositsDisabled {});
+    }
+
     let fee_config = FEE_CONFIG.load(deps.storage)?;
 
     let ans_host = app.ans_host(deps.as_ref())?;
@@ -344,6 +399,12 @@ fn deposit_lp(
     amount: Uint128,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
+
+    // check that deposits are enabled
+    if !config.deposit_enabled {
+        return Err(AutocompounderError::DepositsDisabled {});
+    }
+
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     if cw20_sender != config.liquidity_token {
         return Err(AutocompounderError::SenderIsNotLpToken {});
@@ -410,6 +471,12 @@ fn redeem(
     amount_of_vault_tokens_to_be_burned: Uint128,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
+
+    // check that withdrawals are enabled
+    if !config.withdraw_enabled {
+        return Err(AutocompounderError::WithdrawalsDisabled {});
+    }
+
     if cw20_sender != config.vault_token {
         return Err(AutocompounderError::SenderIsNotVaultToken {});
     }
@@ -527,6 +594,12 @@ pub fn withdraw_claims(
     address: Addr,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
+
+    // check that withdrawals are enabled
+    if !config.withdraw_enabled {
+        return Err(AutocompounderError::WithdrawalsDisabled {});
+    }
+
     let pool_assets = config.pool_data.assets.clone();
     let ans_host = app.ans_host(deps.as_ref())?;
 
@@ -841,6 +914,8 @@ mod test {
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown,
             max_swap_spread: Decimal::percent(50),
+            deposit_enabled: true,
+            withdraw_enabled: true,
         }
     }
 
@@ -858,6 +933,7 @@ mod test {
                 performance: None,
                 deposit: Some(Decimal::percent(1)),
                 withdrawal: None,
+                fee_collector_addr: None,
             };
 
             let resp = execute_as(deps.as_mut(), "not_mananger", msg.clone(), &[]);
@@ -880,12 +956,39 @@ mod test {
                 performance: None,
                 deposit: Some(Decimal::one()),
                 withdrawal: None,
+                fee_collector_addr: None,
             };
 
             let resp = execute_as_manager(deps.as_mut(), msg);
             assert_that!(resp)
                 .is_err()
                 .matches(|e| matches!(e, AutocompounderError::InvalidFee {}));
+            Ok(())
+        }
+
+        #[test]
+        fn update_fee_collector() -> anyhow::Result<()> {
+            const NEW_FEE_COLLECTOR: &str = "new_fee_collector_addr";
+            let mut deps = app_init(false);
+            let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
+                performance: None,
+                deposit: None,
+                withdrawal: None,
+                fee_collector_addr: Some(NEW_FEE_COLLECTOR.to_string()),
+            };
+
+            let resp = execute_as(deps.as_mut(), "not_mananger", msg.clone(), &[]);
+            assert_that!(resp)
+                .is_err()
+                .matches(|e| matches!(e, AutocompounderError::Admin(AdminError::NotAdmin {})));
+
+            let resp = execute_as_manager(deps.as_mut(), msg);
+            assert_that!(resp).is_ok();
+
+            let new_fee_config = FEE_CONFIG.load(deps.as_ref().storage)?;
+            assert_that!(new_fee_config.fee_collector_addr.to_string())
+                .is_equal_to(NEW_FEE_COLLECTOR.to_string());
+
             Ok(())
         }
     }
@@ -968,6 +1071,30 @@ mod test {
     }
 
     #[test]
+    fn cannot_deposit_liquidity_if_deposits_not_enabled() -> anyhow::Result<()> {
+        let mut deps = app_init(true);
+        let msg = AutocompounderExecuteMsg::UpdateConfig {
+            update_config_params: UpdateConfigParams {
+                deposit_enabled: Some(false),
+                withdraw_enabled: None,
+            },
+        };
+        // disable withdrawals
+        let resp = execute_as_manager(deps.as_mut(), msg);
+        assert_that!(resp).is_ok();
+
+        let msg = AutocompounderExecuteMsg::Deposit {
+            funds: vec![AnsAsset::new("eur", Uint128::one())],
+            max_spread: None,
+        };
+        let resp = execute_as_manager(deps.as_mut(), msg);
+        assert_that!(resp)
+            .is_err()
+            .matches(|e| matches!(e, AutocompounderError::DepositsDisabled {}));
+        Ok(())
+    }
+
+    #[test]
     fn cannot_withdraw_liquidity_if_no_claims() -> anyhow::Result<()> {
         let mut deps = app_init(true);
         let msg = AutocompounderExecuteMsg::Withdraw {};
@@ -975,6 +1102,27 @@ mod test {
         assert_that!(resp)
             .is_err()
             .matches(|e| matches!(e, AutocompounderError::NoClaims {}));
+        Ok(())
+    }
+
+    #[test]
+    fn cannot_withdraw_liquidity_if_withdrawals_not_enabled() -> anyhow::Result<()> {
+        let mut deps = app_init(true);
+        let msg = AutocompounderExecuteMsg::UpdateConfig {
+            update_config_params: UpdateConfigParams {
+                deposit_enabled: None,
+                withdraw_enabled: Some(false),
+            },
+        };
+        // disable withdrawals
+        let resp = execute_as_manager(deps.as_mut(), msg);
+        assert_that!(resp).is_ok();
+
+        let msg = AutocompounderExecuteMsg::Withdraw {};
+        let resp = execute_as_manager(deps.as_mut(), msg);
+        assert_that!(resp)
+            .is_err()
+            .matches(|e| matches!(e, AutocompounderError::WithdrawalsDisabled {}));
         Ok(())
     }
 

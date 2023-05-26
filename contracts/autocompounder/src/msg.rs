@@ -80,6 +80,7 @@ pub enum AutocompounderExecuteMsg {
         performance: Option<Decimal>,
         deposit: Option<Decimal>,
         withdrawal: Option<Decimal>,
+        fee_collector_addr: Option<String>,
     },
     /// Join vault by depositing one or more funds
     #[cfg_attr(feature = "boot", payable)]
@@ -99,6 +100,9 @@ pub enum AutocompounderExecuteMsg {
     // Updates min_unbonding_cooldown and unbonding_period in the config with the latest staking contract data
     UpdateStakingConfig {
         preferred_bonding_period: BondingPeriodSelector,
+    },
+    UpdateConfig {
+        update_config_params: UpdateConfigParams,
     },
 }
 
@@ -196,6 +200,10 @@ pub struct Config {
     pub min_unbonding_cooldown: Option<Duration>,
     /// maximum compound spread
     pub max_swap_spread: Decimal,
+    /// deposit enabled
+    pub deposit_enabled: bool,
+    /// withdraw enabled
+    pub withdraw_enabled: bool,
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -213,4 +221,12 @@ pub struct Claim {
     pub amount_of_vault_tokens_to_burn: Uint128,
     //  amount of lp tokens being unbonded
     pub amount_of_lp_tokens_to_unbond: Uint128,
+}
+
+#[cosmwasm_schema::cw_serde]
+pub struct UpdateConfigParams {
+    /// If users should be able to deposit funds to the contract.
+    pub deposit_enabled: Option<bool>,
+    /// if users should be able to withdraw funds from the contract.
+    pub withdraw_enabled: Option<bool>,
 }

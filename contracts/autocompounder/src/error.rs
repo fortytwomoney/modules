@@ -79,4 +79,10 @@ pub enum AutocompounderError {
 
     #[error("Zero deposit amount is not allowed")]
     ZeroDepositAmount {},
+
+    #[error("Deposits are not enabled")]
+    DepositsDisabled {},
+
+    #[error("Withdrawals are not enabled")]
+    WithdrawalsDisabled {},
 }
