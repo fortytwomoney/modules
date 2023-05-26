@@ -5,7 +5,7 @@ use autocompounder::msg::AUTOCOMPOUNDER;
 use boot_core;
 use boot_core::networks::juno::JUNO_CHAIN;
 use boot_core::networks::neutron::NEUTRON_CHAIN;
-use boot_core::networks::{ NetworkInfo, NetworkKind};
+use boot_core::networks::{NetworkInfo, NetworkKind};
 use boot_core::*;
 use std::env;
 use std::sync::Arc;

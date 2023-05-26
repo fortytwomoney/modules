@@ -11,10 +11,14 @@ members = ["contracts/*", "packages/*", "scripts"]
 resolver = "2"
 
 [workspace.package]
-version = "0.4.3"
-authors = []
+version = "0.4.4"
+authors = [
+  "Maurits Bos <maurits.bos@gmail.com>",
+  "Eliseo Cohen Imach <eliseoimach@gmail.com>",
+  "CyberHoward <cyberhoward@protonmail.com>",
+  "Riada <riada@abstract.money>",
+  ]
 edition = "2021"
-
 
 exclude = [
   # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.

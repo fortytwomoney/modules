@@ -3,23 +3,23 @@
   "title": "InstantiateMsg",
   "type": "object",
   "required": [
-    "app",
-    "base"
+    "base",
+    "module"
   ],
   "properties": {
-    "app": {
-      "description": "custom instantiate msg",
-      "allOf": [
-        {
-          "$ref": "#/definitions/AutocompounderInstantiateMsg"
-        }
-      ]
-    },
     "base": {
       "description": "base instantiate information",
       "allOf": [
         {
           "$ref": "#/definitions/BaseInstantiateMsg"
+        }
+      ]
+    },
+    "module": {
+      "description": "custom instantiate msg",
+      "allOf": [
+        {
+          "$ref": "#/definitions/AutocompounderInstantiateMsg"
         }
       ]
     }
@@ -38,7 +38,6 @@
         "commission_addr",
         "deposit_fees",
         "dex",
-        "fee_asset",
         "performance_fees",
         "pool_assets",
         "preferred_bonding_period",
@@ -62,8 +61,16 @@
           "description": "Name of the target dex",
           "type": "string"
         },
-        "fee_asset": {
-          "type": "string"
+        "max_swap_spread": {
+          "description": "max swap spread",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "performance_fees": {
           "$ref": "#/definitions/Decimal"

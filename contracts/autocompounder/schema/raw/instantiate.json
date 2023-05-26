@@ -8,7 +8,6 @@
     "commission_addr",
     "deposit_fees",
     "dex",
-    "fee_asset",
     "performance_fees",
     "pool_assets",
     "preferred_bonding_period",
@@ -32,8 +31,16 @@
       "description": "Name of the target dex",
       "type": "string"
     },
-    "fee_asset": {
-      "type": "string"
+    "max_swap_spread": {
+      "description": "max swap spread",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Decimal"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "performance_fees": {
       "$ref": "#/definitions/Decimal"

@@ -4,7 +4,7 @@ use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::msg::AutocompounderMigrateMsg;
 use crate::state::{Config, FeeConfig, CONFIG, FEE_CONFIG};
 use abstract_core::objects::{AssetEntry, PoolAddress, PoolMetadata};
-use cosmwasm_std::{DepsMut, Env, Response, StdError, from_slice, Addr, Decimal};
+use cosmwasm_std::{from_slice, Addr, Decimal, DepsMut, Env, Response, StdError};
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
@@ -59,8 +59,12 @@ pub struct OldConfig {
 fn update_config_v0_4_3_to_v0_4_4(
     deps: &mut DepsMut,
 ) -> Result<(), crate::error::AutocompounderError> {
-    let data = deps.storage.get(CONFIG.as_slice()).ok_or_else(|| StdError::generic_err("No config"))?;
-    let config_v0_4_3: OldConfig = from_slice(data.as_slice()).map_err(|_| StdError::generic_err("Invalid config"))?;
+    let data = deps
+        .storage
+        .get(CONFIG.as_slice())
+        .ok_or_else(|| StdError::generic_err("No config"))?;
+    let config_v0_4_3: OldConfig =
+        from_slice(data.as_slice()).map_err(|_| StdError::generic_err("Invalid config"))?;
 
     let config = Config {
         staking_contract: config_v0_4_3.staking_contract,
@@ -82,8 +86,12 @@ fn update_config_v0_4_3_to_v0_4_4(
 fn update_fee_config_v0_4_3_to_v0_4_4(
     deps: &mut DepsMut,
 ) -> Result<(), crate::error::AutocompounderError> {
-    let data = deps.storage.get(FEE_CONFIG.as_slice()).ok_or_else(|| StdError::generic_err("No config"))?;
-    let config_v0_4_3: OldFeeConfig = from_slice(data.as_slice()).map_err(|_| StdError::generic_err("Invalid config"))?;
+    let data = deps
+        .storage
+        .get(FEE_CONFIG.as_slice())
+        .ok_or_else(|| StdError::generic_err("No config"))?;
+    let config_v0_4_3: OldFeeConfig =
+        from_slice(data.as_slice()).map_err(|_| StdError::generic_err("Invalid config"))?;
 
     let fee_config = FeeConfig {
         performance: config_v0_4_3.performance,
@@ -100,10 +108,7 @@ mod test {
     use super::*;
     use crate::state::CONFIG;
     use cosmwasm_std::to_vec;
-    use cosmwasm_std::{
-        testing::mock_dependencies,
-        Addr, Decimal,
-    };
+    use cosmwasm_std::{testing::mock_dependencies, Addr, Decimal};
     use cw_asset::AssetInfoBase;
     use speculoos::{assert_that, prelude::BooleanAssertions};
 
@@ -127,7 +132,8 @@ mod test {
             min_unbonding_cooldown: None,
             max_swap_spread: Decimal::percent(1),
         };
-        deps.storage.set(CONFIG.as_slice(), &to_vec(&config).unwrap());
+        deps.storage
+            .set(CONFIG.as_slice(), &to_vec(&config).unwrap());
     }
 
     fn set_old_fee_config(deps: DepsMut) {
@@ -138,7 +144,8 @@ mod test {
             fee_asset: "fee_asset".into(),
             fee_collector_addr: Addr::unchecked("fee_collector_addr"),
         };
-        deps.storage.set(FEE_CONFIG.as_slice(), &to_vec(&config).unwrap());
+        deps.storage
+            .set(FEE_CONFIG.as_slice(), &to_vec(&config).unwrap());
     }
 
     #[test]
