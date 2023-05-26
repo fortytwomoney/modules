@@ -6,7 +6,6 @@ use cw_utils::Expiration;
 
 pub const CACHED_USER_ADDR: Item<Addr> = Item::new("cached_user_addr");
 pub const CACHED_ASSETS: Map<String, Uint128> = Map::new("cached_assets");
-pub const CACHED_FEE_AMOUNT: Item<Uint128> = Item::new("cached_fee_amount");
 
 pub const LATEST_UNBONDING: Item<Expiration> = Item::new("latest_unbonding");
 // Key: User addreess - Value: Amount of vault tokens to be burned
