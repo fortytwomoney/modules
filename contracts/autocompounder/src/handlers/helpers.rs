@@ -1,3 +1,4 @@
+use abstract_sdk::AdapterInterface;
 use crate::msg::Config;
 use crate::state::DECIMAL_OFFSET;
 use crate::{
@@ -5,10 +6,10 @@ use crate::{
     error::AutocompounderError,
 };
 use abstract_core::objects::AnsAsset;
-use abstract_cw_staking_api::{msg::*, CW_STAKING};
-use abstract_dex_api::api::Dex;
+use abstract_cw_staking::{msg::*, CW_STAKING};
+use abstract_dex_adapter::api::Dex;
 use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
-use abstract_sdk::{AbstractSdkResult, ApiInterface};
+use abstract_sdk::{AbstractSdkResult};
 use cosmwasm_std::{wasm_execute, Addr, CosmosMsg, Decimal, Deps, SubMsg, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw20_base::msg::ExecuteMsg::Mint;
@@ -22,15 +23,15 @@ pub fn query_stake(
     lp_token_name: AssetEntry,
     unbonding_period: Option<Duration>,
 ) -> AutocompounderResult<Uint128> {
-    let apis = app.apis(deps);
+    let adapters = app.adapters(deps);
 
-    let query = CwStakingQueryMsg::Staked {
+    let query = StakingQueryMsg::Staked {
         staking_token: lp_token_name,
         staker_address: app.proxy_address(deps)?.to_string(),
         provider: dex,
         unbonding_period,
     };
-    let res: StakeResponse = apis.query(CW_STAKING, query)?;
+    let res: StakeResponse = adapters.query(CW_STAKING, query)?;
     Ok(res.amount)
 }
 
@@ -75,13 +76,13 @@ pub fn stake_lp_tokens(
     asset: AnsAsset,
     unbonding_period: Option<Duration>,
 ) -> AbstractSdkResult<CosmosMsg> {
-    let apis = app.apis(deps);
-    apis.request(
+    let adapters = app.adapters(deps);
+    adapters.request(
         CW_STAKING,
-        CwStakingExecuteMsg {
+        StakingExecuteMsg {
             provider,
-            action: CwStakingAction::Stake {
-                staking_token: asset,
+            action: StakingAction::Stake {
+                asset,
                 unbonding_period,
             },
         },

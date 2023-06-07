@@ -1,15 +1,16 @@
+use abstract_sdk::AdapterInterface;
+use abstract_core::objects::AnsEntryConvertor;
 use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER};
 use crate::state::{Config, CONFIG, FEE_CONFIG};
-use abstract_cw_staking_api::{
-    msg::{CwStakingQueryMsg, StakingInfoResponse},
+use abstract_cw_staking::{
+    msg::{StakingQueryMsg, StakingInfoResponse},
     CW_STAKING,
 };
-use abstract_sdk::ApiInterface;
+
 use abstract_sdk::{
-    core::api,
     core::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
     features::AbstractNameService,
     Resolve,
@@ -76,7 +77,7 @@ pub fn instantiate_handler(
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
     // get staking info
-    let staking_info = query_staking_info(deps.as_ref(), &app, lp_token.into(), dex.clone())?;
+    let staking_info = query_staking_info(deps.as_ref(), &app, AnsEntryConvertor::new(lp_token).asset_entry(), dex.clone())?;
     let (unbonding_period, min_unbonding_cooldown) =
         get_unbonding_period_and_min_unbonding_cooldown(
             staking_info.clone(),
@@ -175,18 +176,16 @@ pub fn query_staking_info(
     lp_token_name: AssetEntry,
     dex: String,
 ) -> StdResult<StakingInfoResponse> {
-    let apis = app.apis(deps);
+    let adapters = app.adapters(deps);
 
-    let query = CwStakingQueryMsg::Info {
+    let query = StakingQueryMsg::Info {
         provider: dex.clone(),
         staking_token: lp_token_name.clone(),
     };
 
-    let api_msg: api::QueryMsg<_> = query.clone().into();
-
-    let res: StakingInfoResponse = apis.query(CW_STAKING, query).map_err(|e| {
+    let res: StakingInfoResponse = adapters.query(CW_STAKING, query.clone()).map_err(|e| {
         StdError::generic_err(format!(
-            "Error querying staking info for {lp_token_name} on {dex}: {e}...{api_msg:?}"
+            "Error querying staking info for {lp_token_name} on {dex}: {e}...{query:?}"
         ))
     })?;
     Ok(res)

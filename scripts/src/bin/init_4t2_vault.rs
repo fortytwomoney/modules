@@ -1,25 +1,25 @@
+use cw_orch::prelude::*;
+use cw_orch::environment::{CwEnv, TxResponse};
+use cw_orch::daemon::DaemonBuilder;
+use autocompounder::interface::{get_module_address, is_module_installed};
 use std::env;
 use std::sync::Arc;
 
-use abstract_boot::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
+use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
 use abstract_core::{
-    account_factory, api, app,
+    account_factory, adapter, app,
     manager::ExecuteMsgFns,
     objects::module::ModuleInfo,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
     registry::{ANS_HOST, MANAGER, PROXY},
     ABSTRACT_EVENT_NAME,
 };
-use abstract_cw_staking_api::CW_STAKING;
-use boot_core::{
-    instantiate_daemon_env, BootError, BootExecute, CwEnv, DaemonOptionsBuilder, IndexResponse,
-    StateInterface, TxResponse,
-};
+use abstract_cw_staking::CW_STAKING;
+
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
 use cw_orch::daemon::networks::parse_network;
 
-use autocompounder::boot::{get_module_address, is_module_installed};
 use autocompounder::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER};
 use log::info;
 
@@ -33,7 +33,7 @@ fn create_vault_account<Chain: CwEnv>(
     chain: Chain,
     governance_details: GovernanceDetails<String>,
     assets: Vec<String>,
-) -> Result<AbstractAccount<Chain>, BootError>
+) -> Result<AbstractAccount<Chain>, CwOrchError>
 where
     TxResponse<Chain>: IndexResponse,
 {
@@ -77,9 +77,12 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     // Setup the environment
     let network = parse_network(&args.network_id);
 
-    // TODO: make grpc url dynamic by removing this line once Boot gets updated
-    let daemon_options = DaemonOptionsBuilder::default().network(network).build()?;
-    let (sender, chain) = instantiate_daemon_env(&rt, daemon_options)?;
+    // TODO: make grpc url dynamic by removing this line once cw-orch gets updated
+    let chain = DaemonBuilder::default()
+        .handle(rt.handle())
+        .chain(network)
+        .build()?;
+    let sender = chain.sender();
 
     let abstr = Abstract::new(chain.clone());
 
@@ -99,7 +102,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         )?
     };
 
-    // let query_res = forty_two ::abstract_cw_staking_api::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
+    // let query_res = forty_two ::abstract_cw_staking::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
     // panic!("{?:}", query_res);
 
     // Install abstract dex
@@ -158,7 +161,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     account.manager.execute_on_module(
         CW_STAKING,
-        api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateAuthorizedAddresses {
+        adapter::ExecuteMsg::<Empty, Empty>::Base(adapter::BaseExecuteMsg::UpdateAuthorizedAddresses {
             to_add: vec![autocompounder_address.to_string()],
             to_remove: vec![],
         }),
@@ -166,7 +169,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     account.manager.execute_on_module(
         "abstract:dex",
-        api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateAuthorizedAddresses {
+        adapter::ExecuteMsg::<Empty, Empty>::Base(adapter::BaseExecuteMsg::UpdateAuthorizedAddresses {
             to_add: vec![autocompounder_address.to_string()],
             to_remove: vec![],
         }),

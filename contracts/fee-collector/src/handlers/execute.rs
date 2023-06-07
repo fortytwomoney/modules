@@ -1,4 +1,4 @@
-use abstract_dex_api::api::DexInterface;
+use abstract_dex_adapter::DexInterface;
 use abstract_sdk::{
     core::objects::{AnsAsset, AssetEntry},
     features::AbstractResponse,

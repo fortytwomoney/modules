@@ -10,7 +10,7 @@
 //     registry::{ANS_HOST, MANAGER, PROXY},
 //     ABSTRACT_EVENT_NAME,
 // };
-// use abstract_cw_staking_api::CW_STAKING;
+// use abstract_cw_staking::CW_STAKING;
 // use boot_core::{
 //     instantiate_daemon_env, BootError, BootExecute, CwEnv,
 //     DaemonOptionsBuilder, IndexResponse, StateInterface, TxResponse,
@@ -99,7 +99,7 @@
 //         )?
 //     };
 
-//     // let query_res = forty_two ::abstract_cw_staking_api::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
+//     // let query_res = forty_two ::abstract_cw_staking::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
 //     // panic!("{?:}", query_res);
 
 //     // Install abstract dex

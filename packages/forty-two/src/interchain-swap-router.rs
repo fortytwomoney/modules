@@ -28,7 +28,7 @@
 //! ## Migration
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
-use abstract_dex_api::msg::OfferAsset;
+use abstract_dex_adapter::msg::OfferAsset;
 use abstract_sdk::os::app;
 use abstract_sdk::os::objects::{AssetEntry, DexName, PoolAddress, PoolMetadata};
 use cosmwasm_schema::QueryResponses;

@@ -1,4 +1,4 @@
-use abstract_dex_api::EXCHANGE;
+use abstract_dex_adapter::EXCHANGE;
 use abstract_sdk::core::objects::dependency::StaticDependency;
 
 // This is an example dependency on another app or adapter module

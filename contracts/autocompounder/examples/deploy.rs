@@ -1,50 +1,29 @@
-use abstract_boot::AppDeployer;
+use cw_orch::daemon::networks::{PION_1};
+use cw_orch::daemon::{ChainInfo};
+use abstract_interface::AppDeployer;
 
-use autocompounder::boot::AutocompounderApp;
+use autocompounder::interface::AutocompounderApp;
 use autocompounder::msg::AUTOCOMPOUNDER;
-use boot_core;
-use boot_core::networks::juno::JUNO_CHAIN;
-use boot_core::networks::neutron::NEUTRON_CHAIN;
-use boot_core::networks::{ NetworkInfo, NetworkKind};
-use boot_core::*;
+use cw_orch::prelude::*;
 use std::env;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub const JUNO_1: NetworkInfo = NetworkInfo {
-    kind: NetworkKind::Mainnet,
-    id: "juno-1",
-    gas_denom: "ujuno",
-    gas_price: 0.0025,
-    grpc_urls: &["http://juno-grpc.polkachu.com:12690"],
-    chain_info: JUNO_CHAIN,
-    lcd_url: None,
-    fcd_url: None,
-};
-pub const PION_1: NetworkInfo = NetworkInfo {
-    kind: NetworkKind::Testnet,
-    id: "pion-1",
-    gas_denom: "untrn",
-    gas_price: 0.001,
-    grpc_urls: &["http://grpc-palvus.pion-1.ntrn.tech:80"],
-    chain_info: NEUTRON_CHAIN,
-    lcd_url: Some("https://rest-palvus.pion-1.ntrn.tech"),
-    fcd_url: None,
-};
-
 fn deploy_autocompounder(
-    _network: NetworkInfo,
+    network: ChainInfo,
     _autocompounder_code_id: Option<u64>,
 ) -> anyhow::Result<()> {
     let version: Version = CONTRACT_VERSION.parse().unwrap();
 
     let rt = Arc::new(Runtime::new()?);
-    let options = DaemonOptionsBuilder::default().network(PION_1).build();
-    let (_sender, chain) = instantiate_daemon_env(&rt, options?)?;
+    let chain = DaemonBuilder::default()
+        .handle(rt.handle())
+        .chain(network)
+        .build()?;
 
-    let mut autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
+    let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
     autocompounder.deploy(version)?;
 

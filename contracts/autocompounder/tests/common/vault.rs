@@ -1,17 +1,17 @@
-use abstract_boot::{Abstract, AbstractAccount};
-use abstract_cw_staking_api::boot::CwStakingApi;
-use abstract_dex_api::boot::DexApi;
-use autocompounder::boot::AutocompounderApp;
-use boot_core::CwEnv;
-use boot_cw_plus::Cw20Base;
+use abstract_interface::{Abstract, AbstractAccount};
+use abstract_cw_staking::interface::CwStakingAdapter;
+use abstract_dex_adapter::interface::DexAdapter;
+use autocompounder::interface::AutocompounderApp;
+use cw_orch::environment::CwEnv;
+use cw20_base::contract::Cw20Base;
 use wyndex_bundle::WynDex;
 
 pub struct Vault<Chain: CwEnv> {
     pub account: AbstractAccount<Chain>,
     pub auto_compounder: AutocompounderApp<Chain>,
     pub vault_token: Cw20Base<Chain>,
-    pub staking: CwStakingApi<Chain>,
-    pub dex: DexApi<Chain>,
+    pub staking: CwStakingAdapter<Chain>,
+    pub dex: DexAdapter<Chain>,
     pub wyndex: WynDex,
     pub abstract_core: Abstract<Chain>,
 }

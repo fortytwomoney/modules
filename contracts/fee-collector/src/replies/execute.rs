@@ -3,7 +3,7 @@ use crate::{
     state::CONFIG,
 };
 
-use abstract_sdk::{features::AbstractResponse, TransferInterface};
+use abstract_sdk::{features::AbstractResponse, TransferInterface, Execution};
 use cosmwasm_std::{DepsMut, Env, Reply, Response};
 
 pub fn swapped_reply(
@@ -19,5 +19,12 @@ pub fn swapped_reply(
 
     let transfer_msg = bank.transfer(vec![fee_balance], &config.commission_addr)?;
 
-    Ok(app.tag_response(Response::new().add_message(transfer_msg), "swapped_reply"))
+
+    Ok(app
+        .tag_response(
+            Response::new(),
+            "swapped_reply"
+        )
+        .add_message(app.executor(deps.as_ref()).execute(vec![transfer_msg])?)
+    )
 }
