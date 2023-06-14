@@ -80,6 +80,7 @@ pub enum AutocompounderExecuteMsg {
         performance: Option<Decimal>,
         deposit: Option<Decimal>,
         withdrawal: Option<Decimal>,
+        fee_collector_addr: Option<String>,
     },
     /// Join vault by depositing one or more funds
     #[cfg_attr(feature = "boot", payable)]
