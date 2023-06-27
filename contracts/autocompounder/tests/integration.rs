@@ -1,7 +1,6 @@
-
 mod common;
 
-use cw20_base::contract::Cw20Base;
+use cw20_base::contract::AbstractCw20Base;
 use abstract_interface::AbstractInterfaceError;
 use std::ops::Mul;
 use std::str::FromStr;
@@ -100,7 +99,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractInterfaceError> {
     let staking_api = abstract_helper::init_staking(mock.clone(), &abstract_, None)?;
     let auto_compounder = init_auto_compounder(mock.clone(), &abstract_, None)?;
 
-    let vault_token = Cw20Base::new(VAULT_TOKEN, mock.clone());
+    let vault_token = AbstractCw20Base::new(VAULT_TOKEN, mock.clone());
     // upload the vault token code
     let vault_toke_code_id = vault_token.upload()?.uploaded_code_id()?;
     // Create an Account that we will turn into a vault
@@ -111,9 +110,9 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractInterfaceError> {
     )?;
 
     // install dex
-    account.manager.install_module(EXCHANGE, &Empty {})?;
+    account.manager.install_module(EXCHANGE, &Empty {},None)?;
     // install staking
-    account.manager.install_module(CW_STAKING, &Empty {})?;
+    account.manager.install_module(CW_STAKING, &Empty {},None)?;
     // install autocompounder
     account.manager.install_module(
         AUTOCOMPOUNDER,
@@ -132,7 +131,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractInterfaceError> {
             base: abstract_core::app::BaseInstantiateMsg {
                 ans_host_address: abstract_.ans_host.addr_str()?,
             },
-        },
+        },None
     )?;
     // get its address
     let auto_compounder_addr = account

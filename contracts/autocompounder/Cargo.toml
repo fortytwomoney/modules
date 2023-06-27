@@ -65,10 +65,12 @@ autocompounder = { path = ".", features = ["interface"] }
 abstract-dex-adapter = { workspace=true, features = [
   "juno",
   "interface",
+  "testing"
 ] }
 abstract-cw-staking = { workspace=true, features = [
   "juno",
   "interface",
+  "testing"
 ] }
 abstract-interface = { workspace = true, features = ["daemon"] }
 abstract-testing = { workspace = true }

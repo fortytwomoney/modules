@@ -12,7 +12,7 @@ use cw_orch::prelude::*;
 
 use cosmwasm_std::{coin, Decimal};
 
-use fee_collector_app::{interface::FeeCollector, msg::FEE_COLLECTOR};
+use fee_collector_app::{contract::interface::FeeCollectorApp, msg::FEE_COLLECTOR};
 use fee_collector_app::{
     msg::{FeeCollectorExecuteMsgFns, FeeCollectorQueryMsgFns},
     state::Config,
@@ -29,18 +29,20 @@ pub type AResult = anyhow::Result<()>;
 // This is where you can do your integration tests for your module
 pub struct App<Chain: CwEnv> {
     pub account: AbstractAccount<Chain>,
-    pub fee_collector: FeeCollector<Chain>,
+    pub fee_collector: FeeCollectorApp<Chain>,
     pub dex: DexAdapter<Chain>,
     pub wyndex: WynDex,
     pub abstract_core: Abstract<Chain>,
 }
+
+const DEX_ADAPTER_VERSION: &str = "0.17.0";
 
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
 pub(crate) fn init_exchange(
     chain: Mock,
     deployment: &Abstract<Mock>,
-    _version: Option<String>,
+    version: Option<String>,
 ) -> Result<DexAdapter<Mock>, AbstractInterfaceError> {
     let exchange = DexAdapter::new(EXCHANGE, chain);
 
@@ -60,11 +62,11 @@ pub(crate) fn init_exchange(
         None,
     )?;
 
-    let version = version.unwrap_or_else(||"1.0.0".to_string());
+    let version = version.unwrap_or_else(|| DEX_ADAPTER_VERSION.to_string());
 
     deployment
         .version_control
-        .register_adapters(vec![(exchange.as_instance(), version.to_string())])?;
+        .register_adapters(vec![(exchange.as_instance(), version)])?;
     Ok(exchange)
 }
 
@@ -72,14 +74,14 @@ fn init_fee_collector(
     chain: Mock,
     deployment: &Abstract<Mock>,
     _version: Option<String>,
-) -> Result<FeeCollector<Mock>, AbstractInterfaceError> {
-    let fee_collector = FeeCollector::new(FEE_COLLECTOR, chain);
+) -> Result<FeeCollectorApp<Mock>, AbstractInterfaceError> {
+    let fee_collector = FeeCollectorApp::new(FEE_COLLECTOR, chain);
 
     fee_collector.upload()?;
 
     deployment
         .version_control
-        .register_apps(vec![(fee_collector.as_instance(), "1.0.0".parse().unwrap())])
+        .register_apps(vec![(fee_collector.as_instance(), env!("CARGO_PKG_VERSION").parse().unwrap())])
         .unwrap();
     Ok(fee_collector)
 }
@@ -90,6 +92,10 @@ fn create_fee_collector(
 ) -> Result<App<Mock>, AbstractInterfaceError> {
     // Deploy abstract
     let abstract_ = Abstract::deploy_on(mock.clone(), Empty{})?;
+
+    abstract_.version_control.update_config(None, Some(10), None)?;
+
+
     // create first Account
     abstract_.account_factory.create_default_account(
         abstract_core::objects::gov_type::GovernanceDetails::Monarchy {
@@ -116,7 +122,7 @@ fn create_fee_collector(
     )?;
 
     // install dex
-    account.manager.install_module(EXCHANGE, &Empty {})?;
+    account.manager.install_module(EXCHANGE, &Empty {}, None)?;
     account.manager.install_module(
         FEE_COLLECTOR,
         &abstract_core::app::InstantiateMsg {
@@ -130,6 +136,7 @@ fn create_fee_collector(
                 ans_host_address: abstract_.ans_host.addr_str()?,
             },
         },
+        None
     )?;
 
     // get its address

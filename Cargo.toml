@@ -32,8 +32,10 @@ abstract-core = { version = "0.16.1" }
 abstract-interface = { version = "0.16.1" }
 abstract-testing = { version = "0.16.1" }
 
-abstract-dex-adapter = { git = "https://github.com/AbstractSDK/adapters.git", ref="v0.17.0", default-features = false  }
-abstract-cw-staking = { git = "https://github.com/AbstractSDK/adapters.git", ref="v0.17.0", default-features = false }
+# abstract-dex-adapter = { git = "https://github.com/AbstractSDK/adapters.git", ref="v0.17.0", default-features = false  }
+# abstract-cw-staking = { git = "https://github.com/AbstractSDK/adapters.git", ref="v0.17.0", default-features = false }
+abstract-dex-adapter = { git = "https://github.com/AbstractSDK/adapters.git", default-features = false  }
+abstract-cw-staking = { git = "https://github.com/AbstractSDK/adapters.git", default-features = false }
 forty-two = { version = "0.5.0", path = "packages/forty-two" }
 
 autocompounder = { path = "contracts/autocompounder" }
@@ -49,9 +51,9 @@ cw-controllers = "1.0.1"
 cw-paginate = { git = "https://github.com/DA0-DA0/dao-contracts.git", tag = "v1.0.0" }
 cosmwasm-storage = { version = "1.1" }
 cw-utils = "1.0.1"
-cw20-base =  {git="https://github.com/AbstractSDK/cw-plus.git", features=["interface", "library"]}
-cw20 =  {git="https://github.com/AbstractSDK/cw-plus.git", features=["interface"]}
-cw2 =  {git="https://github.com/AbstractSDK/cw-plus.git"}
+cw20-base =  {package="abstract-cw20-base", features=["interface", "library"]}
+cw20 =  {package="abstract-cw20", features=["interface"]}
+cw2 =  {package="abstract-cw2"}
 anyhow = { version = "1.0.51" }
 cw-multi-test = "0.16"
 rstest = "0.16.0"

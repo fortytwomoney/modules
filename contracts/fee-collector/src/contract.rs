@@ -43,3 +43,6 @@ pub const FEE_COLLECTOR_APP: FeeCollectorApp =
 // Export handlers
 #[cfg(feature = "export")]
 abstract_app::export_endpoints!(FEE_COLLECTOR_APP, FeeCollectorApp);
+
+#[cfg(feature = "interface")]
+abstract_app::create_interface!(FEE_COLLECTOR_APP, FeeCollectorApp);

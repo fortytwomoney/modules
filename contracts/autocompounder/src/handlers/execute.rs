@@ -375,7 +375,7 @@ fn deposit_lp(
         return Err(AutocompounderError::SenderIsNotLpToken {});
     };
     let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
-    let mut transfer_msgs = app.bank(deps.as_ref()).deposit(vec![AnsAsset::new(
+    let transfer_msgs = app.bank(deps.as_ref()).deposit(vec![AnsAsset::new(
         AnsEntryConvertor::new(lp_token.clone()).asset_entry(),
         amount,
     )])?;
@@ -420,6 +420,7 @@ fn deposit_lp(
     )?;
 
     let res = Response::new()
+            .add_messages(transfer_msgs)
             .add_messages(vec![mint_msg, stake_msg])
             .add_messages(fee_msgs);
 
