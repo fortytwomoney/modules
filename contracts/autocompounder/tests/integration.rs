@@ -1,13 +1,13 @@
 mod common;
 
-use cw20_base::contract::AbstractCw20Base;
 use abstract_interface::AbstractInterfaceError;
+use cw20_base::contract::AbstractCw20Base;
 use std::ops::Mul;
 use std::str::FromStr;
 
-use abstract_interface::{Abstract, ManagerQueryFns, VCExecFns};
 use abstract_core::adapter::BaseExecuteMsgFns;
 use abstract_core::objects::{AnsAsset, AssetEntry};
+use abstract_interface::{Abstract, ManagerQueryFns, VCExecFns};
 use abstract_sdk::core as abstract_core;
 
 use abstract_cw_staking::CW_STAKING;
@@ -32,11 +32,11 @@ use speculoos::assert_that;
 use speculoos::prelude::OrderedAssertions;
 use wyndex_stake::msg::ReceiveDelegationMsg;
 
+use cw20::msg::Cw20ExecuteMsgFns;
+use cw20_base::msg::QueryMsgFns;
+use cw_orch::deploy::Deploy;
 use speculoos::result::ResultAssertions;
 use wyndex_bundle::*;
-use cw20_base::msg::QueryMsgFns;
-use cw20::msg::Cw20ExecuteMsgFns;
-use cw_orch::deploy::Deploy;
 
 const WYNDEX: &str = "wyndex";
 const COMMISSION_RECEIVER: &str = "commission_receiver";
@@ -50,7 +50,6 @@ pub fn convert_to_assets(
     total_supply: Uint128,
     decimal_offset: u32,
 ) -> Uint128 {
-    
     shares.multiply_ratio(
         total_assets + Uint128::from(1u128),
         total_supply + Uint128::from(10u128).pow(decimal_offset),
@@ -65,7 +64,6 @@ pub fn convert_to_shares(
     total_supply: Uint128,
     decimal_offset: u32,
 ) -> Uint128 {
-    
     assets.multiply_ratio(
         total_supply + Uint128::from(10u128).pow(decimal_offset),
         total_assets + Uint128::from(1u128),
@@ -74,7 +72,7 @@ pub fn convert_to_shares(
 
 fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractInterfaceError> {
     // Deploy abstract
-    let abstract_ = Abstract::deploy_on(mock.clone(), Empty{})?;
+    let abstract_ = Abstract::deploy_on(mock.clone(), Empty {})?;
     // create first Account
     abstract_.account_factory.create_default_account(
         abstract_core::objects::gov_type::GovernanceDetails::Monarchy {
@@ -82,7 +80,9 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractInterfaceError> {
         },
     )?;
 
-    abstract_.version_control.update_config(None, Some(100), None)?;
+    abstract_
+        .version_control
+        .update_config(None, Some(100), None)?;
 
     abstract_
         .version_control
@@ -110,9 +110,11 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractInterfaceError> {
     )?;
 
     // install dex
-    account.manager.install_module(EXCHANGE, &Empty {},None)?;
+    account.manager.install_module(EXCHANGE, &Empty {}, None)?;
     // install staking
-    account.manager.install_module(CW_STAKING, &Empty {},None)?;
+    account
+        .manager
+        .install_module(CW_STAKING, &Empty {}, None)?;
     // install autocompounder
     account.manager.install_module(
         AUTOCOMPOUNDER,
@@ -131,7 +133,8 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractInterfaceError> {
             base: abstract_core::app::BaseInstantiateMsg {
                 ans_host_address: abstract_.ans_host.addr_str()?,
             },
-        },None
+        },
+        None,
     )?;
     // get its address
     let auto_compounder_addr = account
@@ -189,7 +192,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
 
     // create testing environment
-    let mock= Mock::new(&owner);
+    let mock = Mock::new(&owner);
 
     // create a vault
     let vault = crate::create_vault(mock.clone())?;
@@ -1260,8 +1263,7 @@ fn vault_token_inflation_attack_original() -> AResult {
 
     // check the number of vault tokens the attacker has
     let attacker_vault_token_balance = vault_token.balance(attacker.to_string())?.balance;
-    assert_that!(attacker_vault_token_balance.u128())
-        .is_equal_to(10u128.pow(DECIMAL_OFFSET));
+    assert_that!(attacker_vault_token_balance.u128()).is_equal_to(10u128.pow(DECIMAL_OFFSET));
 
     // attacker makes donation to liquidity pool
     let attacker_donation = user_deposit / 2 + 1u128;

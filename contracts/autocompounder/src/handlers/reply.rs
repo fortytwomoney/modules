@@ -1,6 +1,3 @@
-use abstract_sdk::Execution;
-use abstract_sdk::AdapterInterface;
-use abstract_core::objects::AnsEntryConvertor;
 use super::helpers::{
     convert_to_shares, cw20_total_supply, mint_vault_tokens, query_stake, stake_lp_tokens,
     swap_rewards_with_reply,
@@ -11,12 +8,15 @@ use crate::contract::{
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{Config, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
+use abstract_core::objects::AnsEntryConvertor;
 use abstract_cw_staking::{
-    msg::{StakingQueryMsg, RewardTokensResponse},
+    msg::{RewardTokensResponse, StakingQueryMsg},
     CW_STAKING,
 };
 use abstract_dex_adapter::api::DexInterface;
 use abstract_dex_adapter::msg::OfferAsset;
+use abstract_sdk::AdapterInterface;
+use abstract_sdk::Execution;
 use abstract_sdk::{
     core::objects::{AnsAsset, PoolMetadata},
     features::AbstractResponse,
@@ -287,7 +287,9 @@ pub fn compound_lp_provision_reply(
     let ans_host = app.ans_host(deps.as_ref())?;
     let proxy = app.proxy_address(deps.as_ref())?;
 
-    let lp_token = AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token()).asset_entry();
+    let lp_token =
+        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token())
+            .asset_entry();
 
     // query balance of lp tokens
     let lp_balance = lp_token
@@ -317,7 +319,8 @@ fn query_rewards(
     let adapters = app.adapters(deps);
     let query = StakingQueryMsg::RewardTokens {
         provider: pool_data.dex.clone(),
-        staking_token: AnsEntryConvertor::new(AnsEntryConvertor::new(pool_data).lp_token()).asset_entry(),
+        staking_token: AnsEntryConvertor::new(AnsEntryConvertor::new(pool_data).lp_token())
+            .asset_entry(),
     };
     let RewardTokensResponse { tokens } = adapters.query(CW_STAKING, query)?;
     Ok(tokens)

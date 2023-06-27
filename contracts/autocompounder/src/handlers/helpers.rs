@@ -1,4 +1,3 @@
-use abstract_sdk::AdapterInterface;
 use crate::msg::Config;
 use crate::state::DECIMAL_OFFSET;
 use crate::{
@@ -8,8 +7,9 @@ use crate::{
 use abstract_core::objects::AnsAsset;
 use abstract_cw_staking::{msg::*, CW_STAKING};
 use abstract_dex_adapter::api::Dex;
+use abstract_sdk::AbstractSdkResult;
+use abstract_sdk::AdapterInterface;
 use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
-use abstract_sdk::{AbstractSdkResult};
 use cosmwasm_std::{wasm_execute, Addr, CosmosMsg, Decimal, Deps, SubMsg, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw20_base::msg::ExecuteMsg::Mint;

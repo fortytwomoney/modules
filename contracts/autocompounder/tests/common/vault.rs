@@ -1,9 +1,9 @@
-use abstract_interface::{Abstract, AbstractAccount};
 use abstract_cw_staking::interface::CwStakingAdapter;
 use abstract_dex_adapter::interface::DexAdapter;
+use abstract_interface::{Abstract, AbstractAccount};
 use autocompounder::interface::AutocompounderApp;
-use cw_orch::environment::CwEnv;
 use cw20_base::contract::AbstractCw20Base;
+use cw_orch::environment::CwEnv;
 use wyndex_bundle::WynDex;
 
 pub struct Vault<Chain: CwEnv> {

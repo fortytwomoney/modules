@@ -1,6 +1,6 @@
-use cw_orch::daemon::networks::{PION_1};
-use cw_orch::daemon::{ChainInfo};
 use abstract_interface::AppDeployer;
+use cw_orch::daemon::networks::PION_1;
+use cw_orch::daemon::ChainInfo;
 
 use autocompounder::interface::AutocompounderApp;
 use autocompounder::msg::AUTOCOMPOUNDER;

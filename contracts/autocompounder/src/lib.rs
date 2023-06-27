@@ -12,7 +12,7 @@ pub mod interface;
 #[cfg(test)]
 mod test_common {
     use crate::msg::BondingPeriodSelector;
-    use abstract_cw_staking::msg::{StakingQueryMsg, StakeResponse, StakingInfoResponse};
+    use abstract_cw_staking::msg::{StakeResponse, StakingInfoResponse, StakingQueryMsg};
     use abstract_sdk::base::InstantiateEndpoint;
     pub use abstract_sdk::core as abstract_core;
     use abstract_sdk::core::{

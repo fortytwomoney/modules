@@ -1,10 +1,10 @@
-use abstract_core::objects::AnsEntryConvertor;
-use abstract_sdk::AdapterInterface;
 use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::state::{
     Claim, Config, FeeConfig, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
+use abstract_core::objects::AnsEntryConvertor;
 use abstract_sdk::features::AccountIdentification;
+use abstract_sdk::AdapterInterface;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 
 use crate::msg::AutocompounderQueryMsg;
@@ -144,7 +144,8 @@ pub fn query_total_lp_position(
 
     let query = StakingQueryMsg::Staked {
         provider: config.pool_data.dex.clone(),
-        staking_token: AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data).lp_token()).asset_entry(),
+        staking_token: AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data).lp_token())
+            .asset_entry(),
         staker_address: app.proxy_address(deps)?.to_string(),
         unbonding_period: config.unbonding_period,
     };

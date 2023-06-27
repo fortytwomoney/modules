@@ -1,9 +1,8 @@
-
+use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING};
 use abstract_interface::{AbstractAccount, AppDeployer, ManagerQueryFns};
-use abstract_cw_staking::{CW_STAKING, interface::CwStakingAdapter};
 use abstract_sdk::core::app;
 use abstract_sdk::core::app::BaseExecuteMsg;
-use cw_orch::{prelude::*, interface};
+use cw_orch::{interface, prelude::*};
 
 /*use boot_core::{
     contract, BootError, BootExecute, Contract, ContractWrapper, CwEnv, IndexResponse, TxResponse,
@@ -22,15 +21,14 @@ pub struct AutocompounderApp;
 impl<Chain: CwEnv> AppDeployer<Chain> for AutocompounderApp<Chain> {}
 
 impl<Chain: CwEnv> Uploadable for AutocompounderApp<Chain> {
-    
     fn wrapper(&self) -> <Mock as TxHandler>::ContractSource {
         Box::new(
             ContractWrapper::new_with_empty(
-                    crate::contract::execute,
-                    crate::contract::instantiate,
-                    crate::contract::query,
+                crate::contract::execute,
+                crate::contract::instantiate,
+                crate::contract::query,
             )
-                .with_reply(crate::contract::reply),
+            .with_reply(crate::contract::reply),
         )
     }
     fn wasm(&self) -> WasmPath {

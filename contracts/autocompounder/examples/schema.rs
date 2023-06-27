@@ -1,4 +1,3 @@
-
 #[cfg(feature = "schema")]
 use autocompounder::contract::AutocompounderApp;
 use cosmwasm_schema::remove_schemas;

@@ -1,11 +1,10 @@
-use cw_orch::prelude::*;
-use cw_orch::environment::{CwEnv, TxResponse};
-use cw_orch::daemon::DaemonBuilder;
 use autocompounder::interface::{get_module_address, is_module_installed};
+use cw_orch::daemon::DaemonBuilder;
+use cw_orch::environment::{CwEnv, TxResponse};
+use cw_orch::prelude::*;
 use std::env;
 use std::sync::Arc;
 
-use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
 use abstract_core::{
     account_factory, adapter, app,
     manager::ExecuteMsgFns,
@@ -15,6 +14,7 @@ use abstract_core::{
     ABSTRACT_EVENT_NAME,
 };
 use abstract_cw_staking::CW_STAKING;
+use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
 
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
@@ -107,12 +107,16 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     // Install abstract dex
     if !is_module_installed(&account, "abstract:dex")? {
-        account.manager.install_module("abstract:dex", &Empty {}, None)?;
+        account
+            .manager
+            .install_module("abstract:dex", &Empty {}, None)?;
     }
 
     // install the staking module
     if !is_module_installed(&account, CW_STAKING)? {
-        account.manager.install_module(CW_STAKING, &Empty {}, None)?;
+        account
+            .manager
+            .install_module(CW_STAKING, &Empty {}, None)?;
     }
     // First uninstall autocompounder if found
     if is_module_installed(&account, AUTOCOMPOUNDER)? {
@@ -153,7 +157,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                 preferred_bonding_period: BondingPeriodSelector::Shortest,
                 max_swap_spread: Some(Decimal::percent(10)),
             },
-        }, None
+        },
+        None,
     )?;
 
     // Register the autocompounder as a trader on the cw-staking and the dex
@@ -161,18 +166,22 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     account.manager.execute_on_module(
         CW_STAKING,
-        adapter::ExecuteMsg::<Empty, Empty>::Base(adapter::BaseExecuteMsg::UpdateAuthorizedAddresses {
-            to_add: vec![autocompounder_address.to_string()],
-            to_remove: vec![],
-        }),
+        adapter::ExecuteMsg::<Empty, Empty>::Base(
+            adapter::BaseExecuteMsg::UpdateAuthorizedAddresses {
+                to_add: vec![autocompounder_address.to_string()],
+                to_remove: vec![],
+            },
+        ),
     )?;
 
     account.manager.execute_on_module(
         "abstract:dex",
-        adapter::ExecuteMsg::<Empty, Empty>::Base(adapter::BaseExecuteMsg::UpdateAuthorizedAddresses {
-            to_add: vec![autocompounder_address.to_string()],
-            to_remove: vec![],
-        }),
+        adapter::ExecuteMsg::<Empty, Empty>::Base(
+            adapter::BaseExecuteMsg::UpdateAuthorizedAddresses {
+                to_add: vec![autocompounder_address.to_string()],
+                to_remove: vec![],
+            },
+        ),
     )?;
 
     Ok(())

@@ -1,11 +1,13 @@
 use cw_orch::deploy::Deploy;
 use std::str::FromStr;
 
-use abstract_interface::{Abstract, AbstractAccount, AbstractInterfaceError, ManagerQueryFns, VCExecFns};
 use abstract_core::adapter::BaseExecuteMsgFns;
 use abstract_core::objects::AssetEntry;
 use abstract_dex_adapter::msg::DexInstantiateMsg;
 use abstract_dex_adapter::{interface::DexAdapter, EXCHANGE};
+use abstract_interface::{
+    Abstract, AbstractAccount, AbstractInterfaceError, ManagerQueryFns, VCExecFns,
+};
 use abstract_sdk::core::adapter::InstantiateMsg;
 use abstract_testing::prelude::{EUR, USD};
 use cw_orch::prelude::*;
@@ -81,7 +83,10 @@ fn init_fee_collector(
 
     deployment
         .version_control
-        .register_apps(vec![(fee_collector.as_instance(), env!("CARGO_PKG_VERSION").parse().unwrap())])
+        .register_apps(vec![(
+            fee_collector.as_instance(),
+            env!("CARGO_PKG_VERSION").parse().unwrap(),
+        )])
         .unwrap();
     Ok(fee_collector)
 }
@@ -91,10 +96,11 @@ fn create_fee_collector(
     allowed_assets: Vec<AssetEntry>,
 ) -> Result<App<Mock>, AbstractInterfaceError> {
     // Deploy abstract
-    let abstract_ = Abstract::deploy_on(mock.clone(), Empty{})?;
+    let abstract_ = Abstract::deploy_on(mock.clone(), Empty {})?;
 
-    abstract_.version_control.update_config(None, Some(10), None)?;
-
+    abstract_
+        .version_control
+        .update_config(None, Some(10), None)?;
 
     // create first Account
     abstract_.account_factory.create_default_account(
@@ -136,7 +142,7 @@ fn create_fee_collector(
                 ans_host_address: abstract_.ans_host.addr_str()?,
             },
         },
-        None
+        None,
     )?;
 
     // get its address

@@ -2,8 +2,8 @@ use abstract_interface::AppDeployer;
 use cw_orch::daemon::networks::parse_network;
 use std::sync::Arc;
 
-use cw_orch::prelude::*;
 use cw_orch::daemon::ChainInfo;
+use cw_orch::prelude::*;
 use semver::Version;
 
 use clap::Parser;
@@ -15,7 +15,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn deploy_etf(network: ChainInfo) -> anyhow::Result<()> {
     let version: Version = CONTRACT_VERSION.parse().unwrap();
-    
+
     let rt = Arc::new(Runtime::new()?);
     let chain = DaemonBuilder::default()
         .handle(rt.handle())

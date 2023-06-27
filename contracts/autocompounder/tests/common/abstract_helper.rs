@@ -1,15 +1,15 @@
 use std::str::FromStr;
 
-use abstract_interface::{Abstract, AbstractInterfaceError};
 use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING};
 use abstract_dex_adapter::msg::DexInstantiateMsg;
 use abstract_dex_adapter::{interface::DexAdapter, EXCHANGE};
+use abstract_interface::{Abstract, AbstractInterfaceError};
 use abstract_sdk::core as abstract_core;
 use abstract_sdk::core::adapter::InstantiateMsg;
 use autocompounder::interface::AutocompounderApp;
 use autocompounder::msg::AUTOCOMPOUNDER;
-use cw_orch::prelude::*;
 use cosmwasm_std::{Decimal, Empty};
+use cw_orch::prelude::*;
 
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
@@ -36,8 +36,8 @@ pub(crate) fn init_exchange(
         None,
     )?;
 
-    let version = version
-        .unwrap_or_else(|| abstract_dex_adapter::contract::CONTRACT_VERSION.to_string());
+    let version =
+        version.unwrap_or_else(|| abstract_dex_adapter::contract::CONTRACT_VERSION.to_string());
 
     deployment
         .version_control
@@ -67,8 +67,8 @@ pub(crate) fn init_staking(
         None,
     )?;
 
-    let version = version
-        .unwrap_or_else(|| abstract_cw_staking::contract::CONTRACT_VERSION.to_string());
+    let version =
+        version.unwrap_or_else(|| abstract_cw_staking::contract::CONTRACT_VERSION.to_string());
 
     deployment
         .version_control
@@ -90,10 +90,10 @@ pub(crate) fn init_auto_compounder(
 
     deployment
         .version_control
-        .register_apps(
-            vec![(auto_compounder.as_instance(),
-            autocompounder::contract::MODULE_VERSION.to_string())],
-        )
+        .register_apps(vec![(
+            auto_compounder.as_instance(),
+            autocompounder::contract::MODULE_VERSION.to_string(),
+        )])
         .unwrap();
 
     Ok(auto_compounder)

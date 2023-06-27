@@ -1,14 +1,14 @@
-use abstract_sdk::AdapterInterface;
-use abstract_core::objects::AnsEntryConvertor;
 use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER};
 use crate::state::{Config, CONFIG, FEE_CONFIG};
+use abstract_core::objects::AnsEntryConvertor;
 use abstract_cw_staking::{
-    msg::{StakingQueryMsg, StakingInfoResponse},
+    msg::{StakingInfoResponse, StakingQueryMsg},
     CW_STAKING,
 };
+use abstract_sdk::AdapterInterface;
 
 use abstract_sdk::{
     core::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
@@ -77,7 +77,12 @@ pub fn instantiate_handler(
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
     // get staking info
-    let staking_info = query_staking_info(deps.as_ref(), &app, AnsEntryConvertor::new(lp_token).asset_entry(), dex.clone())?;
+    let staking_info = query_staking_info(
+        deps.as_ref(),
+        &app,
+        AnsEntryConvertor::new(lp_token).asset_entry(),
+        dex.clone(),
+    )?;
     let (unbonding_period, min_unbonding_cooldown) =
         get_unbonding_period_and_min_unbonding_cooldown(
             staking_info.clone(),

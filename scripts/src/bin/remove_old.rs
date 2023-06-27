@@ -1,6 +1,6 @@
 use abstract_interface::VCExecFns;
 use abstract_interface::VersionControl;
-use cw_orch::daemon::{DaemonBuilder, ChainInfo};
+use cw_orch::daemon::{ChainInfo, DaemonBuilder};
 
 use cw_orch::prelude::*;
 
