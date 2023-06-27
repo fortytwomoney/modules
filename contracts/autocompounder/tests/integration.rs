@@ -739,6 +739,7 @@ fn test_deposit_fees_fee_token_and_withdraw_fees() -> AResult {
             performance: Some(Decimal::zero()),
             deposit: Some(Decimal::from_str("0.01")?),
             withdrawal: Some(Decimal::from_str("0.1")?),
+            fee_collector_addr: None,
         },
         None,
     )?;
@@ -818,6 +819,7 @@ fn test_deposit_fees_non_fee_token() -> AResult {
             performance: Some(Decimal::zero()),
             deposit: Some(Decimal::from_str("0.01")?),
             withdrawal: Some(Decimal::from_str("0.1")?),
+            fee_collector_addr: None,
         },
         None,
     )?;
@@ -904,6 +906,7 @@ fn test_zero_performance_fees() -> AResult {
             performance: Some(Decimal::zero()),
             deposit: None,
             withdrawal: None,
+            fee_collector_addr: None,
         },
         None,
     )?;
@@ -1131,6 +1134,7 @@ fn test_lp_deposit() -> AResult {
             performance: Some(Decimal::zero()),
             deposit: Some(deposit_fee),
             withdrawal: Some(Decimal::from_str("0.1")?),
+            fee_collector_addr: None,
         },
         None,
     )?;
@@ -1146,6 +1150,7 @@ fn test_lp_deposit() -> AResult {
             performance: Some(Decimal::zero()),
             deposit: Some(Decimal::from_str("0.01")?),
             withdrawal: Some(Decimal::from_str("0.1")?),
+            fee_collector_addr: None,
         },
         None,
     )?;

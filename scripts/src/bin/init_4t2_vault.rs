@@ -107,12 +107,12 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     // Install abstract dex
     if !is_module_installed(&account, "abstract:dex")? {
-        account.manager.install_module("abstract:dex", &Empty {})?;
+        account.manager.install_module("abstract:dex", &Empty {}, None)?;
     }
 
     // install the staking module
     if !is_module_installed(&account, CW_STAKING)? {
-        account.manager.install_module(CW_STAKING, &Empty {})?;
+        account.manager.install_module(CW_STAKING, &Empty {}, None)?;
     }
     // First uninstall autocompounder if found
     if is_module_installed(&account, AUTOCOMPOUNDER)? {
@@ -153,7 +153,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                 preferred_bonding_period: BondingPeriodSelector::Shortest,
                 max_swap_spread: Some(Decimal::percent(10)),
             },
-        },
+        }, None
     )?;
 
     // Register the autocompounder as a trader on the cw-staking and the dex

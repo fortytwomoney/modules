@@ -50,7 +50,16 @@ pub fn execute_handler(
             performance,
             withdrawal,
             deposit,
-        } => update_fee_config(deps, info, app, performance, withdrawal, deposit),
+            fee_collector_addr,
+        } => update_fee_config(
+            deps,
+            info,
+            app,
+            performance,
+            withdrawal,
+            deposit,
+            fee_collector_addr,
+        ),
         AutocompounderExecuteMsg::Deposit { funds, max_spread } => {
             deposit(deps, info, env, app, funds, max_spread)
         }
@@ -106,6 +115,7 @@ pub fn update_fee_config(
     fee: Option<Decimal>,
     withdrawal: Option<Decimal>,
     deposit: Option<Decimal>,
+    fee_collector_addr: Option<String>,
 ) -> AutocompounderResult {
     app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
 
@@ -128,6 +138,15 @@ pub fn update_fee_config(
         check_fee(deposit)?;
         updates.push(("deposit", deposit.to_string()));
         config.deposit = deposit;
+    }
+
+    if let Some(fee_collector_addr) = fee_collector_addr {
+        let fee_collector_addr_validated = deps.api.addr_validate(&fee_collector_addr)?;
+        updates.push((
+            "fee_collector_addr",
+            fee_collector_addr_validated.to_string(),
+        ));
+        config.fee_collector_addr = fee_collector_addr_validated;
     }
 
     FEE_CONFIG.save(deps.storage, &config)?;
@@ -868,6 +887,7 @@ mod test {
                 performance: None,
                 deposit: Some(Decimal::percent(1)),
                 withdrawal: None,
+                fee_collector_addr: None,
             };
 
             let resp = execute_as(deps.as_mut(), "not_mananger", msg.clone(), &[]);
@@ -890,12 +910,39 @@ mod test {
                 performance: None,
                 deposit: Some(Decimal::one()),
                 withdrawal: None,
+                fee_collector_addr: None,
             };
 
             let resp = execute_as_manager(deps.as_mut(), msg);
             assert_that!(resp)
                 .is_err()
                 .matches(|e| matches!(e, AutocompounderError::InvalidFee {}));
+            Ok(())
+        }
+
+        #[test]
+        fn update_fee_collector() -> anyhow::Result<()> {
+            const NEW_FEE_COLLECTOR: &str = "new_fee_collector_addr";
+            let mut deps = app_init(false);
+            let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
+                performance: None,
+                deposit: None,
+                withdrawal: None,
+                fee_collector_addr: Some(NEW_FEE_COLLECTOR.to_string()),
+            };
+
+            let resp = execute_as(deps.as_mut(), "not_mananger", msg.clone(), &[]);
+            assert_that!(resp)
+                .is_err()
+                .matches(|e| matches!(e, AutocompounderError::Admin(AdminError::NotAdmin {})));
+
+            let resp = execute_as_manager(deps.as_mut(), msg);
+            assert_that!(resp).is_ok();
+
+            let new_fee_config = FEE_CONFIG.load(deps.as_ref().storage)?;
+            assert_that!(new_fee_config.fee_collector_addr.to_string())
+                .is_equal_to(NEW_FEE_COLLECTOR.to_string());
+
             Ok(())
         }
     }

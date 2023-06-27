@@ -50,6 +50,7 @@ abstract-app = { workspace=true }
 abstract-sdk = { workspace=true }
 abstract-dex-adapter = { workspace=true, default-features = false }
 abstract-cw-staking = { workspace=true, default-features = false }
+
 forty-two = { workspace = true }
 abstract-interface = { workspace = true, optional = true }
 cw-orch = { workspace = true, optional = true }

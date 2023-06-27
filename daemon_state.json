@@ -49,7 +49,7 @@
   "neutron": {
     "pion-1": {
       "code_ids": {
-        "4t2:autocompounder": 582,
+        "4t2:autocompounder": 589,
         "abstract:account-factory": 552,
         "abstract:ans-host": 550,
         "abstract:manager": 554,
