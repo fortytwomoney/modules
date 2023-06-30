@@ -28,7 +28,10 @@ interface = [
   "dep:abstract-interface",
   "dep:cw-orch",
   "dep:anyhow",
+  "abstract-dex-adapter/interface",
   "abstract-cw-staking/interface",
+  "cw20/interface",
+  "cw20-base/interface"
 ]
 
 [dependencies]

@@ -57,8 +57,6 @@ cw-orch = { workspace=true, optional = true }
 abstract-interface = { workspace=true, optional = true }
 abstract-dex-adapter = { workspace=true, default-features = false }
 
-cw-multi-test = "0.16"
-
 [dev-dependencies]
 anyhow = { workspace = true }
 wyndex-bundle = { workspace=true }
@@ -75,7 +73,7 @@ dotenv = "0.15.0"
 env_logger = "0.10.0"
 clap = { version = "4.0.32", features = ["derive"] }
 abstract-sdk = { workspace=true, features = ["test-utils"] }
-#wyndex-bundle = { git = "https://github.com/AbstractSDK/integration-bundles.git", tag = "v0.3.1" }
+
 abstract-dex-adapter = { workspace=true, features = [
   "juno",
   "interface",
