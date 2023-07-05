@@ -1,3 +1,5 @@
+use cw_orch::deploy::Deploy;
+use abstract_interface::Abstract;
 use abstract_core::objects::{AnsAsset, PoolMetadata};
 use abstract_interface::VersionControl;
 use autocompounder::{
@@ -40,7 +42,9 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
     // Set version control address
     let _vc = VersionControl::load(chain.clone(), &Addr::unchecked(MODULE_VERSION));
 
-    let mut vault: Vault<_> = Vault::new(chain, Some(args.vault_id))?;
+    let abstr = Abstract::load_from(chain)?;
+
+    let mut vault: Vault<_> = Vault::new(&abstr, Some(args.vault_id))?;
 
     // Update the modules in the vault
     vault.update()?;

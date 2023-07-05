@@ -45,4 +45,4 @@ pub const FEE_COLLECTOR_APP: FeeCollectorApp =
 abstract_app::export_endpoints!(FEE_COLLECTOR_APP, FeeCollectorApp);
 
 #[cfg(feature = "interface")]
-abstract_app::create_interface!(FEE_COLLECTOR_APP, FeeCollectorApp);
+abstract_app::cw_orch_interface!(FEE_COLLECTOR_APP, FeeCollectorApp, FeeCollectorInterface);

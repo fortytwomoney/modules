@@ -1,5 +1,6 @@
 use autocompounder::interface::{get_module_address, is_module_installed};
 use cw_orch::daemon::DaemonBuilder;
+use cw_orch::deploy::Deploy;
 use cw_orch::environment::{CwEnv, TxResponse};
 use cw_orch::prelude::*;
 use std::env;
@@ -84,13 +85,13 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         .build()?;
     let sender = chain.sender();
 
-    let abstr = Abstract::new(chain.clone());
+    let abstr = Abstract::load_from(chain.clone())?;
 
     let mut pair_assets = vec![args.paired_asset, args.other_asset];
     pair_assets.sort();
 
     let account = if let Some(account_id) = args.account_id {
-        AbstractAccount::new(chain, Some(account_id))
+        AbstractAccount::new(&abstr, Some(account_id))
     } else {
         create_vault_account(
             &abstr.account_factory,

@@ -1,6 +1,7 @@
 mod common;
 
-use abstract_interface::AbstractInterfaceError;
+use abstract_core::objects::gov_type::GovernanceDetails;
+use abstract_interface::{AbstractInterfaceError, AccountDetails};
 use cw20_base::contract::AbstractCw20Base;
 use std::ops::Mul;
 use std::str::FromStr;
@@ -38,7 +39,7 @@ use cw_orch::deploy::Deploy;
 use speculoos::result::ResultAssertions;
 use wyndex_bundle::*;
 
-const WYNDEX: &str = "wyndex";
+const WYNDEX: &str = "wynd";
 const COMMISSION_RECEIVER: &str = "commission_receiver";
 const VAULT_TOKEN: &str = "vault_token";
 const TEST_NAMESPACE: &str = "4t2";
@@ -80,13 +81,18 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractInterfaceError> {
         },
     )?;
 
-    abstract_
-        .version_control
-        .update_config(None, Some(100), None)?;
+    abstract_.account_factory.create_new_account(
+        AccountDetails{
+            description: None,
+            link: None,
+            name:"Vault Account".to_string()
+        }, 
+        GovernanceDetails::Monarchy { monarch: mock.sender.to_string() }
+    )?;
 
     abstract_
         .version_control
-        .claim_namespaces(0, vec![TEST_NAMESPACE.to_string()])?;
+        .claim_namespace(1, TEST_NAMESPACE.to_string())?;
 
     // Deploy mock dex
     let wyndex = WynDex::store_on(mock.clone()).unwrap();

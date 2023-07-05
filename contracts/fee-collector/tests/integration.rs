@@ -1,3 +1,4 @@
+use abstract_core::objects::gov_type::GovernanceDetails;
 use cw_orch::deploy::Deploy;
 use std::str::FromStr;
 
@@ -6,7 +7,7 @@ use abstract_core::objects::AssetEntry;
 use abstract_dex_adapter::msg::DexInstantiateMsg;
 use abstract_dex_adapter::{interface::DexAdapter, EXCHANGE};
 use abstract_interface::{
-    Abstract, AbstractAccount, AbstractInterfaceError, ManagerQueryFns, VCExecFns,
+    Abstract, AbstractAccount, AbstractInterfaceError, ManagerQueryFns, VCExecFns, AccountDetails,
 };
 use abstract_sdk::core::adapter::InstantiateMsg;
 use abstract_testing::prelude::{EUR, USD};
@@ -14,7 +15,7 @@ use cw_orch::prelude::*;
 
 use cosmwasm_std::{coin, Decimal};
 
-use fee_collector_app::{contract::interface::FeeCollectorApp, msg::FEE_COLLECTOR};
+use fee_collector_app::{contract::interface::FeeCollectorInterface, msg::FEE_COLLECTOR};
 use fee_collector_app::{
     msg::{FeeCollectorExecuteMsgFns, FeeCollectorQueryMsgFns},
     state::Config,
@@ -31,13 +32,13 @@ pub type AResult = anyhow::Result<()>;
 // This is where you can do your integration tests for your module
 pub struct App<Chain: CwEnv> {
     pub account: AbstractAccount<Chain>,
-    pub fee_collector: FeeCollectorApp<Chain>,
+    pub fee_collector: FeeCollectorInterface<Chain>,
     pub dex: DexAdapter<Chain>,
     pub wyndex: WynDex,
     pub abstract_core: Abstract<Chain>,
 }
 
-const DEX_ADAPTER_VERSION: &str = "0.17.0";
+const DEX_ADAPTER_VERSION: &str = "0.17.1";
 
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
@@ -76,8 +77,8 @@ fn init_fee_collector(
     chain: Mock,
     deployment: &Abstract<Mock>,
     _version: Option<String>,
-) -> Result<FeeCollectorApp<Mock>, AbstractInterfaceError> {
-    let fee_collector = FeeCollectorApp::new(FEE_COLLECTOR, chain);
+) -> Result<FeeCollectorInterface<Mock>, AbstractInterfaceError> {
+    let fee_collector = FeeCollectorInterface::new(FEE_COLLECTOR, chain);
 
     fee_collector.upload()?;
 
@@ -98,10 +99,6 @@ fn create_fee_collector(
     // Deploy abstract
     let abstract_ = Abstract::deploy_on(mock.clone(), Empty {})?;
 
-    abstract_
-        .version_control
-        .update_config(None, Some(10), None)?;
-
     // create first Account
     abstract_.account_factory.create_default_account(
         abstract_core::objects::gov_type::GovernanceDetails::Monarchy {
@@ -109,9 +106,18 @@ fn create_fee_collector(
         },
     )?;
 
+    abstract_.account_factory.create_new_account(
+        AccountDetails{
+            description: None,
+            link: None,
+            name:"Vault Account".to_string()
+        }, 
+        GovernanceDetails::Monarchy { monarch: mock.sender.to_string() }
+    )?;
+
     abstract_
         .version_control
-        .claim_namespaces(0, vec![TEST_NAMESPACE.to_string()])?;
+        .claim_namespace(1, TEST_NAMESPACE.to_string())?;
 
     // Deploy mock dex
     let wyndex = WynDex::store_on(mock.clone()).unwrap();

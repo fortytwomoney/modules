@@ -7,7 +7,7 @@ use cw_orch::prelude::*;
 use semver::Version;
 
 use clap::Parser;
-use fee_collector_app::contract::interface::FeeCollectorApp;
+use fee_collector_app::contract::interface::FeeCollectorInterface;
 use fee_collector_app::msg::FEE_COLLECTOR;
 use tokio::runtime::Runtime;
 
@@ -21,7 +21,7 @@ fn deploy_etf(network: ChainInfo) -> anyhow::Result<()> {
         .handle(rt.handle())
         .chain(network)
         .build()?;
-    let etf = FeeCollectorApp::new(FEE_COLLECTOR, chain);
+    let etf = FeeCollectorInterface::new(FEE_COLLECTOR, chain);
 
     etf.deploy(version)?;
     Ok(())
