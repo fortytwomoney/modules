@@ -1,5 +1,5 @@
-use abstract_interface::Abstract;
 use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING};
+use abstract_interface::Abstract;
 use abstract_interface::{AbstractAccount, AppDeployer, ManagerQueryFns};
 use abstract_sdk::core::app;
 use abstract_sdk::core::app::BaseExecuteMsg;

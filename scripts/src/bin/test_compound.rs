@@ -1,6 +1,5 @@
-use cw_orch::deploy::Deploy;
-use abstract_interface::Abstract;
 use abstract_core::objects::{AnsAsset, PoolMetadata};
+use abstract_interface::Abstract;
 use abstract_interface::VersionControl;
 use autocompounder::{
     interface::Vault,
@@ -11,6 +10,7 @@ use clap::Parser;
 use cosmwasm_std::{coins, Addr};
 use cw_orch::daemon::networks::parse_network;
 use cw_orch::daemon::DaemonBuilder;
+use cw_orch::deploy::Deploy;
 use cw_orch::prelude::TxHandler;
 use log::info;
 

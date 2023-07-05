@@ -82,12 +82,14 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractInterfaceError> {
     )?;
 
     abstract_.account_factory.create_new_account(
-        AccountDetails{
+        AccountDetails {
             description: None,
             link: None,
-            name:"Vault Account".to_string()
-        }, 
-        GovernanceDetails::Monarchy { monarch: mock.sender.to_string() }
+            name: "Vault Account".to_string(),
+        },
+        GovernanceDetails::Monarchy {
+            monarch: mock.sender.to_string(),
+        },
     )?;
 
     abstract_

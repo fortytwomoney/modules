@@ -7,7 +7,7 @@ use abstract_core::objects::AssetEntry;
 use abstract_dex_adapter::msg::DexInstantiateMsg;
 use abstract_dex_adapter::{interface::DexAdapter, EXCHANGE};
 use abstract_interface::{
-    Abstract, AbstractAccount, AbstractInterfaceError, ManagerQueryFns, VCExecFns, AccountDetails,
+    Abstract, AbstractAccount, AbstractInterfaceError, AccountDetails, ManagerQueryFns, VCExecFns,
 };
 use abstract_sdk::core::adapter::InstantiateMsg;
 use abstract_testing::prelude::{EUR, USD};
@@ -107,12 +107,14 @@ fn create_fee_collector(
     )?;
 
     abstract_.account_factory.create_new_account(
-        AccountDetails{
+        AccountDetails {
             description: None,
             link: None,
-            name:"Vault Account".to_string()
-        }, 
-        GovernanceDetails::Monarchy { monarch: mock.sender.to_string() }
+            name: "Vault Account".to_string(),
+        },
+        GovernanceDetails::Monarchy {
+            monarch: mock.sender.to_string(),
+        },
     )?;
 
     abstract_
