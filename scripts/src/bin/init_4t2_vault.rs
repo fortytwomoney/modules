@@ -1,25 +1,26 @@
+use autocompounder::interface::{get_module_address, is_module_installed};
+use cw_orch::daemon::DaemonBuilder;
+use cw_orch::deploy::Deploy;
+use cw_orch::environment::{CwEnv, TxResponse};
+use cw_orch::prelude::*;
 use std::env;
 use std::sync::Arc;
 
-use abstract_boot::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
 use abstract_core::{
-    account_factory, api, app,
+    account_factory, adapter, app,
     manager::ExecuteMsgFns,
     objects::module::ModuleInfo,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
     registry::{ANS_HOST, MANAGER, PROXY},
-    ABSTRACT_EVENT_NAME,
+    ABSTRACT_EVENT_TYPE,
 };
-use abstract_cw_staking_api::CW_STAKING;
-use boot_core::{
-    instantiate_daemon_env, BootError, BootExecute, CwEnv, DaemonOptionsBuilder, IndexResponse,
-    StateInterface, TxResponse,
-};
+use abstract_cw_staking::CW_STAKING;
+use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
+
 use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
 use cw_orch::daemon::networks::parse_network;
 
-use autocompounder::boot::{get_module_address, is_module_installed};
 use autocompounder::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER};
 use log::info;
 
@@ -33,7 +34,7 @@ fn create_vault_account<Chain: CwEnv>(
     chain: Chain,
     governance_details: GovernanceDetails<String>,
     assets: Vec<String>,
-) -> Result<AbstractAccount<Chain>, BootError>
+) -> Result<AbstractAccount<Chain>, CwOrchError>
 where
     TxResponse<Chain>: IndexResponse,
 {
@@ -47,11 +48,11 @@ where
         None,
     )?;
 
-    let manager_address = &result.event_attr_value(ABSTRACT_EVENT_NAME, "manager_address")?;
+    let manager_address = &result.event_attr_value(ABSTRACT_EVENT_TYPE, "manager_address")?;
     chain
         .state()
         .set_address(MANAGER, &Addr::unchecked(manager_address));
-    let proxy_address = &result.event_attr_value(ABSTRACT_EVENT_NAME, "proxy_address")?;
+    let proxy_address = &result.event_attr_value(ABSTRACT_EVENT_TYPE, "proxy_address")?;
     chain
         .state()
         .set_address(PROXY, &Addr::unchecked(proxy_address));
@@ -77,17 +78,20 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     // Setup the environment
     let network = parse_network(&args.network_id);
 
-    // TODO: make grpc url dynamic by removing this line once Boot gets updated
-    let daemon_options = DaemonOptionsBuilder::default().network(network).build()?;
-    let (sender, chain) = instantiate_daemon_env(&rt, daemon_options)?;
+    // TODO: make grpc url dynamic by removing this line once cw-orch gets updated
+    let chain = DaemonBuilder::default()
+        .handle(rt.handle())
+        .chain(network)
+        .build()?;
+    let sender = chain.sender();
 
-    let abstr = Abstract::new(chain.clone());
+    let abstr = Abstract::load_from(chain.clone())?;
 
     let mut pair_assets = vec![args.paired_asset, args.other_asset];
     pair_assets.sort();
 
     let account = if let Some(account_id) = args.account_id {
-        AbstractAccount::new(chain, Some(account_id))
+        AbstractAccount::new(&abstr, Some(account_id))
     } else {
         create_vault_account(
             &abstr.account_factory,
@@ -99,17 +103,21 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         )?
     };
 
-    // let query_res = forty_two ::abstract_cw_staking_api::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
+    // let query_res = forty_two ::abstract_cw_staking::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
     // panic!("{?:}", query_res);
 
     // Install abstract dex
     if !is_module_installed(&account, "abstract:dex")? {
-        account.manager.install_module("abstract:dex", &Empty {})?;
+        account
+            .manager
+            .install_module("abstract:dex", &Empty {}, None)?;
     }
 
     // install the staking module
     if !is_module_installed(&account, CW_STAKING)? {
-        account.manager.install_module(CW_STAKING, &Empty {})?;
+        account
+            .manager
+            .install_module(CW_STAKING, &Empty {}, None)?;
     }
     // First uninstall autocompounder if found
     if is_module_installed(&account, AUTOCOMPOUNDER)? {
@@ -151,6 +159,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                 max_swap_spread: Some(Decimal::percent(10)),
             },
         },
+        None,
     )?;
 
     // Register the autocompounder as a trader on the cw-staking and the dex
@@ -158,18 +167,22 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     account.manager.execute_on_module(
         CW_STAKING,
-        api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateAuthorizedAddresses {
-            to_add: vec![autocompounder_address.to_string()],
-            to_remove: vec![],
-        }),
+        adapter::ExecuteMsg::<Empty, Empty>::Base(
+            adapter::BaseExecuteMsg::UpdateAuthorizedAddresses {
+                to_add: vec![autocompounder_address.to_string()],
+                to_remove: vec![],
+            },
+        ),
     )?;
 
     account.manager.execute_on_module(
         "abstract:dex",
-        api::ExecuteMsg::<Empty, Empty>::Base(api::BaseExecuteMsg::UpdateAuthorizedAddresses {
-            to_add: vec![autocompounder_address.to_string()],
-            to_remove: vec![],
-        }),
+        adapter::ExecuteMsg::<Empty, Empty>::Base(
+            adapter::BaseExecuteMsg::UpdateAuthorizedAddresses {
+                to_add: vec![autocompounder_address.to_string()],
+                to_remove: vec![],
+            },
+        ),
     )?;
 
     Ok(())

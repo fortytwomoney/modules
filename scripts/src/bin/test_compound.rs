@@ -1,14 +1,17 @@
-use abstract_boot::{boot_core::DaemonOptionsBuilder, VersionControl};
-use abstract_core::objects::{module::ModuleVersion, AnsAsset, PoolMetadata};
+use abstract_core::objects::{AnsAsset, PoolMetadata};
+use abstract_interface::Abstract;
+use abstract_interface::VersionControl;
 use autocompounder::{
-    boot::Vault,
+    interface::Vault,
     msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns},
     state::Config,
 };
-use boot_core::instantiate_daemon_env;
 use clap::Parser;
 use cosmwasm_std::{coins, Addr};
 use cw_orch::daemon::networks::parse_network;
+use cw_orch::daemon::DaemonBuilder;
+use cw_orch::deploy::Deploy;
+use cw_orch::prelude::TxHandler;
 use log::info;
 
 const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -28,15 +31,20 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
 
     info!("Using dex: {} and base: {}", dex, base_pair_asset);
     let network = parse_network(&args.network_id);
-    let daemon_options = DaemonOptionsBuilder::default().network(network).build()?;
-    let _new_module_version = ModuleVersion::from(MODULE_VERSION);
+
     // Setup the environment
-    let (sender, chain) = instantiate_daemon_env(&rt, daemon_options)?;
+    let chain = DaemonBuilder::default()
+        .handle(rt.handle())
+        .chain(network)
+        .build()?;
+    let sender = chain.sender();
 
     // Set version control address
     let _vc = VersionControl::load(chain.clone(), &Addr::unchecked(MODULE_VERSION));
 
-    let mut vault: Vault<_> = Vault::new(chain, Some(args.vault_id))?;
+    let abstr = Abstract::load_from(chain)?;
+
+    let mut vault: Vault<_> = Vault::new(&abstr, Some(args.vault_id))?;
 
     // Update the modules in the vault
     vault.update()?;

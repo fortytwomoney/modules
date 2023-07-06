@@ -23,12 +23,15 @@ backtraces = ["cosmwasm-std/backtraces"]
 export = []
 default = ["export"]
 schema = ["abstract-app/schema"]
-boot = [
+interface = [
   "export",
-  "dep:abstract-boot",
-  "dep:boot-core",
+  "dep:abstract-interface",
+  "dep:cw-orch",
   "dep:anyhow",
-  "abstract-cw-staking-api/boot",
+  "abstract-dex-adapter/interface",
+  "abstract-cw-staking/interface",
+  "cw20/interface",
+  "cw20-base/interface"
 ]
 
 [dependencies]
@@ -46,33 +49,34 @@ schemars = "0.8.1"
 serde = { workspace = true }
 thiserror = { version = "1.0.21" }
 
-abstract-app = { version = "0.14" }
-abstract-sdk = { version = "0.14" }
-abstract-dex-api = { workspace = true, default-features = false }
-abstract-cw-staking-api = { workspace = true, default-features = false }
+abstract-app = { workspace=true }
+abstract-sdk = { workspace=true }
+abstract-dex-adapter = { workspace=true, default-features = false }
+abstract-cw-staking = { workspace=true, default-features = false }
+
 forty-two = { workspace = true }
-abstract-boot = { workspace = true, optional = true }
-boot-core = { workspace = true, optional = true }
+abstract-interface = { workspace = true, optional = true }
+cw-orch = { workspace = true, optional = true }
 abstract-core = { workspace = true }
 anyhow = { workspace = true, optional = true }
 
 [dev-dependencies]
-# forty-two = { workspace = true, features = ["boot"] }
-wyndex-bundle = { git = "https://github.com/AbstractSDK/integration-bundles.git", tag = "v0.3.1" }
+# forty-two = { workspace = true, features = ["interface"] }
+wyndex-bundle = { workspace=true }
 wyndex-stake = { git = "https://github.com/cosmorama/wynddex.git", rev = "v1.1.2" }
-autocompounder = { path = ".", features = ["boot"] }
-abstract-dex-api = { workspace = true , features = [
+autocompounder = { path = ".", features = ["interface"] }
+abstract-dex-adapter = { workspace=true, features = [
   "juno",
-  "boot",
-  "export",
+  "interface",
+  "testing"
 ] }
-abstract-cw-staking-api = {workspace = true, features = [
+abstract-cw-staking = { workspace=true, features = [
   "juno",
-  "boot",
+  "interface",
+  "testing"
 ] }
-abstract-boot = { workspace = true, features = ["daemon"] }
+abstract-interface = { workspace = true, features = ["daemon"] }
 abstract-testing = { workspace = true }
-boot-cw-plus = { workspace = true }
 abstract-core = { workspace = true }
 
 cw-multi-test = { workspace = true }

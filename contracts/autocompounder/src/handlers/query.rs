@@ -2,13 +2,13 @@ use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::state::{
     Claim, Config, FeeConfig, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
-use abstract_sdk::core::objects::LpToken;
+use abstract_core::objects::AnsEntryConvertor;
 use abstract_sdk::features::AccountIdentification;
-use abstract_sdk::ApiInterface;
+use abstract_sdk::AdapterInterface;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 
 use crate::msg::AutocompounderQueryMsg;
-use abstract_cw_staking_api::{msg::CwStakingQueryMsg, CW_STAKING};
+use abstract_cw_staking::{msg::StakingQueryMsg, CW_STAKING};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 
@@ -138,17 +138,18 @@ pub fn query_total_lp_position(
     deps: Deps,
 ) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
-    let apis = app.apis(deps);
+    let adapters = app.adapters(deps);
 
     // query staking api for total lp tokens
 
-    let query = CwStakingQueryMsg::Staked {
+    let query = StakingQueryMsg::Staked {
         provider: config.pool_data.dex.clone(),
-        staking_token: LpToken::from(config.pool_data).into(),
+        staking_token: AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data).lp_token())
+            .asset_entry(),
         staker_address: app.proxy_address(deps)?.to_string(),
         unbonding_period: config.unbonding_period,
     };
-    let res: abstract_cw_staking_api::msg::StakeResponse = apis.query(CW_STAKING, query)?;
+    let res: abstract_cw_staking::msg::StakeResponse = adapters.query(CW_STAKING, query)?;
     Ok(res.amount)
 }
 
@@ -371,7 +372,7 @@ mod test {
 
             let address = "addr0001".to_string();
 
-            let balance = query_balance(deps.as_ref(), address.clone()).unwrap();
+            let balance = query_balance(deps.as_ref(), address).unwrap();
             assert_eq!(balance, vault_balance);
         }
 

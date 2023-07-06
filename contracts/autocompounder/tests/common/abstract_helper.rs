@@ -1,16 +1,15 @@
 use std::str::FromStr;
 
-use abstract_boot::{Abstract, AbstractBootError};
-use abstract_cw_staking_api::{boot::CwStakingApi, CW_STAKING};
-use abstract_dex_api::msg::DexInstantiateMsg;
-use abstract_dex_api::{boot::DexApi, EXCHANGE};
+use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING};
+use abstract_dex_adapter::msg::DexInstantiateMsg;
+use abstract_dex_adapter::{interface::DexAdapter, EXCHANGE};
+use abstract_interface::{Abstract, AbstractInterfaceError};
 use abstract_sdk::core as abstract_core;
-use abstract_sdk::core::api::InstantiateMsg;
-use autocompounder::boot::AutocompounderApp;
+use abstract_sdk::core::adapter::InstantiateMsg;
+use autocompounder::interface::AutocompounderApp;
 use autocompounder::msg::AUTOCOMPOUNDER;
-use boot_core::*;
 use cosmwasm_std::{Decimal, Empty};
-use cw_multi_test::ContractWrapper;
+use cw_orch::prelude::*;
 
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
@@ -18,23 +17,17 @@ pub(crate) fn init_exchange(
     chain: Mock,
     deployment: &Abstract<Mock>,
     version: Option<String>,
-) -> Result<DexApi<Mock>, AbstractBootError> {
-    let mut exchange = DexApi::new(EXCHANGE, chain);
-    exchange
-        .as_instance_mut()
-        .set_mock(Box::new(cw_multi_test::ContractWrapper::new_with_empty(
-            ::abstract_dex_api::contract::execute,
-            ::abstract_dex_api::contract::instantiate,
-            ::abstract_dex_api::contract::query,
-        )));
+) -> Result<DexAdapter<Mock>, AbstractInterfaceError> {
+    let exchange = DexAdapter::new(EXCHANGE, chain);
+
     exchange.upload()?;
     exchange.instantiate(
         &InstantiateMsg {
             module: DexInstantiateMsg {
                 swap_fee: Decimal::from_str("0.003")?,
-                recipient_os: 0,
+                recipient_account: 0,
             },
-            base: abstract_core::api::BaseInstantiateMsg {
+            base: abstract_core::adapter::BaseInstantiateMsg {
                 ans_host_address: deployment.ans_host.addr_str()?,
                 version_control_address: deployment.version_control.addr_str()?,
             },
@@ -43,13 +36,12 @@ pub(crate) fn init_exchange(
         None,
     )?;
 
-    let version: semver::Version = version
-        .map(|s| s.parse().unwrap())
-        .unwrap_or_else(|| "1.0.0".parse().unwrap());
+    let version =
+        version.unwrap_or_else(|| abstract_dex_adapter::contract::CONTRACT_VERSION.to_string());
 
     deployment
         .version_control
-        .register_apis(vec![exchange.as_instance()], &version)?;
+        .register_adapters(vec![(exchange.as_instance(), version)])?;
     Ok(exchange)
 }
 
@@ -59,20 +51,14 @@ pub(crate) fn init_staking(
     chain: Mock,
     deployment: &Abstract<Mock>,
     version: Option<String>,
-) -> Result<CwStakingApi<Mock>, AbstractBootError> {
-    let mut staking = CwStakingApi::new(CW_STAKING, chain);
-    staking
-        .as_instance_mut()
-        .set_mock(Box::new(cw_multi_test::ContractWrapper::new_with_empty(
-            ::abstract_cw_staking_api::contract::execute,
-            ::abstract_cw_staking_api::contract::instantiate,
-            ::abstract_cw_staking_api::contract::query,
-        )));
+) -> Result<CwStakingAdapter<Mock>, AbstractInterfaceError> {
+    let staking = CwStakingAdapter::new(CW_STAKING, chain);
+
     staking.upload()?;
     staking.instantiate(
         &InstantiateMsg {
             module: Empty {},
-            base: abstract_core::api::BaseInstantiateMsg {
+            base: abstract_core::adapter::BaseInstantiateMsg {
                 ans_host_address: deployment.ans_host.addr_str()?,
                 version_control_address: deployment.version_control.addr_str()?,
             },
@@ -81,13 +67,12 @@ pub(crate) fn init_staking(
         None,
     )?;
 
-    let version: semver::Version = version
-        .map(|s| s.parse().unwrap())
-        .unwrap_or_else(|| "1.0.0".parse().unwrap());
+    let version =
+        version.unwrap_or_else(|| abstract_cw_staking::contract::CONTRACT_VERSION.to_string());
 
     deployment
         .version_control
-        .register_apis(vec![staking.as_instance()], &version)?;
+        .register_adapters(vec![(staking.as_instance(), version)])?;
     Ok(staking)
 }
 
@@ -97,27 +82,18 @@ pub(crate) fn init_auto_compounder(
     chain: Mock,
     deployment: &Abstract<Mock>,
     _version: Option<String>,
-) -> Result<autocompounder::boot::AutocompounderApp<Mock>, AbstractBootError> {
-    let mut auto_compounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
-
-    auto_compounder.as_instance_mut().set_mock(Box::new(
-        ContractWrapper::new_with_empty(
-            autocompounder::contract::execute,
-            autocompounder::contract::instantiate,
-            autocompounder::contract::query,
-        )
-        .with_reply_empty(::autocompounder::contract::reply),
-    ));
+) -> Result<autocompounder::interface::AutocompounderApp<Mock>, AbstractInterfaceError> {
+    let auto_compounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
     // upload and register autocompounder
     auto_compounder.upload().unwrap();
 
     deployment
         .version_control
-        .register_apps(
-            vec![auto_compounder.as_instance()],
-            &"1.0.0".parse().unwrap(),
-        )
+        .register_apps(vec![(
+            auto_compounder.as_instance(),
+            autocompounder::contract::MODULE_VERSION.to_string(),
+        )])
         .unwrap();
 
     Ok(auto_compounder)

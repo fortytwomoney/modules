@@ -4,6 +4,8 @@ use super::helpers::{
     stake_lp_tokens,
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
+use abstract_core::objects::AnsEntryConvertor;
+use abstract_sdk::{AccountAction, AdapterInterface};
 
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
@@ -15,10 +17,10 @@ use crate::state::{
     Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
     DEFAULT_MAX_SPREAD, FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS,
 };
-use abstract_cw_staking_api::msg::{CwStakingAction, CwStakingExecuteMsg};
-use abstract_cw_staking_api::CW_STAKING;
-use abstract_dex_api::api::DexInterface;
-use abstract_sdk::ApiInterface;
+use abstract_cw_staking::msg::{StakingAction, StakingExecuteMsg};
+use abstract_cw_staking::CW_STAKING;
+use abstract_dex_adapter::api::DexInterface;
+use abstract_sdk::Execution;
 use abstract_sdk::{
     core::objects::{AnsAsset, AssetEntry, LpToken},
     features::{AbstractNameService, AccountIdentification},
@@ -88,8 +90,12 @@ pub fn update_staking_config(
     };
 
     // get staking info
-    let staking_info =
-        query_staking_info(deps.as_ref(), &app, lp_token.clone().into(), lp_token.dex)?;
+    let staking_info = query_staking_info(
+        deps.as_ref(),
+        &app,
+        AnsEntryConvertor::new(lp_token.clone()).asset_entry(),
+        lp_token.dex,
+    )?;
     let (unbonding_period, min_unbonding_cooldown) =
         get_unbonding_period_and_min_unbonding_cooldown(staking_info, preferred_bonding_period)?;
 
@@ -207,10 +213,11 @@ pub fn deposit(
         .collect();
     messages.append(cw_20_transfer_msgs_res?.as_mut());
 
+    let mut account_msgs = AccountAction::new();
     // transfer received coins to the Account
     if !msg_info.funds.is_empty() {
         let bank = app.bank(deps.as_ref());
-        messages.push(bank.deposit_coins(msg_info.funds)?);
+        messages.extend(bank.deposit(msg_info.funds)?);
     }
 
     // deduct deposit fee
@@ -234,7 +241,7 @@ pub fn deposit(
             let transfer_msg = app
                 .bank(deps.as_ref())
                 .transfer(fees, &fee_config.fee_collector_addr)?;
-            messages.push(transfer_msg);
+            account_msgs.merge(transfer_msg);
         }
     }
 
@@ -268,9 +275,13 @@ pub fn deposit(
     // CACHED_FEE_AMOUNT.save(deps.storage, &current_fee_balance)?;
     CACHED_USER_ADDR.save(deps.storage, &msg_info.sender)?;
 
-    let response = Response::new()
+    let mut response = Response::new()
         .add_messages(messages)
         .add_submessages(submessages);
+
+    if !account_msgs.messages().is_empty() {
+        response = response.add_message(app.executor(deps.as_ref()).execute(vec![account_msgs])?);
+    }
     Ok(app.custom_tag_response(response, "deposit", vec![("4t2", "/AC/Deposit")]))
 }
 
@@ -323,7 +334,7 @@ pub fn batch_unbond(
         deps.as_ref(),
         &app,
         config.pool_data.dex.clone(),
-        AssetEntry::from(LpToken::from(config.pool_data.clone())),
+        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data).lp_token()).asset_entry(),
         total_lp_amount_to_unbond,
         config.unbonding_period,
     );
@@ -367,9 +378,9 @@ fn deposit_lp(
     if cw20_sender != config.liquidity_token {
         return Err(AutocompounderError::SenderIsNotLpToken {});
     };
-    let lp_token = LpToken::from(config.pool_data.clone());
-    let mut transfer_msgs = app.bank(deps.as_ref()).deposit(vec![AnsAsset::new(
-        AssetEntry::from(lp_token.clone()),
+    let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
+    let transfer_msgs = app.bank(deps.as_ref()).deposit(vec![AnsAsset::new(
+        AnsEntryConvertor::new(lp_token.clone()).asset_entry(),
         amount,
     )])?;
 
@@ -379,18 +390,22 @@ fn deposit_lp(
         deps.as_ref(),
         &app,
         config.pool_data.dex.clone(),
-        lp_token.clone().into(),
+        AnsEntryConvertor::new(lp_token.clone()).asset_entry(),
         config.unbonding_period,
     )?;
     let current_vault_supply = cw20_total_supply(deps.as_ref(), &config)?;
 
+    let mut fee_msgs = vec![];
     let amount = if !fee_config.deposit.is_zero() {
         let fee = amount * fee_config.deposit;
         let transfer_msg = app.bank(deps.as_ref()).transfer(
-            vec![AnsAsset::new(AssetEntry::from(lp_token.clone()), fee)],
+            vec![AnsAsset::new(
+                AnsEntryConvertor::new(lp_token.clone()).asset_entry(),
+                fee,
+            )],
             &fee_config.fee_collector_addr,
         )?;
-        transfer_msgs.push(transfer_msg);
+        fee_msgs.push(app.executor(deps.as_ref()).execute(vec![transfer_msg])?);
 
         amount - fee
     } else {
@@ -407,17 +422,16 @@ fn deposit_lp(
         deps.as_ref(),
         &app,
         config.pool_data.dex,
-        AnsAsset::new(lp_token, amount),
+        AnsAsset::new(AnsEntryConvertor::new(lp_token).asset_entry(), amount),
         config.unbonding_period,
     )?;
 
-    Ok(app.custom_tag_response(
-        Response::new()
-            .add_messages(transfer_msgs)
-            .add_messages(vec![mint_msg, stake_msg]),
-        "deposit-lp",
-        vec![("4t2", "/AC/DepositLP")],
-    ))
+    let res = Response::new()
+        .add_messages(transfer_msgs)
+        .add_messages(vec![mint_msg, stake_msg])
+        .add_messages(fee_msgs);
+
+    Ok(app.custom_tag_response(res, "deposit-lp", vec![("4t2", "/AC/DepositLP")]))
 }
 
 fn redeem(
@@ -444,14 +458,14 @@ fn redeem(
         // if bonding period is not set, we can just burn the tokens, and withdraw the underlying assets in the lp pool.
         // 1) get the total supply of Vault token
         let total_supply_vault = cw20_total_supply(deps.as_ref(), &config)?;
-        let lp_token = LpToken::from(config.pool_data.clone());
+        let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
 
         // 2) get total staked lp token
         let total_lp_tokens_staked_in_vault = query_stake(
             deps.as_ref(),
             &app,
             config.pool_data.dex.clone(),
-            lp_token.into(),
+            AnsEntryConvertor::new(lp_token).asset_entry(),
             None,
         )?;
 
@@ -470,7 +484,8 @@ fn redeem(
             deps.as_ref(),
             &app,
             config.pool_data.dex.clone(),
-            AssetEntry::from(LpToken::from(config.pool_data.clone())),
+            AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token())
+                .asset_entry(),
             lp_tokens_withdraw_amount,
             None,
         );
@@ -479,7 +494,8 @@ fn redeem(
         // 3) withdraw lp tokens
         let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
         let withdraw_msg: CosmosMsg = dex.withdraw_liquidity(
-            LpToken::from(config.pool_data).into(),
+            AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data).lp_token())
+                .asset_entry(),
             lp_tokens_withdraw_amount,
         )?;
         let sub_msg = SubMsg::reply_on_success(withdraw_msg, LP_WITHDRAWAL_REPLY_ID);
@@ -520,7 +536,7 @@ fn compound(deps: DepsMut, app: AutocompounderApp) -> AutocompounderResult {
         deps.as_ref(),
         &app,
         config.pool_data.dex.clone(),
-        AssetEntry::from(LpToken::from(config.pool_data)),
+        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data).lp_token()).asset_entry(),
     );
     let claim_submsg = SubMsg {
         id: LP_COMPOUND_REPLY_ID,
@@ -591,13 +607,14 @@ pub fn withdraw_claims(
         deps.as_ref(),
         &app,
         config.pool_data.dex.clone(),
-        AssetEntry::from(LpToken::from(config.pool_data.clone())),
+        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token())
+            .asset_entry(),
     );
 
     // 3) withdraw lp tokens
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
     let withdraw_msg: CosmosMsg = dex.withdraw_liquidity(
-        LpToken::from(config.pool_data).into(),
+        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data).lp_token()).asset_entry(),
         lp_tokens_to_withdraw,
     )?;
     let sub_msg = SubMsg::reply_on_success(withdraw_msg, LP_WITHDRAWAL_REPLY_ID);
@@ -651,7 +668,9 @@ fn calculate_withdrawals(
     pending_claims: Vec<(String, Uint128)>,
     env: Env,
 ) -> Result<(Uint128, Uint128, Vec<(String, Vec<Claim>)>), AutocompounderError> {
-    let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
+    let lp_token =
+        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token())
+            .asset_entry();
     let unbonding_timestamp = config
         .unbonding_period
         .ok_or(AutocompounderError::UnbondingNotEnabled {})
@@ -744,18 +763,19 @@ fn claim_lp_rewards(
     provider: String,
     lp_token_name: AssetEntry,
 ) -> CosmosMsg {
-    let apis = app.apis(deps);
+    let adapters = app.adapters(deps);
 
-    apis.request(
-        CW_STAKING,
-        CwStakingExecuteMsg {
-            provider,
-            action: CwStakingAction::ClaimRewards {
-                staking_token: lp_token_name,
+    adapters
+        .request(
+            CW_STAKING,
+            StakingExecuteMsg {
+                provider,
+                action: StakingAction::ClaimRewards {
+                    asset: lp_token_name,
+                },
             },
-        },
-    )
-    .unwrap()
+        )
+        .unwrap()
 }
 
 /// Creates the message to claim the unbonded tokens from the staking api
@@ -765,18 +785,19 @@ fn claim_unbonded_tokens(
     provider: String,
     lp_token_name: AssetEntry,
 ) -> CosmosMsg {
-    let apis = app.apis(deps);
+    let adapters = app.adapters(deps);
 
-    apis.request(
-        CW_STAKING,
-        CwStakingExecuteMsg {
-            provider,
-            action: CwStakingAction::Claim {
-                staking_token: lp_token_name,
+    adapters
+        .request(
+            CW_STAKING,
+            StakingExecuteMsg {
+                provider,
+                action: StakingAction::Claim {
+                    asset: lp_token_name,
+                },
             },
-        },
-    )
-    .unwrap()
+        )
+        .unwrap()
 }
 
 /// Creates the message to burn tokens from contract
@@ -795,19 +816,20 @@ fn unstake_lp_tokens(
     amount: Uint128,
     unbonding_period: Option<Duration>,
 ) -> CosmosMsg {
-    let apis = app.apis(deps);
+    let adapters = app.adapters(deps);
 
-    apis.request(
-        CW_STAKING,
-        CwStakingExecuteMsg {
-            provider,
-            action: CwStakingAction::Unstake {
-                staking_token: AnsAsset::new(lp_token_name, amount),
-                unbonding_period,
+    adapters
+        .request(
+            CW_STAKING,
+            StakingExecuteMsg {
+                provider,
+                action: StakingAction::Unstake {
+                    asset: AnsAsset::new(lp_token_name, amount),
+                    unbonding_period,
+                },
             },
-        },
-    )
-    .unwrap()
+        )
+        .unwrap()
 }
 
 #[cfg(test)]
@@ -998,10 +1020,7 @@ mod test {
             deps.as_mut(),
             "user",
             msg,
-            &[
-                Coin::new(1u128, "eur"),
-                Coin::new(1u128, wrong_coin.clone()),
-            ],
+            &[Coin::new(1u128, "eur"), Coin::new(1u128, wrong_coin)],
         );
         assert_that!(resp).is_err().matches(|e| {
             matches!(

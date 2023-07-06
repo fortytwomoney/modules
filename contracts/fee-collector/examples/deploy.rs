@@ -1,25 +1,27 @@
+use abstract_interface::AppDeployer;
+use cw_orch::daemon::networks::parse_network;
 use std::sync::Arc;
 
-use abstract_boot::{
-    boot_core::networks::{parse_network, NetworkInfo},
-    boot_core::*,
-    AppDeployer,
-};
+use cw_orch::daemon::ChainInfo;
+use cw_orch::prelude::*;
 use semver::Version;
 
 use clap::Parser;
-use fee_collector_app::interface::FeeCollector;
+use fee_collector_app::contract::interface::FeeCollectorInterface;
 use fee_collector_app::msg::FEE_COLLECTOR;
 use tokio::runtime::Runtime;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-fn deploy_etf(network: NetworkInfo) -> anyhow::Result<()> {
+fn deploy_etf(network: ChainInfo) -> anyhow::Result<()> {
     let version: Version = CONTRACT_VERSION.parse().unwrap();
+
     let rt = Arc::new(Runtime::new()?);
-    let options = DaemonOptionsBuilder::default().network(network).build();
-    let (_sender, chain) = instantiate_daemon_env(&rt, options?)?;
-    let mut etf = FeeCollector::new(FEE_COLLECTOR, chain);
+    let chain = DaemonBuilder::default()
+        .handle(rt.handle())
+        .chain(network)
+        .build()?;
+    let etf = FeeCollectorInterface::new(FEE_COLLECTOR, chain);
 
     etf.deploy(version)?;
     Ok(())

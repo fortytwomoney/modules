@@ -1,11 +1,14 @@
-use abstract_boot::{AbstractAccount, AppDeployer, ManagerQueryFns};
-use abstract_cw_staking_api::{boot::CwStakingApi, CW_STAKING};
+use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING};
+use abstract_interface::Abstract;
+use abstract_interface::{AbstractAccount, AppDeployer, ManagerQueryFns};
 use abstract_sdk::core::app;
 use abstract_sdk::core::app::BaseExecuteMsg;
-use boot_core::*;
-use boot_core::{
+use cw_orch::{interface, prelude::*};
+
+/*use boot_core::{
     contract, BootError, BootExecute, Contract, ContractWrapper, CwEnv, IndexResponse, TxResponse,
 };
+*/
 use cosmwasm_std::{Addr, Coin, Empty};
 
 use abstract_core::app::MigrateMsg;
@@ -13,25 +16,26 @@ use abstract_core::app::MigrateMsg;
 use crate::msg::{AutocompounderExecuteMsg, AUTOCOMPOUNDER, *};
 
 /// Contract wrapper for deploying with BOOT
-#[contract(InstantiateMsg, ExecuteMsg, QueryMsg, MigrateMsg)]
-pub struct AutocompounderApp<Chain>;
+#[interface(InstantiateMsg, ExecuteMsg, QueryMsg, MigrateMsg)]
+pub struct AutocompounderApp;
 
 impl<Chain: CwEnv> AppDeployer<Chain> for AutocompounderApp<Chain> {}
 
-impl<Chain: CwEnv> AutocompounderApp<Chain> {
-    pub fn new(name: &str, chain: Chain) -> Self {
-        let mut contract = Contract::new(name, chain);
-        contract = contract
-            .with_wasm_path("autocompounder")
-            .with_mock(Box::new(
-                ContractWrapper::new_with_empty(
-                    crate::contract::execute,
-                    crate::contract::instantiate,
-                    crate::contract::query,
-                )
-                .with_reply(crate::contract::reply),
-            ));
-        Self(contract)
+impl<Chain: CwEnv> Uploadable for AutocompounderApp<Chain> {
+    fn wrapper(&self) -> <Mock as TxHandler>::ContractSource {
+        Box::new(
+            ContractWrapper::new_with_empty(
+                crate::contract::execute,
+                crate::contract::instantiate,
+                crate::contract::query,
+            )
+            .with_reply(crate::contract::reply),
+        )
+    }
+    fn wasm(&self) -> WasmPath {
+        artifacts_dir_from_workspace!()
+            .find_wasm_path("autocompounder")
+            .unwrap()
     }
 }
 
@@ -44,7 +48,7 @@ where
         &self,
         execute_msg: AutocompounderExecuteMsg,
         coins: Option<&[Coin]>,
-    ) -> Result<TxResponse<Chain>, BootError> {
+    ) -> Result<TxResponse<Chain>, CwOrchError> {
         self.execute(&app::ExecuteMsg::Module(execute_msg), coins)
     }
 
@@ -53,7 +57,7 @@ where
         &self,
         execute_msg: BaseExecuteMsg,
         coins: Option<&[Coin]>,
-    ) -> Result<TxResponse<Chain>, BootError> {
+    ) -> Result<TxResponse<Chain>, CwOrchError> {
         self.execute(&app::ExecuteMsg::Base(execute_msg), coins)
     }
 }
@@ -84,15 +88,16 @@ pub fn is_module_installed<Chain: CwEnv>(
 
 pub struct Vault<Chain: CwEnv> {
     pub account: AbstractAccount<Chain>,
-    pub staking: CwStakingApi<Chain>,
+    pub staking: CwStakingAdapter<Chain>,
     pub autocompounder: AutocompounderApp<Chain>,
 }
 
 impl<Chain: CwEnv> Vault<Chain> {
-    pub fn new(chain: Chain, account_id: Option<u32>) -> anyhow::Result<Self> {
-        let account = AbstractAccount::new(chain.clone(), account_id);
-        let staking = CwStakingApi::new(CW_STAKING, chain.clone());
-        let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
+    pub fn new(abstract_: &Abstract<Chain>, account_id: Option<u32>) -> anyhow::Result<Self> {
+        let chain = abstract_.ans_host.get_chain();
+        let account = AbstractAccount::new(abstract_, account_id);
+        let staking = CwStakingAdapter::new(CW_STAKING, chain.clone());
+        let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
 
         if account_id.is_some() {
             if is_module_installed(&account, CW_STAKING)? {

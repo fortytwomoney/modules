@@ -1,18 +1,21 @@
+use abstract_core::objects::gov_type::GovernanceDetails;
+use cw_orch::deploy::Deploy;
 use std::str::FromStr;
 
-use abstract_boot::{Abstract, AbstractAccount, AbstractBootError, ManagerQueryFns, VCExecFns};
-use abstract_core::api::BaseExecuteMsgFns;
+use abstract_core::adapter::BaseExecuteMsgFns;
 use abstract_core::objects::AssetEntry;
-use abstract_dex_api::msg::DexInstantiateMsg;
-use abstract_dex_api::{boot::DexApi, EXCHANGE};
-use abstract_sdk::core::api::InstantiateMsg;
+use abstract_dex_adapter::msg::DexInstantiateMsg;
+use abstract_dex_adapter::{interface::DexAdapter, EXCHANGE};
+use abstract_interface::{
+    Abstract, AbstractAccount, AbstractInterfaceError, AccountDetails, ManagerQueryFns, VCExecFns,
+};
+use abstract_sdk::core::adapter::InstantiateMsg;
 use abstract_testing::prelude::{EUR, USD};
-use boot_core::ContractInstance;
-use boot_core::*;
+use cw_orch::prelude::*;
 
 use cosmwasm_std::{coin, Decimal};
 
-use fee_collector_app::{interface::FeeCollector, msg::FEE_COLLECTOR};
+use fee_collector_app::{contract::interface::FeeCollectorInterface, msg::FEE_COLLECTOR};
 use fee_collector_app::{
     msg::{FeeCollectorExecuteMsgFns, FeeCollectorQueryMsgFns},
     state::Config,
@@ -29,11 +32,13 @@ pub type AResult = anyhow::Result<()>;
 // This is where you can do your integration tests for your module
 pub struct App<Chain: CwEnv> {
     pub account: AbstractAccount<Chain>,
-    pub fee_collector: FeeCollector<Chain>,
-    pub dex: DexApi<Chain>,
+    pub fee_collector: FeeCollectorInterface<Chain>,
+    pub dex: DexAdapter<Chain>,
     pub wyndex: WynDex,
     pub abstract_core: Abstract<Chain>,
 }
+
+const DEX_ADAPTER_VERSION: &str = "0.17.1";
 
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
@@ -41,23 +46,17 @@ pub(crate) fn init_exchange(
     chain: Mock,
     deployment: &Abstract<Mock>,
     version: Option<String>,
-) -> Result<DexApi<Mock>, AbstractBootError> {
-    let mut exchange = DexApi::new(EXCHANGE, chain);
-    exchange
-        .as_instance_mut()
-        .set_mock(Box::new(cw_multi_test::ContractWrapper::new_with_empty(
-            ::abstract_dex_api::contract::execute,
-            ::abstract_dex_api::contract::instantiate,
-            ::abstract_dex_api::contract::query,
-        )));
+) -> Result<DexAdapter<Mock>, AbstractInterfaceError> {
+    let exchange = DexAdapter::new(EXCHANGE, chain);
+
     exchange.upload()?;
     exchange.instantiate(
         &InstantiateMsg {
             module: DexInstantiateMsg {
                 swap_fee: Decimal::from_str("0.000")?,
-                recipient_os: 0,
+                recipient_account: 0,
             },
-            base: abstract_core::api::BaseInstantiateMsg {
+            base: abstract_core::adapter::BaseInstantiateMsg {
                 ans_host_address: deployment.ans_host.addr_str()?,
                 version_control_address: deployment.version_control.addr_str()?,
             },
@@ -66,13 +65,11 @@ pub(crate) fn init_exchange(
         None,
     )?;
 
-    let version: semver::Version = version
-        .map(|s| s.parse().unwrap())
-        .unwrap_or_else(|| "1.0.0".parse().unwrap());
+    let version = version.unwrap_or_else(|| DEX_ADAPTER_VERSION.to_string());
 
     deployment
         .version_control
-        .register_apis(vec![exchange.as_instance()], &version)?;
+        .register_adapters(vec![(exchange.as_instance(), version)])?;
     Ok(exchange)
 }
 
@@ -80,22 +77,17 @@ fn init_fee_collector(
     chain: Mock,
     deployment: &Abstract<Mock>,
     _version: Option<String>,
-) -> Result<FeeCollector<Mock>, AbstractBootError> {
-    let mut fee_collector = FeeCollector::new(FEE_COLLECTOR, chain);
+) -> Result<FeeCollectorInterface<Mock>, AbstractInterfaceError> {
+    let fee_collector = FeeCollectorInterface::new(FEE_COLLECTOR, chain);
 
-    fee_collector.as_instance_mut().set_mock(Box::new(
-        cw_multi_test::ContractWrapper::new_with_empty(
-            ::fee_collector_app::contract::execute,
-            ::fee_collector_app::contract::instantiate,
-            ::fee_collector_app::contract::query,
-        )
-        .with_reply_empty(fee_collector_app::contract::reply),
-    ));
     fee_collector.upload()?;
 
     deployment
         .version_control
-        .register_apps(vec![fee_collector.as_instance()], &"1.0.0".parse().unwrap())
+        .register_apps(vec![(
+            fee_collector.as_instance(),
+            env!("CARGO_PKG_VERSION").parse().unwrap(),
+        )])
         .unwrap();
     Ok(fee_collector)
 }
@@ -103,10 +95,10 @@ fn init_fee_collector(
 fn create_fee_collector(
     mock: Mock,
     allowed_assets: Vec<AssetEntry>,
-) -> Result<App<Mock>, AbstractBootError> {
-    let version = "1.0.0".parse().unwrap();
+) -> Result<App<Mock>, AbstractInterfaceError> {
     // Deploy abstract
-    let abstract_ = Abstract::deploy_on(mock.clone(), version)?;
+    let abstract_ = Abstract::deploy_on(mock.clone(), Empty {})?;
+
     // create first Account
     abstract_.account_factory.create_default_account(
         abstract_core::objects::gov_type::GovernanceDetails::Monarchy {
@@ -114,9 +106,20 @@ fn create_fee_collector(
         },
     )?;
 
+    abstract_.account_factory.create_new_account(
+        AccountDetails {
+            description: None,
+            link: None,
+            name: "Vault Account".to_string(),
+        },
+        GovernanceDetails::Monarchy {
+            monarch: mock.sender.to_string(),
+        },
+    )?;
+
     abstract_
         .version_control
-        .claim_namespaces(0, vec![TEST_NAMESPACE.to_string()])?;
+        .claim_namespace(1, TEST_NAMESPACE.to_string())?;
 
     // Deploy mock dex
     let wyndex = WynDex::store_on(mock.clone()).unwrap();
@@ -133,7 +136,7 @@ fn create_fee_collector(
     )?;
 
     // install dex
-    account.manager.install_module(EXCHANGE, &Empty {})?;
+    account.manager.install_module(EXCHANGE, &Empty {}, None)?;
     account.manager.install_module(
         FEE_COLLECTOR,
         &abstract_core::app::InstantiateMsg {
@@ -147,6 +150,7 @@ fn create_fee_collector(
                 ans_host_address: abstract_.ans_host.addr_str()?,
             },
         },
+        None,
     )?;
 
     // get its address
@@ -162,12 +166,12 @@ fn create_fee_collector(
     // give the autocompounder permissions to call on the dex and cw-staking contracts
     exchange_api
         .call_as(&account.manager.address()?)
-        .update_authorized_addresses(vec![fee_collector_addr.clone()], vec![])?;
+        .update_authorized_addresses(vec![fee_collector_addr.to_string()], vec![])?;
 
     let _fee_collector_config = fee_collector.config()?;
 
     // set allowed assets
-    if allowed_assets.len() != 0 {
+    if !allowed_assets.is_empty() {
         fee_collector
             .call_as(&account.manager.address()?)
             .add_allowed_assets(allowed_assets)?;
@@ -186,8 +190,8 @@ fn create_fee_collector(
 fn test_update_config() -> AResult {
     let owner = Addr::unchecked(OWNER);
     let commission_addr = Addr::unchecked(COMMISSION_ADDR);
-    let (_state, mock) = instantiate_default_mock_env(&owner)?;
-    let app = create_fee_collector(mock.clone(), vec![])?;
+    let mock = Mock::new(&owner);
+    let app = create_fee_collector(mock, vec![])?;
 
     let eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);
@@ -213,7 +217,7 @@ fn test_update_config() -> AResult {
     let _err = app
         .fee_collector
         .call_as(&app.account.manager.address()?)
-        .add_allowed_assets(vec![eur_asset.clone(), usd_asset.clone()])
+        .add_allowed_assets(vec![eur_asset.clone(), usd_asset])
         .unwrap_err();
 
     // Adding no assets is not allowed
@@ -246,12 +250,12 @@ fn test_update_config() -> AResult {
 #[test]
 fn test_collect_fees() -> AResult {
     let owner = Addr::unchecked(OWNER);
-    let (_state, mock) = instantiate_default_mock_env(&owner)?;
+    let mock = Mock::new(&owner);
 
     let _eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);
     let wynd_token = AssetEntry::new(WYND_TOKEN);
-    let app = create_fee_collector(mock.clone(), vec![usd_asset.clone(), wynd_token.clone()])?;
+    let app = create_fee_collector(mock.clone(), vec![usd_asset, wynd_token])?;
 
     mock.set_balance(
         &app.account.proxy.address()?,

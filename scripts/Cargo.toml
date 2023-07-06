@@ -7,10 +7,8 @@ edition.workspace = true
 
 [dependencies]
 
-boot-core = { workspace = true, features = ["daemon"] }
-boot-cw-plus = { workspace = true }
-abstract-boot = { workspace = true, features = ["daemon"] }
-cw-orch = { git = "https://github.com/AbstractSDK/cw-orchestrator", rev="92b2448ff990c81093174eb9baf2e9452b7a8c37", features = ["daemon"]}
+cw-orch = { workspace = true, features = ["daemon"] }
+abstract-interface = { workspace = true, features = ["daemon"] }
 
 log = { workspace = true }
 cosmwasm-std = { workspace = true }
@@ -20,10 +18,10 @@ serde = { workspace = true }
 dotenv = { workspace = true }
 env_logger = { workspace = true }
 semver = { workspace = true }
-abstract-cw-staking-api = { git = "https://github.com/AbstractSDK/apis.git", package = "abstract-cw-staking-api", tag = "v0.14.3" }
+abstract-cw-staking = { workspace=true }
 abstract-core = { workspace = true }
-forty-two = { workspace = true, features = ["boot"] }
+forty-two = { workspace = true, features = ["interface"] }
 tokio = { workspace = true }
 clap = { workspace = true }
 speculoos = { workspace = true }
-autocompounder = { workspace = true, features = ["boot"] }
+autocompounder = { workspace = true, features = ["interface"] }

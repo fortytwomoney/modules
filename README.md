@@ -49,3 +49,8 @@ Cw-staking deployment for **Terra Testnet**:
 ```shell
 just wasm-module cw-staking --features pisco-1 --no-default-features
 ```
+
+
+### Update dependencies
+
+For now, this repo depends on the `feature/impl-in-origin-repo` branch of the abstract adapters repo. This needs to be changed as this branch will move in the future

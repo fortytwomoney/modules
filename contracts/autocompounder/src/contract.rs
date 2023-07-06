@@ -24,7 +24,7 @@ pub type AutocompounderApp = AppContract<
 pub type AutocompounderResult<T = Response> = Result<T, AutocompounderError>;
 
 /// The initial version of the app, which will use the package version if not altered
-const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Expected replies
 pub const INSTANTIATE_REPLY_ID: u64 = 0u64;

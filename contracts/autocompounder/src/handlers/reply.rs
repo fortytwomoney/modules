@@ -8,15 +8,17 @@ use crate::contract::{
 use crate::error::AutocompounderError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{Config, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
-use abstract_cw_staking_api::{
-    msg::{CwStakingQueryMsg, RewardTokensResponse},
+use abstract_core::objects::AnsEntryConvertor;
+use abstract_cw_staking::{
+    msg::{RewardTokensResponse, StakingQueryMsg},
     CW_STAKING,
 };
-use abstract_dex_api::api::DexInterface;
-use abstract_dex_api::msg::OfferAsset;
-use abstract_sdk::ApiInterface;
+use abstract_dex_adapter::api::DexInterface;
+use abstract_dex_adapter::msg::OfferAsset;
+use abstract_sdk::AdapterInterface;
+use abstract_sdk::Execution;
 use abstract_sdk::{
-    core::objects::{AnsAsset, AssetEntry, LpToken, PoolMetadata},
+    core::objects::{AnsAsset, PoolMetadata},
     features::AbstractResponse,
     features::{AbstractNameService, AccountIdentification},
     AbstractSdkResult, Resolve, TransferInterface,
@@ -73,7 +75,7 @@ pub fn lp_provision_reply(
     let current_vault_supply = cw20_total_supply(deps.as_ref(), &config)?;
 
     // Retrieve the number of LP tokens minted/staked.
-    let lp_token = LpToken::from(config.pool_data.clone());
+    let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
     let received_lp = lp_token
         .resolve(&deps.querier, &ans_host)?
         .query_balance(&deps.querier, proxy_address.to_string())?;
@@ -85,7 +87,7 @@ pub fn lp_provision_reply(
         deps.as_ref(),
         &app,
         config.pool_data.dex.clone(),
-        lp_token.clone().into(),
+        AnsEntryConvertor::new(lp_token.clone()).asset_entry(),
         config.unbonding_period,
     )?;
 
@@ -104,7 +106,7 @@ pub fn lp_provision_reply(
         deps.as_ref(),
         &app,
         config.pool_data.dex,
-        AnsAsset::new(lp_token, received_lp), // stake the total amount of LP tokens received
+        AnsAsset::new(AnsEntryConvertor::new(lp_token).asset_entry(), received_lp), // stake the total amount of LP tokens received
         config.unbonding_period,
     )?;
 
@@ -144,7 +146,7 @@ pub fn lp_withdrawal_reply(
     let transfer_msg = bank.transfer(funds, &user_address)?;
     messages.push(transfer_msg);
 
-    let response = Response::new().add_messages(messages);
+    let response = Response::new().add_messages(app.executor(deps.as_ref()).execute(messages));
     Ok(app.tag_response(response, "lp_withdrawal_reply"))
 }
 
@@ -217,7 +219,7 @@ pub fn lp_compound_reply(
         submessages.push(SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID));
 
         let response = Response::new()
-            .add_messages(messages)
+            .add_messages(app.executor(deps.as_ref()).execute(messages))
             .add_submessages(submessages);
 
         Ok(app.tag_response(response, "provide_liquidity"))
@@ -229,13 +231,13 @@ pub fn lp_compound_reply(
             SWAPPED_REPLY_ID,
             config.max_swap_spread,
         )?;
-        messages.extend(swap_msgs);
         submessages.push(submsg);
 
         // adds all swap messages to the response and the submsg -> the submsg will be executed after the last swap message
         // and will trigger the reply SWAPPED_REPLY_ID
         let response = Response::new()
-            .add_messages(messages)
+            .add_messages(app.executor(deps.as_ref()).execute(messages))
+            .add_messages(swap_msgs)
             .add_submessages(submessages);
         Ok(app.tag_response(response, "swap_rewards"))
     }
@@ -285,7 +287,9 @@ pub fn compound_lp_provision_reply(
     let ans_host = app.ans_host(deps.as_ref())?;
     let proxy = app.proxy_address(deps.as_ref())?;
 
-    let lp_token = AssetEntry::from(LpToken::from(config.pool_data.clone()));
+    let lp_token =
+        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token())
+            .asset_entry();
 
     // query balance of lp tokens
     let lp_balance = lp_token
@@ -312,12 +316,13 @@ fn query_rewards(
     pool_data: PoolMetadata,
 ) -> AbstractSdkResult<Vec<AssetInfo>> {
     // query staking module for which rewards are available
-    let apis = app.apis(deps);
-    let query = CwStakingQueryMsg::RewardTokens {
+    let adapters = app.adapters(deps);
+    let query = StakingQueryMsg::RewardTokens {
         provider: pool_data.dex.clone(),
-        staking_token: LpToken::from(pool_data).into(),
+        staking_token: AnsEntryConvertor::new(AnsEntryConvertor::new(pool_data).lp_token())
+            .asset_entry(),
     };
-    let RewardTokensResponse { tokens } = apis.query(CW_STAKING, query)?;
+    let RewardTokensResponse { tokens } = adapters.query(CW_STAKING, query)?;
     Ok(tokens)
 }
 

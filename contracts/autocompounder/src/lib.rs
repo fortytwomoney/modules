@@ -6,13 +6,13 @@ pub mod msg;
 pub mod response;
 pub mod state;
 
-#[cfg(feature = "boot")]
-pub mod boot;
+#[cfg(feature = "interface")]
+pub mod interface;
 
 #[cfg(test)]
 mod test_common {
     use crate::msg::BondingPeriodSelector;
-    use abstract_cw_staking_api::msg::{CwStakingQueryMsg, StakeResponse, StakingInfoResponse};
+    use abstract_cw_staking::msg::{StakeResponse, StakingInfoResponse, StakingQueryMsg};
     use abstract_sdk::base::InstantiateEndpoint;
     pub use abstract_sdk::core as abstract_core;
     use abstract_sdk::core::{
@@ -60,7 +60,7 @@ mod test_common {
             })
             .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
                 match from_binary(msg).unwrap() {
-                    abstract_cw_staking_api::msg::QueryMsg::Module(CwStakingQueryMsg::Info {
+                    abstract_cw_staking::msg::QueryMsg::Module(StakingQueryMsg::Info {
                         provider: _,
                         staking_token: _,
                     }) => {
@@ -72,7 +72,7 @@ mod test_common {
                         };
                         Ok(to_binary(&resp).unwrap())
                     }
-                    abstract_cw_staking_api::msg::QueryMsg::Module(CwStakingQueryMsg::Staked {
+                    abstract_cw_staking::msg::QueryMsg::Module(StakingQueryMsg::Staked {
                         provider: _,
                         staking_token: _,
                         staker_address: _,
@@ -166,7 +166,7 @@ mod test_common {
             })
             .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
                 match from_binary(msg).unwrap() {
-                    abstract_cw_staking_api::msg::QueryMsg::Module(CwStakingQueryMsg::Info {
+                    abstract_cw_staking::msg::QueryMsg::Module(StakingQueryMsg::Info {
                         provider: _,
                         staking_token: _,
                     }) => {

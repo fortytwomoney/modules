@@ -64,7 +64,7 @@ pub struct FeeCollectorInstantiateMsg {
 
 /// FeeCollector execute messages
 #[cosmwasm_schema::cw_serde]
-#[cfg_attr(feature = "interface", derive(boot_core::ExecuteFns))]
+#[cfg_attr(feature = "interface", derive(cw_orch::ExecuteFns))]
 #[cfg_attr(feature = "interface", impl_into(ExecuteMsg))]
 pub enum FeeCollectorExecuteMsg {
     // TODO: add attrs to update
@@ -82,7 +82,7 @@ pub enum FeeCollectorExecuteMsg {
 
 /// FeeCollector query messages
 #[cosmwasm_schema::cw_serde]
-#[cfg_attr(feature = "interface", derive(boot_core::QueryFns))]
+#[cfg_attr(feature = "interface", derive(cw_orch::QueryFns))]
 #[cfg_attr(feature = "interface", impl_into(QueryMsg))]
 #[derive(QueryResponses)]
 pub enum FeeCollectorQueryMsg {

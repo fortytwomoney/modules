@@ -28,7 +28,7 @@
 //! ## Migration
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
-use abstract_dex_api::msg::OfferAsset;
+use abstract_dex_adapter::msg::OfferAsset;
 use abstract_sdk::core::app;
 use abstract_sdk::core::objects::{AssetEntry, DexName, PoolAddress, PoolMetadata};
 use cosmwasm_schema::QueryResponses;
@@ -73,8 +73,8 @@ pub struct AutocompounderInstantiateMsg {
 }
 
 #[cosmwasm_schema::cw_serde]
-#[cfg_attr(feature = "boot", derive(boot_core::ExecuteFns))]
-#[cfg_attr(feature = "boot", impl_into(ExecuteMsg))]
+#[cfg_attr(feature = "interface", derive(cw_orch::ExecuteFns))]
+#[cfg_attr(feature = "interface", impl_into(ExecuteMsg))]
 pub enum AutocompounderExecuteMsg {
     UpdateFeeConfig {
         performance: Option<Decimal>,
@@ -83,7 +83,7 @@ pub enum AutocompounderExecuteMsg {
         fee_collector_addr: Option<String>,
     },
     /// Join vault by depositing one or more funds
-    #[cfg_attr(feature = "boot", payable)]
+    #[cfg_attr(feature = "interface", payable)]
     Deposit {
         funds: Vec<OfferAsset>,
         max_spread: Option<Decimal>,
@@ -105,8 +105,8 @@ pub enum AutocompounderExecuteMsg {
 
 #[cosmwasm_schema::cw_serde]
 #[derive(QueryResponses)]
-#[cfg_attr(feature = "boot", derive(boot_core::QueryFns))]
-#[cfg_attr(feature = "boot", impl_into(QueryMsg))]
+#[cfg_attr(feature = "interface", derive(cw_orch::QueryFns))]
+#[cfg_attr(feature = "interface", impl_into(QueryMsg))]
 pub enum AutocompounderQueryMsg {
     /// Query the config of the autocompounder
     /// Returns [`Config`]
