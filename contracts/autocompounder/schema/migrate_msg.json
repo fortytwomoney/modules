@@ -3,23 +3,23 @@
   "title": "MigrateMsg",
   "type": "object",
   "required": [
-    "app",
-    "base"
+    "base",
+    "module"
   ],
   "properties": {
-    "app": {
-      "description": "custom migrate msg",
-      "allOf": [
-        {
-          "$ref": "#/definitions/AutocompounderMigrateMsg"
-        }
-      ]
-    },
     "base": {
       "description": "base migrate information",
       "allOf": [
         {
           "$ref": "#/definitions/BaseMigrateMsg"
+        }
+      ]
+    },
+    "module": {
+      "description": "custom migrate msg",
+      "allOf": [
+        {
+          "$ref": "#/definitions/AutocompounderMigrateMsg"
         }
       ]
     }
