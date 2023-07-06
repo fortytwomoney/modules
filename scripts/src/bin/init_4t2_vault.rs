@@ -12,7 +12,7 @@ use abstract_core::{
     objects::module::ModuleInfo,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
     registry::{ANS_HOST, MANAGER, PROXY},
-    ABSTRACT_EVENT_NAME,
+    ABSTRACT_EVENT_TYPE,
 };
 use abstract_cw_staking::CW_STAKING;
 use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
@@ -48,11 +48,11 @@ where
         None,
     )?;
 
-    let manager_address = &result.event_attr_value(ABSTRACT_EVENT_NAME, "manager_address")?;
+    let manager_address = &result.event_attr_value(ABSTRACT_EVENT_TYPE, "manager_address")?;
     chain
         .state()
         .set_address(MANAGER, &Addr::unchecked(manager_address));
-    let proxy_address = &result.event_attr_value(ABSTRACT_EVENT_NAME, "proxy_address")?;
+    let proxy_address = &result.event_attr_value(ABSTRACT_EVENT_TYPE, "proxy_address")?;
     chain
         .state()
         .set_address(PROXY, &Addr::unchecked(proxy_address));
