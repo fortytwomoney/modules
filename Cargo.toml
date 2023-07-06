@@ -28,16 +28,16 @@ exclude = [
 [workspace.dependencies]
 
 ## Abstract dependencies
-abstract-sdk =          { git = "https://github.com/AbstractSDK/abstract.git" }
-abstract-app =          { git = "https://github.com/AbstractSDK/abstract.git" }
-abstract-core =         { git = "https://github.com/AbstractSDK/abstract.git" }
-abstract-interface =    { git = "https://github.com/AbstractSDK/abstract.git" }
-abstract-testing =      { git = "https://github.com/AbstractSDK/abstract.git" }
-abstract-dex-adapter =  { git = "https://github.com/AbstractSDK/abstract.git", default-features = false  }
-abstract-cw-staking =   { git = "https://github.com/AbstractSDK/abstract.git", default-features = false }
+abstract-sdk =          { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }
+abstract-app =          { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }
+abstract-core =         { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }
+abstract-interface =    { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }
+abstract-testing =      { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }
+abstract-dex-adapter =  { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114", default-features = false  }
+abstract-cw-staking =   { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" , default-features = false }
 
 # Dev Abstract dependencies
-wyndex-bundle =         { git = "https://github.com/AbstractSDK/abstract.git", ref = "77f5f8786c4f029e4e8bc68ce74b180fceeb32fb" }
+wyndex-bundle =         { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }
 
 forty-two = { version = "0.5.0", path = "packages/forty-two" }
 autocompounder = { path = "contracts/autocompounder" }
