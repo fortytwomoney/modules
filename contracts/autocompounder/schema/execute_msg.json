@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ExecuteMsg",
-  "description": "Wrapper around all possible messages that can be sent to the contract.",
+  "description": "Wrapper around all possible messages that can be sent to the module.",
   "oneOf": [
     {
       "description": "A configuration message, defined by the base.",
@@ -20,10 +20,10 @@
       "description": "An app request defined by a base consumer.",
       "type": "object",
       "required": [
-        "app"
+        "module"
       ],
       "properties": {
-        "app": {
+        "module": {
           "$ref": "#/definitions/AutocompounderExecuteMsg"
         }
       },
@@ -73,7 +73,7 @@
       }
     },
     "AssetEntry": {
-      "description": "May key to retrieve information on an asset",
+      "description": "An unchecked ANS asset entry. This is a string that is formatted as `src_chain>[intermediate_chain>]asset_name`",
       "type": "string"
     },
     "AutocompounderExecuteMsg": {
@@ -95,6 +95,12 @@
                     {
                       "type": "null"
                     }
+                  ]
+                },
+                "fee_collector_addr": {
+                  "type": [
+                    "string",
+                    "null"
                   ]
                 },
                 "performance": {
@@ -141,6 +147,16 @@
                   "items": {
                     "$ref": "#/definitions/AnsAsset"
                   }
+                },
+                "max_spread": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/Decimal"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               },
               "additionalProperties": false
@@ -185,6 +201,43 @@
           "properties": {
             "batch_unbond": {
               "type": "object",
+              "properties": {
+                "limit": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                "start_after": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "update_staking_config"
+          ],
+          "properties": {
+            "update_staking_config": {
+              "type": "object",
+              "required": [
+                "preferred_bonding_period"
+              ],
+              "properties": {
+                "preferred_bonding_period": {
+                  "$ref": "#/definitions/BondingPeriodSelector"
+                }
+              },
               "additionalProperties": false
             }
           },
@@ -222,6 +275,29 @@
       "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
       "type": "string"
     },
+    "BondingPeriodSelector": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "shortest",
+            "longest"
+          ]
+        },
+        {
+          "type": "object",
+          "required": [
+            "custom"
+          ],
+          "properties": {
+            "custom": {
+              "$ref": "#/definitions/Duration"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "Cw20ReceiveMsg": {
       "description": "Cw20ReceiveMsg should be de/serialized under `Receive()` variant in a ExecuteMsg",
       "type": "object",
@@ -246,6 +322,40 @@
     "Decimal": {
       "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
       "type": "string"
+    },
+    "Duration": {
+      "description": "Duration is a delta of time. You can add it to a BlockInfo or Expiration to move that further in the future. Note that an height-based Duration and a time-based Expiration cannot be combined",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "height"
+          ],
+          "properties": {
+            "height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Time in seconds",
+          "type": "object",
+          "required": [
+            "time"
+          ],
+          "properties": {
+            "time": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     },
     "IbcResponseMsg": {
       "description": "IbcResponseMsg should be de/serialized under `IbcCallback()` variant in a ExecuteMsg",
