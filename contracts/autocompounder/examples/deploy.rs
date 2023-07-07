@@ -1,9 +1,9 @@
 use abstract_interface::AppDeployer;
-use cw_orch::daemon::networks::PION_1;
 use cw_orch::daemon::ChainInfo;
 
 use autocompounder::interface::AutocompounderApp;
 use autocompounder::msg::AUTOCOMPOUNDER;
+use cw_orch::prelude::networks::parse_network;
 use cw_orch::prelude::*;
 use std::env;
 use std::sync::Arc;
@@ -51,7 +51,7 @@ fn main() -> anyhow::Result<()> {
 
     let args = Arguments::parse();
 
-    let network = PION_1;
+    let network = parse_network(&args.network_id);
 
     deploy_autocompounder(network, args.code_id)
 }
