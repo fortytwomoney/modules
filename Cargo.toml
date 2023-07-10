@@ -34,7 +34,7 @@ abstract-core =         { git = "https://github.com/AbstractSDK/abstract.git", r
 abstract-interface =    { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }
 abstract-testing =      { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }
 abstract-dex-adapter =  { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114", default-features = false  }
-abstract-cw-staking =   { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" , default-features = false }
+abstract-cw-staking =   { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114", default-features = false }
 
 # Dev Abstract dependencies
 wyndex-bundle =         { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }

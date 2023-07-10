@@ -59,9 +59,12 @@ abstract-interface = { workspace = true, optional = true }
 cw-orch = { workspace = true, optional = true }
 abstract-core = { workspace = true }
 anyhow = { workspace = true, optional = true }
+croncat-app = { git = "https://github.com/CronCats/abstract-croncat-app.git", rev = "5077a7e", default-features = false}
+
 
 [dev-dependencies]
 # forty-two = { workspace = true, features = ["interface"] }
+croncat-integration-testing = { version = "1.1.0" }
 wyndex-bundle = { workspace=true }
 wyndex-stake = { git = "https://github.com/cosmorama/wynddex.git", rev = "v1.1.2" }
 autocompounder = { path = ".", features = ["interface"] }
@@ -78,6 +81,9 @@ abstract-cw-staking = { workspace=true, features = [
 abstract-interface = { workspace = true, features = ["daemon"] }
 abstract-testing = { workspace = true }
 abstract-core = { workspace = true }
+croncat-app = { git = "https://github.com/CronCats/abstract-croncat-app.git", rev = "5077a7e", features = [
+  "interface",
+] }
 
 cw-multi-test = { workspace = true }
 anyhow = { workspace = true }

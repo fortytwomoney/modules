@@ -1,7 +1,10 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
-use crate::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER};
+use crate::msg::{
+    AutocompounderExecuteMsg, AutocompounderInstantiateMsg, BondingPeriodSelector, ExecuteMsg,
+    FeeConfig, AUTOCOMPOUNDER,
+};
 use crate::state::{Config, CONFIG, FEE_CONFIG};
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_cw_staking::{
@@ -16,9 +19,11 @@ use abstract_sdk::{
     Resolve,
 };
 use cosmwasm_std::{
-    to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError,
-    StdResult, SubMsg, WasmMsg,
+    to_binary, wasm_execute, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response,
+    StdError, StdResult, SubMsg, WasmMsg,
 };
+use croncat_app::croncat_integration_utils::{CronCatAction, CronCatInterval, CronCatTaskRequest};
+use croncat_app::{CronCat, CronCatInterface};
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use cw_utils::Duration;
@@ -139,7 +144,31 @@ pub fn instantiate_handler(
         code_id,
     )?;
 
+    let cron_cat = app.cron_cat(deps.as_ref());
+
+    let task = CronCatTaskRequest {
+        /// Runs once a day
+        interval: CronCatInterval::Cron("0 0 1/1 * * *".to_string()),
+        boundary: None,
+        stop_on_fail: true,
+        actions: vec![CronCatAction {
+            msg: wasm_execute(
+                env.contract.address,
+                &ExecuteMsg::from(AutocompounderExecuteMsg::Compound {}),
+                vec![],
+            )?
+            .into(),
+            gas_limit: Some(300_000),
+        }],
+        queries: None,
+        transforms: None,
+        cw20: None,
+    };
+
+    let croncat_msg = cron_cat.create_task();
+
     Ok(Response::new()
+        .add_message(croncat_msg)
         .add_submessage(sub_msg)
         .add_attribute("action", "instantiate")
         .add_attribute("contract", AUTOCOMPOUNDER))
