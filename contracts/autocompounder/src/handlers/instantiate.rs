@@ -11,7 +11,7 @@ use abstract_cw_staking::{
     msg::{StakingInfoResponse, StakingQueryMsg},
     CW_STAKING,
 };
-use abstract_sdk::AdapterInterface;
+use abstract_sdk::{AbstractSdkError, AdapterInterface};
 
 use abstract_sdk::{
     core::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
@@ -26,6 +26,7 @@ use croncat_app::croncat_integration_utils::{CronCatAction, CronCatInterval, Cro
 use croncat_app::{CronCat, CronCatInterface};
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
+use cw_asset::{Asset, AssetInfoBase, AssetList};
 use cw_utils::Duration;
 
 /// Initial instantiation of the contract
@@ -50,7 +51,16 @@ pub fn instantiate_handler(
         mut pool_assets,
         preferred_bonding_period,
         max_swap_spread,
+        native_asset,
+        croncat_incentives_amount,
+        refill_threshold,
     } = msg;
+
+    let asset = ans_host.query_asset(&deps.querier, &native_asset)?;
+    let native_denom = match asset {
+        AssetInfoBase::Native(denom) => denom,
+        _ => return Err(AbstractSdkError::generic_err("native_asset should be native").into()),
+    };
 
     check_fee(performance_fees)?;
     check_fee(deposit_fees)?;
@@ -121,6 +131,10 @@ pub fn instantiate_handler(
         unbonding_period,
         min_unbonding_cooldown,
         max_swap_spread,
+        native_denom,
+        croncat_incentives_amount,
+        refill_threshold,
+        croncat_task_id: "comp_task".to_string(),
     };
 
     CONFIG.save(deps.storage, &config)?;
@@ -164,8 +178,13 @@ pub fn instantiate_handler(
         transforms: None,
         cw20: None,
     };
-
-    let croncat_msg = cron_cat.create_task();
+    let croncat_task_incentives = AssetList::from(vec![Asset::native(
+        config.native_denom,
+        config.croncat_incentives_amount,
+    )])
+    .into();
+    let croncat_msg =
+        cron_cat.create_task(task, config.croncat_task_id, croncat_task_incentives)?;
 
     Ok(Response::new()
         .add_message(croncat_msg)
@@ -289,7 +308,7 @@ mod test {
     use crate::test_common::app_init;
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr, Decimal,
+        Addr, Decimal, Uint128,
     };
     use cw_asset::AssetInfo;
     use speculoos::{assert_that, result::ResultAssertions};
@@ -337,6 +356,9 @@ mod test {
                     withdrawal_fees: Decimal::percent(3),
                     preferred_bonding_period: BondingPeriodSelector::Shortest,
                     max_swap_spread: None,
+                    native_asset: "usd".to_string().into(),
+                    croncat_incentives_amount: Uint128::new(1000),
+                    refill_threshold: Uint128::new(100),
                 },
                 base: abstract_core::app::BaseInstantiateMsg {
                     ans_host_address: TEST_ANS_HOST.to_string(),

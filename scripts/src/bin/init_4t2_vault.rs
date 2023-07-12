@@ -18,7 +18,7 @@ use abstract_cw_staking::CW_STAKING;
 use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
 
 use clap::Parser;
-use cosmwasm_std::{Addr, Decimal, Empty};
+use cosmwasm_std::{Addr, Decimal, Empty, Uint128};
 use cw_orch::daemon::networks::parse_network;
 
 use autocompounder::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER};
@@ -65,10 +65,10 @@ where
 fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
-    let (dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
+    let (dex, base_pair_asset, cw20_code_id, native_asset) = match args.network_id.as_str() {
         // "uni-6" => ("wyndex", "juno>junox", 4012),
-        "juno-1" => ("wyndex", "juno>juno", 1),
-        "pion-1" => ("astroport", "neutron>astro", 188),
+        "juno-1" => ("wyndex", "juno>juno", 1, "juno>juno"),
+        "pion-1" => ("astroport", "neutron>astro", 188, "neutron>atom"),
         // "pisco-1" => ("astroport", "terra2>luna", 83),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
@@ -157,6 +157,9 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                 pool_assets: pair_assets.into_iter().map(Into::into).collect(),
                 preferred_bonding_period: BondingPeriodSelector::Shortest,
                 max_swap_spread: Some(Decimal::percent(10)),
+                croncat_incentives_amount: Uint128::new(1000),
+                refill_threshold: Uint128::new(100),
+                native_asset: native_asset.into(),
             },
         },
         None,

@@ -70,6 +70,12 @@ pub struct AutocompounderInstantiateMsg {
     pub preferred_bonding_period: BondingPeriodSelector,
     /// max swap spread
     pub max_swap_spread: Option<Decimal>,
+    /// native asset
+    pub native_asset: AssetEntry,
+    /// Amount in native coins for croncat task and refill amount
+    pub croncat_incentives_amount: Uint128,
+    /// Task balance threshold to trigger refill, put it at zero if you consider to never refill your tasks
+    pub refill_threshold: Uint128,
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -197,6 +203,14 @@ pub struct Config {
     pub min_unbonding_cooldown: Option<Duration>,
     /// maximum compound spread
     pub max_swap_spread: Decimal,
+    /// native denom
+    pub native_denom: String,
+    /// Amount in native coins for croncat task and refill amount
+    pub croncat_incentives_amount: Uint128,
+    /// Task balance threshold to trigger refill, put it at zero if you consider to never refill your tasks
+    pub refill_threshold: Uint128,
+    /// croncat task id
+    pub croncat_task_id: String,
 }
 
 #[cosmwasm_schema::cw_serde]

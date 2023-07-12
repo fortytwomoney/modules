@@ -249,6 +249,9 @@ mod test_common {
                         withdrawal_fees: Decimal::percent(3),
                         preferred_bonding_period: BondingPeriodSelector::Shortest,
                         max_swap_spread: None,
+                        croncat_incentives_amount: Uint128::new(1000),
+                        native_asset: "usd".to_string().into(),
+                        refill_threshold: Uint128::new(100),
                     },
                     base: abstract_core::app::BaseInstantiateMsg {
                         ans_host_address: TEST_ANS_HOST.to_string(),

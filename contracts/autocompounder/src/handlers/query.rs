@@ -218,6 +218,10 @@ mod test {
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown: Some(Duration::Time(10)),
             max_swap_spread: Decimal::percent(50),
+            croncat_incentives_amount: Uint128::new(1000),
+            croncat_task_id: "comp_task".to_string(),
+            native_denom: "ujuno".to_string(),
+            refill_threshold: Uint128::new(100),
         }
     }
 

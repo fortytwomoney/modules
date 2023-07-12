@@ -137,6 +137,9 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractInterfaceError> {
                 withdrawal_fees: Decimal::percent(0),
                 preferred_bonding_period: BondingPeriodSelector::Shortest,
                 max_swap_spread: Some(Decimal::percent(50)),
+                croncat_incentives_amount: Uint128::new(1000),
+                native_asset: AssetEntry::new("juno>juno"),
+                refill_threshold: Uint128::new(100),
             },
             base: abstract_core::app::BaseInstantiateMsg {
                 ans_host_address: abstract_.ans_host.addr_str()?,
