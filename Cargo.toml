@@ -24,20 +24,22 @@ exclude = [
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-# Keep as is until TendermintStake updates.
+#  Keep as is until TendermintStake updates.
 [workspace.dependencies]
 
 ## Abstract dependencies
-abstract-sdk =          { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }
-abstract-app =          { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }
-abstract-core =         { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }
-abstract-interface =    { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }
-abstract-testing =      { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }
-abstract-dex-adapter =  { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114", default-features = false  }
-abstract-cw-staking =   { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" , default-features = false }
+abstract-sdk =          { version = "0.17.0" }
+abstract-app =          { version = "0.17.0" }
+abstract-core =         { version = "0.17.0" }
+abstract-interface =    { version = "0.17.0" }
+abstract-testing =      { version = "0.17.0" }
+
+## Abstract API
+abstract-dex-adapter =  { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.17.0", default-features = false  }
+abstract-cw-staking =   { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.17.0", default-features = false }
 
 # Dev Abstract dependencies
-wyndex-bundle =         { git = "https://github.com/AbstractSDK/abstract.git", ref = "d923db85ad2b299f6dd97737e282bb6df990a114" }
+wyndex-bundle =         { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.17.0" }
 
 forty-two = { version = "0.5.0", path = "packages/forty-two" }
 autocompounder = { path = "contracts/autocompounder" }
