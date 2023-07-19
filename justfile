@@ -17,8 +17,11 @@ lintfix:
   cargo clippy --fix --allow-staged --allow-dirty --all-features
   cargo fmt --all
 
-create-vault network paired +args='':
-  (cd scripts && cargo +nightly run --bin init_4t2_vault -- --network-id {{network}} --paired-asset {{paired}} {{args}})
+create-vault network paired other_asset +args='':
+  (cd scripts && cargo +nightly run --bin init_4t2_vault -- --network-id {{network}} --paired-asset {{paired}} --other-asset {{other_asset}} {{args}})
+
+create-vault-acc network paired other_asset account +args='':
+  (cd scripts && cargo +nightly run --bin init_4t2_vault -- --network-id {{network}} --paired-asset {{paired}} --other-asset {{other_asset}} --account-id {{account}} {{args}})
 
 deposit-vault network vault-id:
   (cd scripts && cargo +nightly run --bin test_compound -- --network-id {{network}} --vault-id {{vault-id}})

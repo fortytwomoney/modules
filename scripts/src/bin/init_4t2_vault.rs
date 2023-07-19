@@ -43,7 +43,7 @@ where
             governance: governance_details,
             description: None,
             link: None,
-            name: format!("4t2 Vault ({})", assets.join("|")),
+            name: format!("4t2 Vault ({})", assets.join("|").replace(">", ":")),
         },
         None,
     )?;
@@ -69,7 +69,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         // "uni-6" => ("wyndex", "juno>junox", 4012),
         "juno-1" => ("wyndex", "juno>juno", 1),
         "pion-1" => ("astroport", "neutron>astro", 188),
-        // "pisco-1" => ("astroport", "terra2>luna", 83),
+        "pisco-1" => ("astroport", "terra2>luna", 83),
+        "phoenix-1" => ("astroport", "terra2>luna", 69),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
 
@@ -145,8 +146,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             },
             module: AutocompounderInstantiateMsg {
                 performance_fees: Decimal::new(100u128.into()),
-                deposit_fees: Decimal::new(100u128.into()),
-                withdrawal_fees: Decimal::new(100u128.into()),
+                deposit_fees: Decimal::new(0u128.into()),
+                withdrawal_fees: Decimal::new(0u128.into()),
                 /// address that recieves the fee commissions
                 commission_addr: sender.to_string(),
                 /// cw20 code id
