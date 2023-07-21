@@ -2,20 +2,11 @@
   "juno": {
     "juno-1": {
       "code_ids": {
-        "4t2:autocompounder": 3337,
-        "abstract:account-factory": 2686,
-        "abstract:ans-host": 2684,
-        "abstract:manager": 2688,
-        "abstract:module-factory": 2687,
-        "abstract:proxy": 2689,
-        "abstract:version-control": 2685
+        "4t2:autocompounder": 3337
       },
       "default": {
-        "abstract:account-factory": "juno127lt5wer3tnrhnf9wt3rg57ccmjj7uterur4yrcjxk88c9f8rv6q6nteat",
-        "abstract:ans-host": "juno1cp8jcjrm4nj5wfy8lqe853sn6qv3as0hafjgad94y9hj6hcd8d5qc8fgk6",
-        "abstract:manager": "juno15u2qm98mpyv7vq5vyr8k8ekvwemhsmuv5s9wc3dltuskxz9fp8rqyu6kkg",
-        "abstract:proxy": "juno1v4yhw5tqwslgy4yhw8gchvfrtr5tp5a8f6wd7th7naqqj70qejrsvue5pu",
-        "abstract:version-control": "juno1m3uhprdpcg2dw04tyjf3dp5xu79ah0n6r9k46656tz27fzzqhnxsr5vnqu"
+        "abstract:manager": "juno1r8pmfa77kqsgcx0ezh3wq6qs6c0kl2t7dz5jm57p9mf4nx7j59jqtjyhus",
+        "abstract:proxy": "juno19xlyy36k69a9387ydqyjhk4swplac9jn57lf5ex59xclt8usgppqm00yfr"
       }
     },
     "uni-6": {
@@ -32,21 +23,11 @@
   "neutron": {
     "pion-1": {
       "code_ids": {
-        "4t2:autocompounder": 1177,
-        "abstract:account-factory": 552,
-        "abstract:ans-host": 550,
-        "abstract:manager": 554,
-        "abstract:module-factory": 553,
-        "abstract:proxy": 555,
-        "abstract:version-control": 551
+        "4t2:autocompounder": 1177
       },
       "default": {
-        "abstract:account-factory": "neutron1nsjguajxk0sf3ras8w0c9nts27h82zadr0mknvxk97r6e0ctu36qexgz8t",
-        "abstract:ans-host": "neutron1thrsla0thcphzrnmuf9z0ckhqz2e2y0qzcpqvkuqqq8sagkz77psepu77r",
         "abstract:manager": "neutron1w4n6vf6ma2c9qya3sd4vpq80tf6sv80w68q4x4y0t32rvptjkswq2aj8v7",
-        "abstract:module-factory": "neutron1kkadjcrgv6csux5qq7ejs3g2whkjzua03rwc6c3l4ye2jkf0yq5s9zzvw3",
-        "abstract:proxy": "neutron1t8p8ys9scxxrm3fd7dr7hqp6zu42t67zz9n6td3tff6ce4fzy7xs0d3ha4",
-        "abstract:version-control": "neutron19ylexpjdzcddf9dzj0mydhr9aupqxpmn4dtndxqncfhtm7rssh3st98d3l"
+        "abstract:proxy": "neutron1t8p8ys9scxxrm3fd7dr7hqp6zu42t67zz9n6td3tff6ce4fzy7xs0d3ha4"
       }
     }
   },
@@ -77,16 +58,7 @@
     },
     "pisco-1": {
       "code_ids": {
-        "4t2:autocompounder": 9570,
-        "abstract:account-factory": 8508,
-        "abstract:ans-host": 8506,
-        "abstract:cw-staking": 8568,
-        "abstract:dex": 8520,
-        "abstract:manager": 8510,
-        "abstract:module-factory": 8509,
-        "abstract:proxy": 8511,
-        "abstract:tendermint-staking": 8574,
-        "abstract:version-control": 8507
+        "4t2:autocompounder": 9570
       },
       "default": {
         "abstract:account-factory": "terra1rvqtackkr6d8cmhgw3m4y8nyhs9mtk035kacjntps57828fqh4nqfp4wet",

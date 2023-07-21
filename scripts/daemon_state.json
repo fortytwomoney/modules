@@ -1,4 +1,22 @@
 {
+  "juno": {
+    "juno-1": {
+      "code_ids": {},
+      "default": {
+        "abstract:manager": "juno1r8pmfa77kqsgcx0ezh3wq6qs6c0kl2t7dz5jm57p9mf4nx7j59jqtjyhus",
+        "abstract:proxy": "juno19xlyy36k69a9387ydqyjhk4swplac9jn57lf5ex59xclt8usgppqm00yfr"
+      }
+    }
+  },
+  "osmosis": {
+    "osmo-test-5": {
+      "code_ids": {},
+      "default": {
+        "abstract:manager": "osmo1u3pxyd8nusal7w4xzwr0cqajuvv473k99vu93az3u2kufca9jfdq933t32",
+        "abstract:proxy": "osmo1g6v94gkmn7pke25gdepfcjsefqxlpfrthx358qtk6zdesqk73els5ph7ly"
+      }
+    }
+  },
   "terra2": {
     "phoenix-1": {
       "code_ids": {},

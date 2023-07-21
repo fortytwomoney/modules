@@ -43,7 +43,7 @@ where
             governance: governance_details,
             description: None,
             link: None,
-            name: format!("4t2 Vault ({})", assets.join("|").replace(">", ":")),
+            name: format!("4t2 Vault ({})", assets.join("|").replace('>', ":")),
         },
         None,
     )?;
@@ -66,11 +66,12 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
     let (dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
-        // "uni-6" => ("wyndex", "juno>junox", 4012),
+        "uni-6" => ("wyndex", "juno>junox", 4012),
         "juno-1" => ("wyndex", "juno>juno", 1),
         "pion-1" => ("astroport", "neutron>astro", 188),
         "pisco-1" => ("astroport", "terra2>luna", 83),
         "phoenix-1" => ("astroport", "terra2>luna", 69),
+        "osmo-test-5" => ("osmosis5", "osmosis5>osmo", 1),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
 
