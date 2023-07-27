@@ -38,7 +38,7 @@ pub struct App<Chain: CwEnv> {
     pub abstract_core: Abstract<Chain>,
 }
 
-const DEX_ADAPTER_VERSION: &str = "0.17.1";
+const DEX_ADAPTER_VERSION: &str = "0.17.0";
 
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]

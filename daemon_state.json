@@ -2,84 +2,63 @@
   "juno": {
     "juno-1": {
       "code_ids": {
-        "4t2:autocompounder": 3291,
-        "abstract:account-factory": 2686,
-        "abstract:ans-host": 2684,
-        "abstract:manager": 2688,
-        "abstract:module-factory": 2687,
-        "abstract:proxy": 2689,
-        "abstract:version-control": 2685
+        "4t2:autocompounder": 3337
       },
       "default": {
-        "abstract:account-factory": "juno1q0a2j2s4wdwat7jcx9f7yhdr0hu4e5smpqvzfdqa6t2evp2unrlqnmfphn",
-        "abstract:ans-host": "juno16pvpuaqwm4kheq50dcv3vlg38g95r5chx7vkan2a68qdlav5kqescaqsec",
-        "abstract:manager": "juno1dh0j4xtdznp4zjtvs68zsd0qst0m9j6h39fdgcnxcrug4ythat7q6hvndr",
-        "abstract:module-factory": "juno1ccnc4xywe3l52zpu672ugl5dk0dy4affqjmsxs6k9c2ydlrgelyq90gpzq",
-        "abstract:proxy": "juno1muhadzdx9a5su7fmv3uhvjre8uzhfnllrycj9m4z95fep7z0rjwq6u2kgq",
-        "abstract:version-control": "juno1hzvc5u2y7v7as9zckgntddkr4sqy7m466hychxy0nqxe92gahdjqhp7wmn",
-        "wyndex:factory": "juno16adshp473hd9sruwztdqrtsfckgtd69glqm6sqk0hc4q40c296qsxl3u3s"
+        "abstract:manager": "juno1r8pmfa77kqsgcx0ezh3wq6qs6c0kl2t7dz5jm57p9mf4nx7j59jqtjyhus",
+        "abstract:proxy": "juno19xlyy36k69a9387ydqyjhk4swplac9jn57lf5ex59xclt8usgppqm00yfr"
       }
     },
     "uni-6": {
       "code_ids": {
-        "4t2:autocompounder": 1642,
-        "abstract:account-factory": 1582,
-        "abstract:ans-host": 1580,
-        "abstract:cw-staking": 1594,
-        "abstract:dex": 1593,
-        "abstract:manager": 1584,
-        "abstract:module-factory": 1583,
-        "abstract:proxy": 1585,
-        "abstract:tendermint-staking": 1595,
-        "abstract:version-control": 1581
+        "4t2-test:autocompounder": 2850,
+        "4t2:autocompounder": 2856
       },
       "default": {
-        "abstract:account-factory": "juno16csudmjzkcucfj8tfw60kzet76vd9yys67gjnw6fwudzz3epfa7qpps6z0",
-        "abstract:ans-host": "juno1e7f9f2h42juvuvg5za6zu8acafjt2tww6rq97v2ege04efzdzymsurm96k",
-        "abstract:cw-staking": "juno1l6h40xwg072zml0ccyjlq4kwgxuc8jy2ngyys89mcxk2zk4cpmsqwc7sr6",
-        "abstract:dex": "juno1fv07jmuedt9e3363dzpmmlhttgcuypuu2rglenk24pew6jjnt7wsersptx",
-        "abstract:manager": "juno1tcdcu4z2a8wt0ps6hse53ad2hx4rz7gpnx0fsl5nx9u8cujculrqmjfr39",
-        "abstract:module-factory": "juno1nmv2st6rsf4fvuqhvl3d8fc88gv44rujr3yjfhns6ee02s3fdk3qs35ux8",
-        "abstract:proxy": "juno1uhcmr7clj4vv7hlwlfpq4729tqgpkwgwv2y9tj99wx9cw656whfsut9awz",
-        "abstract:tendermint-staking": "juno15tgz2wkxc8jg0vh5re6rqjy5zmpa9gd3uc49xrgnl3ue38vjm64qqjetg8",
-        "abstract:version-control": "juno1hl4h9qf6g4ysh4e7fkx8lcvsymtfc8ntxwhuvnxja7ugz357sukq74pdmn"
+        "abstract:manager": "juno1k8u84p70c39kqd0csskna4kad37y4lqqazq2uy9qturck3g4ssqq0hwvv9",
+        "abstract:proxy": "juno1mwdm9w54zvh0c99g6wry7mrf4a960ehdyff2kgkzqkl8ykzv9auq4k2nxg"
       }
     }
   },
   "neutron": {
     "pion-1": {
       "code_ids": {
-        "4t2:autocompounder": 589,
-        "abstract:account-factory": 552,
-        "abstract:ans-host": 550,
-        "abstract:manager": 554,
-        "abstract:module-factory": 553,
-        "abstract:proxy": 555,
-        "abstract:version-control": 551
+        "4t2:autocompounder": 1177
       },
       "default": {
-        "abstract:account-factory": "neutron1nsjguajxk0sf3ras8w0c9nts27h82zadr0mknvxk97r6e0ctu36qexgz8t",
-        "abstract:ans-host": "neutron1thrsla0thcphzrnmuf9z0ckhqz2e2y0qzcpqvkuqqq8sagkz77psepu77r",
-        "abstract:manager": "neutron1r9s2jdl55y6k7cn9ts5vkyspsz33mw7crweqc9rn3yl2k4xkz5gqvlkje8",
-        "abstract:module-factory": "neutron1kkadjcrgv6csux5qq7ejs3g2whkjzua03rwc6c3l4ye2jkf0yq5s9zzvw3",
-        "abstract:proxy": "neutron1wdmjz0fs8zlrdtfm7s5pv5gjn23p8n0h79jeguh338hjvlxvqqmqrmxueq",
-        "abstract:version-control": "neutron19ylexpjdzcddf9dzj0mydhr9aupqxpmn4dtndxqncfhtm7rssh3st98d3l"
+        "abstract:manager": "neutron1w4n6vf6ma2c9qya3sd4vpq80tf6sv80w68q4x4y0t32rvptjkswq2aj8v7",
+        "abstract:proxy": "neutron1t8p8ys9scxxrm3fd7dr7hqp6zu42t67zz9n6td3tff6ce4fzy7xs0d3ha4"
       }
     }
   },
-  "terra": {
+  "osmosis": {
+    "osmo-test-5": {
+      "code_ids": {
+        "4t2:autocompounder": 2060
+      },
+      "default": {
+        "abstract:account-factory": "osmo1qemv4yxvkt0gz0xn2efw8mv4rze3r7x0sm8swypctyhautj2aeqsavu0k8",
+        "abstract:ans-host": "osmo1cjqmsjzyymnye5ephs9xuryrj4mzgzk070g2v765cs9nlezgdt4s5vl456",
+        "abstract:manager": "osmo1erucuttzv8khvlt60euyukxxj5ya33p6q2wr0za8gluxdcdp3zqqjpxj58",
+        "abstract:proxy": "osmo174gqdazcm4ga0s7wcagu2zw2ecck0jfm56es8nerecaplwhc5vhq9kzdtv",
+        "abstract:version-control": "osmo1gpt8vl9l007sexyk4l3amu6heaykhas5nn7ln2l82956ugjmzdvsacnhym"
+      }
+    }
+  },
+  "terra2": {
+    "phoenix-1": {
+      "code_ids": {
+        "4t2-test:autocompounder": 1692,
+        "4t2:autocompounder": 1693
+      },
+      "default": {
+        "abstract:manager": "terra1vsytu3hf6r2cklaeqcwsn8yq7hedwzp8rwlx06la6nt7ppww7dwqu3mjs4",
+        "abstract:proxy": "terra1sd6e7wetz92v0r96w4vyu3xwlfrmke3mrfhf2ualwfk9m8cu7edspfugmm"
+      }
+    },
     "pisco-1": {
       "code_ids": {
-        "4t2:autocompounder": 8578,
-        "abstract:account-factory": 8508,
-        "abstract:ans-host": 8506,
-        "abstract:cw-staking": 8568,
-        "abstract:dex": 8520,
-        "abstract:manager": 8510,
-        "abstract:module-factory": 8509,
-        "abstract:proxy": 8511,
-        "abstract:tendermint-staking": 8574,
-        "abstract:version-control": 8507
+        "4t2:autocompounder": 9570
       },
       "default": {
         "abstract:account-factory": "terra1rvqtackkr6d8cmhgw3m4y8nyhs9mtk035kacjntps57828fqh4nqfp4wet",

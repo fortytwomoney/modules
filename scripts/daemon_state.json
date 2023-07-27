@@ -1,95 +1,28 @@
 {
   "juno": {
     "juno-1": {
-      "code_ids": {
-        "4t2:autocompounder": 2797,
-        "abstract:account-factory": 2686,
-        "abstract:ans-host": 2684,
-        "abstract:manager": 2688,
-        "abstract:module-factory": 2687,
-        "abstract:proxy": 2689,
-        "abstract:version-control": 2685
-      },
+      "code_ids": {},
       "default": {
-        "abstract:account-factory": "juno1q0a2j2s4wdwat7jcx9f7yhdr0hu4e5smpqvzfdqa6t2evp2unrlqnmfphn",
-        "abstract:ans-host": "juno16pvpuaqwm4kheq50dcv3vlg38g95r5chx7vkan2a68qdlav5kqescaqsec",
-        "abstract:manager": "juno1e52up0ctdeddy7d8p8jgccyfa458g0semcpvu7aeudh749knpt2sdpgva7",
-        "abstract:module-factory": "juno1ccnc4xywe3l52zpu672ugl5dk0dy4affqjmsxs6k9c2ydlrgelyq90gpzq",
-        "abstract:proxy": "juno1shduhlm6m2w0036m9sww8g3r8l5f57erv8hqvte0aca3cufz294svzlzra",
-        "abstract:version-control": "juno1hzvc5u2y7v7as9zckgntddkr4sqy7m466hychxy0nqxe92gahdjqhp7wmn",
-        "wyndex:factory": "juno16adshp473hd9sruwztdqrtsfckgtd69glqm6sqk0hc4q40c296qsxl3u3s"
-      }
-    },
-    "uni-6": {
-      "code_ids": {
-        "4t2:autocompounder": 1642,
-        "abstract:account-factory": 1582,
-        "abstract:ans-host": 1580,
-        "abstract:cw-staking": 1594,
-        "abstract:dex": 1593,
-        "abstract:manager": 1584,
-        "abstract:module-factory": 1583,
-        "abstract:proxy": 1585,
-        "abstract:tendermint-staking": 1595,
-        "abstract:version-control": 1581
-      },
-      "default": {
-        "abstract:account-factory": "juno16csudmjzkcucfj8tfw60kzet76vd9yys67gjnw6fwudzz3epfa7qpps6z0",
-        "abstract:ans-host": "juno1e7f9f2h42juvuvg5za6zu8acafjt2tww6rq97v2ege04efzdzymsurm96k",
-        "abstract:cw-staking": "juno1l6h40xwg072zml0ccyjlq4kwgxuc8jy2ngyys89mcxk2zk4cpmsqwc7sr6",
-        "abstract:dex": "juno1fv07jmuedt9e3363dzpmmlhttgcuypuu2rglenk24pew6jjnt7wsersptx",
-        "abstract:manager": "juno1tcdcu4z2a8wt0ps6hse53ad2hx4rz7gpnx0fsl5nx9u8cujculrqmjfr39",
-        "abstract:module-factory": "juno1nmv2st6rsf4fvuqhvl3d8fc88gv44rujr3yjfhns6ee02s3fdk3qs35ux8",
-        "abstract:proxy": "juno1uhcmr7clj4vv7hlwlfpq4729tqgpkwgwv2y9tj99wx9cw656whfsut9awz",
-        "abstract:tendermint-staking": "juno15tgz2wkxc8jg0vh5re6rqjy5zmpa9gd3uc49xrgnl3ue38vjm64qqjetg8",
-        "abstract:version-control": "juno1hl4h9qf6g4ysh4e7fkx8lcvsymtfc8ntxwhuvnxja7ugz357sukq74pdmn"
+        "abstract:manager": "juno1r8pmfa77kqsgcx0ezh3wq6qs6c0kl2t7dz5jm57p9mf4nx7j59jqtjyhus",
+        "abstract:proxy": "juno19xlyy36k69a9387ydqyjhk4swplac9jn57lf5ex59xclt8usgppqm00yfr"
       }
     }
   },
-  "neutron": {
-    "pion-1": {
-      "code_ids": {
-        "abstract:account-factory": 552,
-        "abstract:ans-host": 550,
-        "abstract:manager": 554,
-        "abstract:module-factory": 553,
-        "abstract:proxy": 555,
-        "abstract:version-control": 551
-      },
+  "osmosis": {
+    "osmo-test-5": {
+      "code_ids": {},
       "default": {
-        "abstract:account-factory": "neutron1nsjguajxk0sf3ras8w0c9nts27h82zadr0mknvxk97r6e0ctu36qexgz8t",
-        "abstract:ans-host": "neutron1thrsla0thcphzrnmuf9z0ckhqz2e2y0qzcpqvkuqqq8sagkz77psepu77r",
-        "abstract:manager": "neutron1gvrvp25tfjvfpmnpt0ar5d3rqyu9p40sd99afxtn2eppy8zlz6uq4ymt9m",
-        "abstract:module-factory": "neutron1kkadjcrgv6csux5qq7ejs3g2whkjzua03rwc6c3l4ye2jkf0yq5s9zzvw3",
-        "abstract:proxy": "neutron167ena6g5nx6mkp3r7wf5ck7ldk3dk365tm0tzmmjkjp4v6u86eqs6yq7up",
-        "abstract:version-control": "0.4.3"
+        "abstract:manager": "osmo1u3pxyd8nusal7w4xzwr0cqajuvv473k99vu93az3u2kufca9jfdq933t32",
+        "abstract:proxy": "osmo1g6v94gkmn7pke25gdepfcjsefqxlpfrthx358qtk6zdesqk73els5ph7ly"
       }
     }
   },
-  "terra": {
-    "pisco-1": {
-      "code_ids": {
-        "4t2:autocompounder": 8578,
-        "abstract:account-factory": 8508,
-        "abstract:ans-host": 8506,
-        "abstract:cw-staking": 8568,
-        "abstract:dex": 8520,
-        "abstract:manager": 8510,
-        "abstract:module-factory": 8509,
-        "abstract:proxy": 8511,
-        "abstract:tendermint-staking": 8574,
-        "abstract:version-control": 8507
-      },
+  "terra2": {
+    "phoenix-1": {
+      "code_ids": {},
       "default": {
-        "abstract:account-factory": "terra1rvqtackkr6d8cmhgw3m4y8nyhs9mtk035kacjntps57828fqh4nqfp4wet",
-        "abstract:ans-host": "terra1j4pmsj5ut4h3twhhu7f6ntp5mxu5sjnf2nd62ug4e0el0e5e7hfsctkgh6",
-        "abstract:cw-staking": "terra1y7qnqrawlm4zkc2u43ns4r3wmj3u4xzwz0srkye39rv693zdml6q66w3s5",
-        "abstract:dex": "terra1s6qalhnrl4wj83hurkvash9a6ay6jhxa9r9vjp85uj8074yf52yqgp8944",
-        "abstract:manager": "terra1yhryvq67nrfmqxd8cgz38zl6l347gf3n4ahs2v6wf08qwrmm6aus4f949v",
-        "abstract:module-factory": "terra1uj4rkn0dgfjl94pdzmjg42uplhn60gdtx2m85tsgp9vm8dnm85qqzfxry7",
-        "abstract:proxy": "terra19s8jm8pqf5d9fjtctcatl33ug3wu33npkxnh7rlf7wcre36q4a4sphj5hd",
-        "abstract:tendermint-staking": "terra1tgk92tn9m0utyexhntjankc5hwpjdl7jg7u5twlulze3h2wrucwq2s93sh",
-        "abstract:version-control": "terra176q7gvqq8hnft7u2z3gmf0uaht0stypc95fl3r0m3h8877te4kjq0rws67"
+        "abstract:manager": "terra13czxutflpjgnjw75lnj2dmwmj22tgmsdzmxzkcz8wcfk2w37sg8qthffcz",
+        "abstract:proxy": "terra1yw68c04hmp75y0jtk7fg7q80rfc97mr2ahrmj027m4v6s9a546csun6ph2"
       }
     }
   }
