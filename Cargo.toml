@@ -15,7 +15,6 @@ version = "0.5.0"
 authors = []
 edition = "2021"
 
-
 exclude = [
   # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
   "contract.wasm",
@@ -28,19 +27,18 @@ exclude = [
 [workspace.dependencies]
 
 ## Abstract dependencies
-abstract-sdk =          { version = "0.17.0" }
-abstract-app =          { version = "0.17.0" }
-abstract-core =         { version = "0.17.0" }
-abstract-interface =    { version = "0.17.0" }
-abstract-testing =      { version = "0.17.0" }
+abstract-sdk =          { version = "0.18.0" }
+abstract-app =          { version = "0.18.0" }
+abstract-core =         { version = "0.18.0" }
+abstract-interface =    { version = "0.18.0" }
+abstract-testing =      { version = "0.18.0" }
 
 ## Abstract API
-abstract-dex-adapter =  { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.17.0", default-features = false  }
-abstract-cw-staking =   { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.17.0", default-features = false }
+abstract-dex-adapter =  { git = "https://github.com/AbstractSDK/abstract.git", rev = "3d3b8fd6d9cf789a0e70d55b616dcc706e14406a" , default-features = false }
+abstract-cw-staking =   { git = "https://github.com/AbstractSDK/abstract.git", rev = "3d3b8fd6d9cf789a0e70d55b616dcc706e14406a", default-features = false }
 
 # Dev Abstract dependencies
-wyndex-bundle =         { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.17.0" }
-
+wyndex-bundle =         { git = "https://github.com/AbstractSDK/abstract.git", rev = "3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"}
 forty-two = { version = "0.5.0", path = "packages/forty-two" }
 autocompounder = { path = "contracts/autocompounder" }
 fee-collector = { path = "contracts/fee-collector" }

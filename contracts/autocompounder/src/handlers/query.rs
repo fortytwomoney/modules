@@ -205,7 +205,7 @@ mod test {
         let assets = vec![AssetEntry::new("juno>juno")];
 
         Config {
-            staking_contract: Addr::unchecked("staking_contract"),
+            staking_target: Addr::unchecked("staking_contract"),
             pool_address: PoolAddressBase::Contract(Addr::unchecked("pool_address")),
             pool_data: PoolMetadata::new(
                 "wyndex",
