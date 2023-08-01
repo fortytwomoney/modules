@@ -62,29 +62,6 @@ where
     }
 }
 
-/// TODO: abstract-boot
-pub fn get_module_address<Chain: CwEnv>(
-    account: &AbstractAccount<Chain>,
-    module_id: &str,
-) -> anyhow::Result<Addr> {
-    let module_infos = account.manager.module_infos(None, None)?.module_infos;
-    let module_info = module_infos
-        .iter()
-        .find(|module_info| module_info.id == module_id)
-        .ok_or_else(|| anyhow::anyhow!("Module not found"))?;
-    Ok(Addr::unchecked(module_info.address.clone()))
-}
-
-// TODO: abstract boot
-pub fn is_module_installed<Chain: CwEnv>(
-    account: &AbstractAccount<Chain>,
-    module_id: &str,
-) -> anyhow::Result<bool> {
-    let module_infos = account.manager.module_infos(None, None)?.module_infos;
-    Ok(module_infos
-        .iter()
-        .any(|module_info| module_info.id == module_id))
-}
 
 pub struct Vault<Chain: CwEnv> {
     pub account: AbstractAccount<Chain>,
@@ -100,12 +77,13 @@ impl<Chain: CwEnv> Vault<Chain> {
         let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
 
         if account_id.is_some() {
-            if is_module_installed(&account, CW_STAKING)? {
-                let cw_staking_address = get_module_address(&account, CW_STAKING)?;
+            if account.manager.is_module_installed(CW_STAKING)? {
+                let cw_staking_address = account.manager.module_info(CW_STAKING)?.ok_or(anyhow::anyhow!("No cw-staking module"))?.address;
                 staking.set_address(&cw_staking_address);
+                
             }
-            if is_module_installed(&account, AUTOCOMPOUNDER)? {
-                let autocompounder_address = get_module_address(&account, AUTOCOMPOUNDER)?;
+            if account.manager.is_module_installed(AUTOCOMPOUNDER)? {
+                let autocompounder_address = account.manager.module_info(AUTOCOMPOUNDER)?.ok_or(anyhow::anyhow!("No autocompounder module"))?.address;
                 autocompounder.set_address(&autocompounder_address);
             }
         }
@@ -119,10 +97,10 @@ impl<Chain: CwEnv> Vault<Chain> {
 
     /// Update the vault to have the latest versions of the modules
     pub fn update(&mut self) -> anyhow::Result<()> {
-        if is_module_installed(&self.account, CW_STAKING)? {
+        if self.account.manager.is_module_installed(CW_STAKING)? {
             self.account.manager.upgrade_module(CW_STAKING, &Empty {})?;
         }
-        if is_module_installed(&self.account, AUTOCOMPOUNDER)? {
+        if self.account.manager.is_module_installed(AUTOCOMPOUNDER)? {
             let x = app::MigrateMsg {
                 module: crate::msg::AutocompounderMigrateMsg {},
                 base: app::BaseMigrateMsg {},

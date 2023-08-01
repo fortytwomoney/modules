@@ -67,4 +67,6 @@ pub enum FeeCollectorError {
 
     #[error("No assets were provided")]
     NoAssetsProvided {},
+    #[error("The provided asset {} is not supported by the dex", asset)]
+    AssetNotSupportedByDex { asset: String },
 }

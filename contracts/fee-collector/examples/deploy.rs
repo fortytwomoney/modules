@@ -7,8 +7,8 @@ use cw_orch::prelude::*;
 use semver::Version;
 
 use clap::Parser;
-use fee_collector_app::contract::interface::FeeCollectorInterface;
-use fee_collector_app::msg::FEE_COLLECTOR;
+use fee_collector::contract::interface::FeeCollectorInterface;
+use fee_collector::msg::FEE_COLLECTOR;
 use tokio::runtime::Runtime;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");

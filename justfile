@@ -63,3 +63,7 @@ deploy-contract module network +args='':
 deploy network +args='':
   just wasm-contract autocompounder
   just deploy-contract autocompounder {{network}}
+
+
+create-fee-collector network fee_asset commission_addr:
+  (cd scripts && cargo +nightly run --bin init_4t2_vault -- --network-id {{network}} --fee-asset {{fee_asset}} --commission-addr {{commission_addr}}) 

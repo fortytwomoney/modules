@@ -25,3 +25,4 @@ tokio = { workspace = true }
 clap = { workspace = true }
 speculoos = { workspace = true }
 autocompounder = { workspace = true, features = ["interface"] }
+fee-collector = { workspace = true, features = ["interface"] }

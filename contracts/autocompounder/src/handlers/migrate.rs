@@ -80,7 +80,7 @@ mod test {
     fn set_old_config(deps: DepsMut) {
         let config = V050Config {
             staking_contract: Addr::unchecked("staking_contract"),
-            pool_address: PoolAddress::Number(1),
+            pool_address: PoolAddress::Id(1),
             pool_data: PoolMetadata {
                 dex: "test".to_string(),
                 pool_type: abstract_core::objects::PoolType::ConstantProduct,

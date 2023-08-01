@@ -1,4 +1,3 @@
-use autocompounder::interface::{get_module_address, is_module_installed};
 use cw_orch::daemon::DaemonBuilder;
 use cw_orch::deploy::Deploy;
 use cw_orch::environment::{CwEnv, TxResponse};
@@ -105,24 +104,21 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         )?
     };
 
-    // let query_res = forty_two ::abstract_cw_staking::CwStakingQueryMsgFns::info(&cw_staking, "junoswap", AssetEntry::new("junoswap/crab,junox"))?;
-    // panic!("{?:}", query_res);
-
     // Install abstract dex
-    if !is_module_installed(&account, "abstract:dex")? {
-        account
-            .manager
+    if !account.manager.is_module_installed("abstract:dex")? {
+        account.manager
             .install_module("abstract:dex", &Empty {}, None)?;
     }
 
     // install the staking module
-    if !is_module_installed(&account, CW_STAKING)? {
+    if !account.manager.is_module_installed(CW_STAKING)? {
         account
             .manager
             .install_module(CW_STAKING, &Empty {}, None)?;
     }
+
     // First uninstall autocompounder if found
-    if is_module_installed(&account, AUTOCOMPOUNDER)? {
+    if account.manager.is_module_installed(AUTOCOMPOUNDER)? {
         account
             .manager
             .uninstall_module(AUTOCOMPOUNDER.to_string())?;
@@ -165,7 +161,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     )?;
 
     // Register the autocompounder as a trader on the cw-staking and the dex
-    let autocompounder_address = get_module_address(&account, AUTOCOMPOUNDER)?;
+    let autocompounder_address = account.manager.module_info(AUTOCOMPOUNDER)?.ok_or(anyhow::anyhow!("patato juice"))?.address;
 
     account.manager.execute_on_module(
         CW_STAKING,
