@@ -1,6 +1,6 @@
 use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING};
 use abstract_interface::Abstract;
-use abstract_interface::{AbstractAccount, AppDeployer, ManagerQueryFns};
+use abstract_interface::{AbstractAccount, AppDeployer};
 use abstract_sdk::core::app;
 use abstract_sdk::core::app::BaseExecuteMsg;
 use cw_orch::{interface, prelude::*};
@@ -9,7 +9,7 @@ use cw_orch::{interface, prelude::*};
     contract, BootError, BootExecute, Contract, ContractWrapper, CwEnv, IndexResponse, TxResponse,
 };
 */
-use cosmwasm_std::{Addr, Coin, Empty};
+use cosmwasm_std::{Coin, Empty};
 
 use abstract_core::app::MigrateMsg;
 
@@ -62,7 +62,6 @@ where
     }
 }
 
-
 pub struct Vault<Chain: CwEnv> {
     pub account: AbstractAccount<Chain>,
     pub staking: CwStakingAdapter<Chain>,
@@ -78,12 +77,19 @@ impl<Chain: CwEnv> Vault<Chain> {
 
         if account_id.is_some() {
             if account.manager.is_module_installed(CW_STAKING)? {
-                let cw_staking_address = account.manager.module_info(CW_STAKING)?.ok_or(anyhow::anyhow!("No cw-staking module"))?.address;
+                let cw_staking_address = account
+                    .manager
+                    .module_info(CW_STAKING)?
+                    .ok_or(anyhow::anyhow!("No cw-staking module"))?
+                    .address;
                 staking.set_address(&cw_staking_address);
-                
             }
             if account.manager.is_module_installed(AUTOCOMPOUNDER)? {
-                let autocompounder_address = account.manager.module_info(AUTOCOMPOUNDER)?.ok_or(anyhow::anyhow!("No autocompounder module"))?.address;
+                let autocompounder_address = account
+                    .manager
+                    .module_info(AUTOCOMPOUNDER)?
+                    .ok_or(anyhow::anyhow!("No autocompounder module"))?
+                    .address;
                 autocompounder.set_address(&autocompounder_address);
             }
         }

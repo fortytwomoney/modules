@@ -240,14 +240,14 @@ fn test_update_config() -> AResult {
         .call_as(&app.account.manager.address()?)
         .add_allowed_assets(vec![wynd_asset.clone()])
         .unwrap_err();
-    
-    // update allowed assets with assets that are not supported by the dex 
+
+    // update allowed assets with assets that are not supported by the dex
     // let _err = app
     //     .fee_collector
     //     .call_as(&app.account.manager.address()?)
     //     .add_allowed_assets(vec![unsupported_asset])
     //     .unwrap_err();
-    
+
     Ok(())
 }
 

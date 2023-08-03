@@ -1,9 +1,7 @@
-use std::borrow::BorrowMut;
-
 use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::msg::AutocompounderMigrateMsg;
-use crate::state::{FeeConfig, FEE_CONFIG, CONFIG, Config};
-use abstract_core::objects::{AssetEntry, PoolAddress, PoolMetadata};
+use crate::state::{Config, CONFIG};
+use abstract_core::objects::{PoolAddress, PoolMetadata};
 use abstract_cw_staking::msg::StakingTarget;
 use cosmwasm_std::{from_slice, Addr, Decimal, DepsMut, Env, Response, StdError};
 use cw_asset::AssetInfo;
@@ -45,7 +43,9 @@ pub struct V050Config {
 }
 
 /// The cw-staking adapter changed from v0.17 to v0.18 and introduced a new type: StakingTarget
-fn update_config_staking_info_change(deps: &mut DepsMut) -> Result<(), crate::error::AutocompounderError> {
+fn update_config_staking_info_change(
+    deps: &mut DepsMut,
+) -> Result<(), crate::error::AutocompounderError> {
     let data = deps
         .storage
         .get(CONFIG.as_slice())
@@ -93,7 +93,8 @@ mod test {
             min_unbonding_cooldown: None,
             max_swap_spread: Decimal::percent(5),
         };
-        deps.storage.set(CONFIG.as_slice(), &to_vec(&config).unwrap());
+        deps.storage
+            .set(CONFIG.as_slice(), &to_vec(&config).unwrap());
     }
 
     #[test]
@@ -103,7 +104,8 @@ mod test {
 
         let _resp = update_config_staking_info_change(&mut deps.as_mut()).unwrap();
         let config = CONFIG.load(deps.as_ref().storage).unwrap();
-        assert_that!(config.staking_target).is_equal_to(StakingTarget::Contract(Addr::unchecked("staking_contract")));
+        assert_that!(config.staking_target)
+            .is_equal_to(StakingTarget::Contract(Addr::unchecked("staking_contract")));
         Ok(())
     }
 }

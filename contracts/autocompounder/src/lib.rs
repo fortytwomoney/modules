@@ -12,7 +12,9 @@ pub mod interface;
 #[cfg(test)]
 mod test_common {
     use crate::msg::BondingPeriodSelector;
-    use abstract_cw_staking::msg::{StakeResponse, StakingInfoResponse, StakingQueryMsg, StakingTarget};
+    use abstract_cw_staking::msg::{
+        StakeResponse, StakingInfoResponse, StakingQueryMsg, StakingTarget,
+    };
     use abstract_sdk::base::InstantiateEndpoint;
     pub use abstract_sdk::core as abstract_core;
     use abstract_sdk::core::{
@@ -65,7 +67,9 @@ mod test_common {
                         staking_token: _,
                     }) => {
                         let resp = StakingInfoResponse {
-                            staking_target: StakingTarget::Contract(Addr::unchecked("staking_addr")),
+                            staking_target: StakingTarget::Contract(Addr::unchecked(
+                                "staking_addr",
+                            )),
                             staking_token: AssetInfo::cw20(Addr::unchecked("usd_eur_lp")),
                             unbonding_periods: None,
                             max_claims: None,
@@ -171,7 +175,9 @@ mod test_common {
                         staking_token: _,
                     }) => {
                         let resp = StakingInfoResponse {
-                            staking_target: StakingTarget::Contract(Addr::unchecked("staking_addr")),
+                            staking_target: StakingTarget::Contract(Addr::unchecked(
+                                "staking_addr",
+                            )),
                             staking_token: AssetInfo::cw20(Addr::unchecked("usd_eur_lp")),
                             unbonding_periods: Some(vec![
                                 Duration::Time(3600),

@@ -46,10 +46,10 @@ dependencies = [
 [[package]]
 name = "abstract-adapter"
 version = "0.18.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
- "abstract-core 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
- "abstract-sdk 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
+ "abstract-core 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
+ "abstract-sdk 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
@@ -74,7 +74,7 @@ dependencies = [
 [[package]]
 name = "abstract-adapter-utils"
 version = "0.18.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
  "cosmwasm-std",
  "cw-asset",
@@ -124,11 +124,11 @@ dependencies = [
 [[package]]
 name = "abstract-astroport-adapter"
 version = "2.10.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
- "abstract-dex-adapter-traits 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
- "abstract-sdk 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
- "abstract-staking-adapter-traits 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
+ "abstract-dex-adapter-traits 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
+ "abstract-sdk 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
+ "abstract-staking-adapter-traits 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
  "cosmwasm-std",
  "lazy_static",
 ]
@@ -161,9 +161,9 @@ dependencies = [
 [[package]]
 name = "abstract-core"
 version = "0.18.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
- "abstract-ica 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
+ "abstract-ica 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-address-like",
@@ -184,7 +184,7 @@ dependencies = [
 [[package]]
 name = "abstract-cw-staking"
 version = "0.18.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
  "abstract-adapter 0.18.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "abstract-adapter-utils 0.18.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -258,7 +258,7 @@ dependencies = [
 [[package]]
 name = "abstract-dex-adapter"
 version = "0.18.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
  "abstract-adapter 0.18.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "abstract-adapter-utils 0.18.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -307,12 +307,12 @@ dependencies = [
 [[package]]
 name = "abstract-dex-adapter-traits"
 version = "0.18.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
- "abstract-adapter 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
- "abstract-adapter-utils 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
- "abstract-core 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
- "abstract-sdk 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
+ "abstract-adapter 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
+ "abstract-adapter-utils 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
+ "abstract-core 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
+ "abstract-sdk 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-asset",
@@ -340,7 +340,7 @@ dependencies = [
 [[package]]
 name = "abstract-ica"
 version = "0.18.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -393,7 +393,7 @@ dependencies = [
 [[package]]
 name = "abstract-macros"
 version = "0.18.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -448,11 +448,11 @@ dependencies = [
 [[package]]
 name = "abstract-osmosis-adapter"
 version = "0.15.2"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
- "abstract-core 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
- "abstract-dex-adapter-traits 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
- "abstract-staking-adapter-traits 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
+ "abstract-core 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
+ "abstract-dex-adapter-traits 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
+ "abstract-staking-adapter-traits 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
  "cosmwasm-std",
 ]
 
@@ -504,10 +504,10 @@ dependencies = [
 [[package]]
 name = "abstract-sdk"
 version = "0.18.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
- "abstract-core 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
- "abstract-macros 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
+ "abstract-core 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
+ "abstract-macros 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
  "cosmwasm-std",
  "cw-asset",
  "cw-controllers",
@@ -547,12 +547,12 @@ dependencies = [
 [[package]]
 name = "abstract-staking-adapter-traits"
 version = "0.18.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
- "abstract-adapter 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
- "abstract-adapter-utils 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
- "abstract-core 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
- "abstract-sdk 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a)",
+ "abstract-adapter 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
+ "abstract-adapter-utils 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
+ "abstract-core 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
+ "abstract-sdk 0.18.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0)",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-asset",
@@ -610,7 +610,7 @@ dependencies = [
 [[package]]
 name = "abstract-wyndex-adapter"
 version = "2.1.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
  "abstract-dex-adapter-traits 0.18.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "abstract-sdk 0.18.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -5001,7 +5001,7 @@ dependencies = [
 [[package]]
 name = "wyndex"
 version = "2.1.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -5017,7 +5017,7 @@ dependencies = [
 [[package]]
 name = "wyndex-bundle"
 version = "0.18.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
  "abstract-core 0.18.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "abstract-cw20",
@@ -5105,7 +5105,7 @@ dependencies = [
 [[package]]
 name = "wyndex-stake"
 version = "2.1.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?rev=3d3b8fd6d9cf789a0e70d55b616dcc706e14406a#3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.18.0#8a68aec2d354ba137d2dda273a9a96a4efcae063"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",

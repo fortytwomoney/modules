@@ -9,13 +9,11 @@ use std::sync::Arc;
 
 use abstract_core::{
     account_factory, adapter, app,
-    manager::ExecuteMsgFns,
     objects::module::ModuleInfo,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
     registry::{ANS_HOST, MANAGER, PROXY},
     ABSTRACT_EVENT_TYPE,
 };
-use abstract_cw_staking::CW_STAKING;
 use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
 
 use clap::Parser;
@@ -42,7 +40,7 @@ where
             governance: governance_details,
             description: None,
             link: None,
-            name: format!("4t2 Fee Collector"),
+            name: "4t2 Fee Collector".to_string(),
         },
         None,
     )?;
@@ -64,7 +62,7 @@ where
 fn init_fee_collector(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
-    let (dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
+    let (dex, base_pair_asset, _cw20_code_id) = match args.network_id.as_str() {
         "uni-6" => ("wyndex", "juno>junox", 4012),
         "juno-1" => ("wyndex", "juno>juno", 1),
         "pion-1" => ("astroport", "neutron>astro", 188),
@@ -160,7 +158,7 @@ struct Arguments {
     /// e.g. juno>juno
     #[arg(short, long)]
     fee_asset: String,
-    /// Network id 
+    /// Network id
     #[arg(short, long)]
     network_id: String,
     // #[arg(short, long)]

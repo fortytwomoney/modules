@@ -106,7 +106,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     // Install abstract dex
     if !account.manager.is_module_installed("abstract:dex")? {
-        account.manager
+        account
+            .manager
             .install_module("abstract:dex", &Empty {}, None)?;
     }
 
@@ -161,7 +162,11 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     )?;
 
     // Register the autocompounder as a trader on the cw-staking and the dex
-    let autocompounder_address = account.manager.module_info(AUTOCOMPOUNDER)?.ok_or(anyhow::anyhow!("patato juice"))?.address;
+    let autocompounder_address = account
+        .manager
+        .module_info(AUTOCOMPOUNDER)?
+        .ok_or(anyhow::anyhow!("patato juice"))?
+        .address;
 
     account.manager.execute_on_module(
         CW_STAKING,
