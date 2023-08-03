@@ -34,11 +34,11 @@ abstract-interface =    { version = "0.18.0" }
 abstract-testing =      { version = "0.18.0" }
 
 ## Abstract API
-abstract-dex-adapter =  { git = "https://github.com/AbstractSDK/abstract.git", rev = "3d3b8fd6d9cf789a0e70d55b616dcc706e14406a" , default-features = false }
-abstract-cw-staking =   { git = "https://github.com/AbstractSDK/abstract.git", rev = "3d3b8fd6d9cf789a0e70d55b616dcc706e14406a", default-features = false }
+abstract-dex-adapter =  { git = "https://github.com/AbstractSDK/abstract.git", tag="v0.18.0", default-features = false }
+abstract-cw-staking =   { git = "https://github.com/AbstractSDK/abstract.git", tag= "v0.18.0", default-features = false }
 
 # Dev Abstract dependencies
-wyndex-bundle =         { git = "https://github.com/AbstractSDK/abstract.git", rev = "3d3b8fd6d9cf789a0e70d55b616dcc706e14406a"}
+wyndex-bundle =         { git = "https://github.com/AbstractSDK/abstract.git", tag= "v0.18.0" }
 forty-two = { version = "0.5.0", path = "packages/forty-two" }
 autocompounder = { path = "contracts/autocompounder" }
 fee-collector = { path = "contracts/fee-collector" }
