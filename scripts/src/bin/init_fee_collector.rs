@@ -22,7 +22,6 @@ use clap::Parser;
 use cosmwasm_std::{Addr, Decimal, Empty};
 use cw_orch::daemon::networks::parse_network;
 
-use autocompounder::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER};
 use log::info;
 
 // To deploy the app we need to get the memory and then register it

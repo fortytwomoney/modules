@@ -1,10 +1,11 @@
 use abstract_app::AppError;
-use abstract_core::AbstractError;
+use abstract_core::{AbstractError, objects::AssetEntry};
 use abstract_sdk::AbstractSdkError;
 use cosmwasm_std::{OverflowError, StdError};
 use cw_asset::AssetError;
 use cw_controllers::AdminError;
 use thiserror::Error;
+
 
 #[derive(Error, Debug, PartialEq)]
 pub enum FeeCollectorError {
@@ -43,6 +44,9 @@ pub enum FeeCollectorError {
 
     #[error("The asset you wished to add: {} is already part of the vector", asset)]
     AssetAlreadyPresent { asset: String },
+     
+    #[error("The asset {:?} is not whitelisted", asset)]
+    AssetNotWhitelisted { asset: AssetEntry },
 
     #[error("The provided token is not the base token")]
     WrongToken {},
@@ -62,11 +66,18 @@ pub enum FeeCollectorError {
     #[error("The actual amount of tokens transfered is different from the claimed amount.")]
     InvalidAmount {},
 
+    #[error("Collect called while no tokens to be swapped")]
+    NoTokensAvailableForSwap {},
+
     #[error("The provided asset is the fee asset and cannot be added to the allowed assets")]
     FeeAssetNotAllowed {},
 
     #[error("No assets were provided")]
     NoAssetsProvided {},
+
+    #[error("The provided asset {} is not supported by the ANS. original error: {:?}", asset, error)]
+    AssetNotKnownByAns { asset: String, error: String},
+
     #[error("The provided asset {} is not supported by the dex", asset)]
-    AssetNotSupportedByDex { asset: String },
+    AssetNotSupportedByDex { asset: String, error: String },
 }

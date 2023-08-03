@@ -1,8 +1,8 @@
 use abstract_dex_adapter::DexInterface;
 use abstract_sdk::{
     core::objects::{AnsAsset, AssetEntry},
-    features::AbstractResponse,
-    AbstractSdkResult, TransferInterface,
+    features::{AbstractResponse, AbstractNameService},
+    AbstractSdkResult, TransferInterface, Resolve,
 };
 
 use cosmwasm_std::{Decimal, DepsMut, Env, MessageInfo, Response, SubMsg};
@@ -10,7 +10,7 @@ use cosmwasm_std::{Decimal, DepsMut, Env, MessageInfo, Response, SubMsg};
 use crate::{
     contract::{FeeCollectorApp, FeeCollectorResult},
     replies::SWAPPED_REPLY_ID,
-    state::ALLOWED_ASSETS,
+    state::ALLOWED_ASSETS, error::FeeCollectorError,
 };
 
 use crate::msg::FeeCollectorExecuteMsg;
@@ -99,10 +99,17 @@ fn add_allowed_assets(
     let mut supported_assets = ALLOWED_ASSETS.load(deps.storage)?;
     let config = CONFIG.load(deps.storage)?;
 
+    let ans = app.ans_host(deps.as_ref())?;
+    let dex = app.dex(deps.as_ref(), config.dex.clone());
     for asset in assets {
         if asset == config.fee_asset {
-            return Err(crate::error::FeeCollectorError::FeeAssetNotAllowed {});
-        }
+            return Err(crate::error::FeeCollectorError::FeeAssetNotAllowed { })};
+
+
+        let _offer_asset_info = ans.query_asset(&deps.querier, &asset).map_err(|e| FeeCollectorError::AssetNotKnownByAns { asset: asset.to_string(), error: e.to_string() });
+        
+        dex.simulate_swap(AnsAsset { name: asset.clone(), amount: 100000u128.into() }, config.fee_asset.clone())
+            .map_err(|e| FeeCollectorError::AssetNotSupportedByDex { asset: asset.to_string(), error: e.to_string() })?; // check if swap is possible
 
         if !supported_assets.contains(&asset) {
             supported_assets.push(asset);
@@ -121,17 +128,19 @@ fn collect(deps: DepsMut, msg_info: MessageInfo, app: FeeCollectorApp) -> FeeCol
 
     // query all balances
     let supported_assets = ALLOWED_ASSETS.load(deps.storage)?;
-    let balances = app.bank(deps.as_ref()).balances(&supported_assets)?;
+    let balances = app.bank(deps.as_ref()).balances(&supported_assets)?
+        .resolve(&deps.querier, &app.ans_host(deps.as_ref())?)?; // query all balances
+
     let swap_assets = balances
-        .iter()
-        .enumerate()
-        .map(|(i, b)| {
-            let asset = &supported_assets[i];
-            let balance = b.amount;
-            let ans_asset = AnsAsset::new(asset.clone(), balance);
-            Ok(ans_asset)
+        .into_iter()
+        .filter_map(|asset| {
+            if supported_assets.contains(&asset.name) {
+                Some(asset)
+            }else {
+                None
+            }
         })
-        .collect::<FeeCollectorResult<Vec<AnsAsset>>>()?;
+        .collect::<Vec<AnsAsset>>();
 
     // swap all non-lp balances to fee asset
     let dex = app.dex(deps.as_ref(), config.dex);
@@ -149,7 +158,9 @@ fn collect(deps: DepsMut, msg_info: MessageInfo, app: FeeCollectorApp) -> FeeCol
             Ok(())
         })?;
     // add reply to the last swap
-    let last_swap_submsg = SubMsg::reply_on_success(swap_msgs.pop().unwrap(), SWAPPED_REPLY_ID);
+    let last_swap_submsg = SubMsg::reply_on_success(
+        swap_msgs.pop().ok_or(FeeCollectorError::NoSwapAvailable {  })?, 
+        SWAPPED_REPLY_ID);
 
     // send all funds to commission address
     let response = Response::new()
