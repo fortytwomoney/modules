@@ -28,6 +28,7 @@
 //! ## Migration
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
+use abstract_cw_staking::msg::StakingTarget;
 use abstract_dex_adapter::msg::OfferAsset;
 use abstract_sdk::core::app;
 use abstract_sdk::core::objects::{AssetEntry, DexName, PoolAddress, PoolMetadata};
@@ -180,7 +181,7 @@ pub struct FeeConfig {
 #[cosmwasm_schema::cw_serde]
 pub struct Config {
     /// Address of the staking contract
-    pub staking_contract: Addr,
+    pub staking_target: StakingTarget,
     /// Pool address (number or Address)
     pub pool_address: PoolAddress,
     /// Pool metadata

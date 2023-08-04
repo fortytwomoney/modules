@@ -39,7 +39,7 @@ use cw_orch::deploy::Deploy;
 use speculoos::result::ResultAssertions;
 use wyndex_bundle::*;
 
-const WYNDEX: &str = "wynd";
+const WYNDEX: &str = "wyndex";
 const COMMISSION_RECEIVER: &str = "commission_receiver";
 const VAULT_TOKEN: &str = "vault_token";
 const TEST_NAMESPACE: &str = "4t2";

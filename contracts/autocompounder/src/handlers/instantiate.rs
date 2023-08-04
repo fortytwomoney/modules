@@ -108,7 +108,7 @@ pub fn instantiate_handler(
 
     let config: Config = Config {
         vault_token: Addr::unchecked(""),
-        staking_contract: staking_info.staking_contract_address,
+        staking_target: staking_info.staking_target,
         liquidity_token: lp_token_addr,
         pool_data,
         pool_assets: resolved_pool_assets,

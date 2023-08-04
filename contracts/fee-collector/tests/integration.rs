@@ -15,8 +15,8 @@ use cw_orch::prelude::*;
 
 use cosmwasm_std::{coin, Decimal};
 
-use fee_collector_app::{contract::interface::FeeCollectorInterface, msg::FEE_COLLECTOR};
-use fee_collector_app::{
+use fee_collector::{contract::interface::FeeCollectorInterface, msg::FEE_COLLECTOR};
+use fee_collector::{
     msg::{FeeCollectorExecuteMsgFns, FeeCollectorQueryMsgFns},
     state::Config,
 };
@@ -25,7 +25,6 @@ use wyndex_bundle::{WynDex, WYNDEX, WYND_TOKEN};
 
 const COMMISSION_ADDR: &str = "commission_addr";
 const OWNER: &str = "owner";
-const WYNDEX_TOKEN: &str = "wyndex_token";
 const TEST_NAMESPACE: &str = "4t2";
 pub type AResult = anyhow::Result<()>;
 
@@ -38,7 +37,7 @@ pub struct App<Chain: CwEnv> {
     pub abstract_core: Abstract<Chain>,
 }
 
-const DEX_ADAPTER_VERSION: &str = "0.17.0";
+const DEX_ADAPTER_VERSION: &str = "0.18.0";
 
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
@@ -140,7 +139,7 @@ fn create_fee_collector(
     account.manager.install_module(
         FEE_COLLECTOR,
         &abstract_core::app::InstantiateMsg {
-            module: fee_collector_app::msg::FeeCollectorInstantiateMsg {
+            module: fee_collector::msg::FeeCollectorInstantiateMsg {
                 commission_addr: COMMISSION_ADDR.to_string(),
                 max_swap_spread: Decimal::percent(25),
                 fee_asset: EUR.to_string(),
@@ -196,7 +195,8 @@ fn test_update_config() -> AResult {
     let eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);
 
-    let wynd_asset = AssetEntry::new(WYNDEX_TOKEN);
+    let wynd_asset = AssetEntry::new(WYND_TOKEN);
+    let unsupported_asset = AssetEntry::new("unsupported");
 
     app.fee_collector
         .call_as(&app.account.manager.address()?)
@@ -235,15 +235,19 @@ fn test_update_config() -> AResult {
     assert_that!(allowed_assets.len()).is_equal_to(1);
     assert_that!(allowed_assets).contains(eur_asset.clone());
 
-    // update allowed assets
+    // dex api doesnt support multi hop swaps and in the test case there is no wynd usd pool.
     app.fee_collector
         .call_as(&app.account.manager.address()?)
-        .add_allowed_assets(vec![eur_asset.clone(), wynd_asset.clone()])?;
+        .add_allowed_assets(vec![wynd_asset.clone()])
+        .unwrap_err();
 
-    let allowed_assets: Vec<AssetEntry> = app.fee_collector.allowed_assets()?;
-    assert_that!(allowed_assets.len()).is_equal_to(2);
-    assert_that!(allowed_assets).contains(eur_asset);
-    assert_that!(allowed_assets).contains(wynd_asset);
+    // update allowed assets with assets that are not supported by the dex
+    // let _err = app
+    //     .fee_collector
+    //     .call_as(&app.account.manager.address()?)
+    //     .add_allowed_assets(vec![unsupported_asset])
+    //     .unwrap_err();
+
     Ok(())
 }
 
@@ -284,6 +288,36 @@ fn test_collect_fees() -> AResult {
     let usd_balance = commission_balances.get(0).unwrap();
     assert_that!(commission_balances).has_length(1);
     assert_that!(usd_balance).is_equal_to(&expected_usd_balance);
+
+    Ok(())
+}
+
+fn test_add_allowed_assets() -> AResult {
+    let owner = Addr::unchecked(OWNER);
+    let mock = Mock::new(&owner);
+
+    let eur_asset = AssetEntry::new(EUR);
+    let usd_asset = AssetEntry::new(USD);
+    let wynd_token = AssetEntry::new(WYND_TOKEN);
+    let app = create_fee_collector(mock.clone(), vec![usd_asset.clone(), wynd_token.clone()])?;
+
+    // not admin
+    let _err = app
+        .fee_collector
+        .call_as(&app.account.manager.address()?)
+        .add_allowed_assets(vec![eur_asset.clone()])
+        .unwrap_err();
+
+    // call as admin
+    app.fee_collector
+        .call_as(&app.account.manager.address()?)
+        .add_allowed_assets(vec![eur_asset.clone()])?;
+
+    let allowed_assets: Vec<AssetEntry> = app.fee_collector.allowed_assets()?;
+    assert_that!(allowed_assets.len()).is_equal_to(3);
+    assert_that!(allowed_assets).contains(eur_asset);
+    assert_that!(allowed_assets).contains(usd_asset);
+    assert_that!(allowed_assets).contains(wynd_token);
 
     Ok(())
 }

@@ -18,13 +18,13 @@ lintfix:
   cargo fmt --all
 
 create-vault network paired other_asset +args='':
-  (cd scripts && cargo +nightly run --bin init_4t2_vault -- --network-id {{network}} --paired-asset {{paired}} --other-asset {{other_asset}} {{args}})
+  cargo +nightly run --bin init_4t2_vault -- --network-id {{network}} --paired-asset {{paired}} --other-asset {{other_asset}} {{args}}
 
 create-vault-acc network paired other_asset account +args='':
-  (cd scripts && cargo +nightly run --bin init_4t2_vault -- --network-id {{network}} --paired-asset {{paired}} --other-asset {{other_asset}} --account-id {{account}} {{args}})
+  cargo +nightly run --bin init_4t2_vault -- --network-id {{network}} --paired-asset {{paired}} --other-asset {{other_asset}} --account-id {{account}} {{args}}
 
 deposit-vault network vault-id:
-  (cd scripts && cargo +nightly run --bin test_compound -- --network-id {{network}} --vault-id {{vault-id}})
+  cargo +nightly run --bin test_compound -- --network-id {{network}} --vault-id {{vault-id}}
 
 build:
   cargo build
@@ -63,3 +63,7 @@ deploy-contract module network +args='':
 deploy network +args='':
   just wasm-contract autocompounder
   just deploy-contract autocompounder {{network}}
+
+
+create-fee-collector network fee_asset commission_addr +args='':
+  cargo +nightly run --bin init_fee_collector -- --network-id {{network}} --fee-asset {{fee_asset}} --commission-addr {{commission_addr}} {{args}}
