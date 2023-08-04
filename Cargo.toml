@@ -11,7 +11,7 @@ members = ["contracts/*", "packages/*", "scripts"]
 resolver = "2"
 
 [workspace.package]
-version = "0.5.0"
+version = "0.6.0"
 authors = []
 edition = "2021"
 
@@ -39,7 +39,7 @@ abstract-cw-staking =   { git = "https://github.com/AbstractSDK/abstract.git", t
 
 # Dev Abstract dependencies
 wyndex-bundle =         { git = "https://github.com/AbstractSDK/abstract.git", tag= "v0.18.0" }
-forty-two = { version = "0.5.0", path = "packages/forty-two" }
+forty-two = { version = "0.6.0", path = "packages/forty-two" }
 autocompounder = { path = "contracts/autocompounder" }
 fee-collector = { path = "contracts/fee-collector" }
 
