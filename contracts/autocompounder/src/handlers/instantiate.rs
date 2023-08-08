@@ -31,6 +31,7 @@ pub fn instantiate_handler(
     app: AutocompounderApp,
     msg: AutocompounderInstantiateMsg,
 ) -> AutocompounderResult {
+    /// load abstract name service 
     let ans = app.name_service(deps.as_ref());
 
     let ans_host = app.ans_host(deps.as_ref())?;
@@ -66,13 +67,13 @@ pub fn instantiate_handler(
     };
     let lp_token_info = ans.query(&lp_token)?;
 
-    // match on the info and get cw20
-    let lp_token_addr: Addr = match lp_token_info {
-        cw_asset::AssetInfoBase::Cw20(addr) => Ok(addr),
-        _ => Err(AutocompounderError::Std(StdError::generic_err(
-            "LP token is not a cw20",
-        ))),
-    }?;
+    // // match on the info and get cw20
+    // let lp_token_addr: Addr = match lp_token_info {
+    //     cw_asset::AssetInfoBase::Cw20(addr) => Ok(addr),
+    //     _ => Err(AutocompounderError::Std(StdError::generic_err(
+    //         "LP token is not a cw20",
+    //     ))),
+    // }?;
 
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
@@ -109,7 +110,7 @@ pub fn instantiate_handler(
     let config: Config = Config {
         vault_token: Addr::unchecked(""),
         staking_target: staking_info.staking_target,
-        liquidity_token: lp_token_addr,
+        liquidity_token: lp_token_info,
         pool_data,
         pool_assets: resolved_pool_assets,
         pool_address: pool_reference.pool_address,

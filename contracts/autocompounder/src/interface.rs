@@ -108,7 +108,9 @@ impl<Chain: CwEnv> Vault<Chain> {
         }
         if self.account.manager.is_module_installed(AUTOCOMPOUNDER)? {
             let x = app::MigrateMsg {
-                module: crate::msg::AutocompounderMigrateMsg {},
+                module: crate::msg::AutocompounderMigrateMsg {
+                    version: todo!()
+                },
                 base: app::BaseMigrateMsg {},
             };
             self.account.manager.upgrade_module(AUTOCOMPOUNDER, &x)?;

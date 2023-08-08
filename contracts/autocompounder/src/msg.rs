@@ -35,7 +35,7 @@ use abstract_sdk::core::objects::{AssetEntry, DexName, PoolAddress, PoolMetadata
 use cosmwasm_schema::QueryResponses;
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
-use cw_asset::AssetInfo;
+use cw_asset::{AssetInfo, AssetInfoBase};
 use cw_utils::{Duration, Expiration};
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
@@ -51,7 +51,9 @@ impl app::AppQueryMsg for AutocompounderQueryMsg {}
 
 /// Migrate msg
 #[cosmwasm_schema::cw_serde]
-pub struct AutocompounderMigrateMsg {}
+pub struct AutocompounderMigrateMsg {
+    pub version: String,
+}
 
 /// Init msg
 #[cosmwasm_schema::cw_serde]
@@ -189,7 +191,7 @@ pub struct Config {
     /// Resolved pool assets
     pub pool_assets: Vec<AssetInfo>,
     /// Address of the LP token contract
-    pub liquidity_token: Addr,
+    pub liquidity_token: AssetInfoBase<Addr>,
     /// Vault token
     pub vault_token: Addr,
     /// Pool bonding period

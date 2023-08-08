@@ -1,7 +1,7 @@
 use super::convert_to_shares;
 use super::helpers::{
     check_fee, convert_to_assets, cw20_total_supply, mint_vault_tokens, query_stake,
-    stake_lp_tokens,
+    stake_lp_tokens, cw20_lp_token,
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 use abstract_core::objects::AnsEntryConvertor;
@@ -32,7 +32,7 @@ use cosmwasm_std::{
     Order, ReplyOn, Response, StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
-use cw_asset::{AssetInfo, AssetList};
+use cw_asset::{AssetInfo, AssetList, AssetInfoBase};
 use cw_storage_plus::Bound;
 use cw_utils::Duration;
 use std::ops::Add;
@@ -173,6 +173,7 @@ pub fn deposit(
     let ans_host = app.ans_host(deps.as_ref())?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex);
     let resolved_pool_assets = config.pool_data.assets.resolve(&deps.querier, &ans_host)?;
+    let lptoken = config.liquidity_token.clone();
 
     let mut messages = vec![];
     let mut submessages = vec![];
@@ -375,9 +376,11 @@ fn deposit_lp(
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
-    if cw20_sender != config.liquidity_token {
+    let cw20_lp_token = cw20_lp_token(config.liquidity_token.clone())?;
+    if cw20_sender != cw20_lp_token {
         return Err(AutocompounderError::SenderIsNotLpToken {});
     };
+
     let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
     let transfer_msgs = app.bank(deps.as_ref()).deposit(vec![AnsAsset::new(
         AnsEntryConvertor::new(lp_token.clone()).asset_entry(),
@@ -433,6 +436,8 @@ fn deposit_lp(
 
     Ok(app.custom_tag_response(res, "deposit-lp", vec![("4t2", "/AC/DepositLP")]))
 }
+
+
 
 fn redeem(
     deps: DepsMut,
@@ -879,7 +884,7 @@ mod test {
                 assets,
             ),
             pool_assets: vec![],
-            liquidity_token: Addr::unchecked("liquidity_token"),
+            liquidity_token: AssetInfoBase::Cw20(Addr::unchecked("liquidity_token")),
             vault_token: Addr::unchecked("vault_token"),
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown,

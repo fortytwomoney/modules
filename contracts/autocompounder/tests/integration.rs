@@ -2,7 +2,9 @@ mod common;
 
 use abstract_core::objects::gov_type::GovernanceDetails;
 use abstract_interface::{AbstractInterfaceError, AccountDetails};
+use autocompounder::error::AutocompounderError;
 use cw20_base::contract::AbstractCw20Base;
+use cw_asset::AssetInfoBase;
 use std::ops::Mul;
 use std::str::FromStr;
 
@@ -55,6 +57,14 @@ pub fn convert_to_assets(
         total_assets + Uint128::from(1u128),
         total_supply + Uint128::from(10u128).pow(decimal_offset),
     )
+}
+pub fn cw20_lp_token(liquidity_token: AssetInfoBase<Addr>) -> Result<Addr, AutocompounderError> {
+    match liquidity_token {
+        AssetInfoBase::Cw20(contract_addr) => Ok(contract_addr),
+        _ => {
+            return Err(AutocompounderError::SenderIsNotLpToken {});
+        }
+    }
 }
 
 /// Convert lp assets to shares
@@ -218,7 +228,8 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 
     // check config setup
     let config = vault.auto_compounder.config()?;
-    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
+    
+    assert_that!(cw20_lp_token( config.liquidity_token )?).is_equal_to(eur_usd_lp.address()?);
 
     // give user some funds
     mock.set_balances(&[(
@@ -368,7 +379,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     let position = vault.auto_compounder.total_lp_position()?;
     assert_that!(position).is_equal_to(Uint128::zero());
 
-    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
+    assert_that!(cw20_lp_token(config.liquidity_token)?).is_equal_to(eur_usd_lp.address()?);
 
     // give user some funds
     mock.set_balances(&[
@@ -637,7 +648,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
 
     // check config setup
     let config = vault.auto_compounder.config()?;
-    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
+    assert_that!(cw20_lp_token(config.liquidity_token)?).is_equal_to(eur_usd_lp.address()?);
 
     // give user some funds
     mock.set_balances(&[
@@ -1151,7 +1162,7 @@ fn test_lp_deposit() -> AResult {
 
     // check config setup
     let config: Config = vault.auto_compounder.config().unwrap();
-    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address().unwrap());
+    assert_that!(cw20_lp_token(config.liquidity_token)?).is_equal_to(eur_usd_lp.address().unwrap());
 
     // update fee_config to include deposit fee
     let manager_addr = vault.account.manager.address()?;
@@ -1242,7 +1253,7 @@ fn vault_token_inflation_attack_original() -> AResult {
     } = vault.wyndex;
 
     let config: Config = vault.auto_compounder.config().unwrap();
-    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address().unwrap());
+    assert_that!(cw20_lp_token(config.liquidity_token)?).is_equal_to(eur_usd_lp.address().unwrap());
 
     let unbonding_secs = match config.unbonding_period {
         Some(Duration::Time(secs)) => secs,
@@ -1345,7 +1356,7 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
     } = vault.wyndex;
 
     let config: Config = vault.auto_compounder.config().unwrap();
-    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address().unwrap());
+    assert_that!(cw20_lp_token(config.liquidity_token)?).is_equal_to(eur_usd_lp.address().unwrap());
 
     let unbonding_secs = match config.unbonding_period {
         Some(Duration::Time(secs)) => secs,
@@ -1406,3 +1417,11 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
 
     Ok(())
 }
+
+// / Checklist of deposit tokens #TODO
+// / 1. deposit single native token
+// / 2. deposit single cw20 token
+// / 3. deposit multiple native tokens
+// / 4. deposit multiple cw20 tokens
+// / 5. deposit single native lp token
+// / 6. deposit single cw20 lp token
