@@ -54,14 +54,12 @@ abstract-sdk = { workspace=true }
 abstract-dex-adapter = { workspace=true, default-features = false }
 abstract-cw-staking = { workspace=true, default-features = false }
 
-forty-two = { workspace = true }
 abstract-interface = { workspace = true, optional = true }
 cw-orch = { workspace = true, optional = true }
 abstract-core = { workspace = true }
 anyhow = { workspace = true, optional = true }
 
 [dev-dependencies]
-# forty-two = { workspace = true, features = ["interface"] }
 wyndex-bundle = { workspace=true }
 wyndex-stake = { git = "https://github.com/cosmorama/wynddex.git", rev = "v1.1.2" }
 autocompounder = { path = ".", features = ["interface"] }

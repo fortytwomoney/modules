@@ -20,7 +20,6 @@ env_logger = { workspace = true }
 semver = { workspace = true }
 abstract-cw-staking = { workspace=true }
 abstract-core = { workspace = true }
-forty-two = { workspace = true, features = ["interface"] }
 tokio = { workspace = true }
 clap = { workspace = true }
 speculoos = { workspace = true }
