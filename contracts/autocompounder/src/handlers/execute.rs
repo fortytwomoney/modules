@@ -1,9 +1,10 @@
 use super::convert_to_shares;
 use super::helpers::{
     check_fee, convert_to_assets, cw20_total_supply, mint_vault_tokens, query_stake,
-    stake_lp_tokens, cw20_lp_token,
+    stake_lp_tokens,
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
+
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_sdk::{AccountAction, AdapterInterface};
 
@@ -32,7 +33,7 @@ use cosmwasm_std::{
     Order, ReplyOn, Response, StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
-use cw_asset::{AssetInfo, AssetList, AssetInfoBase};
+use cw_asset::{Asset, AssetInfo, AssetInfoBase, AssetList};
 use cw_storage_plus::Bound;
 use cw_utils::Duration;
 use std::ops::Add;
@@ -62,6 +63,9 @@ pub fn execute_handler(
         ),
         AutocompounderExecuteMsg::Deposit { funds, max_spread } => {
             deposit(deps, info, env, app, funds, max_spread)
+        }
+        AutocompounderExecuteMsg::DepositLp { lp_token, receiver } => {
+            deposit_lp(deps, info, env, app, lp_token, receiver)
         }
         AutocompounderExecuteMsg::Withdraw {} => withdraw_claims(deps, app, env, info.sender),
         AutocompounderExecuteMsg::BatchUnbond { start_after, limit } => {
@@ -173,7 +177,7 @@ pub fn deposit(
     let ans_host = app.ans_host(deps.as_ref())?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex);
     let resolved_pool_assets = config.pool_data.assets.resolve(&deps.querier, &ans_host)?;
-    let lptoken = config.liquidity_token.clone();
+    let _lptoken = config.liquidity_token.clone();
 
     let mut messages = vec![];
     let mut submessages = vec![];
@@ -360,84 +364,115 @@ pub fn receive(
     // Withdraw fn can only be called by liquidity token or the lp token
     match from_binary(&msg.msg)? {
         Cw20HookMsg::Redeem {} => redeem(deps, env, app, info.sender, msg.sender, msg.amount),
-        Cw20HookMsg::DepositLp {} => {
-            deposit_lp(deps, env, app, info.sender, msg.sender, msg.amount)
-        }
     }
 }
 
 fn deposit_lp(
     deps: DepsMut,
+    info: MessageInfo,
     _env: Env,
     app: AutocompounderApp,
-    cw20_sender: Addr,
-    sender: String,
-    amount: Uint128,
+    lp_asset: AnsAsset,
+    receiver: Option<Addr>,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
-    let cw20_lp_token = cw20_lp_token(config.liquidity_token.clone())?;
-    if cw20_sender != cw20_lp_token {
+    let ans = app.name_service(deps.as_ref());
+    let lp_token = ans.query(&lp_asset)?;
+    let lp_asset_entry = lp_asset.name.clone();
+    let receiver = receiver.unwrap_or(info.sender.clone());
+
+    if lp_token.info != config.liquidity_token {
         return Err(AutocompounderError::SenderIsNotLpToken {});
     };
 
-    let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
-    let transfer_msgs = app.bank(deps.as_ref()).deposit(vec![AnsAsset::new(
-        AnsEntryConvertor::new(lp_token.clone()).asset_entry(),
-        amount,
-    )])?;
+    // let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
 
-    let sender = deps.api.addr_validate(&sender)?;
+    // transfer the asset to the proxy contract
+    let transfer_msg = transfer_token(lp_token, info, &app, deps.as_ref())?;
 
     let staked_lp = query_stake(
         deps.as_ref(),
         &app,
         config.pool_data.dex.clone(),
-        AnsEntryConvertor::new(lp_token.clone()).asset_entry(),
+        lp_asset_entry,
         config.unbonding_period,
     )?;
+
+    let (lp_token, fee_msgs) = deduct_fee(
+        deps.as_ref(),
+        &app,
+        lp_asset,
+        fee_config.deposit,
+        fee_config.fee_collector_addr,
+    )?;
+
     let current_vault_supply = cw20_total_supply(deps.as_ref(), &config)?;
-
-    let mut fee_msgs = vec![];
-    let amount = if !fee_config.deposit.is_zero() {
-        let fee = amount * fee_config.deposit;
-        let transfer_msg = app.bank(deps.as_ref()).transfer(
-            vec![AnsAsset::new(
-                AnsEntryConvertor::new(lp_token.clone()).asset_entry(),
-                fee,
-            )],
-            &fee_config.fee_collector_addr,
-        )?;
-        fee_msgs.push(app.executor(deps.as_ref()).execute(vec![transfer_msg])?);
-
-        amount - fee
-    } else {
-        amount
-    };
-
-    let mint_amount = convert_to_shares(amount, staked_lp, current_vault_supply);
+    let mint_amount = convert_to_shares(lp_token.amount, staked_lp, current_vault_supply);
     if mint_amount.is_zero() {
         return Err(AutocompounderError::ZeroMintAmount {});
     }
 
-    let mint_msg = mint_vault_tokens(&config, sender, mint_amount)?;
+    let mint_msg = mint_vault_tokens(&config, receiver, mint_amount)?;
     let stake_msg = stake_lp_tokens(
         deps.as_ref(),
         &app,
         config.pool_data.dex,
-        AnsAsset::new(AnsEntryConvertor::new(lp_token).asset_entry(), amount),
+        lp_token,
         config.unbonding_period,
     )?;
 
     let res = Response::new()
-        .add_messages(transfer_msgs)
+        .add_message(transfer_msg)
         .add_messages(vec![mint_msg, stake_msg])
         .add_messages(fee_msgs);
 
     Ok(app.custom_tag_response(res, "deposit-lp", vec![("4t2", "/AC/DepositLP")]))
 }
 
+fn deduct_fee(
+    deps: Deps,
+    app: &AutocompounderApp,
+    lp_asset: AnsAsset,
+    fee: Decimal,
+    commission_addr: Addr,
+) -> Result<(AnsAsset, Vec<CosmosMsg>), AutocompounderError> {
+    let mut fee_msgs = vec![];
+    if fee.is_zero() {
+        Ok((lp_asset, fee_msgs))
+    } else {
+        let fee_amount = lp_asset.amount * fee;
+        let fee_asset = AnsAsset::new(lp_asset.name.clone(), fee_amount);
+        fee_msgs.push(app.executor(deps).execute(vec![
+            app.bank(deps).transfer(vec![fee_asset], &commission_addr)?,
+        ])?);
+        Ok((
+            AnsAsset::new(lp_asset.name, lp_asset.amount - fee_amount),
+            fee_msgs,
+        ))
+    }
+}
 
+/// Transfer lp token to the proxy contract whether it is a cw20 or native token. Returns CosmosMsg
+/// For cw20 tokens, it will call transfer_from and it needs a allowance to be set, otherwhise the execution will error.
+fn transfer_token(
+    lp_token: Asset,
+    info: MessageInfo,
+    app: &AutocompounderApp,
+    deps: Deps,
+) -> Result<CosmosMsg, AutocompounderError> {
+    match lp_token.info.clone() {
+        AssetInfoBase::Cw20(_addr) => Asset::cw20(_addr, lp_token.amount)
+            .transfer_from_msg(info.sender, app.proxy_address(deps)?)
+            .map_err(|e| e.into()),
+        AssetInfoBase::Native(_denom) => Ok(app.bank(deps).deposit(vec![lp_token])?.swap_remove(0)),
+        _ => Err(AutocompounderError::AssetError(
+            cw_asset::AssetError::InvalidAssetFormat {
+                received: lp_token.to_string(),
+            },
+        )),
+    }
+}
 
 fn redeem(
     deps: DepsMut,

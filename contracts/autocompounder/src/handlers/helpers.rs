@@ -13,7 +13,7 @@ use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
 use cosmwasm_std::{wasm_execute, Addr, CosmosMsg, Decimal, Deps, SubMsg, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw20_base::msg::ExecuteMsg::Mint;
-use cw_asset::AssetInfoBase;
+
 use cw_utils::Duration;
 
 /// queries staking module for the number of staked assets of the app
@@ -51,15 +51,6 @@ pub fn check_fee(fee: Decimal) -> Result<(), AutocompounderError> {
         return Err(AutocompounderError::InvalidFee {});
     }
     Ok(())
-}
-
-pub fn cw20_lp_token(liquidity_token: AssetInfoBase<Addr>) -> Result<Addr, AutocompounderError> {
-    match liquidity_token {
-        AssetInfoBase::Cw20(contract_addr) => Ok(contract_addr),
-        _ => {
-            return Err(AutocompounderError::SenderIsNotLpToken {});
-        }
-    }
 }
 
 pub fn mint_vault_tokens(

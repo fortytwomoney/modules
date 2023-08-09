@@ -18,7 +18,9 @@ pub fn migrate_handler(
     match msg.version.as_str() {
         "0.5.0" => migrate_from_v0_5_0(&mut deps),
         "0.6.0" => migrate_from_v0_6_0(&mut deps),
-        _ => Err(crate::error::AutocompounderError::Std(StdError::generic_err("version migration not supported"))),
+        _ => Err(crate::error::AutocompounderError::Std(
+            StdError::generic_err("version migration not supported"),
+        )),
     }
 }
 
@@ -68,9 +70,7 @@ pub struct V0_6_0Config {
 
 /// The cw-staking adapter changed from v0.17 to v0.18 and introduced a new type: StakingTarget
 /// which is reflected in the contract update from v0.5.0 to v0.6.0
-fn migrate_from_v0_5_0(
-    deps: &mut DepsMut,
-) -> AutocompounderResult {
+fn migrate_from_v0_5_0(deps: &mut DepsMut) -> AutocompounderResult {
     let data = deps
         .storage
         .get(CONFIG.as_slice())
@@ -96,9 +96,7 @@ fn migrate_from_v0_5_0(
     Ok(Response::default().add_attribute("migration", "v0.5.0 -> v0.7.0"))
 }
 
-fn migrate_from_v0_6_0(
-    deps: &mut DepsMut,
-) -> AutocompounderResult {
+fn migrate_from_v0_6_0(deps: &mut DepsMut) -> AutocompounderResult {
     let data = deps
         .storage
         .get(CONFIG.as_slice())
@@ -111,7 +109,7 @@ fn migrate_from_v0_6_0(
         pool_address: config_v0_6_0.pool_address,
         pool_data: config_v0_6_0.pool_data,
         pool_assets: config_v0_6_0.pool_assets,
-        
+
         // This is the change from v0.6.0 to v0.7.0
         liquidity_token: cw_asset::AssetInfoBase::Cw20(config_v0_6_0.liquidity_token),
         vault_token: config_v0_6_0.vault_token,
@@ -123,7 +121,6 @@ fn migrate_from_v0_6_0(
     Ok(Response::default().add_attribute("migration", "v0.6.0 -> v0.7.0"))
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -133,7 +130,7 @@ mod test {
 
     type AResult = anyhow::Result<()>;
 
-    fn set_old_config(deps: DepsMut) {
+    fn set_v0_5_0_config(deps: DepsMut) {
         let config = V0_5_0Config {
             staking_contract: Addr::unchecked("staking_contract"),
             pool_address: PoolAddress::Id(1),
@@ -153,12 +150,44 @@ mod test {
             .set(CONFIG.as_slice(), &to_vec(&config).unwrap());
     }
 
+    fn set_v0_6_0_config(deps: DepsMut) {
+        let config = V0_6_0Config {
+            staking_target: StakingTarget::Contract(Addr::unchecked("staking_contract")),
+            pool_address: PoolAddress::Id(1),
+            pool_data: PoolMetadata {
+                dex: "test".to_string(),
+                pool_type: abstract_core::objects::PoolType::ConstantProduct,
+                assets: vec![],
+            },
+            pool_assets: vec![],
+            liquidity_token: Addr::unchecked("liquidity_token"),
+            vault_token: Addr::unchecked("vault_token"),
+            unbonding_period: None,
+            min_unbonding_cooldown: None,
+            max_swap_spread: Decimal::percent(5),
+        };
+        deps.storage
+            .set(CONFIG.as_slice(), &to_vec(&config).unwrap());
+    }
+
     #[test]
-    fn config_update() -> AResult {
+    fn test_migrate_from_v0_5_0() -> AResult {
         let mut deps = mock_dependencies();
-        set_old_config(deps.as_mut());
+        set_v0_5_0_config(deps.as_mut());
 
         let _resp = migrate_from_v0_5_0(&mut deps.as_mut()).unwrap();
+        let config = CONFIG.load(deps.as_ref().storage).unwrap();
+        assert_that!(config.staking_target)
+            .is_equal_to(StakingTarget::Contract(Addr::unchecked("staking_contract")));
+        Ok(())
+    }
+
+    #[test]
+    fn test_migrate_from_v0_6_0() -> AResult {
+        let mut deps = mock_dependencies();
+        set_v0_6_0_config(deps.as_mut());
+
+        let _resp = migrate_from_v0_6_0(&mut deps.as_mut()).unwrap();
         let config = CONFIG.load(deps.as_ref().storage).unwrap();
         assert_that!(config.staking_target)
             .is_equal_to(StakingTarget::Contract(Addr::unchecked("staking_contract")));

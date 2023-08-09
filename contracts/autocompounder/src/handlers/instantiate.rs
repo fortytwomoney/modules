@@ -13,7 +13,6 @@ use abstract_sdk::AdapterInterface;
 use abstract_sdk::{
     core::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
     features::AbstractNameService,
-    Resolve,
 };
 use cosmwasm_std::{
     to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError,
@@ -31,10 +30,8 @@ pub fn instantiate_handler(
     app: AutocompounderApp,
     msg: AutocompounderInstantiateMsg,
 ) -> AutocompounderResult {
-    /// load abstract name service 
+    // load abstract name service
     let ans = app.name_service(deps.as_ref());
-
-    let ans_host = app.ans_host(deps.as_ref())?;
 
     let AutocompounderInstantiateMsg {
         performance_fees,
@@ -59,7 +56,7 @@ pub fn instantiate_handler(
     pool_assets.sort();
 
     // verify that pool assets are valid
-    pool_assets.resolve(&deps.querier, &ans_host)?;
+    let _resolved_assets = ans.query(&pool_assets)?;
 
     let lp_token = LpToken {
         dex: dex.clone(),
@@ -95,14 +92,14 @@ pub fn instantiate_handler(
         pool_assets_slice[1].clone(),
         &dex,
     );
-    let mut pool_references = pairing.resolve(&deps.querier, &ans_host)?;
+    let mut pool_references = ans.query(&pairing)?;
     let pool_reference: PoolReference = pool_references.swap_remove(0);
     // get the pool data
-    let mut pool_data = pool_reference.unique_id.resolve(&deps.querier, &ans_host)?;
+    let mut pool_data = ans.query(&pool_reference.unique_id)?;
 
     pool_data.assets.sort();
 
-    let resolved_pool_assets = pool_data.assets.resolve(&deps.querier, &ans_host)?;
+    let resolved_pool_assets = ans.query(&pool_data.assets)?;
 
     // default max swap spread
     let max_swap_spread = max_swap_spread.unwrap_or_else(|| Decimal::percent(20));

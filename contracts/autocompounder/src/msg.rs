@@ -85,11 +85,16 @@ pub enum AutocompounderExecuteMsg {
         withdrawal: Option<Decimal>,
         fee_collector_addr: Option<String>,
     },
-    /// Join vault by depositing one or more funds
+    /// Join vault by depositing one or more funds. Requires approval for cw20 tokens
     #[cfg_attr(feature = "interface", payable)]
     Deposit {
         funds: Vec<OfferAsset>,
         max_spread: Option<Decimal>,
+    },
+    /// Deposit LP tokens. Requires approval for cw20 tokens
+    DepositLp {
+        lp_token: OfferAsset,
+        receiver: Option<Addr>,
     },
     /// Withdraw all unbonded funds
     Withdraw {},
@@ -167,7 +172,6 @@ pub enum AutocompounderQueryMsg {
 pub enum Cw20HookMsg {
     /// Withdraws a given amount from the vault.
     Redeem {},
-    DepositLp {},
 }
 
 /// Vault fee structure
