@@ -1,6 +1,6 @@
 {
   "contract_name": "module-schema",
-  "contract_version": "0.17.0",
+  "contract_version": "0.18.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -882,7 +882,7 @@
         "pool_address",
         "pool_assets",
         "pool_data",
-        "staking_contract",
+        "staking_target",
         "vault_token"
       ],
       "properties": {
@@ -936,11 +936,11 @@
             }
           ]
         },
-        "staking_contract": {
+        "staking_target": {
           "description": "Address of the staking contract",
           "allOf": [
             {
-              "$ref": "#/definitions/Addr"
+              "$ref": "#/definitions/StakingTarget"
             }
           ]
         },
@@ -1125,6 +1125,37 @@
             "Stable",
             "Weighted",
             "LiquidityBootstrap"
+          ]
+        },
+        "StakingTarget": {
+          "description": "Possible staking targets to support staking on cosmwasm contract or cosmos Lockup module",
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "contract"
+              ],
+              "properties": {
+                "contract": {
+                  "$ref": "#/definitions/Addr"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "id"
+              ],
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
           ]
         }
       }

@@ -68,6 +68,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         "uni-6" => ("wyndex", "juno>junox", 4012),
         "juno-1" => ("wyndex", "juno>juno", 1),
         "pion-1" => ("astroport", "neutron>astro", 188),
+        "neutron-1" => ("astroport", "neutron>astro", 180),
         "pisco-1" => ("astroport", "terra2>luna", 83),
         "phoenix-1" => ("astroport", "terra2>luna", 69),
         "osmo-test-5" => ("osmosis5", "osmosis5>osmo", 1),

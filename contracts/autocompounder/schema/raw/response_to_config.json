@@ -8,7 +8,7 @@
     "pool_address",
     "pool_assets",
     "pool_data",
-    "staking_contract",
+    "staking_target",
     "vault_token"
   ],
   "properties": {
@@ -62,11 +62,11 @@
         }
       ]
     },
-    "staking_contract": {
+    "staking_target": {
       "description": "Address of the staking contract",
       "allOf": [
         {
-          "$ref": "#/definitions/Addr"
+          "$ref": "#/definitions/StakingTarget"
         }
       ]
     },
@@ -251,6 +251,37 @@
         "Stable",
         "Weighted",
         "LiquidityBootstrap"
+      ]
+    },
+    "StakingTarget": {
+      "description": "Possible staking targets to support staking on cosmwasm contract or cosmos Lockup module",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "contract"
+          ],
+          "properties": {
+            "contract": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
       ]
     }
   }
