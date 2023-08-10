@@ -7,9 +7,9 @@ use crate::{
 use abstract_core::objects::AnsAsset;
 use abstract_cw_staking::{msg::*, CW_STAKING};
 use abstract_dex_adapter::api::Dex;
-use abstract_sdk::AbstractSdkResult;
 use abstract_sdk::AdapterInterface;
 use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
+use abstract_sdk::{AbstractSdkResult, Execution, TransferInterface};
 use cosmwasm_std::{wasm_execute, Addr, CosmosMsg, Decimal, Deps, SubMsg, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw20_base::msg::ExecuteMsg::Mint;
@@ -134,4 +134,19 @@ pub fn swap_rewards_with_reply(
     let swap_msg = swap_msgs.pop().unwrap();
     let submsg = SubMsg::reply_on_success(swap_msg, reply_id);
     Ok((swap_msgs, submsg))
+}
+
+pub fn transfer_to_msgs(
+    app: &AutocompounderApp,
+    deps: Deps,
+    asset: AnsAsset,
+    recipient: Addr,
+) -> Result<Vec<CosmosMsg>, AutocompounderError> {
+    if asset.amount.is_zero() {
+        Ok(vec![])
+    } else {
+        Ok(vec![app.executor(deps).execute(vec![app
+            .bank(deps)
+            .transfer(vec![asset], &recipient)?])?])
+    }
 }

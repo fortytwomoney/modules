@@ -1,7 +1,7 @@
 use super::convert_to_shares;
 use super::helpers::{
     check_fee, convert_to_assets, cw20_total_supply, mint_vault_tokens, query_stake,
-    stake_lp_tokens,
+    stake_lp_tokens, transfer_to_msgs,
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
@@ -399,16 +399,16 @@ fn deposit_lp(
         config.unbonding_period,
     )?;
 
-    let (lp_token, fee_msgs) = deduct_fee(
-        deps.as_ref(),
+    let (lp_asset, fee_asset) = deduct_fee(lp_asset, fee_config.deposit);
+    let fee_msgs = transfer_to_msgs(
         &app,
-        lp_asset,
-        fee_config.deposit,
+        deps.as_ref(),
+        fee_asset,
         fee_config.fee_collector_addr,
     )?;
 
     let current_vault_supply = cw20_total_supply(deps.as_ref(), &config)?;
-    let mint_amount = convert_to_shares(lp_token.amount, staked_lp, current_vault_supply);
+    let mint_amount = convert_to_shares(lp_asset.amount, staked_lp, current_vault_supply);
     if mint_amount.is_zero() {
         return Err(AutocompounderError::ZeroMintAmount {});
     }
@@ -418,7 +418,7 @@ fn deposit_lp(
         deps.as_ref(),
         &app,
         config.pool_data.dex,
-        lp_token,
+        lp_asset,
         config.unbonding_period,
     )?;
 
@@ -430,26 +430,16 @@ fn deposit_lp(
     Ok(app.custom_tag_response(res, "deposit-lp", vec![("4t2", "/AC/DepositLP")]))
 }
 
-fn deduct_fee(
-    deps: Deps,
-    app: &AutocompounderApp,
-    lp_asset: AnsAsset,
-    fee: Decimal,
-    commission_addr: Addr,
-) -> Result<(AnsAsset, Vec<CosmosMsg>), AutocompounderError> {
-    let mut fee_msgs = vec![];
+fn deduct_fee(lp_asset: AnsAsset, fee: Decimal) -> (AnsAsset, AnsAsset) {
+    let mut fee_asset = AnsAsset::new(lp_asset.name.clone(), Uint128::zero());
+    let mut lp_asset = lp_asset;
     if fee.is_zero() {
-        Ok((lp_asset, fee_msgs))
+        (lp_asset, fee_asset)
     } else {
         let fee_amount = lp_asset.amount * fee;
-        let fee_asset = AnsAsset::new(lp_asset.name.clone(), fee_amount);
-        fee_msgs.push(app.executor(deps).execute(vec![
-            app.bank(deps).transfer(vec![fee_asset], &commission_addr)?,
-        ])?);
-        Ok((
-            AnsAsset::new(lp_asset.name, lp_asset.amount - fee_amount),
-            fee_msgs,
-        ))
+        fee_asset.amount = fee_amount;
+        lp_asset.amount -= fee_amount;
+        (lp_asset, fee_asset)
     }
 }
 
@@ -1158,6 +1148,37 @@ mod test {
                 assert_eq!(latest_unbonding, latest_unbonding_error);
             }
             _ => panic!("Unexpected error: {:?}", result),
+        }
+    }
+
+    mod deduct_fee {
+        use super::*;
+
+        #[test]
+        fn test_deduct_fee_zero() {
+            let lp_asset = AnsAsset::new("LP Token".to_string(), Uint128::new(100));
+            let fee = Decimal::zero();
+            let (lp_asset, fee_asset) = deduct_fee(lp_asset, fee);
+            assert_eq!(lp_asset.amount, Uint128::new(100));
+            assert_eq!(fee_asset.amount, Uint128::zero());
+        }
+
+        #[test]
+        fn test_deduct_fee_one() {
+            let lp_asset = AnsAsset::new("LP Token".to_string(), Uint128::new(100));
+            let fee = Decimal::percent(10);
+            let (lp_asset, fee_asset) = deduct_fee(lp_asset, fee);
+            assert_eq!(lp_asset.amount, Uint128::new(90));
+            assert_eq!(fee_asset.amount, Uint128::new(10));
+        }
+
+        #[test]
+        fn test_deduct_fee_many() {
+            let lp_asset = AnsAsset::new("LP Token".to_string(), Uint128::new(100));
+            let fee = Decimal::percent(50);
+            let (lp_asset, fee_asset) = deduct_fee(lp_asset, fee);
+            assert_eq!(lp_asset.amount, Uint128::new(50));
+            assert_eq!(fee_asset.amount, Uint128::new(50));
         }
     }
 }
