@@ -594,7 +594,11 @@ fn redeem_without_bonding_period(
         .add_message(unstake_msg)
         .add_message(burn_msg)
         .add_submessage(sub_msg);
-    Ok(app.custom_tag_response(response, "redeem", vec![("amount", &amount_of_vault_tokens_to_be_burned.to_string())]))
+    Ok(app.custom_tag_response(
+        response,
+        "redeem",
+        vec![("amount", &amount_of_vault_tokens_to_be_burned.to_string())],
+    ))
 }
 
 fn compound(deps: DepsMut, app: AutocompounderApp) -> AutocompounderResult {
@@ -878,7 +882,7 @@ fn unstake_lp_tokens(
 
 #[cfg(test)]
 mod test {
-    use super::{*, redeem_without_bonding_period};
+    use super::{redeem_without_bonding_period, *};
 
     use crate::msg::ExecuteMsg;
     use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_init};
@@ -909,12 +913,8 @@ mod test {
         execute_as(deps, TEST_MANAGER, msg, &[])
     }
 
-
-
     fn min_cooldown_config(min_unbonding_cooldown: Option<Duration>) -> Config {
-        let assets = vec![
-            AssetEntry::new("juno>juno"),
-            AssetEntry::new("juno>")];
+        let assets = vec![AssetEntry::new("eur"), AssetEntry::new("usd")];
 
         Config {
             staking_target: abstract_cw_staking::msg::StakingTarget::Contract(Addr::unchecked(
@@ -927,8 +927,8 @@ mod test {
                 assets,
             ),
             pool_assets: vec![],
-            liquidity_token: AssetInfoBase::Cw20(Addr::unchecked("liquidity_token")),
-            vault_token: Addr::unchecked("vault_token"),
+            liquidity_token: AssetInfoBase::Cw20(Addr::unchecked("eur_usd_lp")),
+            vault_token: Addr::unchecked("test_vault_token"),
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown,
             max_swap_spread: Decimal::percent(50),
@@ -943,7 +943,6 @@ mod test {
         let amount = Uint128::new(100);
 
         redeem_without_bonding_period(deps.as_mut(), &sender, config, &AUTOCOMPOUNDER_APP, amount)?;
-
 
         Ok(())
     }

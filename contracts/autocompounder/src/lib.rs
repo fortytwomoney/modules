@@ -15,6 +15,7 @@ mod test_common {
     use abstract_cw_staking::msg::{
         StakeResponse, StakingInfoResponse, StakingQueryMsg, StakingTarget,
     };
+    use abstract_dex_adapter::msg::DexQueryMsg;
     use abstract_sdk::base::InstantiateEndpoint;
     pub use abstract_sdk::core as abstract_core;
     use abstract_sdk::core::{
@@ -24,7 +25,7 @@ mod test_common {
     };
     use abstract_testing::{
         addresses::{TEST_MANAGER, TEST_MODULE_FACTORY, TEST_PROXY},
-        prelude::{AbstractMockQuerierBuilder, TEST_ANS_HOST},
+        prelude::{AbstractMockQuerierBuilder, TEST_ANS_HOST, TEST_DEX},
         MockDeps, MockQuerierBuilder,
     };
     pub use cosmwasm_std::testing::*;
@@ -147,6 +148,11 @@ mod test_common {
                     Addr::unchecked(TEST_CW_STAKING_MODULE),
                 ),
             )
+            .with_contract_map_entry(
+                TEST_MANAGER,
+                abstract_core::manager::state::ACCOUNT_MODULES,
+                ("abstract:dex", Addr::unchecked(TEST_DEX)),
+            )
     }
 
     // same as app_base_mock_querier but there is unbonding period for tokens
@@ -190,6 +196,17 @@ mod test_common {
                     _ => panic!("unexpected message"),
                 }
             })
+            .with_smart_handler(TEST_DEX, |msg| match from_binary(msg).unwrap() {
+                abstract_dex_adapter::msg::QueryMsg::Module(DexQueryMsg::SimulateSwap {
+                    offer_asset: _,
+                    ask_asset: _,
+                    dex: _,
+                }) => {
+                    let resp = "hello darkness my old friend";
+                    Ok(to_binary(&resp).unwrap())
+                }
+                _ => panic!("unexpected message"),
+            })
             .with_raw_handler(TEST_ANS_HOST, |key| match key {
                 "\0\u{6}assetseur" => Ok(to_binary(&AssetInfo::Native("eur".into())).unwrap()),
                 "\0\u{6}assetsusd" => Ok(to_binary(&AssetInfo::Native("usd".into())).unwrap()),
@@ -226,6 +243,11 @@ mod test_common {
                     "abstract:cw-staking",
                     Addr::unchecked(TEST_CW_STAKING_MODULE),
                 ),
+            )
+            .with_contract_map_entry(
+                TEST_MANAGER,
+                abstract_core::manager::state::ACCOUNT_MODULES,
+                ("abstract:dex", Addr::unchecked(TEST_DEX)),
             )
     }
 
