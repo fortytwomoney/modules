@@ -13,7 +13,6 @@ use abstract_sdk::AdapterInterface;
 use abstract_sdk::{
     core::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
     features::AbstractNameService,
-    Resolve,
 };
 use cosmwasm_std::{
     to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError,
@@ -31,9 +30,8 @@ pub fn instantiate_handler(
     app: AutocompounderApp,
     msg: AutocompounderInstantiateMsg,
 ) -> AutocompounderResult {
+    // load abstract name service
     let ans = app.name_service(deps.as_ref());
-
-    let ans_host = app.ans_host(deps.as_ref())?;
 
     let AutocompounderInstantiateMsg {
         performance_fees,
@@ -58,7 +56,7 @@ pub fn instantiate_handler(
     pool_assets.sort();
 
     // verify that pool assets are valid
-    pool_assets.resolve(&deps.querier, &ans_host)?;
+    let _resolved_assets = ans.query(&pool_assets)?;
 
     let lp_token = LpToken {
         dex: dex.clone(),
@@ -66,13 +64,13 @@ pub fn instantiate_handler(
     };
     let lp_token_info = ans.query(&lp_token)?;
 
-    // match on the info and get cw20
-    let lp_token_addr: Addr = match lp_token_info {
-        cw_asset::AssetInfoBase::Cw20(addr) => Ok(addr),
-        _ => Err(AutocompounderError::Std(StdError::generic_err(
-            "LP token is not a cw20",
-        ))),
-    }?;
+    // // match on the info and get cw20
+    // let lp_token_addr: Addr = match lp_token_info {
+    //     cw_asset::AssetInfoBase::Cw20(addr) => Ok(addr),
+    //     _ => Err(AutocompounderError::Std(StdError::generic_err(
+    //         "LP token is not a cw20",
+    //     ))),
+    // }?;
 
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
@@ -94,14 +92,14 @@ pub fn instantiate_handler(
         pool_assets_slice[1].clone(),
         &dex,
     );
-    let mut pool_references = pairing.resolve(&deps.querier, &ans_host)?;
+    let mut pool_references = ans.query(&pairing)?;
     let pool_reference: PoolReference = pool_references.swap_remove(0);
     // get the pool data
-    let mut pool_data = pool_reference.unique_id.resolve(&deps.querier, &ans_host)?;
+    let mut pool_data = ans.query(&pool_reference.unique_id)?;
 
     pool_data.assets.sort();
 
-    let resolved_pool_assets = pool_data.assets.resolve(&deps.querier, &ans_host)?;
+    let resolved_pool_assets = ans.query(&pool_data.assets)?;
 
     // default max swap spread
     let max_swap_spread = max_swap_spread.unwrap_or_else(|| Decimal::percent(20));
@@ -109,7 +107,7 @@ pub fn instantiate_handler(
     let config: Config = Config {
         vault_token: Addr::unchecked(""),
         staking_target: staking_info.staking_target,
-        liquidity_token: lp_token_addr,
+        liquidity_token: lp_token_info,
         pool_data,
         pool_assets: resolved_pool_assets,
         pool_address: pool_reference.pool_address,

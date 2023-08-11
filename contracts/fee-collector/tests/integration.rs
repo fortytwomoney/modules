@@ -196,7 +196,7 @@ fn test_update_config() -> AResult {
     let usd_asset = AssetEntry::new(USD);
 
     let wynd_asset = AssetEntry::new(WYND_TOKEN);
-    let unsupported_asset = AssetEntry::new("unsupported");
+    let _unsupported_asset = AssetEntry::new("unsupported");
 
     app.fee_collector
         .call_as(&app.account.manager.address()?)

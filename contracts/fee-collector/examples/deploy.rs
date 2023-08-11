@@ -1,6 +1,6 @@
-use abstract_interface::{Abstract, AppDeployer};
+use abstract_interface::AppDeployer;
 use cw_orch::daemon::networks::parse_network;
-use cw_orch::deploy::Deploy;
+
 use std::sync::Arc;
 
 use cw_orch::daemon::ChainInfo;
@@ -55,6 +55,8 @@ fn main() -> anyhow::Result<()> {
     let args = Arguments::parse();
 
     let network = parse_network(&args.network_id);
+
+    deploy_fc(network)?;
 
     // if let Err(ref err) = deploy_fc(network) {
     //     if let Some(backtrace) = err.backtrace() {

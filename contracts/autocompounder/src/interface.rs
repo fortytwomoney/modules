@@ -1,5 +1,5 @@
 use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING};
-use abstract_interface::Abstract;
+use abstract_interface::{Abstract, ManagerQueryFns};
 use abstract_interface::{AbstractAccount, AppDeployer};
 use abstract_sdk::core::app;
 use abstract_sdk::core::app::BaseExecuteMsg;
@@ -107,8 +107,19 @@ impl<Chain: CwEnv> Vault<Chain> {
             self.account.manager.upgrade_module(CW_STAKING, &Empty {})?;
         }
         if self.account.manager.is_module_installed(AUTOCOMPOUNDER)? {
+            let ac_versions = self
+                .account
+                .manager
+                .module_versions(vec![AUTOCOMPOUNDER.to_string()])?;
+            let ac_version = ac_versions
+                .versions
+                .first()
+                .ok_or(anyhow::anyhow!("No version"))?;
+
             let x = app::MigrateMsg {
-                module: crate::msg::AutocompounderMigrateMsg {},
+                module: crate::msg::AutocompounderMigrateMsg {
+                    version: ac_version.version.clone(),
+                },
                 base: app::BaseMigrateMsg {},
             };
             self.account.manager.upgrade_module(AUTOCOMPOUNDER, &x)?;

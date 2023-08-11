@@ -2,12 +2,14 @@ mod common;
 
 use abstract_core::objects::gov_type::GovernanceDetails;
 use abstract_interface::{AbstractInterfaceError, AccountDetails};
+use autocompounder::error::AutocompounderError;
 use cw20_base::contract::AbstractCw20Base;
+use cw_asset::{AssetInfo, AssetInfoBase};
 use std::ops::Mul;
 use std::str::FromStr;
 
 use abstract_core::adapter::BaseExecuteMsgFns;
-use abstract_core::objects::{AnsAsset, AssetEntry};
+use abstract_core::objects::{AnsAsset, AnsEntryConvertor, AssetEntry, LpToken};
 use abstract_interface::{Abstract, ManagerQueryFns, VCExecFns};
 use abstract_sdk::core as abstract_core;
 
@@ -56,6 +58,14 @@ pub fn convert_to_assets(
         total_supply + Uint128::from(10u128).pow(decimal_offset),
     )
 }
+pub fn cw20_lp_token(liquidity_token: AssetInfoBase<Addr>) -> Result<Addr, AutocompounderError> {
+    match liquidity_token {
+        AssetInfoBase::Cw20(contract_addr) => Ok(contract_addr),
+        _ => {
+            return Err(AutocompounderError::SenderIsNotLpToken {});
+        }
+    }
+}
 
 /// Convert lp assets to shares
 /// Uses virtual assets to mitigate asset inflation attack. description: https://gist.github.com/Amxx/ec7992a21499b6587979754206a48632
@@ -71,7 +81,11 @@ pub fn convert_to_shares(
     )
 }
 
-fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractInterfaceError> {
+fn create_vault(
+    mock: Mock,
+    asset1: &str,
+    asset2: &str,
+) -> Result<Vault<Mock>, AbstractInterfaceError> {
     // Deploy abstract
     let abstract_ = Abstract::deploy_on(mock.clone(), Empty {})?;
     // create first Account
@@ -99,8 +113,10 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractInterfaceError> {
     // Deploy mock dex
     let wyndex = WynDex::store_on(mock.clone()).unwrap();
 
-    let eur_asset = AssetEntry::new(EUR);
-    let usd_asset = AssetEntry::new(USD);
+    let asset1 = AssetEntry::new(asset1);
+    let asset2 = AssetEntry::new(asset2);
+    let _lp_asset_entry =
+        AnsEntryConvertor::new(LpToken::new(WYNDEX, vec![EUR, USD])).asset_entry();
 
     // Set up the dex and staking contracts
     let exchange_api = abstract_helper::init_exchange(mock.clone(), &abstract_, None)?;
@@ -123,6 +139,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractInterfaceError> {
     account
         .manager
         .install_module(CW_STAKING, &Empty {}, None)?;
+
     // install autocompounder
     account.manager.install_module(
         AUTOCOMPOUNDER,
@@ -133,7 +150,7 @@ fn create_vault(mock: Mock) -> Result<Vault<Mock>, AbstractInterfaceError> {
                 deposit_fees: Decimal::percent(0),
                 dex: WYNDEX.to_string(),
                 performance_fees: Decimal::percent(3),
-                pool_assets: vec![eur_asset, usd_asset],
+                pool_assets: vec![asset1, asset2],
                 withdrawal_fees: Decimal::percent(0),
                 preferred_bonding_period: BondingPeriodSelector::Shortest,
                 max_swap_spread: Some(Decimal::percent(50)),
@@ -185,6 +202,41 @@ fn proper_initialisation() {
     // initialize with no pool for the fee token and reward token
 }
 
+#[ignore = "Staking address for raw eur pool not setup"]
+#[test]
+fn deposit_cw20_asset() -> AResult {
+    let owner = Addr::unchecked(common::OWNER);
+    let mock = Mock::new(&owner);
+    let vault = crate::create_vault(mock.clone(), EUR, RAW_TOKEN)?;
+    let WynDex {
+        eur_token,
+        raw_token,
+        ..
+    } = vault.wyndex;
+
+    let eur_token = AssetInfo::cw20(Addr::unchecked(eur_token.to_string()));
+
+    let _ac_addres = vault.auto_compounder.addr_str()?;
+    let _eur_asset = AssetEntry::new(EUR);
+    let _raw_asset = AssetEntry::new(RAW_TOKEN);
+    let raw_token_info = AssetInfo::cw20(raw_token.address().unwrap());
+
+    let asset_infos = vec![eur_token.clone(), raw_token_info.clone()];
+
+    let config = vault.auto_compounder.config()?;
+
+    // check the config
+    assert_that!(config.pool_assets).is_equal_to(asset_infos);
+
+    // set balance of owner
+    mock.set_balance(&owner, vec![coin(100_000u128.into(), EUR.to_string())])?;
+    raw_token
+        .call_as(&Addr::unchecked(WYNDEX_OWNER.to_string()))
+        .mint(100_000u128.into(), owner.to_string())?;
+
+    Ok(())
+}
+
 /// This test covers:
 /// - Create a vault and check its configuration setup.
 /// - Deposit balanced funds into the auto-compounder and check the minted vault token.
@@ -195,6 +247,7 @@ fn proper_initialisation() {
 /// - Withdraw and check the removal of claims.
 /// - Check the balances and staked balances.
 /// - Withdraw all from the auto-compounder and check the balances again.
+
 #[test]
 fn generator_without_reward_proxies_balanced_assets() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
@@ -203,7 +256,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let vault = crate::create_vault(mock.clone())?;
+    let vault = crate::create_vault(mock.clone(), EUR, USD)?;
     let WynDex {
         eur_token,
         usd_token,
@@ -218,7 +271,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 
     // check config setup
     let config = vault.auto_compounder.config()?;
-    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
+    assert_that!(cw20_lp_token(config.liquidity_token)?).is_equal_to(eur_usd_lp.address()?);
 
     // give user some funds
     mock.set_balances(&[(
@@ -233,16 +286,16 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     // this is set by WynDex
     vault.auto_compounder.deposit(
         vec![
-            AnsAsset::new(eur_asset, 10000u128),
-            AnsAsset::new(usd_asset, 10000u128),
+            AnsAsset::new(eur_asset, 10_000u128),
+            AnsAsset::new(usd_asset, 10_000u128),
         ],
         None,
-        &[coin(10000u128, EUR), coin(10000u128, USD)],
+        &[coin(10_000u128, EUR), coin(10_000u128, USD)],
     )?;
 
     // check that the vault token is minted
     let vault_token_balance = vault_token.balance(owner.to_string())?;
-    assert_that!(vault_token_balance.balance.u128()).is_equal_to(100000u128);
+    assert_that!(vault_token_balance.balance.u128()).is_equal_to(100_000u128);
 
     // and eur balance decreased and usd balance stayed the same
     let balances = mock.query_all_balances(&owner)?;
@@ -350,7 +403,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let mut vault = crate::create_vault(mock.clone())?;
+    let mut vault = crate::create_vault(mock.clone(), EUR, USD)?;
     let WynDex {
         eur_token,
         usd_token,
@@ -368,7 +421,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     let position = vault.auto_compounder.total_lp_position()?;
     assert_that!(position).is_equal_to(Uint128::zero());
 
-    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
+    assert_that!(cw20_lp_token(config.liquidity_token)?).is_equal_to(eur_usd_lp.address()?);
 
     // give user some funds
     mock.set_balances(&[
@@ -621,7 +674,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let mut vault = crate::create_vault(mock.clone())?;
+    let mut vault = crate::create_vault(mock.clone(), EUR, USD)?;
     let WynDex {
         eur_token,
         usd_token,
@@ -637,7 +690,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
 
     // check config setup
     let config = vault.auto_compounder.config()?;
-    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address()?);
+    assert_that!(cw20_lp_token(config.liquidity_token)?).is_equal_to(eur_usd_lp.address()?);
 
     // give user some funds
     mock.set_balances(&[
@@ -735,7 +788,7 @@ fn test_deposit_fees_fee_token_and_withdraw_fees() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let vault = crate::create_vault(mock.clone())?;
+    let vault = crate::create_vault(mock.clone(), EUR, USD)?;
     let WynDex { eur_token, .. } = vault.wyndex;
     let vault_token = vault.vault_token;
     let eur_asset = AssetEntry::new("eur");
@@ -816,7 +869,7 @@ fn test_deposit_fees_non_fee_token() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let vault = crate::create_vault(mock.clone())?;
+    let vault = crate::create_vault(mock.clone(), EUR, USD)?;
     let WynDex { usd_token, .. } = vault.wyndex;
     let vault_token = vault.vault_token;
     let _eur_asset = AssetEntry::new("eur");
@@ -889,7 +942,7 @@ fn test_zero_performance_fees() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let mut vault = crate::create_vault(mock.clone())?;
+    let mut vault = crate::create_vault(mock.clone(), EUR, USD)?;
     let WynDex {
         eur_token,
         usd_token,
@@ -949,7 +1002,7 @@ fn test_owned_funds_stay_in_vault() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
     let mock = Mock::new(&owner);
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
-    let vault = crate::create_vault(mock.clone())?;
+    let vault = crate::create_vault(mock.clone(), EUR, USD)?;
     let WynDex {
         eur_token,
         usd_token,
@@ -1042,7 +1095,7 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
 
     let mock = Mock::new(&owner);
 
-    let mut vault = crate::create_vault(mock.clone())?;
+    let mut vault = crate::create_vault(mock.clone(), EUR, USD)?;
     let mut vault_token = vault.vault_token.to_owned();
     let WynDex { .. } = vault.wyndex;
 
@@ -1125,7 +1178,7 @@ fn test_lp_deposit() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let vault = crate::create_vault(mock).unwrap();
+    let vault = crate::create_vault(mock, EUR, USD)?;
     let WynDex {
         eur_usd_pair,
         eur_usd_lp,
@@ -1136,6 +1189,10 @@ fn test_lp_deposit() -> AResult {
     let _auto_compounder_addr = vault.auto_compounder.addr_str().unwrap();
     let _eur_asset = AssetEntry::new("eur");
     let _usd_asset = AssetEntry::new("usd");
+
+    let eur_usd_lp_asset_entry =
+        AnsEntryConvertor::new(LpToken::new(WYNDEX, vec![EUR, USD])).asset_entry();
+    let _eur_usd_lp_asset = LpToken::new(WYNDEX, vec![EUR, USD]);
     let deposit_fee = Decimal::from_str("0.1")?;
 
     let manager_addr = vault.account.manager.address()?;
@@ -1151,7 +1208,7 @@ fn test_lp_deposit() -> AResult {
 
     // check config setup
     let config: Config = vault.auto_compounder.config().unwrap();
-    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address().unwrap());
+    assert_that!(cw20_lp_token(config.liquidity_token)?).is_equal_to(eur_usd_lp.address().unwrap());
 
     // update fee_config to include deposit fee
     let manager_addr = vault.account.manager.address()?;
@@ -1173,11 +1230,16 @@ fn test_lp_deposit() -> AResult {
         .mint(100_000u128.into(), owner.to_string())?;
 
     // Deposit lps into the vault by owner
-    eur_usd_lp.call_as(&owner).send(
-        100_000u128.into(),
+    let send_amount = 100_000u128;
+    eur_usd_lp.increase_allowance(
+        send_amount.into(),
         vault.auto_compounder.address()?.to_string(),
-        to_binary(&Cw20HookMsg::DepositLp {})?,
+        None,
     )?;
+    let _res = vault
+        .auto_compounder
+        .call_as(&owner)
+        .deposit_lp(AnsAsset::new(eur_usd_lp_asset_entry, send_amount), None)?;
 
     assert_that!(vault.auto_compounder.total_lp_position().unwrap().u128()).is_equal_to(99_000u128);
     assert_that!(vault_token.balance(owner.to_string())?.balance.u128())
@@ -1233,7 +1295,7 @@ fn vault_token_inflation_attack_original() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let vault = crate::create_vault(mock.clone()).unwrap();
+    let vault = crate::create_vault(mock.clone(), EUR, USD)?;
     let WynDex {
         eur_usd_pair,
         eur_usd_lp,
@@ -1242,7 +1304,9 @@ fn vault_token_inflation_attack_original() -> AResult {
     } = vault.wyndex;
 
     let config: Config = vault.auto_compounder.config().unwrap();
-    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address().unwrap());
+    assert_that!(cw20_lp_token(config.liquidity_token)?).is_equal_to(eur_usd_lp.address().unwrap());
+    let eur_usd_lp_asset_entry =
+        AnsEntryConvertor::new(LpToken::new(WYNDEX, vec![EUR, USD])).asset_entry();
 
     let unbonding_secs = match config.unbonding_period {
         Some(Duration::Time(secs)) => secs,
@@ -1263,10 +1327,16 @@ fn vault_token_inflation_attack_original() -> AResult {
         .mint(100000u128.into(), user1.to_string())?;
 
     // attacker makes initial deposit to vault pool
-    eur_usd_lp.call_as(&attacker).send(
-        1u128.into(),
+    // Deposit lps into the vault by owner
+    let send_amount = 1u128;
+    eur_usd_lp.call_as(&attacker).increase_allowance(
+        send_amount.into(),
         vault.auto_compounder.address()?.to_string(),
-        to_binary(&Cw20HookMsg::DepositLp {})?,
+        None,
+    )?;
+    let _res = vault.auto_compounder.call_as(&attacker).deposit_lp(
+        AnsAsset::new(eur_usd_lp_asset_entry.clone(), send_amount),
+        None,
     )?;
 
     // check the number of vault tokens the attacker has
@@ -1287,12 +1357,17 @@ fn vault_token_inflation_attack_original() -> AResult {
     let lp_staked = vault.auto_compounder.total_lp_position().unwrap() as Uint128;
     assert_that!(lp_staked.u128()).is_equal_to(attacker_donation + 1);
 
-    // user deposits lps to vault
-    eur_usd_lp.call_as(&user1).send(
-        100000u128.into(),
+    // Deposit lps into the vault by owner
+    let send_amount = 100_000u128;
+    eur_usd_lp.call_as(&user1).increase_allowance(
+        send_amount.into(),
         vault.auto_compounder.address()?.to_string(),
-        to_binary(&Cw20HookMsg::DepositLp {})?,
+        None,
     )?;
+    let _res = vault
+        .auto_compounder
+        .call_as(&user1)
+        .deposit_lp(AnsAsset::new(eur_usd_lp_asset_entry, send_amount), None)?;
 
     // check the amount of lp tokens staked by the vault in total
     let total_lp_staked = vault.auto_compounder.total_lp_position().unwrap() as Uint128;
@@ -1332,11 +1407,14 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
     let user1: Addr = Addr::unchecked(common::USER1);
     let attacker: Addr = Addr::unchecked(ATTACKER);
 
+    let eur_usd_lp_asset_entry =
+        AnsEntryConvertor::new(LpToken::new(WYNDEX, vec![EUR, USD])).asset_entry();
+
     // create testing environment
     let mock = Mock::new(&owner);
 
     // create a vault
-    let vault = crate::create_vault(mock).unwrap();
+    let vault = crate::create_vault(mock, EUR, USD)?;
     let WynDex {
         eur_usd_pair,
         eur_usd_lp,
@@ -1345,7 +1423,7 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
     } = vault.wyndex;
 
     let config: Config = vault.auto_compounder.config().unwrap();
-    assert_that!(config.liquidity_token).is_equal_to(eur_usd_lp.address().unwrap());
+    assert_that!(cw20_lp_token(config.liquidity_token)?).is_equal_to(eur_usd_lp.address().unwrap());
 
     let unbonding_secs = match config.unbonding_period {
         Some(Duration::Time(secs)) => secs,
@@ -1369,11 +1447,17 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
         .call_as(&eur_usd_pair)
         .mint(100000u128.into(), user1.to_string())?;
 
+    // Deposit lps into the vault by owner
     // attacker makes initial deposit to vault pool
-    eur_usd_lp.call_as(&attacker).send(
-        1u128.into(),
+    let send_amount = 1u128;
+    eur_usd_lp.call_as(&attacker).increase_allowance(
+        send_amount.into(),
         vault.auto_compounder.address()?.to_string(),
-        to_binary(&Cw20HookMsg::DepositLp {})?,
+        None,
+    )?;
+    let _res = vault.auto_compounder.call_as(&attacker).deposit_lp(
+        AnsAsset::new(eur_usd_lp_asset_entry.clone(), send_amount),
+        None,
     )?;
 
     // check the number of vault tokens the attacker has
@@ -1395,14 +1479,26 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
     assert_that!(lp_staked.u128()).is_equal_to(attacker_donation + 1);
 
     // user deposits lps to vault
-    let resp = eur_usd_lp.call_as(&user1).send(
+    eur_usd_lp.call_as(&user1).increase_allowance(
         user_deposit.into(),
         vault.auto_compounder.address()?.to_string(),
-        to_binary(&Cw20HookMsg::DepositLp {})?,
-    );
+        None,
+    )?;
+    let res = vault
+        .auto_compounder
+        .call_as(&user1)
+        .deposit_lp(AnsAsset::new(eur_usd_lp_asset_entry, send_amount), None);
 
-    // this will mint a zero amount so it will fail
-    assert_that!(resp).is_err();
+    // this will min a zero amount so it will fail
+    assert_that!(res).is_err();
 
     Ok(())
 }
+
+// / Checklist of deposit tokens #TODO
+// / 1. deposit single native token
+// / 2. deposit single cw20 token
+// / 3. deposit multiple native tokens
+// / 4. deposit multiple cw20 tokens
+// / 5. deposit single native lp token
+// / 6. deposit single cw20 lp token

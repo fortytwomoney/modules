@@ -215,7 +215,7 @@ mod test {
                 assets,
             ),
             pool_assets: vec![],
-            liquidity_token: Addr::unchecked("liquidity_token"),
+            liquidity_token: cw_asset::AssetInfoBase::Cw20(Addr::unchecked("liquidity_token")),
             vault_token: Addr::unchecked("vault_token"),
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown: Some(Duration::Time(10)),

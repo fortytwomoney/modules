@@ -13,15 +13,19 @@ pub fn migrate_handler(
     mut deps: DepsMut,
     _env: Env,
     _app: AutocompounderApp,
-    _msg: AutocompounderMigrateMsg,
+    msg: AutocompounderMigrateMsg,
 ) -> AutocompounderResult {
-    update_config_staking_info_change(&mut deps)?;
-
-    Ok(Response::default())
+    match msg.version.as_str() {
+        "0.5.0" => migrate_from_v0_5_0(&mut deps),
+        "0.6.0" => migrate_from_v0_6_0(&mut deps),
+        _ => Err(crate::error::AutocompounderError::Std(
+            StdError::generic_err("version migration not supported"),
+        )),
+    }
 }
 
 #[cosmwasm_schema::cw_serde]
-pub struct V050Config {
+pub struct V0_5_0Config {
     /// Address of the staking contract
     pub staking_contract: Addr,
     /// Pool address (number or Address)
@@ -42,30 +46,79 @@ pub struct V050Config {
     pub max_swap_spread: Decimal,
 }
 
+#[cosmwasm_schema::cw_serde]
+pub struct V0_6_0Config {
+    /// Address of the staking contract
+    pub staking_target: StakingTarget,
+    /// Pool address (number or Address)
+    pub pool_address: PoolAddress,
+    /// Pool metadata
+    pub pool_data: PoolMetadata,
+    /// Resolved pool assets
+    pub pool_assets: Vec<AssetInfo>,
+    /// Address of the LP token contract
+    pub liquidity_token: Addr,
+    /// Vault token
+    pub vault_token: Addr,
+    /// Pool bonding period
+    pub unbonding_period: Option<Duration>,
+    /// minimum unbonding cooldown
+    pub min_unbonding_cooldown: Option<Duration>,
+    /// maximum compound spread
+    pub max_swap_spread: Decimal,
+}
+
 /// The cw-staking adapter changed from v0.17 to v0.18 and introduced a new type: StakingTarget
-fn update_config_staking_info_change(
-    deps: &mut DepsMut,
-) -> Result<(), crate::error::AutocompounderError> {
+/// which is reflected in the contract update from v0.5.0 to v0.6.0
+fn migrate_from_v0_5_0(deps: &mut DepsMut) -> AutocompounderResult {
     let data = deps
         .storage
         .get(CONFIG.as_slice())
         .ok_or_else(|| StdError::generic_err("No config"))?;
-    let config_v0_5_0: V050Config =
+    let config_v0_5_0: V0_5_0Config =
         from_slice(data.as_slice()).map_err(|_| StdError::generic_err("Invalid config"))?;
 
-    let fee_config = Config {
+    let config = Config {
+        // This is the change from v0.5.0 to v0.6.0
         staking_target: StakingTarget::Contract(config_v0_5_0.staking_contract),
         pool_address: config_v0_5_0.pool_address,
         pool_data: config_v0_5_0.pool_data,
         pool_assets: config_v0_5_0.pool_assets,
-        liquidity_token: config_v0_5_0.liquidity_token,
+
+        // This is the change from v0.6.0 to v0.7.0
+        liquidity_token: cw_asset::AssetInfoBase::Cw20(config_v0_5_0.liquidity_token),
         vault_token: config_v0_5_0.vault_token,
         unbonding_period: config_v0_5_0.unbonding_period,
         min_unbonding_cooldown: config_v0_5_0.min_unbonding_cooldown,
         max_swap_spread: config_v0_5_0.max_swap_spread,
     };
-    CONFIG.save(deps.storage, &fee_config)?;
-    Ok(())
+    CONFIG.save(deps.storage, &config)?;
+    Ok(Response::default().add_attribute("migration", "v0.5.0 -> v0.7.0"))
+}
+
+fn migrate_from_v0_6_0(deps: &mut DepsMut) -> AutocompounderResult {
+    let data = deps
+        .storage
+        .get(CONFIG.as_slice())
+        .ok_or_else(|| StdError::generic_err("No config"))?;
+    let config_v0_6_0: V0_6_0Config =
+        from_slice(data.as_slice()).map_err(|_| StdError::generic_err("Invalid config"))?;
+
+    let config = Config {
+        staking_target: config_v0_6_0.staking_target,
+        pool_address: config_v0_6_0.pool_address,
+        pool_data: config_v0_6_0.pool_data,
+        pool_assets: config_v0_6_0.pool_assets,
+
+        // This is the change from v0.6.0 to v0.7.0
+        liquidity_token: cw_asset::AssetInfoBase::Cw20(config_v0_6_0.liquidity_token),
+        vault_token: config_v0_6_0.vault_token,
+        unbonding_period: config_v0_6_0.unbonding_period,
+        min_unbonding_cooldown: config_v0_6_0.min_unbonding_cooldown,
+        max_swap_spread: config_v0_6_0.max_swap_spread,
+    };
+    CONFIG.save(deps.storage, &config)?;
+    Ok(Response::default().add_attribute("migration", "v0.6.0 -> v0.7.0"))
 }
 
 #[cfg(test)]
@@ -77,8 +130,8 @@ mod test {
 
     type AResult = anyhow::Result<()>;
 
-    fn set_old_config(deps: DepsMut) {
-        let config = V050Config {
+    fn set_v0_5_0_config(deps: DepsMut) {
+        let config = V0_5_0Config {
             staking_contract: Addr::unchecked("staking_contract"),
             pool_address: PoolAddress::Id(1),
             pool_data: PoolMetadata {
@@ -97,12 +150,44 @@ mod test {
             .set(CONFIG.as_slice(), &to_vec(&config).unwrap());
     }
 
-    #[test]
-    fn config_update() -> AResult {
-        let mut deps = mock_dependencies();
-        set_old_config(deps.as_mut());
+    fn set_v0_6_0_config(deps: DepsMut) {
+        let config = V0_6_0Config {
+            staking_target: StakingTarget::Contract(Addr::unchecked("staking_contract")),
+            pool_address: PoolAddress::Id(1),
+            pool_data: PoolMetadata {
+                dex: "test".to_string(),
+                pool_type: abstract_core::objects::PoolType::ConstantProduct,
+                assets: vec![],
+            },
+            pool_assets: vec![],
+            liquidity_token: Addr::unchecked("liquidity_token"),
+            vault_token: Addr::unchecked("vault_token"),
+            unbonding_period: None,
+            min_unbonding_cooldown: None,
+            max_swap_spread: Decimal::percent(5),
+        };
+        deps.storage
+            .set(CONFIG.as_slice(), &to_vec(&config).unwrap());
+    }
 
-        let _resp = update_config_staking_info_change(&mut deps.as_mut()).unwrap();
+    #[test]
+    fn test_migrate_from_v0_5_0() -> AResult {
+        let mut deps = mock_dependencies();
+        set_v0_5_0_config(deps.as_mut());
+
+        let _resp = migrate_from_v0_5_0(&mut deps.as_mut()).unwrap();
+        let config = CONFIG.load(deps.as_ref().storage).unwrap();
+        assert_that!(config.staking_target)
+            .is_equal_to(StakingTarget::Contract(Addr::unchecked("staking_contract")));
+        Ok(())
+    }
+
+    #[test]
+    fn test_migrate_from_v0_6_0() -> AResult {
+        let mut deps = mock_dependencies();
+        set_v0_6_0_config(deps.as_mut());
+
+        let _resp = migrate_from_v0_6_0(&mut deps.as_mut()).unwrap();
         let config = CONFIG.load(deps.as_ref().storage).unwrap();
         assert_that!(config.staking_target)
             .is_equal_to(StakingTarget::Contract(Addr::unchecked("staking_contract")));
