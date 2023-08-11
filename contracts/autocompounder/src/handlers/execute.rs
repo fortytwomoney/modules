@@ -538,7 +538,7 @@ fn redeem_without_bonding_period(
     let fee_config = FEE_CONFIG.load(deps.storage)?;
 
     // save the user address and the assets owned by the contract to the cache for later use in reply
-    CACHED_USER_ADDR.save(deps.storage, &sender)?;
+    CACHED_USER_ADDR.save(deps.storage, sender)?;
     let owned_assets = app.bank(deps.as_ref()).balances(&config.pool_data.assets)?;
     owned_assets.into_iter().for_each(|asset| {
         CACHED_ASSETS
@@ -597,7 +597,16 @@ fn redeem_without_bonding_period(
     Ok(app.custom_tag_response(
         response,
         "redeem",
-        vec![("amount", &amount_of_vault_tokens_to_be_burned.to_string())],
+        vec![
+            (
+                "vault_token_burn_amount",
+                &amount_of_vault_tokens_to_be_burned.to_string(),
+            ),
+            (
+                "lp_token_withdraw_amount",
+                &lp_tokens_withdraw_amount.to_string(),
+            ),
+        ],
     ))
 }
 
@@ -891,9 +900,10 @@ mod test {
     use abstract_sdk::base::ExecuteEndpoint;
     use abstract_testing::prelude::TEST_MANAGER;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::Coin;
+    use cosmwasm_std::{Attribute, Coin};
     use cw_controllers::AdminError;
     use cw_utils::Expiration;
+    use speculoos::vec::VecAssertions;
     use speculoos::{assert_that, result::ResultAssertions};
 
     fn execute_as(
@@ -942,8 +952,43 @@ mod test {
         let sender = Addr::unchecked("sender");
         let amount = Uint128::new(100);
 
-        redeem_without_bonding_period(deps.as_mut(), &sender, config, &AUTOCOMPOUNDER_APP, amount)?;
+        let response = redeem_without_bonding_period(
+            deps.as_mut(),
+            &sender,
+            config.clone(),
+            &AUTOCOMPOUNDER_APP,
+            amount,
+        )?;
 
+        // The sender addr should be cached
+        assert_that!(CACHED_USER_ADDR.load(&deps.storage)?).is_equal_to(sender);
+
+        // The contract should not own assets at this point and should have stored them correctly
+        let cached_assets: Vec<(String, Uint128)> = CACHED_ASSETS
+            .range(&deps.storage, None, None, Order::Ascending)
+            .map(|x| x.unwrap())
+            .map(|(k, v)| (k.to_string(), v))
+            .collect();
+        assert_that!(cached_assets).has_length(2);
+        assert_that!(cached_assets[0]).is_equal_to(("native:eur".to_string(), 0u128.into()));
+        assert_that!(cached_assets[1]).is_equal_to(("native:usd".to_string(), 0u128.into()));
+
+        // The contract should have sent the correct messages
+        assert_that!(response.messages).has_length(3);
+        assert_that!(response.messages[0].msg).is_equal_to(unstake_lp_tokens(
+            deps.as_ref(),
+            &AUTOCOMPOUNDER_APP,
+            config.pool_data.dex.clone(),
+            AssetEntry::new("wyndex/eur,usd"),
+            10u128.into(),
+            None,
+        ));
+
+        let abstract_attributes = response.events[0].attributes.clone();
+        assert_that!(abstract_attributes[2])
+            .is_equal_to(Attribute::new("vault_token_burn_amount", "100"));
+        assert_that!(abstract_attributes[3])
+            .is_equal_to(Attribute::new("lp_token_withdraw_amount", "10"));
         Ok(())
     }
 
