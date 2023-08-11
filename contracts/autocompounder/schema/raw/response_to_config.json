@@ -16,7 +16,7 @@
       "description": "Address of the LP token contract",
       "allOf": [
         {
-          "$ref": "#/definitions/Addr"
+          "$ref": "#/definitions/AssetInfoBase_for_Addr"
         }
       ]
     },
