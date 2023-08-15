@@ -38,8 +38,12 @@ schema-module module version:
   outdir="$(cd ../../Abstract/schemas && echo "$PWD")/4t2/{{module}}/{{version}}"
   cargo schema --package {{module}} && mkdir -p "$outdir"; cp -a "schema/." "$outdir";
 
+# requires cargo-workspaces crate installed.
 publish-schemas version:
-  just schema-module autocompounder {{version}}
+  SCHEMA_OUT_DIR=$(cd ../../Abstract/schemas && echo "$PWD") \
+  VERSION={{version}} \
+  cargo ws exec --no-bail bash -lc 'cargo schema && { outdir="$SCHEMA_OUT_DIR/4t2/${PWD##*/}/$VERSION"; mkdir -p "$outdir"; rm -rf "schema/raw"; cp -a "schema/." "$outdir"; }'
+
 
 create-pisco-1-vaults +args='':
   just create-vault pisco-1 "'terra2>astro'" {{args}}

@@ -125,29 +125,35 @@ pub fn lp_withdrawal_reply(
     _reply: Reply,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
-    let ans_host = app.ans_host(deps.as_ref())?;
-    let proxy_address = app.proxy_address(deps.as_ref())?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     CACHED_USER_ADDR.remove(deps.storage);
+    let bank = app.bank(deps.as_ref());
 
-    let mut messages = vec![];
-    let mut funds: Vec<AnsAsset> = vec![];
+    let owned_assets = bank.balances(&config.pool_data.assets)?;
+    let funds = owned_assets
+        .into_iter()
+        .enumerate()
+        .map(|(i, asset)| -> StdResult<_> {
+            let prev_amount = CACHED_ASSETS.load(deps.storage, asset.info.to_string())?;
+            let amount = asset.amount.checked_sub(prev_amount)?;
+            Ok(AnsAsset::new(config.pool_data.assets[i].clone(), amount))
+        })
+        .collect::<StdResult<Vec<AnsAsset>>>()
+        .map_err(AutocompounderError::Std)?;
 
-    for asset in config.pool_data.assets {
-        let asset_info = asset.resolve(&deps.querier, &ans_host)?;
-        let amount = asset_info.query_balance(&deps.querier, proxy_address.to_string())?;
-        let prev_amount = CACHED_ASSETS.load(deps.storage, asset.to_string())?;
-        let amount = amount.checked_sub(prev_amount)?;
-        funds.push(AnsAsset::new(asset, amount));
-    }
+    let transfer_msg = bank.transfer(funds.clone(), &user_address)?;
+
     CACHED_ASSETS.clear(deps.storage);
 
-    let bank = app.bank(deps.as_ref());
-    let transfer_msg = bank.transfer(funds, &user_address)?;
-    messages.push(transfer_msg);
-
-    let response = Response::new().add_messages(app.executor(deps.as_ref()).execute(messages));
-    Ok(app.tag_response(response, "lp_withdrawal_reply"))
+    let response =
+        Response::new().add_messages(app.executor(deps.as_ref()).execute(vec![transfer_msg]));
+    Ok(app.custom_tag_response(
+        response,
+        "lp_withdrawal_reply",
+        funds
+            .into_iter()
+            .map(|asset| ("recieved", asset.to_string())),
+    ))
 }
 
 pub fn lp_compound_reply(
@@ -353,4 +359,146 @@ fn get_staking_rewards(
 }
 
 #[cfg(test)]
-mod test {}
+mod test {
+    use crate::contract::{AUTOCOMPOUNDER_APP, LP_WITHDRAWAL_REPLY_ID};
+    use crate::handlers::helpers::test_helpers::min_cooldown_config;
+
+    // use abstract_sdk::mock_module::MockModule;
+    use abstract_testing::prelude::TEST_PROXY;
+    use anyhow::Ok;
+    use cosmwasm_std::testing::mock_env;
+    use cosmwasm_std::{Coin, Order, SubMsgResponse, SubMsgResult};
+    use speculoos::assert_that;
+    use speculoos::result::ResultAssertions;
+    use speculoos::vec::VecAssertions;
+
+    use super::*;
+    use crate::test_common::app_init;
+
+    mod withdraw_liquidity {
+
+        use super::*;
+
+        fn empty_reply() -> Reply {
+            Reply {
+                id: LP_WITHDRAWAL_REPLY_ID,
+                result: SubMsgResult::Ok(SubMsgResponse {
+                    events: vec![],
+                    data: None,
+                }),
+            }
+        }
+
+        #[test]
+        /// This function tests the withdrawal reply function by the following steps:
+        /// 0. Set up the app, config, and env.
+        /// 1. set up the balances(1000eur, 1000usd) of the proxy contract in the bank
+        /// 2. setup stored balances(500eur, 400usd) of the CACHED_ASSETS in the storage and the user address
+        /// 3. call the withdraw_liquidity_reply function
+        /// 4. check the response messages and attributes
+        /// 5. check the stored balances of the CACHED_ASSETS in the storage and the user address
+        fn succesful_withdrawal_with_balances() -> anyhow::Result<()> {
+            let mut deps = app_init(false); // Assuming you have this helper function already set up.
+                                            // let module = MockModule::new();
+            let config = min_cooldown_config(None); // Using the same config helper as before.
+            CONFIG.save(deps.as_mut().storage, &config)?; // Saving the config to the storage.
+            let env = mock_env(); // Using the same mock_env helper as before.
+            let eur_asset = AssetInfo::native("eur".to_string());
+            let usd_asset = AssetInfo::native("usd".to_string());
+            let eur_ans_asset = AnsAsset::new("eur", 1000u128 - 500);
+            let usd_ans_asset = AnsAsset::new("usd", 1000u128 - 400);
+
+            // 1. set up the balances(1000eur, 1000usd) of the proxy contract in the bank
+            deps.querier.update_balance(
+                TEST_PROXY,
+                vec![
+                    Coin {
+                        denom: "eur".to_string(),
+                        amount: Uint128::new(1000),
+                    },
+                    Coin {
+                        denom: "usd".to_string(),
+                        amount: Uint128::new(1000),
+                    },
+                ],
+            );
+            let user_addr = Addr::unchecked("user_address");
+            CACHED_USER_ADDR.save(deps.as_mut().storage, &user_addr)?;
+
+            // 2. setup stored balances(500eur, 400usd) of the CACHED_ASSETS in the storage and the user address
+            CACHED_ASSETS.save(
+                deps.as_mut().storage,
+                eur_asset.to_string(),
+                &Uint128::new(500),
+            )?;
+            CACHED_ASSETS.save(
+                deps.as_mut().storage,
+                usd_asset.to_string(),
+                &Uint128::new(400),
+            )?;
+
+            // 3. call the withdraw_liquidity_reply function
+            let response =
+                lp_withdrawal_reply(deps.as_mut(), env, AUTOCOMPOUNDER_APP, empty_reply())?;
+            let msg = &response.messages[0].msg;
+
+            // 4. check the response messages and attributes
+            // check the expected messages
+            let transfer_msg = AUTOCOMPOUNDER_APP.bank(deps.as_ref()).transfer(
+                vec![eur_ans_asset.clone(), usd_ans_asset.clone()],
+                &user_addr,
+            )?;
+            let expected_resp_msgs = AUTOCOMPOUNDER_APP
+                .executor(deps.as_ref())
+                .execute(vec![transfer_msg])?;
+            assert_that!(response.messages).has_length(1);
+            assert_that!(msg.to_owned()).is_equal_to(expected_resp_msgs);
+
+            // check the expected attributes
+            let abstract_attributes = response.events[0].attributes.clone();
+            // first 2 are from custom_tag_response, second 2 are the transfered assets
+            assert_that!(abstract_attributes).has_length(4);
+            assert_that!(abstract_attributes[2].value).is_equal_to(eur_ans_asset.to_string());
+            assert_that!(abstract_attributes[3].value).is_equal_to(usd_ans_asset.to_string());
+
+            // 5. check the stored balances of the CACHED_ASSETS in the storage and the user address
+            // Assert that the user address cache has been cleared.
+            let err = CACHED_USER_ADDR.load(&deps.storage);
+            assert_that!(err).is_err();
+
+            // Assert that the cached assets have been cleared.
+            let cached_assets: Vec<(String, Uint128)> = CACHED_ASSETS
+                .range(&deps.storage, None, None, Order::Ascending)
+                .map(|x| x.unwrap())
+                .collect();
+            assert_that!(cached_assets).is_empty();
+
+            Ok(())
+        }
+
+        #[test]
+        fn no_cached_addr_or_assets() -> anyhow::Result<()> {
+            let mut deps = app_init(false); // Assuming you have this helper function already set up.
+
+            let res =
+                lp_withdrawal_reply(deps.as_mut(), mock_env(), AUTOCOMPOUNDER_APP, empty_reply());
+            assert_that!(res).is_err();
+            assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(
+                StdError::NotFound {
+                    kind: "cosmwasm_std::addresses::Addr".to_string(),
+                },
+            ));
+
+            CACHED_USER_ADDR.save(deps.as_mut().storage, &Addr::unchecked("user_address"))?;
+            let res =
+                lp_withdrawal_reply(deps.as_mut(), mock_env(), AUTOCOMPOUNDER_APP, empty_reply());
+            assert_that!(res).is_err();
+            assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(
+                StdError::NotFound {
+                    kind: "cosmwasm_std::math::uint128::Uint128".to_string(),
+                },
+            ));
+            Ok(())
+        }
+    }
+}

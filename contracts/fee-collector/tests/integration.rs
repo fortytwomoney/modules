@@ -292,6 +292,8 @@ fn test_collect_fees() -> AResult {
     Ok(())
 }
 
+#[test]
+#[ignore = "Multipool hops need a router contract... Not supported yet"]
 fn test_add_allowed_assets() -> AResult {
     let owner = Addr::unchecked(OWNER);
     let mock = Mock::new(&owner);

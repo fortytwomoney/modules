@@ -18,6 +18,7 @@ pub fn migrate_handler(
     match msg.version.as_str() {
         "0.5.0" => migrate_from_v0_5_0(&mut deps),
         "0.6.0" => migrate_from_v0_6_0(&mut deps),
+        "0.7.0" => Ok(Response::default().add_attribute("migration", "v0.7.0 -> v0.7.1")),
         _ => Err(crate::error::AutocompounderError::Std(
             StdError::generic_err("version migration not supported"),
         )),
@@ -93,7 +94,7 @@ fn migrate_from_v0_5_0(deps: &mut DepsMut) -> AutocompounderResult {
         max_swap_spread: config_v0_5_0.max_swap_spread,
     };
     CONFIG.save(deps.storage, &config)?;
-    Ok(Response::default().add_attribute("migration", "v0.5.0 -> v0.7.0"))
+    Ok(Response::default().add_attribute("migration", "v0.5.0 -> v0.7.1"))
 }
 
 fn migrate_from_v0_6_0(deps: &mut DepsMut) -> AutocompounderResult {
@@ -118,7 +119,7 @@ fn migrate_from_v0_6_0(deps: &mut DepsMut) -> AutocompounderResult {
         max_swap_spread: config_v0_6_0.max_swap_spread,
     };
     CONFIG.save(deps.storage, &config)?;
-    Ok(Response::default().add_attribute("migration", "v0.6.0 -> v0.7.0"))
+    Ok(Response::default().add_attribute("migration", "v0.6.0 -> v0.7.1"))
 }
 
 #[cfg(test)]

@@ -150,3 +150,32 @@ pub fn transfer_to_msgs(
             .transfer(vec![asset], &recipient)?])?])
     }
 }
+
+#[cfg(test)]
+pub mod test_helpers {
+    use super::*;
+    use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
+    use cw_asset::AssetInfoBase;
+
+    pub fn min_cooldown_config(min_unbonding_cooldown: Option<Duration>) -> Config {
+        let assets = vec![AssetEntry::new("eur"), AssetEntry::new("usd")];
+
+        Config {
+            staking_target: abstract_cw_staking::msg::StakingTarget::Contract(Addr::unchecked(
+                "staking_addr",
+            )),
+            pool_address: PoolAddressBase::Contract(Addr::unchecked("pool_address")),
+            pool_data: PoolMetadata::new(
+                "wyndex",
+                abstract_core::objects::PoolType::ConstantProduct,
+                assets,
+            ),
+            pool_assets: vec![],
+            liquidity_token: AssetInfoBase::Cw20(Addr::unchecked("eur_usd_lp")),
+            vault_token: Addr::unchecked("test_vault_token"),
+            unbonding_period: Some(Duration::Time(100)),
+            min_unbonding_cooldown,
+            max_swap_spread: Decimal::percent(50),
+        }
+    }
+}
