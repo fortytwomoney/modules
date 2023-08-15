@@ -540,13 +540,13 @@ fn redeem_without_bonding_period(
     // save the user address and the assets owned by the contract to the cache for later use in reply
     CACHED_USER_ADDR.save(deps.storage, sender)?;
     let owned_assets = app.bank(deps.as_ref()).balances(&config.pool_data.assets)?;
-    owned_assets.into_iter().for_each(|asset| {
+    owned_assets.into_iter().try_for_each(|asset| {
         CACHED_ASSETS
+            // CACHED_ASSETS are saved with the key being cwasset::asset:AssetInfo.to_string()
             .save(deps.storage, asset.info.to_string(), &asset.amount)
-            .unwrap();
-    });
-
-    // if bonding period is not set, we can just burn the tokens, and withdraw the underlying assets in the lp pool.
+            .map_err(|err| AutocompounderError::Std(err.into()))
+        })?;
+        
     // 1) get the total supply of Vault token
     let total_supply_vault = cw20_total_supply(deps.as_ref(), &config)?;
     let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
@@ -654,7 +654,7 @@ pub fn withdraw_claims(
     let owned_assets = app.bank(deps.as_ref()).balances(&pool_assets)?;
     owned_assets.into_iter().enumerate().for_each(|(i, asset)| {
         CACHED_ASSETS
-            .save(deps.storage, pool_assets[i].to_string(), &asset.amount)
+            .save(deps.storage, asset.info.to_string(), &asset.amount)
             .unwrap();
     });
 
@@ -895,10 +895,11 @@ mod test {
 
     use crate::msg::ExecuteMsg;
     use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_init};
+    use crate::handlers::helpers::test_helpers::min_cooldown_config;
     use abstract_core::objects::pool_id::PoolAddressBase;
     use abstract_core::objects::PoolMetadata;
     use abstract_sdk::base::ExecuteEndpoint;
-    use abstract_testing::prelude::TEST_MANAGER;
+    use abstract_testing::prelude::{TEST_MANAGER, TEST_PROXY};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{Attribute, Coin};
     use cw_controllers::AdminError;
@@ -923,27 +924,7 @@ mod test {
         execute_as(deps, TEST_MANAGER, msg, &[])
     }
 
-    fn min_cooldown_config(min_unbonding_cooldown: Option<Duration>) -> Config {
-        let assets = vec![AssetEntry::new("eur"), AssetEntry::new("usd")];
 
-        Config {
-            staking_target: abstract_cw_staking::msg::StakingTarget::Contract(Addr::unchecked(
-                "staking_addr",
-            )),
-            pool_address: PoolAddressBase::Contract(Addr::unchecked("pool_address")),
-            pool_data: PoolMetadata::new(
-                "wyndex",
-                abstract_core::objects::PoolType::ConstantProduct,
-                assets,
-            ),
-            pool_assets: vec![],
-            liquidity_token: AssetInfoBase::Cw20(Addr::unchecked("eur_usd_lp")),
-            vault_token: Addr::unchecked("test_vault_token"),
-            unbonding_period: Some(Duration::Time(100)),
-            min_unbonding_cooldown,
-            max_swap_spread: Decimal::percent(50),
-        }
-    }
 
     #[test]
     fn test_redeem_without_bonding_period() -> anyhow::Result<()> {
@@ -951,6 +932,24 @@ mod test {
         let config = min_cooldown_config(None);
         let sender = Addr::unchecked("sender");
         let amount = Uint128::new(100);
+
+        let err = CACHED_ASSETS.load(&deps.storage, "native:eur".to_string());
+        assert_that!(err).is_err();
+
+        // 1. set up the balances(1000eur, 1000usd) of the proxy contract in the bank
+            deps.querier.update_balance(
+                TEST_PROXY,
+                vec![
+                    Coin {
+                        denom: "eur".to_string(),
+                        amount: Uint128::new(1000),
+                    },
+                    Coin {
+                        denom: "usd".to_string(),
+                        amount: Uint128::new(1000),
+                    },
+                ],
+            );
 
         let response = redeem_without_bonding_period(
             deps.as_mut(),
@@ -970,8 +969,8 @@ mod test {
             .map(|(k, v)| (k.to_string(), v))
             .collect();
         assert_that!(cached_assets).has_length(2);
-        assert_that!(cached_assets[0]).is_equal_to(("native:eur".to_string(), 0u128.into()));
-        assert_that!(cached_assets[1]).is_equal_to(("native:usd".to_string(), 0u128.into()));
+        assert_that!(cached_assets[0]).is_equal_to(("native:eur".to_string(), 1000u128.into()));
+        assert_that!(cached_assets[1]).is_equal_to(("native:usd".to_string(), 1000u128.into()));
 
         // The contract should have sent the correct messages
         assert_that!(response.messages).has_length(3);
