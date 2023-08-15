@@ -139,7 +139,7 @@ pub fn lp_withdrawal_reply(
             Ok(AnsAsset::new(config.pool_data.assets[i].clone(), amount))
         })
         .collect::<StdResult<Vec<AnsAsset>>>()
-        .map_err(|err| AutocompounderError::Std(err.into()))?;
+        .map_err(AutocompounderError::Std)?;
 
     let transfer_msg = bank.transfer(funds.clone(), &user_address)?;
 
@@ -147,10 +147,13 @@ pub fn lp_withdrawal_reply(
 
     let response =
         Response::new().add_messages(app.executor(deps.as_ref()).execute(vec![transfer_msg]));
-    Ok(app.custom_tag_response(response, "lp_withdrawal_reply", 
-    funds.into_iter().map(|asset| ("recieved", asset.to_string())))
-    )
-
+    Ok(app.custom_tag_response(
+        response,
+        "lp_withdrawal_reply",
+        funds
+            .into_iter()
+            .map(|asset| ("recieved", asset.to_string())),
+    ))
 }
 
 pub fn lp_compound_reply(
@@ -359,18 +362,18 @@ fn get_staking_rewards(
 mod test {
     use crate::contract::{AUTOCOMPOUNDER_APP, LP_WITHDRAWAL_REPLY_ID};
     use crate::handlers::helpers::test_helpers::min_cooldown_config;
-    use abstract_core::objects::AssetEntry;
+
     // use abstract_sdk::mock_module::MockModule;
     use abstract_testing::prelude::TEST_PROXY;
     use anyhow::Ok;
     use cosmwasm_std::testing::mock_env;
-    use cosmwasm_std::{from_binary, Coin, Order, SubMsgResponse, SubMsgResult, WasmMsg, Attribute};
+    use cosmwasm_std::{Coin, Order, SubMsgResponse, SubMsgResult};
     use speculoos::assert_that;
     use speculoos::result::ResultAssertions;
     use speculoos::vec::VecAssertions;
 
-    use crate::test_common::app_init;
     use super::*;
+    use crate::test_common::app_init;
 
     mod withdraw_liquidity {
 
@@ -396,7 +399,7 @@ mod test {
         /// 5. check the stored balances of the CACHED_ASSETS in the storage and the user address
         fn succesful_withdrawal_with_balances() -> anyhow::Result<()> {
             let mut deps = app_init(false); // Assuming you have this helper function already set up.
-            // let module = MockModule::new();
+                                            // let module = MockModule::new();
             let config = min_cooldown_config(None); // Using the same config helper as before.
             CONFIG.save(deps.as_mut().storage, &config)?; // Saving the config to the storage.
             let env = mock_env(); // Using the same mock_env helper as before.
@@ -434,18 +437,20 @@ mod test {
                 &Uint128::new(400),
             )?;
 
-            
             // 3. call the withdraw_liquidity_reply function
-            let response = lp_withdrawal_reply(deps.as_mut(), env, AUTOCOMPOUNDER_APP, empty_reply())?;
+            let response =
+                lp_withdrawal_reply(deps.as_mut(), env, AUTOCOMPOUNDER_APP, empty_reply())?;
             let msg = &response.messages[0].msg;
-            
+
             // 4. check the response messages and attributes
             // check the expected messages
             let transfer_msg = AUTOCOMPOUNDER_APP.bank(deps.as_ref()).transfer(
                 vec![eur_ans_asset.clone(), usd_ans_asset.clone()],
                 &user_addr,
             )?;
-            let expected_resp_msgs = AUTOCOMPOUNDER_APP.executor(deps.as_ref()).execute(vec![transfer_msg])?;
+            let expected_resp_msgs = AUTOCOMPOUNDER_APP
+                .executor(deps.as_ref())
+                .execute(vec![transfer_msg])?;
             assert_that!(response.messages).has_length(1);
             assert_that!(msg.to_owned()).is_equal_to(expected_resp_msgs);
 
@@ -453,9 +458,9 @@ mod test {
             let abstract_attributes = response.events[0].attributes.clone();
             // first 2 are from custom_tag_response, second 2 are the transfered assets
             assert_that!(abstract_attributes).has_length(4);
-            assert_that!(abstract_attributes[2].value).is_equal_to(eur_ans_asset.to_string() );
-            assert_that!(abstract_attributes[3].value).is_equal_to(usd_ans_asset.to_string() );
-        
+            assert_that!(abstract_attributes[2].value).is_equal_to(eur_ans_asset.to_string());
+            assert_that!(abstract_attributes[3].value).is_equal_to(usd_ans_asset.to_string());
+
             // 5. check the stored balances of the CACHED_ASSETS in the storage and the user address
             // Assert that the user address cache has been cleared.
             let err = CACHED_USER_ADDR.load(&deps.storage);
@@ -475,14 +480,24 @@ mod test {
         fn no_cached_addr_or_assets() -> anyhow::Result<()> {
             let mut deps = app_init(false); // Assuming you have this helper function already set up.
 
-            let res = lp_withdrawal_reply(deps.as_mut(), mock_env(), AUTOCOMPOUNDER_APP, empty_reply());
+            let res =
+                lp_withdrawal_reply(deps.as_mut(), mock_env(), AUTOCOMPOUNDER_APP, empty_reply());
             assert_that!(res).is_err();
-            assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(StdError::NotFound { kind: "cosmwasm_std::addresses::Addr".to_string() }));
+            assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(
+                StdError::NotFound {
+                    kind: "cosmwasm_std::addresses::Addr".to_string(),
+                },
+            ));
 
             CACHED_USER_ADDR.save(deps.as_mut().storage, &Addr::unchecked("user_address"))?;
-            let res = lp_withdrawal_reply(deps.as_mut(), mock_env(), AUTOCOMPOUNDER_APP, empty_reply());
+            let res =
+                lp_withdrawal_reply(deps.as_mut(), mock_env(), AUTOCOMPOUNDER_APP, empty_reply());
             assert_that!(res).is_err();
-            assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(StdError::NotFound { kind: "cosmwasm_std::math::uint128::Uint128".to_string() }));
+            assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(
+                StdError::NotFound {
+                    kind: "cosmwasm_std::math::uint128::Uint128".to_string(),
+                },
+            ));
             Ok(())
         }
     }

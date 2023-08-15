@@ -544,9 +544,9 @@ fn redeem_without_bonding_period(
         CACHED_ASSETS
             // CACHED_ASSETS are saved with the key being cwasset::asset:AssetInfo.to_string()
             .save(deps.storage, asset.info.to_string(), &asset.amount)
-            .map_err(|err| AutocompounderError::Std(err.into()))
-        })?;
-        
+            .map_err(AutocompounderError::Std)
+    })?;
+
     // 1) get the total supply of Vault token
     let total_supply_vault = cw20_total_supply(deps.as_ref(), &config)?;
     let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
@@ -652,11 +652,14 @@ pub fn withdraw_claims(
     // cache assets and address for later use in reply
     CACHED_USER_ADDR.save(deps.storage, &sender)?;
     let owned_assets = app.bank(deps.as_ref()).balances(&pool_assets)?;
-    owned_assets.into_iter().enumerate().for_each(|(i, asset)| {
-        CACHED_ASSETS
-            .save(deps.storage, asset.info.to_string(), &asset.amount)
-            .unwrap();
-    });
+    owned_assets
+        .into_iter()
+        .enumerate()
+        .for_each(|(_i, asset)| {
+            CACHED_ASSETS
+                .save(deps.storage, asset.info.to_string(), &asset.amount)
+                .unwrap();
+        });
 
     let Some(claims) = CLAIMS.may_load(deps.storage, sender.to_string())? else {
         return Err(AutocompounderError::NoClaims {});
@@ -893,11 +896,10 @@ fn unstake_lp_tokens(
 mod test {
     use super::{redeem_without_bonding_period, *};
 
+    use crate::handlers::helpers::test_helpers::min_cooldown_config;
     use crate::msg::ExecuteMsg;
     use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_init};
-    use crate::handlers::helpers::test_helpers::min_cooldown_config;
-    use abstract_core::objects::pool_id::PoolAddressBase;
-    use abstract_core::objects::PoolMetadata;
+
     use abstract_sdk::base::ExecuteEndpoint;
     use abstract_testing::prelude::{TEST_MANAGER, TEST_PROXY};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
@@ -924,8 +926,6 @@ mod test {
         execute_as(deps, TEST_MANAGER, msg, &[])
     }
 
-
-
     #[test]
     fn test_redeem_without_bonding_period() -> anyhow::Result<()> {
         let mut deps = app_init(false);
@@ -937,19 +937,19 @@ mod test {
         assert_that!(err).is_err();
 
         // 1. set up the balances(1000eur, 1000usd) of the proxy contract in the bank
-            deps.querier.update_balance(
-                TEST_PROXY,
-                vec![
-                    Coin {
-                        denom: "eur".to_string(),
-                        amount: Uint128::new(1000),
-                    },
-                    Coin {
-                        denom: "usd".to_string(),
-                        amount: Uint128::new(1000),
-                    },
-                ],
-            );
+        deps.querier.update_balance(
+            TEST_PROXY,
+            vec![
+                Coin {
+                    denom: "eur".to_string(),
+                    amount: Uint128::new(1000),
+                },
+                Coin {
+                    denom: "usd".to_string(),
+                    amount: Uint128::new(1000),
+                },
+            ],
+        );
 
         let response = redeem_without_bonding_period(
             deps.as_mut(),

@@ -151,6 +151,7 @@ pub fn transfer_to_msgs(
     }
 }
 
+#[cfg(test)]
 pub mod test_helpers {
     use super::*;
     use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
