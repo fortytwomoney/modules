@@ -24,3 +24,98 @@ $LP_{new}$ = LP tokens minted by the user
 $LP_{old}$ = All staked Lp tokens currently in the vault (assuming all staked)
 *This doesnt take into account the number of tokens that being unbonded*
 
+
+
+## Redeem Vault Tokens Flow
+
+When calling 'redeem' on the vault token, there are 2 cases that lead to a different flow:
+
+1. If the staking contract has an unbonding period
+2. If the staking contract does not have an unbonding period
+
+The flow is shown below, where the dotted arrows represent time passing.
+
+```Mermaid
+graph TD
+
+    A{{USER: Redeem Vault Token}}
+    B{Unbonding Period}
+    C[Register Pre Claim]
+    D[Save or Update Claim]
+    E[Unbond Claims]
+    G[Unstake LP Tokens]
+    H[Burn Vault Tokens]
+
+    I{{USER: Withdraw Claims}}
+    J[Claim Unbonded Tokens]
+    K[Reply LP Withdrawal]
+    L[Swap LP Tokens]
+    X[Send to User]
+
+    M[Redeem Without Bonding Period]
+    N[Unstake LP Tokens]
+    O[Burn Vault Tokens]
+    P[Withdraw LP Tokens]
+    Q[Swap LP Tokens]
+    R[Send to User]
+
+
+    S{{BOT: Batch Unbond}}
+
+    A{{USER: Redeem Vault Tokens}} -->| User | B
+    B{Unbonding Period?} -->|Yes| C
+
+    C --> D
+    D -. unbonding period passes...-> I
+    S--> E
+    E --> G
+    G --> H
+    H -. unbonding period  ...-J
+    I ==> J
+    J --> K
+    K --> L
+    L --> X
+
+    B -->|No| M
+    M --> N
+    N --> O
+    O --> P
+    P --> Q
+    Q --> R
+```
+```Mermaid
+graph TD
+
+    A{{USER: Redeem Vault Token}}
+    B{Unbonding Period}
+    C[Register Pre Claim]
+    D[Save or Update Claim]
+    E[Unbond Claims]
+    G[Unstake LP Tokens]
+    H[Burn Vault Tokens]
+
+    I{{USER: Withdraw Claims}}
+    J[Claim Unbonded Tokens]
+    K[Reply LP Withdrawal]
+    L[Swap LP Tokens]
+    X[Send to User]
+
+
+
+
+    S{{BOT: Batch Unbond}}
+
+    A{{USER: Redeem Vault Tokens}} -->| User | B
+    B{Unbonding Period?} -->|Yes| C
+
+    C --> D
+    D -. unbonding period passes...- I
+    S--> E
+    E --> G
+    G --> H
+    I ==> J
+    J --> K
+    K --> L
+    L --> X
+
+```

@@ -353,6 +353,10 @@ fn deposit_lp(
     Ok(app.custom_tag_response(res, "deposit-lp", vec![("4t2", "/AC/DepositLP")]))
 }
 
+/// Deducts a specified fee from a given LP asset.
+///
+/// If the fee is zero, it returns the original LP asset and a fee asset with zero amount.
+/// Otherwise, it calculates the fee amount, deducts it from the LP asset, and assigns it to the fee asset.
 fn deduct_fee(lp_asset: AnsAsset, fee: Decimal) -> (AnsAsset, AnsAsset) {
     let mut fee_asset = AnsAsset::new(lp_asset.name.clone(), Uint128::zero());
     let mut lp_asset = lp_asset;
@@ -387,6 +391,29 @@ fn transfer_token(
     }
 }
 
+/// Unbonds a batch of tokens from the Autocompounder.
+///
+/// This function handles the unbonding process for a batch of tokens. It first checks if the unbonding
+/// period is set in the configuration. If not, it returns an error indicating that unbonding is not enabled.
+///
+/// If the unbonding period is set, the function checks if the cooldown period for unbonding has passed.
+/// It then determines the number of claims to process based on the provided limit or the default batch size.
+/// The function fetches the pending claims and calculates the total amount of LP tokens to unbond and the
+/// total number of vault tokens to burn.
+///
+/// After calculating the withdrawals, the function clears the processed pending claims and updates the claims.
+/// It then constructs messages to unstake the LP tokens and burn the vault tokens.
+///
+/// Finally, the function returns a response with the constructed messages and a custom tag indicating that
+/// the batch unbonding process was executed.
+///
+/// # Parameters
+/// - `deps`, `env`, `app`: execution environment
+/// - `start_after`: An optional string indicating where to start processing claims.
+/// - `limit`: An optional limit on the number of claims to process.
+///
+/// # Returns
+/// - `AutocompounderResult`: The result of the batch unbonding process.
 pub fn batch_unbond(
     deps: DepsMut,
     env: Env,
@@ -464,6 +491,11 @@ pub fn receive(
     }
 }
 
+/// Redeems the vault tokens for the underlying asset.
+/// This function is called by the vault token contract.
+/// It checks whether the lp staking contract has a unbonding period set or not.
+/// If not, it redeems the vault tokens for the underlying asset, swaps them and sends them to the sender. 
+/// If yes, it registers a pre-claim for the sender.  This will be processed in batches by calling `ExecuteMsg::BatchUnbond` .
 fn redeem(
     deps: DepsMut,
     _env: Env,

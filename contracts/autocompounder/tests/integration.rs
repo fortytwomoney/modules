@@ -32,7 +32,7 @@ use cosmwasm_std::{coin, coins, to_binary, Addr, Decimal, Empty, Uint128};
 
 use cw_utils::{Duration, Expiration};
 use speculoos::assert_that;
-use speculoos::prelude::OrderedAssertions;
+use speculoos::prelude::{OrderedAssertions, OptionAssertions};
 use wyndex_stake::msg::ReceiveDelegationMsg;
 
 use cw20::msg::Cw20ExecuteMsgFns;
@@ -116,7 +116,7 @@ fn create_vault(
     let asset1 = AssetEntry::new(asset1);
     let asset2 = AssetEntry::new(asset2);
     let _lp_asset_entry =
-        AnsEntryConvertor::new(LpToken::new(WYNDEX, vec![EUR, USD])).asset_entry();
+        AnsEntryConvertor::new(LpToken::new(WYNDEX, vec![asset1.clone(), asset2.clone()])).asset_entry();
 
     // Set up the dex and staking contracts
     let exchange_api = abstract_helper::init_exchange(mock.clone(), &abstract_, None)?;
@@ -161,6 +161,7 @@ fn create_vault(
         },
         None,
     )?;
+
     // get its address
     let auto_compounder_addr = account
         .manager
@@ -202,37 +203,93 @@ fn proper_initialisation() {
     // initialize with no pool for the fee token and reward token
 }
 
-#[ignore = "Staking address for raw eur pool not setup"]
+// #[ignore = "Staking address for raw eur pool not setup"]
 #[test]
+/// test the deposit for dual cw20 and single cw20 assets.
 fn deposit_cw20_asset() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
+    let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
+    let user1 = Addr::unchecked(common::USER1);
     let mock = Mock::new(&owner);
-    let vault = crate::create_vault(mock.clone(), EUR, RAW_TOKEN)?;
+    let vault = crate::create_vault(mock.clone(), RAW_TOKEN, RAW_2_TOKEN)?;
     let WynDex {
-        eur_token,
         raw_token,
+        raw_2_token,
+        raw_raw_2_lp,
         ..
     } = vault.wyndex;
 
-    let eur_token = AssetInfo::cw20(Addr::unchecked(eur_token.to_string()));
 
     let _ac_addres = vault.auto_compounder.addr_str()?;
-    let _eur_asset = AssetEntry::new(EUR);
-    let _raw_asset = AssetEntry::new(RAW_TOKEN);
-    let raw_token_info = AssetInfo::cw20(raw_token.address().unwrap());
+    let raw_asset = AssetEntry::new(RAW_TOKEN);
+    let raw2_asset = AssetEntry::new(RAW_2_TOKEN);
 
-    let asset_infos = vec![eur_token.clone(), raw_token_info.clone()];
+    let asset_entries = vec![raw_asset.clone(), raw2_asset.clone()];
+    let asset_infos = vec![raw_token.address()?, raw_2_token.address()?].iter()
+        .map(|a| AssetInfo::Cw20(a.to_owned())).collect::<Vec<_>>();
 
-    let config = vault.auto_compounder.config()?;
+    let config: Config = vault.auto_compounder.config()?;
 
     // check the config
+    assert_that!(config.pool_data.assets).is_equal_to(asset_entries);
     assert_that!(config.pool_assets).is_equal_to(asset_infos);
 
-    // set balance of owner
-    mock.set_balance(&owner, vec![coin(100_000u128.into(), EUR.to_string())])?;
-    raw_token
-        .call_as(&Addr::unchecked(WYNDEX_OWNER.to_string()))
-        .mint(100_000u128.into(), owner.to_string())?;
+    // deposit 10_000 raw and raw2 (cw20-cw20)
+    let amount = 10_000u128;
+    raw_token.call_as(&wyndex_owner).transfer(amount.into(), owner.to_string())?;
+    raw_token.call_as(&wyndex_owner).transfer(amount.into(), user1.to_string())?;
+    raw_2_token.call_as(&wyndex_owner).transfer(amount.into(), owner.to_string())?;
+
+    raw_token.call_as(&owner).increase_allowance(amount.into(), _ac_addres.to_string(), None)?;
+    raw_2_token.call_as(&owner).increase_allowance(amount.into(), _ac_addres.to_string(), None)?;
+    
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(raw_asset.clone(), amount),
+            AnsAsset::new(raw2_asset.clone(), amount),
+            ],
+            None,
+            &vec![]
+        )?;
+        
+        let position = vault.auto_compounder.total_lp_position()?;
+        assert_that!(position).is_equal_to(Uint128::from(10_000u128));
+        
+        let balance_owner = vault.vault_token.balance(owner.to_string())?;
+        assert_that!(balance_owner.balance.u128()).is_equal_to(10_000u128 * 10u128.pow(DECIMAL_OFFSET));
+        
+        
+        // single cw20asset deposit from different address
+        // single asset deposit from different address
+        
+        raw_token.call_as(&user1).increase_allowance(1000u128.into(), _ac_addres.to_string(), None)?;
+    vault.auto_compounder.call_as(&user1).deposit(
+        vec![AnsAsset::new(raw_asset, 1000u128)],
+        None,
+        &vec![]
+    )?;
+
+    // check that the vault token is minted
+    let vault_token_balance = vault.vault_token.balance(owner.to_string())?;
+    assert_that!(vault_token_balance.balance.u128())
+        .is_equal_to(10000u128 * 10u128.pow(DECIMAL_OFFSET));
+    let new_position = vault.auto_compounder.total_lp_position()?;
+    // check if the user1 balance is correct
+    let vault_token_balance_user1 = vault.vault_token.balance(user1.to_string())?;
+    assert_that!(vault_token_balance_user1.balance.u128())
+        .is_equal_to(487u128 * 10u128.pow(DECIMAL_OFFSET));
+    assert_that!(new_position).is_greater_than(position);
+
+    
+    vault.vault_token.call_as(&owner).send(
+        Uint128::from(4000u128 * 10u128.pow(DECIMAL_OFFSET)),
+        _ac_addres.clone(),
+        to_binary(&Cw20HookMsg::Redeem {})?,
+    )?;
+    // check that the vault token decreased
+    let vault_token_balance = vault.vault_token.balance(owner.to_string())?;
+    assert_that!(vault_token_balance.balance.u128())
+        .is_equal_to(6000u128 * 10u128.pow(DECIMAL_OFFSET));
 
     Ok(())
 }
