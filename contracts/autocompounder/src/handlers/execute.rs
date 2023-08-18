@@ -460,7 +460,7 @@ pub fn batch_unbond(
     let pending_claims = PENDING_CLAIMS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
-        .collect::<StdResult<Vec<(String, Uint128)>>>()?;
+        .collect::<StdResult<Vec<(Addr, Uint128)>>>()?;
 
     let (total_lp_amount_to_unbond, total_vault_tokens_to_burn, updated_claims) =
         calculate_withdrawals(
@@ -565,16 +565,16 @@ fn register_pre_claim(
     amount_of_vault_tokens_to_be_burned: Uint128,
 ) -> Result<(), AutocompounderError> {
     // if bonding period is set, we need to register the user's pending claim, that will be processed in the next batch unbonding
-    if let Some(pending_claim) = PENDING_CLAIMS.may_load(deps.storage, sender.to_string())? {
+    if let Some(pending_claim) = PENDING_CLAIMS.may_load(deps.storage, sender.clone())? {
         let new_pending_claim = pending_claim
             .checked_add(amount_of_vault_tokens_to_be_burned)
             .unwrap();
-        PENDING_CLAIMS.save(deps.storage, sender.to_string(), &new_pending_claim)?;
+        PENDING_CLAIMS.save(deps.storage, sender, &new_pending_claim)?;
     // if not, we just store a new claim
     } else {
         PENDING_CLAIMS.save(
             deps.storage,
-            sender.to_string(),
+            sender,
             &amount_of_vault_tokens_to_be_burned,
         )?;
     }
@@ -717,7 +717,7 @@ pub fn withdraw_claims(
                 .unwrap();
         });
 
-    let Some(claims) = CLAIMS.may_load(deps.storage, sender.to_string())? else {
+    let Some(claims) = CLAIMS.may_load(deps.storage, sender.clone())? else {
         return Err(AutocompounderError::NoClaims {});
     };
 
@@ -736,7 +736,7 @@ pub fn withdraw_claims(
         return Err(AutocompounderError::NoMaturedClaims {});
     }
 
-    CLAIMS.save(deps.storage, sender.to_string(), &ongoing_claims)?;
+    CLAIMS.save(deps.storage, sender, &ongoing_claims)?;
 
     // 2) sum up all matured claims
     let lp_tokens_to_withdraw: Uint128 =
@@ -781,9 +781,9 @@ fn calculate_withdrawals(
     config: &Config,
     fee_config: &FeeConfig,
     app: &AutocompounderApp,
-    pending_claims: Vec<(String, Uint128)>,
+    pending_claims: Vec<(Addr, Uint128)>,
     env: Env,
-) -> Result<(Uint128, Uint128, Vec<(String, Vec<Claim>)>), AutocompounderError> {
+) -> Result<(Uint128, Uint128, Vec<(Addr, Vec<Claim>)>), AutocompounderError> {
     let lp_token =
         AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token())
             .asset_entry();
@@ -808,7 +808,7 @@ fn calculate_withdrawals(
         config.unbonding_period,
     )?;
 
-    let mut updated_claims: Vec<(String, Vec<Claim>)> = vec![];
+    let mut updated_claims: Vec<(Addr, Vec<Claim>)> = vec![];
     for pending_claim in pending_claims {
         let user_address = pending_claim.0;
         let user_amount_of_vault_tokens_to_be_burned = pending_claim.1;
@@ -1333,7 +1333,7 @@ mod test {
             assert!(res.is_ok());
 
             let pending_claim = PENDING_CLAIMS
-                .load(deps.as_ref().storage, sender.clone())
+                .load(deps.as_ref().storage, sender_addr.clone())
                 .unwrap();
             assert_eq!(pending_claim, amount_of_vault_tokens_to_be_burned);
 
@@ -1347,7 +1347,7 @@ mod test {
             assert!(res.is_ok());
 
             let pending_claim = PENDING_CLAIMS
-                .load(deps.as_ref().storage, sender.clone())
+                .load(deps.as_ref().storage, sender_addr.clone())
                 .unwrap();
             assert_eq!(
                 pending_claim,

@@ -61,7 +61,7 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
         ..
     } = AutocompounderQueryMsgFns::config(&autocompounder)?;
 
-    let lp_balance_before_deposit = autocompounder.balance(sender.to_string())?;
+    let lp_balance_before_deposit = autocompounder.balance(sender.clone())?;
     info!("LP balance before: {}", lp_balance_before_deposit);
 
     // , AnsAsset::new("terra2>luna", 10u128)
@@ -72,7 +72,7 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
         &coins(10000, "ntrn"),
     )?;
 
-    let lp_balance_after_deposit = autocompounder.balance(sender.to_string())?;
+    let lp_balance_after_deposit = autocompounder.balance(sender)?;
     info!("LP balance after: {}", lp_balance_after_deposit);
 
     assert_that!(lp_balance_after_deposit).is_greater_than(lp_balance_before_deposit);
