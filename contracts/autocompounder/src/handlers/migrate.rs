@@ -376,14 +376,18 @@ mod test {
         )?;
 
         let migrate_msg = AutocompounderMigrateMsg {
-                version: "0.7.0".to_string(),
-            };
+            version: "0.7.0".to_string(),
+        };
 
         migrate_handler(deps.as_mut(), mock_env(), AUTOCOMPOUNDER_APP, migrate_msg)?;
 
-        let claims = PENDING_CLAIMS.load(deps.as_ref().storage, addr.clone()).unwrap();
+        let claims = PENDING_CLAIMS
+            .load(deps.as_ref().storage, addr.clone())
+            .unwrap();
         assert_that!(claims).is_equal_to(amount1);
-        let claims = PENDING_CLAIMS.load(deps.as_ref().storage, addr2.clone()).unwrap();
+        let claims = PENDING_CLAIMS
+            .load(deps.as_ref().storage, addr2.clone())
+            .unwrap();
         assert_that!(claims).is_equal_to(amount2);
         let res = PENDING_CLAIMS.may_load(deps.as_ref().storage, addr3.clone())?;
         assert_that!(res).is_none();
@@ -394,7 +398,6 @@ mod test {
         assert_that!(claims).is_equal_to(vec![claim1, claim2]);
         let res = CLAIMS.may_load(deps.as_ref().storage, addr3)?;
         assert_that!(res).is_none();
-
 
         Ok(())
     }

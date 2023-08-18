@@ -16,7 +16,7 @@ use crate::error::AutocompounderError;
 use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector, Cw20HookMsg};
 use crate::state::{
     Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
-    DEFAULT_MAX_SPREAD, FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS,
+    FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS,
 };
 use abstract_cw_staking::msg::{StakingAction, StakingExecuteMsg};
 use abstract_cw_staking::CW_STAKING;
@@ -61,9 +61,11 @@ pub fn execute_handler(
             deposit,
             fee_collector_addr,
         ),
-        AutocompounderExecuteMsg::Deposit { funds,recipient, max_spread } => {
-            deposit(deps, info, env, app, funds, recipient, max_spread)
-        }
+        AutocompounderExecuteMsg::Deposit {
+            funds,
+            recipient,
+            max_spread,
+        } => deposit(deps, info, env, app, funds, recipient, max_spread),
         AutocompounderExecuteMsg::DepositLp { lp_token, receiver } => {
             deposit_lp(deps, info, env, app, lp_token, receiver)
         }
@@ -264,10 +266,8 @@ pub fn deposit(
         funds
     };
 
-    let provide_liquidity_msg: CosmosMsg = dex.provide_liquidity(
-        funds,
-        Some(max_spread.unwrap_or_else(|| config.max_swap_spread )),
-    )?;
+    let provide_liquidity_msg: CosmosMsg =
+        dex.provide_liquidity(funds, Some(max_spread.unwrap_or(config.max_swap_spread)))?;
 
     let sub_msg = SubMsg {
         id: LP_PROVISION_REPLY_ID,
@@ -280,7 +280,11 @@ pub fn deposit(
     // save the user address to the cache for later use in reply
 
     // CACHED_FEE_AMOUNT.save(deps.storage, &current_fee_balance)?;
-    let recipient = unwrap_recipient_is_allowed(recipient, &info.sender, forbidden_deposit_addresses(deps.as_ref(), env, &app)?)?;
+    let recipient = unwrap_recipient_is_allowed(
+        recipient,
+        &info.sender,
+        forbidden_deposit_addresses(deps.as_ref(), env, &app)?,
+    )?;
     CACHED_USER_ADDR.save(deps.storage, &recipient)?;
 
     let mut response = Response::new()
@@ -293,7 +297,11 @@ pub fn deposit(
     Ok(app.custom_tag_response(response, "deposit", vec![("4t2", "/AC/Deposit")]))
 }
 
-fn unwrap_recipient_is_allowed(recipient: Option<Addr>, sender: &Addr, disallowed: Vec<Addr>) -> Result<Addr, AutocompounderError> {
+fn unwrap_recipient_is_allowed(
+    recipient: Option<Addr>,
+    sender: &Addr,
+    disallowed: Vec<Addr>,
+) -> Result<Addr, AutocompounderError> {
     if let Some(recipient) = recipient {
         if disallowed.contains(&recipient) {
             return Err(AutocompounderError::CannotSetRecipientToAccount {});
@@ -304,13 +312,12 @@ fn unwrap_recipient_is_allowed(recipient: Option<Addr>, sender: &Addr, disallowe
     }
 }
 
-fn forbidden_deposit_addresses(deps:Deps, env: Env, app: &AutocompounderApp) -> Result<Vec<Addr>, AutocompounderError> {
-    Ok( 
-        vec![
-            app.proxy_address(deps)?,
-            env.contract.address,
-        ]  
-    )
+fn forbidden_deposit_addresses(
+    deps: Deps,
+    env: Env,
+    app: &AutocompounderApp,
+) -> Result<Vec<Addr>, AutocompounderError> {
+    Ok(vec![app.proxy_address(deps)?, env.contract.address])
 }
 
 fn deposit_lp(
@@ -326,7 +333,11 @@ fn deposit_lp(
     let ans = app.name_service(deps.as_ref());
     let lp_token = ans.query(&lp_asset)?;
     let lp_asset_entry = lp_asset.name.clone();
-    let recipient = unwrap_recipient_is_allowed(recipient, &info.sender, forbidden_deposit_addresses(deps.as_ref(), env, &app)?)?;
+    let recipient = unwrap_recipient_is_allowed(
+        recipient,
+        &info.sender,
+        forbidden_deposit_addresses(deps.as_ref(), env, &app)?,
+    )?;
 
     if lp_token.info != config.liquidity_token {
         return Err(AutocompounderError::SenderIsNotLpToken {});
@@ -518,7 +529,7 @@ pub fn receive(
 /// Redeems the vault tokens for the underlying asset.
 /// This function is called by the vault token contract.
 /// It checks whether the lp staking contract has a unbonding period set or not.
-/// If not, it redeems the vault tokens for the underlying asset, swaps them and sends them to the sender. 
+/// If not, it redeems the vault tokens for the underlying asset, swaps them and sends them to the sender.
 /// If yes, it registers a pre-claim for the sender.  This will be processed in batches by calling `ExecuteMsg::BatchUnbond` .
 fn redeem(
     deps: DepsMut,
@@ -572,11 +583,7 @@ fn register_pre_claim(
         PENDING_CLAIMS.save(deps.storage, sender, &new_pending_claim)?;
     // if not, we just store a new claim
     } else {
-        PENDING_CLAIMS.save(
-            deps.storage,
-            sender,
-            &amount_of_vault_tokens_to_be_burned,
-        )?;
+        PENDING_CLAIMS.save(deps.storage, sender, &amount_of_vault_tokens_to_be_burned)?;
     }
 
     Ok(())
@@ -1361,10 +1368,9 @@ mod test {
 
         #[test]
         fn deposit_recipient() -> anyhow::Result<()> {
-
             Ok(())
         }
-        
+
         #[test]
         fn unwrap_recipient() -> anyhow::Result<()> {
             let not_allowed = vec![
@@ -1377,10 +1383,15 @@ mod test {
             let res = unwrap_recipient_is_allowed(None, &sender, not_allowed.clone())?;
             assert_that!(res).is_equal_to(sender.clone());
 
-            let res = unwrap_recipient_is_allowed(Some(sender.clone()), &sender, not_allowed.clone())?;
+            let res =
+                unwrap_recipient_is_allowed(Some(sender.clone()), &sender, not_allowed.clone())?;
             assert_that!(res).is_equal_to(sender.clone());
 
-            let res = unwrap_recipient_is_allowed(Some(not_allowed[0].clone()), &sender, not_allowed.clone());
+            let res = unwrap_recipient_is_allowed(
+                Some(not_allowed[0].clone()),
+                &sender,
+                not_allowed.clone(),
+            );
             assert_that!(res).is_err();
 
             let res = unwrap_recipient_is_allowed(Some(not_allowed[1].clone()), &sender, vec![])?;
@@ -1389,6 +1400,4 @@ mod test {
             Ok(())
         }
     }
-
-
 }

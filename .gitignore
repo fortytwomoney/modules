@@ -15,7 +15,7 @@
 # Ignore base schema folder
 /schema/
 
-.DS_Store
+**/.DS_Store
 
 # Artifacts
 /artifacts/

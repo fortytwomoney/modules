@@ -5,7 +5,7 @@ use crate::state::{
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_sdk::features::AccountIdentification;
 use abstract_sdk::AdapterInterface;
-use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128, Addr};
+use cosmwasm_std::{to_binary, Addr, Binary, Deps, Env, Order, StdResult, Uint128};
 
 use crate::msg::AutocompounderQueryMsg;
 use abstract_cw_staking::{msg::StakingQueryMsg, CW_STAKING};
@@ -155,9 +155,12 @@ pub fn query_total_lp_position(
 
 pub fn query_balance(deps: Deps, address: Addr) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
-    let vault_balance: cw20::BalanceResponse = deps
-        .querier
-        .query_wasm_smart(config.vault_token, &cw20::Cw20QueryMsg::Balance { address: address.to_string() })?;
+    let vault_balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
+        config.vault_token,
+        &cw20::Cw20QueryMsg::Balance {
+            address: address.to_string(),
+        },
+    )?;
     Ok(vault_balance.balance)
 }
 
@@ -290,25 +293,13 @@ mod test {
             let user3_claims = &vec![claim4];
 
             CLAIMS
-                .save(
-                    deps.as_mut().storage,
-                    user1.clone(),
-                    &user1_claims.clone(),
-                )
+                .save(deps.as_mut().storage, user1.clone(), &user1_claims.clone())
                 .unwrap();
             CLAIMS
-                .save(
-                    deps.as_mut().storage,
-                    user2.clone(),
-                    &user2_claims.clone(),
-                )
+                .save(deps.as_mut().storage, user2.clone(), &user2_claims.clone())
                 .unwrap();
             CLAIMS
-                .save(
-                    deps.as_mut().storage,
-                    user3.clone(),
-                    &user3_claims.clone(),
-                )
+                .save(deps.as_mut().storage, user3.clone(), &user3_claims.clone())
                 .unwrap();
 
             // Test with no pagination
