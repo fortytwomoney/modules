@@ -89,6 +89,7 @@ pub enum AutocompounderExecuteMsg {
     #[cfg_attr(feature = "interface", payable)]
     Deposit {
         funds: Vec<OfferAsset>,
+        recipient: Option<Addr>,
         max_spread: Option<Decimal>,
     },
     /// Deposit LP tokens. Requires approval for cw20 tokens

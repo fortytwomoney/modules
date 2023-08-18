@@ -61,8 +61,8 @@ pub fn execute_handler(
             deposit,
             fee_collector_addr,
         ),
-        AutocompounderExecuteMsg::Deposit { funds, max_spread } => {
-            deposit(deps, info, env, app, funds, max_spread)
+        AutocompounderExecuteMsg::Deposit { funds,recipient, max_spread } => {
+            deposit(deps, info, env, app, funds, recipient, max_spread)
         }
         AutocompounderExecuteMsg::DepositLp { lp_token, receiver } => {
             deposit_lp(deps, info, env, app, lp_token, receiver)
@@ -118,14 +118,14 @@ pub fn update_staking_config(
 /// Update the application configuration.
 pub fn update_fee_config(
     deps: DepsMut,
-    msg_info: MessageInfo,
+    info: MessageInfo,
     app: AutocompounderApp,
     fee: Option<Decimal>,
     withdrawal: Option<Decimal>,
     deposit: Option<Decimal>,
     fee_collector_addr: Option<String>,
 ) -> AutocompounderResult {
-    app.admin.assert_admin(deps.as_ref(), &msg_info.sender)?;
+    app.admin.assert_admin(deps.as_ref(), &info.sender)?;
 
     let mut config = FEE_CONFIG.load(deps.storage)?;
     let mut updates = vec![];
@@ -165,10 +165,11 @@ pub fn update_fee_config(
 // This is the function that is called when the user wants to pool AND stake their funds
 pub fn deposit(
     deps: DepsMut,
-    msg_info: MessageInfo,
-    _env: Env,
+    info: MessageInfo,
+    env: Env,
     app: AutocompounderApp,
     mut funds: Vec<AnsAsset>,
+    recipient: Option<Addr>,
     max_spread: Option<Decimal>,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
@@ -183,7 +184,7 @@ pub fn deposit(
     let mut submessages = vec![];
 
     // check if sent coins are only correct coins
-    for Coin { denom, amount: _ } in msg_info.funds.iter() {
+    for Coin { denom, amount: _ } in info.funds.iter() {
         if !resolved_pool_assets.contains(&AssetInfo::Native(denom.clone())) {
             return Err(AutocompounderError::CoinNotInPool {
                 denom: denom.clone(),
@@ -204,7 +205,7 @@ pub fn deposit(
     // deduct all the received `Coin`s from the claimed deposit, errors if not enough funds were provided
     // what's left should be the remaining cw20s
     claimed_deposits
-        .deduct_many(&msg_info.funds.clone().into())?
+        .deduct_many(&info.funds.clone().into())?
         .purge();
 
     // if there is only one asset, we need to add the other asset too, but with zero amount
@@ -213,16 +214,16 @@ pub fn deposit(
         .map(|asset| {
             // transfer cw20 tokens to the Account
             // will fail if allowance is not set or if some other assets are sent
-            Ok(asset.transfer_from_msg(&msg_info.sender, app.proxy_address(deps.as_ref())?)?)
+            Ok(asset.transfer_from_msg(&info.sender, app.proxy_address(deps.as_ref())?)?)
         })
         .collect();
     messages.append(cw_20_transfer_msgs_res?.as_mut());
 
     let mut account_msgs = AccountAction::new();
     // transfer received coins to the Account
-    if !msg_info.funds.is_empty() {
+    if !info.funds.is_empty() {
         let bank = app.bank(deps.as_ref());
-        messages.extend(bank.deposit(msg_info.funds)?);
+        messages.extend(bank.deposit(info.funds)?);
     }
 
     // deduct deposit fee
@@ -277,8 +278,10 @@ pub fn deposit(
     submessages.push(sub_msg);
 
     // save the user address to the cache for later use in reply
+
     // CACHED_FEE_AMOUNT.save(deps.storage, &current_fee_balance)?;
-    CACHED_USER_ADDR.save(deps.storage, &msg_info.sender)?;
+    let recipient = unwrap_recipient_is_allowed(recipient, &info.sender, forbidden_deposit_addresses(deps.as_ref(), env, &app)?)?;
+    CACHED_USER_ADDR.save(deps.storage, &recipient)?;
 
     let mut response = Response::new()
         .add_messages(messages)
@@ -290,20 +293,40 @@ pub fn deposit(
     Ok(app.custom_tag_response(response, "deposit", vec![("4t2", "/AC/Deposit")]))
 }
 
+fn unwrap_recipient_is_allowed(recipient: Option<Addr>, sender: &Addr, disallowed: Vec<Addr>) -> Result<Addr, AutocompounderError> {
+    if let Some(recipient) = recipient {
+        if disallowed.contains(&recipient) {
+            return Err(AutocompounderError::CannotSetRecipientToAccount {});
+        }
+        Ok(recipient)
+    } else {
+        Ok(sender.clone())
+    }
+}
+
+fn forbidden_deposit_addresses(deps:Deps, env: Env, app: &AutocompounderApp) -> Result<Vec<Addr>, AutocompounderError> {
+    Ok( 
+        vec![
+            app.proxy_address(deps)?,
+            env.contract.address,
+        ]  
+    )
+}
+
 fn deposit_lp(
     deps: DepsMut,
     info: MessageInfo,
-    _env: Env,
+    env: Env,
     app: AutocompounderApp,
     lp_asset: AnsAsset,
-    receiver: Option<Addr>,
+    recipient: Option<Addr>,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let ans = app.name_service(deps.as_ref());
     let lp_token = ans.query(&lp_asset)?;
     let lp_asset_entry = lp_asset.name.clone();
-    let receiver = receiver.unwrap_or(info.sender.clone());
+    let recipient = unwrap_recipient_is_allowed(recipient, &info.sender, forbidden_deposit_addresses(deps.as_ref(), env, &app)?)?;
 
     if lp_token.info != config.liquidity_token {
         return Err(AutocompounderError::SenderIsNotLpToken {});
@@ -312,7 +335,7 @@ fn deposit_lp(
     // let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
 
     // transfer the asset to the proxy contract
-    let transfer_msg = transfer_token(lp_token, info, &app, deps.as_ref())?;
+    let transfer_msg = transfer_token(lp_token, info.sender, &app, deps.as_ref())?;
 
     let staked_lp = query_stake(
         deps.as_ref(),
@@ -336,7 +359,7 @@ fn deposit_lp(
         return Err(AutocompounderError::ZeroMintAmount {});
     }
 
-    let mint_msg = mint_vault_tokens(&config, receiver, mint_amount)?;
+    let mint_msg = mint_vault_tokens(&config, recipient, mint_amount)?;
     let stake_msg = stake_lp_tokens(
         deps.as_ref(),
         &app,
@@ -372,15 +395,16 @@ fn deduct_fee(lp_asset: AnsAsset, fee: Decimal) -> (AnsAsset, AnsAsset) {
 
 /// Transfer lp token to the proxy contract whether it is a cw20 or native token. Returns CosmosMsg
 /// For cw20 tokens, it will call transfer_from and it needs a allowance to be set, otherwhise the execution will error.
+
 fn transfer_token(
     lp_token: Asset,
-    info: MessageInfo,
+    sender: Addr,
     app: &AutocompounderApp,
     deps: Deps,
 ) -> Result<CosmosMsg, AutocompounderError> {
     match lp_token.info.clone() {
         AssetInfoBase::Cw20(_addr) => Asset::cw20(_addr, lp_token.amount)
-            .transfer_from_msg(info.sender, app.proxy_address(deps)?)
+            .transfer_from_msg(sender, app.proxy_address(deps)?)
             .map_err(|e| e.into()),
         AssetInfoBase::Native(_denom) => Ok(app.bank(deps).deposit(vec![lp_token])?.swap_remove(0)),
         _ => Err(AutocompounderError::AssetError(
@@ -1150,6 +1174,7 @@ mod test {
         let mut deps = app_init(true);
         let msg = AutocompounderExecuteMsg::Deposit {
             funds: vec![AnsAsset::new("eur", Uint128::one())],
+            recipient: None,
             max_spread: None,
         };
 
@@ -1330,4 +1355,40 @@ mod test {
             );
         }
     }
+
+    mod deposit_recipient {
+        use super::*;
+
+        #[test]
+        fn deposit_recipient() -> anyhow::Result<()> {
+
+            Ok(())
+        }
+        
+        #[test]
+        fn unwrap_recipient() -> anyhow::Result<()> {
+            let not_allowed = vec![
+                Addr::unchecked("addr1".to_string()),
+                Addr::unchecked("addr2".to_string()),
+                Addr::unchecked("addr3".to_string()),
+            ];
+            let sender = Addr::unchecked("sender".to_string());
+
+            let res = unwrap_recipient_is_allowed(None, &sender, not_allowed.clone())?;
+            assert_that!(res).is_equal_to(sender.clone());
+
+            let res = unwrap_recipient_is_allowed(Some(sender.clone()), &sender, not_allowed.clone())?;
+            assert_that!(res).is_equal_to(sender.clone());
+
+            let res = unwrap_recipient_is_allowed(Some(not_allowed[0].clone()), &sender, not_allowed.clone());
+            assert_that!(res).is_err();
+
+            let res = unwrap_recipient_is_allowed(Some(not_allowed[1].clone()), &sender, vec![])?;
+            assert_that!(res).is_equal_to(not_allowed[1].clone());
+
+            Ok(())
+        }
+    }
+
+
 }
