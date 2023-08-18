@@ -5256,7 +5256,7 @@ dependencies = [
 [[package]]
 name = "wyndex-bundle"
 version = "0.17.1"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=abs-160/add-cw20-bundle#00dfc1e6e742ffc1ea74370df23359a91f54e68d"
+source = "git+https://github.com/AbstractSDK/abstract.git?rev=00dfc1e6e742ffc1ea74370df23359a91f54e68d#00dfc1e6e742ffc1ea74370df23359a91f54e68d"
 dependencies = [
  "abstract-core 0.17.2",
  "abstract-cw20",
