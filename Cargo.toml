@@ -38,7 +38,7 @@ abstract-dex-adapter =  { git = "https://github.com/AbstractSDK/abstract.git", t
 abstract-cw-staking =   { git = "https://github.com/AbstractSDK/abstract.git", tag= "v0.18.0", default-features = false }
 
 # Dev Abstract dependencies
-wyndex-bundle =         { git = "https://github.com/AbstractSDK/abstract.git", tag= "v0.18.0" }
+wyndex-bundle =         { git = "https://github.com/AbstractSDK/abstract.git", branch = "abs-160/add-cw20-bundle"}
 autocompounder = { path = "contracts/autocompounder" }
 fee-collector = { path = "contracts/fee-collector" }
 
