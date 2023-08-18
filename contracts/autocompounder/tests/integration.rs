@@ -447,6 +447,86 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     Ok(())
 }
 
+#[test]
+fn deposit_with_recipient() -> AResult {
+        let owner = Addr::unchecked(common::OWNER);
+    let user1: Addr = Addr::unchecked(common::USER1);
+
+    // create testing environment
+    let mock = Mock::new(&owner);
+
+    // create a vault
+    let vault = crate::create_vault(mock.clone(), EUR, USD)?;
+    let WynDex {
+        eur_token,
+        usd_token,
+        ..
+    } = vault.wyndex;
+    let vault_token = vault.vault_token;
+    let eur_asset = AssetEntry::new("eur");
+    let usd_asset = AssetEntry::new("usd");
+
+    // check config setup
+    let position = vault.auto_compounder.total_lp_position()?;
+    assert_that!(position).is_equal_to(Uint128::zero());
+
+    // give user some funds
+    mock.set_balances(&[
+        (
+            &owner,
+            &[
+                coin(100_000u128, eur_token.to_string()),
+                coin(100_000u128, usd_token.to_string()),
+            ],
+        ),
+    ])?;
+
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(eur_asset.clone(), 10000u128),
+            AnsAsset::new(usd_asset.clone(), 10000u128),
+        ],
+        None,
+        Some(user1.clone()),
+        &[coin(10_000u128, EUR), coin(10_000u128, USD)],
+    )?;
+
+    let position = vault.auto_compounder.total_lp_position()?;
+    assert_that!(position).is_equal_to(Uint128::from(10_000u128));
+
+    let balance_user1 = vault_token.balance(user1.to_string())?;
+    assert_that!(balance_user1.balance.u128()).is_equal_to(10_000u128 * 10u128.pow(DECIMAL_OFFSET));
+
+    // deposit with disallowed recipient
+    let err = vault
+        .auto_compounder
+        .deposit(
+            vec![
+                AnsAsset::new(eur_asset.clone(), 10000u128),
+                AnsAsset::new(usd_asset.clone(), 10000u128),
+            ],
+            None,
+            Some(vault.auto_compounder.address()?),
+            &[coin(10_000u128, EUR), coin(10_000u128, USD)],
+        )
+        .unwrap_err();
+    let expected_err = AutocompounderError::CannotSetRecipientToAccount {};
+    // assert_that!(err).is_equal_to(expected_err);
+
+    let err = vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(eur_asset.clone(), 10000u128),
+            AnsAsset::new(usd_asset.clone(), 10000u128),
+        ],
+        None,
+        Some(vault.account.proxy.address()?),
+        &[coin(10_000u128, EUR), coin(10_000u128, USD)],
+    ).unwrap_err();
+    // assert_that!(err.to_string()).is_equal_to(AutocompounderError::CannotSetRecipientToAccount {  }.to_string());
+
+    Ok(())
+}
+
 /// This test covers:
 /// - depositing with 2 assets
 /// - depositing and withdrawing with a single sided asset
