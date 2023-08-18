@@ -1,4 +1,4 @@
-use crate::contract::{AutocompounderApp, AutocompounderResult};
+use crate::contract::{AutocompounderApp, AutocompounderResult, MODULE_VERSION};
 use crate::error::AutocompounderError;
 use crate::msg::AutocompounderMigrateMsg;
 use crate::state::{Claim, Config, CLAIMS, CONFIG, PENDING_CLAIMS};
@@ -9,7 +9,7 @@ use cw_asset::AssetInfo;
 use cw_storage_plus::Map;
 use cw_utils::Duration;
 
-pub const CURRENT_VERSION: &str = "0.7.1";
+pub const CURRENT_VERSION: &str = MODULE_VERSION;
 /// Unused for now but provided here as an example
 /// Contract version is migrated automatically
 pub fn migrate_handler(
@@ -33,7 +33,7 @@ pub fn migrate_handler(
             Ok(Response::default()
                 .add_attribute("migration", format!("v0.6.0 -> ${}", CURRENT_VERSION)))
         }
-        "0.7.0" => {
+        "0.7.0" | "0.7.1" => {
             migrate_from_v0_7_claims(&mut deps)?;
             migrate_from_v0_7_pending_claims(&mut deps)?;
             Ok(Response::default()
@@ -297,12 +297,7 @@ mod test {
         V0_7_CLAIMS.save(
             deps.as_mut().storage,
             addr2.to_string(),
-            &vec![claim1.clone()],
-        )?;
-        V0_7_CLAIMS.save(
-            deps.as_mut().storage,
-            addr2.to_string(),
-            &vec![claim2.clone()],
+            &vec![claim1.clone(), claim2.clone()],
         )?;
 
         let _resp = migrate_from_v0_7_claims(&mut deps.as_mut()).unwrap();

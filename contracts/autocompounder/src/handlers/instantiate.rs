@@ -2,7 +2,7 @@ use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER};
-use crate::state::{Config, CONFIG, FEE_CONFIG};
+use crate::state::{Config, CONFIG, FEE_CONFIG, DEFAULT_MAX_SPREAD};
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_cw_staking::{
     msg::{StakingInfoResponse, StakingQueryMsg},
@@ -102,7 +102,7 @@ pub fn instantiate_handler(
     let resolved_pool_assets = ans.query(&pool_data.assets)?;
 
     // default max swap spread
-    let max_swap_spread = max_swap_spread.unwrap_or_else(|| Decimal::percent(20));
+    let max_swap_spread = max_swap_spread.unwrap_or_else(|| Decimal::percent(DEFAULT_MAX_SPREAD.into()));
 
     let config: Config = Config {
         vault_token: Addr::unchecked(""),

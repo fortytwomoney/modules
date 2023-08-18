@@ -266,7 +266,7 @@ pub fn deposit(
 
     let provide_liquidity_msg: CosmosMsg = dex.provide_liquidity(
         funds,
-        Some(max_spread.unwrap_or_else(|| Decimal::percent(DEFAULT_MAX_SPREAD.into()))),
+        Some(max_spread.unwrap_or_else(|| config.max_swap_spread )),
     )?;
 
     let sub_msg = SubMsg {

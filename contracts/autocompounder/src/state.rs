@@ -19,4 +19,5 @@ pub const FEE_CONFIG: Item<FeeConfig> = Item::new("fee_config");
 pub const DEFAULT_BATCH_SIZE: u32 = 100;
 pub const MAX_BATCH_SIZE: u32 = 1000;
 pub const DECIMAL_OFFSET: u32 = 1;
-pub const DEFAULT_MAX_SPREAD: u32 = 5;
+/// Default max spread for the vault in percentage
+pub const DEFAULT_MAX_SPREAD: u32 = 20;
