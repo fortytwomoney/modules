@@ -68,6 +68,7 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
     autocompounder.deposit(
         vec![AnsAsset::new("neutron>ntrn", 100000u128)],
         None,
+        None,
         &coins(10000, "ntrn"),
     )?;
 

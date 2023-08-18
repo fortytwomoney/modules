@@ -249,6 +249,7 @@ fn deposit_cw20_asset() -> AResult {
             AnsAsset::new(raw2_asset.clone(), amount),
             ],
             None,
+            None,
             &vec![]
         )?;
         
@@ -265,6 +266,7 @@ fn deposit_cw20_asset() -> AResult {
         raw_token.call_as(&user1).increase_allowance(1000u128.into(), _ac_addres.to_string(), None)?;
     vault.auto_compounder.call_as(&user1).deposit(
         vec![AnsAsset::new(raw_asset, 1000u128)],
+        None,
         None,
         &vec![]
     )?;
@@ -346,6 +348,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
             AnsAsset::new(eur_asset, 10_000u128),
             AnsAsset::new(usd_asset, 10_000u128),
         ],
+        None,
         None,
         &[coin(10_000u128, EUR), coin(10_000u128, USD)],
     )?;
@@ -506,6 +509,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
             AnsAsset::new(usd_asset.clone(), 10000u128),
         ],
         None,
+        None,
         &[coin(10_000u128, EUR), coin(10_000u128, USD)],
     )?;
 
@@ -519,6 +523,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     vault.auto_compounder.set_sender(&user1);
     vault.auto_compounder.deposit(
         vec![AnsAsset::new(eur_asset, 1000u128)],
+        None,
         None,
         &[coin(1000u128, EUR)],
     )?;
@@ -536,6 +541,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
 
     vault.auto_compounder.deposit(
         vec![AnsAsset::new(usd_asset, 1000u128)],
+        None,
         None,
         &[coin(1000u128, USD)],
     )?;
@@ -769,6 +775,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
             AnsAsset::new(usd_asset, 100_000u128),
         ],
         None,
+        None,
         &[coin(100_000u128, EUR), coin(100_000u128, USD)],
     )?;
 
@@ -873,6 +880,7 @@ fn test_deposit_fees_fee_token_and_withdraw_fees() -> AResult {
     vault.auto_compounder.deposit(
         vec![AnsAsset::new(eur_asset, 1_000u128)],
         Some(Decimal::percent(50)),
+        None,
         &[coin(1_000u128, EUR)],
     )?;
 
@@ -950,6 +958,7 @@ fn test_deposit_fees_non_fee_token() -> AResult {
     vault.auto_compounder.deposit(
         vec![AnsAsset::new(usd_asset, 1_000u128)],
         Some(Decimal::percent(50)),
+        None,
         &[coin(1_000u128, USD)],
     )?;
 
@@ -1037,6 +1046,7 @@ fn test_zero_performance_fees() -> AResult {
             AnsAsset::new(usd_asset, 100_000u128),
         ],
         None,
+        None,
         &[coin(100_000u128, EUR), coin(100_000u128, USD)],
     )?;
 
@@ -1087,6 +1097,7 @@ fn test_owned_funds_stay_in_vault() -> AResult {
             AnsAsset::new(eur_asset, 100_000u128),
             AnsAsset::new(usd_asset, 100_000u128),
         ],
+        None,
         None,
         &[coin(100_000u128, EUR), coin(100_000u128, USD)],
     )?;
@@ -1164,6 +1175,7 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
             AnsAsset::new(AssetEntry::new("usd"), 100_000u128),
         ],
         None,
+        None,
         &[coin(100_000u128, EUR), coin(100_000u128, USD)],
     )?;
 
@@ -1184,6 +1196,7 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
                 AnsAsset::new(AssetEntry::new("usd"), 10u128),
             ],
             None,
+        None,
             &[coin(10u128, EUR), coin(10u128, USD)],
         )?;
     }
