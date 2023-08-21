@@ -18,9 +18,10 @@ use cosmwasm_std::{
     to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError,
     StdResult, SubMsg, WasmMsg,
 };
-use cw20::MinterResponse;
-use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
+use cw_asset::AssetInfo;
 use cw_utils::Duration;
+
+use super::helpers::create_lp_token_submsg;
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
@@ -106,7 +107,7 @@ pub fn instantiate_handler(
         max_swap_spread.unwrap_or_else(|| Decimal::percent(DEFAULT_MAX_SPREAD.into()));
 
     let config: Config = Config {
-        vault_token: Addr::unchecked(""),
+        vault_token: AssetInfo::cw20(Addr::unchecked("")),
         staking_target: staking_info.staking_target,
         liquidity_token: lp_token_info,
         pool_data,
@@ -144,35 +145,6 @@ pub fn instantiate_handler(
         .add_attribute("contract", AUTOCOMPOUNDER))
 }
 
-/// create a SubMsg to instantiate the Vault token.
-fn create_lp_token_submsg(
-    minter: String,
-    name: String,
-    symbol: String,
-    code_id: u64,
-) -> Result<SubMsg, StdError> {
-    let msg = TokenInstantiateMsg {
-        name,
-        symbol,
-        decimals: 6,
-        initial_balances: vec![],
-        mint: Some(MinterResponse { minter, cap: None }),
-        marketing: None,
-    };
-    Ok(SubMsg {
-        msg: WasmMsg::Instantiate {
-            admin: None,
-            code_id,
-            msg: to_binary(&msg)?,
-            funds: vec![],
-            label: "4T2 Vault Token".to_string(),
-        }
-        .into(),
-        gas_limit: None,
-        id: INSTANTIATE_REPLY_ID,
-        reply_on: ReplyOn::Success,
-    })
-}
 
 pub fn query_staking_info(
     deps: Deps,
@@ -261,6 +233,8 @@ mod test {
         testing::{mock_dependencies, mock_env, mock_info},
         Addr, Decimal,
     };
+    use cw20::MinterResponse;
+use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
     use cw_asset::AssetInfo;
     use speculoos::{assert_that, result::ResultAssertions};
 

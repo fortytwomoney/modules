@@ -198,7 +198,7 @@ pub struct Config {
     /// Address of the LP token contract
     pub liquidity_token: AssetInfoBase<Addr>,
     /// Vault token
-    pub vault_token: Addr,
+    pub vault_token: AssetInfoBase<Addr>,
     /// Pool bonding period
     pub unbonding_period: Option<Duration>,
     /// minimum unbonding cooldown

@@ -1,6 +1,6 @@
 use super::helpers::{
-    convert_to_shares, cw20_total_supply, mint_vault_tokens, query_stake, stake_lp_tokens,
-    swap_rewards_with_reply,
+    convert_to_shares, vault_token_total_supply, mint_vault_tokens_msg, query_stake, stake_lp_tokens,
+    swap_rewards_with_reply, 
 };
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, SWAPPED_REPLY_ID,
@@ -47,7 +47,7 @@ pub fn instantiate_reply(
     let vault_token_addr = res.get_contract_address();
 
     CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
-        config.vault_token = Addr::unchecked(vault_token_addr);
+        config.vault_token = AssetInfo::Cw20(Addr::unchecked(vault_token_addr));
         Ok(config)
     })?;
 
@@ -72,7 +72,7 @@ pub fn lp_provision_reply(
     CACHED_USER_ADDR.remove(deps.storage);
 
     // get the total supply of Vault token
-    let current_vault_supply = cw20_total_supply(deps.as_ref(), &config)?;
+    let current_vault_supply = vault_token_total_supply(deps.as_ref(), &config)?;
 
     // Retrieve the number of LP tokens minted/staked.
     let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
@@ -99,7 +99,7 @@ pub fn lp_provision_reply(
     }
 
     // Mint vault tokens to the user
-    let mint_msg = mint_vault_tokens(&config, user_address, mint_amount)?;
+    let mint_msg = mint_vault_tokens_msg(&config, user_address, mint_amount)?;
 
     // Stake the LP tokens
     let stake_msg = stake_lp_tokens(

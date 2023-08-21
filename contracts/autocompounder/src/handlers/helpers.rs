@@ -1,3 +1,4 @@
+use crate::contract::INSTANTIATE_REPLY_ID;
 use crate::msg::Config;
 use crate::state::DECIMAL_OFFSET;
 use crate::{
@@ -10,11 +11,119 @@ use abstract_dex_adapter::api::Dex;
 use abstract_sdk::AdapterInterface;
 use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
 use abstract_sdk::{AbstractSdkResult, Execution, TransferInterface};
-use cosmwasm_std::{wasm_execute, Addr, CosmosMsg, Decimal, Deps, SubMsg, Uint128};
+use cosmwasm_std::{
+    to_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, ReplyOn, StdError, SubMsg, Uint128,
+    WasmMsg, StdResult,
+};
+use cw20::MinterResponse;
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw20_base::msg::ExecuteMsg::Mint;
-
+use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
+use cw20_base::state::TokenInfo;
+use cw_asset::AssetInfo;
 use cw_utils::Duration;
+
+// ------------------------------------------------------------
+// Helper functions for vault tokens
+// ------------------------------------------------------------
+
+/// create a SubMsg to instantiate the Vault token.
+pub fn create_lp_token_submsg(
+    minter: String,
+    name: String,
+    symbol: String,
+    code_id: u64,
+) -> Result<SubMsg, StdError> {
+    if cfg!(feature = "kujira") {
+        todo!()
+    } else {
+        let msg = TokenInstantiateMsg {
+            name,
+            symbol,
+            decimals: 6,
+            initial_balances: vec![],
+            mint: Some(MinterResponse { minter, cap: None }),
+            marketing: None,
+        };
+        Ok(SubMsg {
+            msg: WasmMsg::Instantiate {
+                admin: None,
+                code_id,
+                msg: to_binary(&msg)?,
+                funds: vec![],
+                label: "4T2 Vault Token".to_string(),
+            }
+            .into(),
+            gas_limit: None,
+            id: INSTANTIATE_REPLY_ID,
+            reply_on: ReplyOn::Success,
+        })
+    }
+}
+
+pub fn vault_token_total_supply(deps: Deps, config: &Config) -> AutocompounderResult<Uint128> {
+    if cfg!(feature = "kujira") {
+        todo!()
+    } else {
+        let AssetInfo::Cw20(token_addr) = &config.vault_token else {
+            return Err(AutocompounderError::Std(StdError::generic_err(
+                "Vault token is not a cw20 token",
+            )));};
+
+        let TokenInfoResponse {
+            total_supply: vault_tokens_total_supply,
+            ..
+        } = deps
+            .querier
+            .query_wasm_smart(token_addr, &Cw20QueryMsg::TokenInfo {})?;
+        Ok(vault_tokens_total_supply)
+    }
+}
+
+pub fn vault_token_balance(
+    deps: Deps,
+    config: &Config,
+    addr: Addr,
+) -> AutocompounderResult<Uint128> {
+    config.vault_token.query_balance(&deps.querier, addr)
+        .map_err(|err| AutocompounderError::Std(StdError::generic_err(err.to_string()) ))
+
+}
+
+pub fn mint_vault_tokens_msg(
+    config: &Config,
+    user_address: Addr,
+    mint_amount: Uint128,
+) -> Result<CosmosMsg, AutocompounderError> {
+    if cfg!(feature = "kujira") {
+        todo!()
+    } else {
+        let mint_msg = wasm_execute(
+            config.vault_token.to_string(),
+            &Mint {
+                recipient: user_address.to_string(),
+                amount: mint_amount,
+            },
+            vec![],
+        )?
+        .into();
+        Ok(mint_msg)
+    }
+}
+
+/// Creates the message to burn tokens from contract
+pub fn burn_vault_tokens_msg(config: &Config, amount: Uint128) -> StdResult<CosmosMsg> {
+    if cfg!(feature = "kujira") {
+        todo!()
+    } else {
+        let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
+        Ok(wasm_execute(config.vault_token.to_string(), &msg, vec![])?.into())
+    }
+}
+
+// ------------------------------------------------------------
+// Other helper functions
+// ------------------------------------------------------------
 
 /// queries staking module for the number of staked assets of the app
 pub fn query_stake(
@@ -34,40 +143,6 @@ pub fn query_stake(
     };
     let res: StakeResponse = adapters.query(CW_STAKING, query)?;
     Ok(res.amount)
-}
-
-pub fn cw20_total_supply(deps: Deps, config: &Config) -> AutocompounderResult<Uint128> {
-    let TokenInfoResponse {
-        total_supply: vault_tokens_total_supply,
-        ..
-    } = deps
-        .querier
-        .query_wasm_smart(config.vault_token.clone(), &Cw20QueryMsg::TokenInfo {})?;
-    Ok(vault_tokens_total_supply)
-}
-
-pub fn check_fee(fee: Decimal) -> Result<(), AutocompounderError> {
-    if fee > Decimal::percent(99) {
-        return Err(AutocompounderError::InvalidFee {});
-    }
-    Ok(())
-}
-
-pub fn mint_vault_tokens(
-    config: &Config,
-    user_address: Addr,
-    mint_amount: Uint128,
-) -> Result<CosmosMsg, AutocompounderError> {
-    let mint_msg = wasm_execute(
-        config.vault_token.to_string(),
-        &Mint {
-            recipient: user_address.to_string(),
-            amount: mint_amount,
-        },
-        vec![],
-    )?
-    .into();
-    Ok(mint_msg)
 }
 
 pub fn stake_lp_tokens(
@@ -107,6 +182,12 @@ pub fn convert_to_shares(assets: Uint128, total_assets: Uint128, total_supply: U
     )
 }
 
+pub fn check_fee(fee: Decimal) -> Result<(), AutocompounderError> {
+    if fee > Decimal::percent(99) {
+        return Err(AutocompounderError::InvalidFee {});
+    }
+    Ok(())
+}
 /// swaps all rewards that are not in the target assets and add a reply id to the latest swapmsg
 pub fn swap_rewards_with_reply(
     rewards: Vec<AnsAsset>,
@@ -172,7 +253,7 @@ pub mod test_helpers {
             ),
             pool_assets: vec![],
             liquidity_token: AssetInfoBase::Cw20(Addr::unchecked("eur_usd_lp")),
-            vault_token: Addr::unchecked("test_vault_token"),
+            vault_token: AssetInfoBase::Cw20( Addr::unchecked("test_vault_token")),
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown,
             max_swap_spread: Decimal::percent(50),

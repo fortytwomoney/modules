@@ -13,6 +13,7 @@ use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 
 use super::convert_to_assets;
+use super::helpers::{vault_token_total_supply, vault_token_balance};
 
 const DEFAULT_PAGE_SIZE: u8 = 5;
 const MAX_PAGE_SIZE: u8 = 20;
@@ -155,21 +156,12 @@ pub fn query_total_lp_position(
 
 pub fn query_balance(deps: Deps, address: Addr) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
-    let vault_balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
-        config.vault_token,
-        &cw20::Cw20QueryMsg::Balance {
-            address: address.to_string(),
-        },
-    )?;
-    Ok(vault_balance.balance)
+    vault_token_balance(deps, &config, address)
 }
 
 pub fn query_total_supply(deps: Deps) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
-    let token_info: cw20::TokenInfoResponse = deps
-        .querier
-        .query_wasm_smart(config.vault_token, &cw20::Cw20QueryMsg::TokenInfo {})?;
-    Ok(token_info.total_supply)
+    vault_token_total_supply(deps, &config)
 }
 
 pub fn query_assets_per_shares(
@@ -350,6 +342,8 @@ mod test {
     }
 
     mod vault_token {
+        use cw_asset::AssetInfo;
+
         use crate::test_common::TEST_VAULT_TOKEN;
 
         use super::*;
@@ -406,7 +400,7 @@ mod test {
             let assets_per_share =
                 convert_to_assets(1000u128.into(), 100u128.into(), 1000u128.into());
             let mut config = default_config();
-            config.vault_token = Addr::unchecked(TEST_VAULT_TOKEN);
+            config.vault_token = AssetInfo::cw20(Addr::unchecked(TEST_VAULT_TOKEN));
             CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
             let result =

@@ -23,16 +23,8 @@ backtraces = ["cosmwasm-std/backtraces"]
 export = []
 default = ["export"]
 schema = ["abstract-app/schema"]
-interface = [
-  "export",
-  "dep:abstract-interface",
-  "dep:cw-orch",
-  "dep:anyhow",
-  "abstract-dex-adapter/interface",
-  "abstract-cw-staking/interface",
-  "cw20/interface",
-  "cw20-base/interface"
-]
+interface = ["export", "dep:abstract-interface", "dep:cw-orch", "dep:anyhow", "abstract-dex-adapter/interface", "abstract-cw-staking/interface", "cw20/interface", "cw20-base/interface"]
+kujira = ["dep:kujira"]
 
 [dependencies]
 cosmwasm-std = { workspace = true }
@@ -48,6 +40,7 @@ cw20-base = { workspace = true, features = ["library"] }
 schemars = "0.8.1"
 serde = { workspace = true }
 thiserror = { version = "1.0.21" }
+kujira = { version = "0.8.2", optional = true }
 
 abstract-app = { workspace=true }
 abstract-sdk = { workspace=true }
@@ -58,6 +51,7 @@ abstract-interface = { workspace = true, optional = true }
 cw-orch = { workspace = true, optional = true }
 abstract-core = { workspace = true }
 anyhow = { workspace = true, optional = true }
+cfg-if = "1.0.0"
 
 [dev-dependencies]
 wyndex-bundle = { workspace=true }

@@ -1,7 +1,7 @@
 use super::convert_to_shares;
 use super::helpers::{
-    check_fee, convert_to_assets, cw20_total_supply, mint_vault_tokens, query_stake,
-    stake_lp_tokens, transfer_to_msgs,
+    check_fee, convert_to_assets, vault_token_total_supply, query_stake,
+    stake_lp_tokens, transfer_to_msgs, mint_vault_tokens_msg, burn_vault_tokens_msg,
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
@@ -364,13 +364,13 @@ fn deposit_lp(
         fee_config.fee_collector_addr,
     )?;
 
-    let current_vault_supply = cw20_total_supply(deps.as_ref(), &config)?;
+    let current_vault_supply = vault_token_total_supply(deps.as_ref(), &config)?;
     let mint_amount = convert_to_shares(lp_asset.amount, staked_lp, current_vault_supply);
     if mint_amount.is_zero() {
         return Err(AutocompounderError::ZeroMintAmount {});
     }
 
-    let mint_msg = mint_vault_tokens(&config, recipient, mint_amount)?;
+    let mint_msg = mint_vault_tokens_msg(&config, recipient, mint_amount)?;
     let stake_msg = stake_lp_tokens(
         deps.as_ref(),
         &app,
@@ -498,12 +498,12 @@ pub fn batch_unbond(
         deps.as_ref(),
         &app,
         config.pool_data.dex.clone(),
-        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data).lp_token()).asset_entry(),
+        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token()).asset_entry(),
         total_lp_amount_to_unbond,
         config.unbonding_period,
     );
 
-    let burn_msg = get_burn_msg(&config.vault_token, total_vault_tokens_to_burn)?;
+    let burn_msg = burn_vault_tokens_msg(&config, total_vault_tokens_to_burn)?;
 
     let response = Response::new().add_messages(vec![unstake_msg, burn_msg]);
     Ok(app.custom_tag_response(response, "batch_unbond", vec![("4t2", "AC/UnbondBatch")]))
@@ -544,7 +544,10 @@ fn redeem(
 
     // check if the cw20 sender is the vault token
     let config = CONFIG.load(deps.storage)?;
-    if cw20_sender != config.vault_token {
+    let AssetInfo::Cw20(token_addr) = config.vault_token.clone() else {
+        return Err(AutocompounderError::SenderIsNotVaultToken {  });
+    };
+    if cw20_sender != token_addr {
         return Err(AutocompounderError::SenderIsNotVaultToken {});
     }
 
@@ -611,7 +614,7 @@ fn redeem_without_bonding_period(
     })?;
 
     // 1) get the total supply of Vault token
-    let total_supply_vault = cw20_total_supply(deps.as_ref(), &config)?;
+    let total_supply_vault = vault_token_total_supply(deps.as_ref(), &config)?;
     let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
 
     // 2) get total staked lp token
@@ -643,7 +646,7 @@ fn redeem_without_bonding_period(
         lp_tokens_withdraw_amount,
         None,
     );
-    let burn_msg = get_burn_msg(&config.vault_token, amount_of_vault_tokens_to_be_burned)?;
+    let burn_msg = burn_vault_tokens_msg(&config, amount_of_vault_tokens_to_be_burned)?;
 
     // 3) withdraw lp tokens
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
@@ -804,7 +807,7 @@ fn calculate_withdrawals(
     let mut total_vault_tokens_to_burn = Uint128::from(0u128);
 
     // 1) get the total supply of Vault token
-    let vault_tokens_total_supply = cw20_total_supply(deps, config)?;
+    let vault_tokens_total_supply = vault_token_total_supply(deps, config)?;
 
     // 2) get total staked lp token
     let total_lp_tokens_staked_in_vault = query_stake(
@@ -923,12 +926,7 @@ fn claim_unbonded_tokens(
         .unwrap()
 }
 
-/// Creates the message to burn tokens from contract
-fn get_burn_msg(contract: &Addr, amount: Uint128) -> StdResult<CosmosMsg> {
-    let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
 
-    Ok(wasm_execute(contract.to_string(), &msg, vec![])?.into())
-}
 
 /// Creates the the message to unstake lp tokens from the staking api
 fn unstake_lp_tokens(
