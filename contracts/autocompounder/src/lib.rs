@@ -8,6 +8,7 @@ pub mod state;
 
 #[cfg(feature = "interface")]
 pub mod interface;
+pub mod kujira_tx;
 
 #[cfg(test)]
 mod test_common {

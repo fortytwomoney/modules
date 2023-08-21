@@ -1,4 +1,5 @@
 use crate::contract::INSTANTIATE_REPLY_ID;
+use crate::kujira_tx::encode_msg_mint;
 use crate::msg::Config;
 use crate::state::DECIMAL_OFFSET;
 use crate::{
@@ -13,7 +14,7 @@ use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
 use abstract_sdk::{AbstractSdkResult, Execution, TransferInterface};
 use cosmwasm_std::{
     to_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, ReplyOn, StdError, StdResult, SubMsg,
-    Uint128, WasmMsg,
+    Uint128, WasmMsg, Empty,
 };
 use cw20::MinterResponse;
 use crate::state::VAULT_TOKEN_SYMBOL;
@@ -24,10 +25,10 @@ use cw20_base::state::TokenInfo;
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
-#[cfg(feature = "kujira")]
-use kujira::msg::{DenomMsg, KujiraMsg};
+// #[cfg(feature = "kujira")]
+use kujira::{KujiraMsg,DenomMsg, Denom};
 
-https://rust-analyzer.github.io/manual.html#inactive-code// ------------------------------------------------------------
+// ------------------------------------------------------------
 // Helper functions for vault tokens
 // ------------------------------------------------------------
 
@@ -41,10 +42,18 @@ pub fn create_lp_token_submsg(
     if cfg!(feature = "kujira") {
         let denom = format!("factory/{minter}/{symbol}");
         let msg = DenomMsg::Create {
-            subdenozm: denom.clone(),
+            subdenom: denom.into(),
+        };
+
+        let cosmos_msg = CosmosMsg::Stargate { type_url: "/kujira.denom.".to_string(), value: to_binary(&msg)? };
+        let sub_msg = SubMsg {
+            msg: cosmos_msg,
+            gas_limit: None,
+            id: 0,
+            reply_on: ReplyOn::Never, // this is like sending a normal message
         };
         
-        Ok(CosmosMsg::Custom(msg))
+        Ok(sub_msg)
     } else {
         let msg = TokenInstantiateMsg {
             name,
@@ -72,6 +81,7 @@ pub fn create_lp_token_submsg(
 
 pub fn vault_token_total_supply(deps: Deps, config: &Config) -> AutocompounderResult<Uint128> {
     if cfg!(feature = "kujira") {
+        // raw query using protobuf msg
 
 
         todo!()
@@ -106,16 +116,18 @@ pub fn mint_vault_tokens_msg(
     config: &Config,
     minter: &Addr,
     recipient: Addr,
-    mint_amount: Uint128,
+    amount: Uint128,
 ) -> Result<CosmosMsg, AutocompounderError> {
     if cfg!(feature = "kujira") {
         let minter = minter.to_string();
-        let msg = CosmosMsg::Custom(KujiraMsg::Denom(DenomMsg::Mint {
-            subdenom: format!("factory/{minter}/{VAULT_TOKEN_SYMBOL}"),
-            amount: mint_amount,
-            recipient: recipient.to_string(),
-        }));
-        todo!()
+        let AssetInfo::Native(denom) = &config.vault_token else {
+            return Err(AutocompounderError::Std(StdError::generic_err(
+                "Vault token is not a native token",
+            )));};
+
+        let proto_msg = encode_msg_mint(&minter, &denom, amount);
+        let msg = CosmosMsg::Stargate { type_url: "/kujira.denom.".to_string(), value: to_binary(&proto_msg)? };
+        Ok(msg)
     } else {
         let AssetInfo::Cw20(token_addr) = &config.vault_token else {
             return Err(AutocompounderError::Std(StdError::generic_err(
@@ -125,7 +137,7 @@ pub fn mint_vault_tokens_msg(
             token_addr.to_string(),
             &Mint {
                 recipient: recipient.to_string(),
-                amount: mint_amount,
+                amount,
             },
             vec![],
         )?
@@ -135,9 +147,17 @@ pub fn mint_vault_tokens_msg(
 }
 
 /// Creates the message to burn tokens from contract
-pub fn burn_vault_tokens_msg(config: &Config, amount: Uint128) -> AutocompounderResult<CosmosMsg> {
+pub fn burn_vault_tokens_msg(config: &Config, minter: &Addr, amount: Uint128) -> AutocompounderResult<CosmosMsg> {
     if cfg!(feature = "kujira") {
-        todo!()
+        let minter = minter.to_string();
+        let AssetInfo::Native(denom) = &config.vault_token else {
+            return Err(AutocompounderError::Std(StdError::generic_err(
+                "Vault token is not a native token",
+            )));};
+
+        let proto_msg = encode_msg_mint(&minter, &denom, amount);
+        let msg = CosmosMsg::Stargate { type_url: "/kujira.denom.".to_string(), value: to_binary(&proto_msg)? };
+        Ok(msg)
     } else {
         let AssetInfo::Cw20(token_addr) = &config.vault_token else {
             return Err(AutocompounderError::Std(StdError::generic_err(

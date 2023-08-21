@@ -283,7 +283,7 @@ pub fn deposit(
     let recipient = unwrap_recipient_is_allowed(
         recipient,
         &info.sender,
-        forbidden_deposit_addresses(deps.as_ref(), env, &app)?,
+        forbidden_deposit_addresses(deps.as_ref(), &env, &app)?,
     )?;
     CACHED_USER_ADDR.save(deps.storage, &recipient)?;
 
@@ -314,10 +314,10 @@ fn unwrap_recipient_is_allowed(
 
 fn forbidden_deposit_addresses(
     deps: Deps,
-    env: Env,
+    env: &Env,
     app: &AutocompounderApp,
 ) -> Result<Vec<Addr>, AutocompounderError> {
-    Ok(vec![app.proxy_address(deps)?, env.contract.address])
+    Ok(vec![app.proxy_address(deps)?, env.contract.address.clone()])
 }
 
 fn deposit_lp(
@@ -336,7 +336,7 @@ fn deposit_lp(
     let recipient = unwrap_recipient_is_allowed(
         recipient,
         &info.sender,
-        forbidden_deposit_addresses(deps.as_ref(), env, &app)?,
+        forbidden_deposit_addresses(deps.as_ref(), &env, &app)?,
     )?;
 
     if lp_token.info != config.liquidity_token {
@@ -480,7 +480,7 @@ pub fn batch_unbond(
             &fee_config,
             &app,
             pending_claims.clone(),
-            env,
+            &env,
         )?;
 
     // clear pending claims
@@ -503,7 +503,7 @@ pub fn batch_unbond(
         config.unbonding_period,
     );
 
-    let burn_msg = burn_vault_tokens_msg(&config, total_vault_tokens_to_burn)?;
+    let burn_msg = burn_vault_tokens_msg(&config, &env.contract.address, total_vault_tokens_to_burn)?;
 
     let response = Response::new().add_messages(vec![unstake_msg, burn_msg]);
     Ok(app.custom_tag_response(response, "batch_unbond", vec![("4t2", "AC/UnbondBatch")]))
@@ -533,7 +533,7 @@ pub fn receive(
 /// If yes, it registers a pre-claim for the sender.  This will be processed in batches by calling `ExecuteMsg::BatchUnbond` .
 fn redeem(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     app: AutocompounderApp,
     cw20_sender: Addr,
     sender: String,
@@ -554,6 +554,7 @@ fn redeem(
     if config.unbonding_period.is_none() {
         redeem_without_bonding_period(
             deps,
+            &env,
             &sender,
             config,
             &app,
@@ -596,6 +597,7 @@ fn register_pre_claim(
 /// This will unstake the lp tokens, burn the vault tokens, withdraw the underlying assets and send them to the user
 fn redeem_without_bonding_period(
     deps: DepsMut,
+    env: &Env,
     sender: &Addr,
     config: Config,
     app: &AutocompounderApp,
@@ -646,7 +648,7 @@ fn redeem_without_bonding_period(
         lp_tokens_withdraw_amount,
         None,
     );
-    let burn_msg = burn_vault_tokens_msg(&config, amount_of_vault_tokens_to_be_burned)?;
+    let burn_msg = burn_vault_tokens_msg(&config, &env.contract.address, amount_of_vault_tokens_to_be_burned)?;
 
     // 3) withdraw lp tokens
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
@@ -792,7 +794,7 @@ fn calculate_withdrawals(
     fee_config: &FeeConfig,
     app: &AutocompounderApp,
     pending_claims: Vec<(Addr, Uint128)>,
-    env: Env,
+    env: &Env,
 ) -> Result<(Uint128, Uint128, Vec<(Addr, Vec<Claim>)>), AutocompounderError> {
     let lp_token =
         AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token())
@@ -1014,6 +1016,7 @@ mod test {
 
         let response = redeem_without_bonding_period(
             deps.as_mut(),
+        &mock_env(),
             &sender,
             config.clone(),
             &AUTOCOMPOUNDER_APP,
