@@ -89,6 +89,7 @@ pub enum AutocompounderExecuteMsg {
     #[cfg_attr(feature = "interface", payable)]
     Deposit {
         funds: Vec<OfferAsset>,
+        recipient: Option<Addr>,
         max_spread: Option<Decimal>,
     },
     /// Deposit LP tokens. Requires approval for cw20 tokens
@@ -127,23 +128,23 @@ pub enum AutocompounderQueryMsg {
     /// Query the amount of pending claims
     /// Returns [`Uint128`]
     #[returns(Uint128)]
-    PendingClaims { address: String },
+    PendingClaims { address: Addr },
     /// Query all pending claims
     /// Returns [`Vec<Claim>`]
-    #[returns(Vec<(String, Uint128)>)]
+    #[returns(Vec<(Addr, Uint128)>)]
     AllPendingClaims {
-        start_after: Option<String>,
+        start_after: Option<Addr>,
         limit: Option<u8>,
     },
     /// Query the amount of claims
     /// Returns [`Vec<Claim>`]
     #[returns(Vec<Claim>)]
-    Claims { address: String },
+    Claims { address: Addr },
     /// Query all claim accounts
     /// Returns [`Vec<(Sting, Vec<Claim>)>`]
-    #[returns(Vec<(String, Vec<Claim>)>)]
+    #[returns(Vec<(Addr, Vec<Claim>)>)]
     AllClaims {
-        start_after: Option<String>,
+        start_after: Option<Addr>,
         limit: Option<u8>,
     },
     /// Query the latest unbonding
@@ -165,7 +166,7 @@ pub enum AutocompounderQueryMsg {
     /// Query the balance of vault tokens of a given address
     /// Returns [`Uint128`]
     #[returns(Uint128)]
-    Balance { address: String },
+    Balance { address: Addr },
 }
 
 #[cosmwasm_schema::cw_serde]

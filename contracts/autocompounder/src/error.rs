@@ -83,4 +83,7 @@ pub enum AutocompounderError {
 
     #[error("Zero deposit amount is not allowed")]
     ZeroDepositAmount {},
+
+    #[error("Cannot set recipient to Account")]
+    CannotSetRecipientToAccount {},
 }

@@ -1,12 +1,15 @@
-use crate::contract::{AutocompounderApp, AutocompounderResult};
+use crate::contract::{AutocompounderApp, AutocompounderResult, MODULE_VERSION};
+use crate::error::AutocompounderError;
 use crate::msg::AutocompounderMigrateMsg;
-use crate::state::{Config, CONFIG};
+use crate::state::{Claim, Config, CLAIMS, CONFIG, PENDING_CLAIMS};
 use abstract_core::objects::{PoolAddress, PoolMetadata};
 use abstract_cw_staking::msg::StakingTarget;
-use cosmwasm_std::{from_slice, Addr, Decimal, DepsMut, Env, Response, StdError};
+use cosmwasm_std::{from_slice, Addr, Decimal, DepsMut, Env, Response, StdError, Uint128};
 use cw_asset::AssetInfo;
+use cw_storage_plus::Map;
 use cw_utils::Duration;
 
+pub const CURRENT_VERSION: &str = MODULE_VERSION;
 /// Unused for now but provided here as an example
 /// Contract version is migrated automatically
 pub fn migrate_handler(
@@ -16,14 +19,34 @@ pub fn migrate_handler(
     msg: AutocompounderMigrateMsg,
 ) -> AutocompounderResult {
     match msg.version.as_str() {
-        "0.5.0" => migrate_from_v0_5_0(&mut deps),
-        "0.6.0" => migrate_from_v0_6_0(&mut deps),
-        "0.7.0" => Ok(Response::default().add_attribute("migration", "v0.7.0 -> v0.7.1")),
+        "0.5.0" => {
+            migrate_from_v0_5_0(&mut deps)?;
+            migrate_from_v0_7_claims(&mut deps)?;
+            migrate_from_v0_7_pending_claims(&mut deps)?;
+            Ok(Response::default()
+                .add_attribute("migration", format!("v0.5.0 -> ${}", CURRENT_VERSION)))
+        }
+        "0.6.0" => {
+            migrate_from_v0_6_0(&mut deps)?;
+            migrate_from_v0_7_claims(&mut deps)?;
+            migrate_from_v0_7_pending_claims(&mut deps)?;
+            Ok(Response::default()
+                .add_attribute("migration", format!("v0.6.0 -> ${}", CURRENT_VERSION)))
+        }
+        "0.7.0" | "0.7.1" => {
+            migrate_from_v0_7_claims(&mut deps)?;
+            migrate_from_v0_7_pending_claims(&mut deps)?;
+            Ok(Response::default()
+                .add_attribute("migration", format!("v0.7.0 -> ${}", CURRENT_VERSION)))
+        }
         _ => Err(crate::error::AutocompounderError::Std(
             StdError::generic_err("version migration not supported"),
         )),
     }
 }
+
+pub const V0_7_PENDING_CLAIMS: Map<String, Uint128> = Map::new("pending_claims");
+pub const V0_7_CLAIMS: Map<String, Vec<Claim>> = Map::new("claims");
 
 #[cosmwasm_schema::cw_serde]
 pub struct V0_5_0Config {
@@ -71,7 +94,7 @@ pub struct V0_6_0Config {
 
 /// The cw-staking adapter changed from v0.17 to v0.18 and introduced a new type: StakingTarget
 /// which is reflected in the contract update from v0.5.0 to v0.6.0
-fn migrate_from_v0_5_0(deps: &mut DepsMut) -> AutocompounderResult {
+fn migrate_from_v0_5_0(deps: &mut DepsMut) -> Result<(), AutocompounderError> {
     let data = deps
         .storage
         .get(CONFIG.as_slice())
@@ -94,10 +117,10 @@ fn migrate_from_v0_5_0(deps: &mut DepsMut) -> AutocompounderResult {
         max_swap_spread: config_v0_5_0.max_swap_spread,
     };
     CONFIG.save(deps.storage, &config)?;
-    Ok(Response::default().add_attribute("migration", "v0.5.0 -> v0.7.1"))
+    Ok(())
 }
 
-fn migrate_from_v0_6_0(deps: &mut DepsMut) -> AutocompounderResult {
+fn migrate_from_v0_6_0(deps: &mut DepsMut) -> Result<(), AutocompounderError> {
     let data = deps
         .storage
         .get(CONFIG.as_slice())
@@ -119,15 +142,67 @@ fn migrate_from_v0_6_0(deps: &mut DepsMut) -> AutocompounderResult {
         max_swap_spread: config_v0_6_0.max_swap_spread,
     };
     CONFIG.save(deps.storage, &config)?;
-    Ok(Response::default().add_attribute("migration", "v0.6.0 -> v0.7.1"))
+    Ok(())
+}
+
+fn migrate_from_v0_7_pending_claims(deps: &mut DepsMut) -> Result<(), AutocompounderError> {
+    // load all currently pending claims
+    let pending_claims_v0_7 = V0_7_PENDING_CLAIMS
+        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+        .map(|c| {
+            let (addr_str, amount) = c?;
+            let addr = deps.api.addr_validate(&addr_str)?;
+            Ok((addr, amount))
+        })
+        .collect::<Result<Vec<(Addr, Uint128)>, StdError>>()
+        .map_err(AutocompounderError::Std)?;
+
+    // clear the old state
+    PENDING_CLAIMS.clear(deps.storage);
+
+    // save the new state
+    for (addr, amount) in pending_claims_v0_7 {
+        PENDING_CLAIMS.save(deps.storage, addr, &amount)?;
+    }
+
+    Ok(())
+}
+
+fn migrate_from_v0_7_claims(deps: &mut DepsMut) -> Result<(), AutocompounderError> {
+    // load all currently pending claims
+    let claims_v0_7 = V0_7_CLAIMS
+        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+        .map(|c| {
+            let (addr_str, amount) = c?;
+            let addr = deps.api.addr_validate(&addr_str)?;
+            Ok((addr, amount))
+        })
+        .collect::<Result<Vec<(Addr, Vec<Claim>)>, StdError>>()
+        .map_err(AutocompounderError::Std)?;
+
+    // clear the old state
+    CLAIMS.clear(deps.storage);
+
+    // save the new state
+    for (addr, claims) in claims_v0_7 {
+        CLAIMS.save(deps.storage, addr, &claims)?;
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
 mod test {
+    use crate::contract::AUTOCOMPOUNDER_APP;
+    use crate::test_common::app_init;
+
     use super::*;
+    use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::to_vec;
     use cosmwasm_std::{testing::mock_dependencies, Addr, Decimal};
+    use cw_utils::Expiration;
     use speculoos::assert_that;
+    use speculoos::prelude::OptionAssertions;
 
     type AResult = anyhow::Result<()>;
 
@@ -192,6 +267,138 @@ mod test {
         let config = CONFIG.load(deps.as_ref().storage).unwrap();
         assert_that!(config.staking_target)
             .is_equal_to(StakingTarget::Contract(Addr::unchecked("staking_contract")));
+        Ok(())
+    }
+
+    #[test]
+    fn migrate_from_v0_7_claims_test() -> AResult {
+        let mut deps = mock_dependencies();
+        let addr = Addr::unchecked("addr");
+        let addr2 = Addr::unchecked("addr2");
+        let addr3 = Addr::unchecked("addr3");
+
+        let claim1 = Claim {
+            unbonding_timestamp: Expiration::AtHeight(1),
+            amount_of_vault_tokens_to_burn: 100u128.into(),
+            amount_of_lp_tokens_to_unbond: 10u128.into(),
+        };
+
+        let claim2 = Claim {
+            unbonding_timestamp: Expiration::AtHeight(2),
+            amount_of_vault_tokens_to_burn: 200u128.into(),
+            amount_of_lp_tokens_to_unbond: 20u128.into(),
+        };
+
+        V0_7_CLAIMS.save(
+            deps.as_mut().storage,
+            addr.to_string(),
+            &vec![claim1.clone()],
+        )?;
+        V0_7_CLAIMS.save(
+            deps.as_mut().storage,
+            addr2.to_string(),
+            &vec![claim1.clone(), claim2.clone()],
+        )?;
+
+        let _resp = migrate_from_v0_7_claims(&mut deps.as_mut()).unwrap();
+        let claims = CLAIMS.load(deps.as_ref().storage, addr).unwrap();
+        assert_that!(claims).is_equal_to(vec![claim1.clone()]);
+
+        let claims = CLAIMS.load(deps.as_ref().storage, addr2).unwrap();
+        assert_that!(claims).is_equal_to(vec![claim1, claim2]);
+        let res = CLAIMS.may_load(deps.as_ref().storage, addr3)?;
+        assert_that!(res).is_none();
+
+        Ok(())
+    }
+
+    #[test]
+    fn migrate_from_v0_7_pending_claims_test() -> AResult {
+        let mut deps = mock_dependencies();
+        let addr = Addr::unchecked("addr");
+        let addr2 = Addr::unchecked("addr2");
+        let addr3 = Addr::unchecked("addr3");
+
+        let amount1 = Uint128::from(100u128);
+        let amount2 = Uint128::from(200u128);
+
+        V0_7_PENDING_CLAIMS.save(deps.as_mut().storage, addr.to_string(), &amount1)?;
+        V0_7_PENDING_CLAIMS.save(deps.as_mut().storage, addr2.to_string(), &amount2)?;
+
+        let _resp = migrate_from_v0_7_pending_claims(&mut deps.as_mut()).unwrap();
+        let claims = PENDING_CLAIMS.load(deps.as_ref().storage, addr).unwrap();
+        assert_that!(claims).is_equal_to(amount1);
+
+        let claims = PENDING_CLAIMS.load(deps.as_ref().storage, addr2).unwrap();
+        assert_that!(claims).is_equal_to(amount2);
+
+        let res = PENDING_CLAIMS.may_load(deps.as_ref().storage, addr3)?;
+        assert_that!(res).is_none();
+
+        Ok(())
+    }
+
+    #[test]
+    fn full_migration_from_v7() -> AResult {
+        let mut deps = app_init(false);
+
+        let addr = Addr::unchecked("addr");
+        let addr2 = Addr::unchecked("addr2");
+        let addr3 = Addr::unchecked("addr3");
+
+        let amount1 = Uint128::from(100u128);
+        let amount2 = Uint128::from(200u128);
+
+        V0_7_PENDING_CLAIMS.save(deps.as_mut().storage, addr.to_string(), &amount1)?;
+        V0_7_PENDING_CLAIMS.save(deps.as_mut().storage, addr2.to_string(), &amount2)?;
+
+        let claim1 = Claim {
+            unbonding_timestamp: Expiration::AtHeight(1),
+            amount_of_vault_tokens_to_burn: 100u128.into(),
+            amount_of_lp_tokens_to_unbond: 10u128.into(),
+        };
+
+        let claim2 = Claim {
+            unbonding_timestamp: Expiration::AtHeight(2),
+            amount_of_vault_tokens_to_burn: 200u128.into(),
+            amount_of_lp_tokens_to_unbond: 20u128.into(),
+        };
+
+        V0_7_CLAIMS.save(
+            deps.as_mut().storage,
+            addr.to_string(),
+            &vec![claim1.clone()],
+        )?;
+        V0_7_CLAIMS.save(
+            deps.as_mut().storage,
+            addr2.to_string(),
+            &vec![claim1.clone(), claim2.clone()],
+        )?;
+
+        let migrate_msg = AutocompounderMigrateMsg {
+            version: "0.7.0".to_string(),
+        };
+
+        migrate_handler(deps.as_mut(), mock_env(), AUTOCOMPOUNDER_APP, migrate_msg)?;
+
+        let claims = PENDING_CLAIMS
+            .load(deps.as_ref().storage, addr.clone())
+            .unwrap();
+        assert_that!(claims).is_equal_to(amount1);
+        let claims = PENDING_CLAIMS
+            .load(deps.as_ref().storage, addr2.clone())
+            .unwrap();
+        assert_that!(claims).is_equal_to(amount2);
+        let res = PENDING_CLAIMS.may_load(deps.as_ref().storage, addr3.clone())?;
+        assert_that!(res).is_none();
+
+        let claims = CLAIMS.load(deps.as_ref().storage, addr).unwrap();
+        assert_that!(claims).is_equal_to(vec![claim1.clone()]);
+        let claims = CLAIMS.load(deps.as_ref().storage, addr2).unwrap();
+        assert_that!(claims).is_equal_to(vec![claim1, claim2]);
+        let res = CLAIMS.may_load(deps.as_ref().storage, addr3)?;
+        assert_that!(res).is_none();
+
         Ok(())
     }
 }

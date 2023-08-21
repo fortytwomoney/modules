@@ -5,7 +5,7 @@ use crate::state::{
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_sdk::features::AccountIdentification;
 use abstract_sdk::AdapterInterface;
-use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
+use cosmwasm_std::{to_binary, Addr, Binary, Deps, Env, Order, StdResult, Uint128};
 
 use crate::msg::AutocompounderQueryMsg;
 use abstract_cw_staking::{msg::StakingQueryMsg, CW_STAKING};
@@ -67,7 +67,7 @@ pub fn query_fee_config(deps: Deps) -> AutocompounderResult<FeeConfig> {
 
 // write query functions for all State const variables: Claims, PendingClaims, LatestUnbonding
 
-pub fn query_pending_claims(deps: Deps, address: String) -> AutocompounderResult<Uint128> {
+pub fn query_pending_claims(deps: Deps, address: Addr) -> AutocompounderResult<Uint128> {
     let bonding_period = CONFIG.load(deps.storage)?.unbonding_period;
     if bonding_period.is_none() {
         return Ok(Uint128::zero());
@@ -79,51 +79,51 @@ pub fn query_pending_claims(deps: Deps, address: String) -> AutocompounderResult
 
 pub fn query_all_pending_claims(
     deps: Deps,
-    start_after: Option<String>,
+    start_after: Option<Addr>,
     limit: Option<u8>,
-) -> AutocompounderResult<Vec<(String, Uint128)>> {
+) -> AutocompounderResult<Vec<(Addr, Uint128)>> {
     let bonding_period = CONFIG.load(deps.storage)?.unbonding_period;
     if bonding_period.is_none() {
         return Ok(vec![]);
     }
 
     let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE).min(MAX_PAGE_SIZE) as usize;
-    let start = start_after.map(|s| Bound::ExclusiveRaw(s.into_bytes()));
+    let start = start_after.map(|s| Bound::ExclusiveRaw(s.as_bytes().to_vec()));
     let claims = PENDING_CLAIMS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
-            item.map(|(addr, amount)| -> StdResult<(String, Uint128)> { Ok((addr, amount)) })?
+            item.map(|(addr, amount)| -> StdResult<(Addr, Uint128)> { Ok((addr, amount)) })?
         })
-        .collect::<StdResult<Vec<(String, Uint128)>>>()?;
+        .collect::<StdResult<Vec<(Addr, Uint128)>>>()?;
 
     Ok(claims)
 }
 
-pub fn query_claims(deps: Deps, address: String) -> AutocompounderResult<Vec<Claim>> {
+pub fn query_claims(deps: Deps, address: Addr) -> AutocompounderResult<Vec<Claim>> {
     let claims = CLAIMS.may_load(deps.storage, address)?.unwrap_or_default();
     Ok(claims)
 }
 
 pub fn query_all_claims(
     deps: Deps,
-    start_after: Option<String>,
+    start_after: Option<Addr>,
     limit: Option<u8>,
-) -> AutocompounderResult<Vec<(String, Vec<Claim>)>> {
+) -> AutocompounderResult<Vec<(Addr, Vec<Claim>)>> {
     let bonding_period = CONFIG.load(deps.storage)?.unbonding_period;
     if bonding_period.is_none() {
         return Ok(vec![]);
     }
 
     let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE).min(MAX_PAGE_SIZE) as usize;
-    let start = start_after.map(|s| Bound::ExclusiveRaw(s.into_bytes()));
+    let start = start_after.map(|s| Bound::ExclusiveRaw(s.as_bytes().to_vec()));
     let claims = CLAIMS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
-            item.map(|(addr, claims)| -> StdResult<(String, Vec<Claim>)> { Ok((addr, claims)) })
+            item.map(|(addr, claims)| -> StdResult<(Addr, Vec<Claim>)> { Ok((addr, claims)) })
         }?)
-        .collect::<StdResult<Vec<(String, Vec<Claim>)>>>()?;
+        .collect::<StdResult<Vec<(Addr, Vec<Claim>)>>>()?;
 
     Ok(claims)
 }
@@ -153,11 +153,14 @@ pub fn query_total_lp_position(
     Ok(res.amount)
 }
 
-pub fn query_balance(deps: Deps, address: String) -> AutocompounderResult<Uint128> {
+pub fn query_balance(deps: Deps, address: Addr) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
-    let vault_balance: cw20::BalanceResponse = deps
-        .querier
-        .query_wasm_smart(config.vault_token, &cw20::Cw20QueryMsg::Balance { address })?;
+    let vault_balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
+        config.vault_token,
+        &cw20::Cw20QueryMsg::Balance {
+            address: address.to_string(),
+        },
+    )?;
     Ok(vault_balance.balance)
 }
 
@@ -244,12 +247,12 @@ mod test {
             };
             let expected_claims = &vec![claim, claim2];
 
-            let user = "user";
+            let user = Addr::unchecked("user");
             CLAIMS
-                .save(deps.as_mut().storage, user.to_string(), expected_claims)
+                .save(deps.as_mut().storage, user.clone(), expected_claims)
                 .unwrap();
 
-            let claims = query_claims(deps.as_ref(), user.to_string()).unwrap();
+            let claims = query_claims(deps.as_ref(), user.clone()).unwrap();
             assert_eq!(claims.len(), 2);
             assert_that!(claims).is_equal_to(expected_claims)
         }
@@ -280,35 +283,23 @@ mod test {
                 amount_of_lp_tokens_to_unbond: 1000u128.into(),
             };
 
-            let user1 = "user1";
-            let user2 = "user2";
-            let user3 = "user3";
-            let _user4 = "user4";
+            let user1 = Addr::unchecked("user1");
+            let user2 = Addr::unchecked("user2");
+            let user3 = Addr::unchecked("user3");
+            let _user4 = Addr::unchecked("user4");
 
             let user1_claims = &vec![claim1, claim2];
             let user2_claims = &vec![claim3];
             let user3_claims = &vec![claim4];
 
             CLAIMS
-                .save(
-                    deps.as_mut().storage,
-                    user1.to_string(),
-                    &user1_claims.clone(),
-                )
+                .save(deps.as_mut().storage, user1.clone(), &user1_claims.clone())
                 .unwrap();
             CLAIMS
-                .save(
-                    deps.as_mut().storage,
-                    user2.to_string(),
-                    &user2_claims.clone(),
-                )
+                .save(deps.as_mut().storage, user2.clone(), &user2_claims.clone())
                 .unwrap();
             CLAIMS
-                .save(
-                    deps.as_mut().storage,
-                    user3.to_string(),
-                    &user3_claims.clone(),
-                )
+                .save(deps.as_mut().storage, user3.clone(), &user3_claims.clone())
                 .unwrap();
 
             // Test with no pagination
@@ -330,7 +321,7 @@ mod test {
             assert_that!(claims[1].1).is_equal_to(&user2_claims.clone());
 
             // Test with pagination and start_after
-            let claims = query_all_claims(deps.as_ref(), Some(user1.to_string()), Some(2)).unwrap();
+            let claims = query_all_claims(deps.as_ref(), Some(user1.clone()), Some(2)).unwrap();
             assert_eq!(claims.len(), 2);
             assert_eq!(claims[0].0, user2);
             assert_that!(claims[0].1).is_equal_to(user2_claims);
@@ -372,7 +363,7 @@ mod test {
             config.vault_token = Addr::unchecked(TEST_VAULT_TOKEN);
             CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
-            let address = "addr0001".to_string();
+            let address = Addr::unchecked("addr0001");
 
             let balance = query_balance(deps.as_ref(), address).unwrap();
             assert_eq!(balance, vault_balance);

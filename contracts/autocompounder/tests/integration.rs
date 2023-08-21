@@ -32,7 +32,7 @@ use cosmwasm_std::{coin, coins, to_binary, Addr, Decimal, Empty, Uint128};
 
 use cw_utils::{Duration, Expiration};
 use speculoos::assert_that;
-use speculoos::prelude::OrderedAssertions;
+use speculoos::prelude::{OptionAssertions, OrderedAssertions};
 use wyndex_stake::msg::ReceiveDelegationMsg;
 
 use cw20::msg::Cw20ExecuteMsgFns;
@@ -116,7 +116,8 @@ fn create_vault(
     let asset1 = AssetEntry::new(asset1);
     let asset2 = AssetEntry::new(asset2);
     let _lp_asset_entry =
-        AnsEntryConvertor::new(LpToken::new(WYNDEX, vec![EUR, USD])).asset_entry();
+        AnsEntryConvertor::new(LpToken::new(WYNDEX, vec![asset1.clone(), asset2.clone()]))
+            .asset_entry();
 
     // Set up the dex and staking contracts
     let exchange_api = abstract_helper::init_exchange(mock.clone(), &abstract_, None)?;
@@ -161,6 +162,7 @@ fn create_vault(
         },
         None,
     )?;
+
     // get its address
     let auto_compounder_addr = account
         .manager
@@ -202,37 +204,106 @@ fn proper_initialisation() {
     // initialize with no pool for the fee token and reward token
 }
 
-#[ignore = "Staking address for raw eur pool not setup"]
+// #[ignore = "Staking address for raw eur pool not setup"]
 #[test]
+/// test the deposit for dual cw20 and single cw20 assets.
 fn deposit_cw20_asset() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
+    let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
+    let user1 = Addr::unchecked(common::USER1);
     let mock = Mock::new(&owner);
-    let vault = crate::create_vault(mock.clone(), EUR, RAW_TOKEN)?;
+    let vault = crate::create_vault(mock.clone(), RAW_TOKEN, RAW_2_TOKEN)?;
     let WynDex {
-        eur_token,
         raw_token,
+        raw_2_token,
+        raw_raw_2_lp,
         ..
     } = vault.wyndex;
 
-    let eur_token = AssetInfo::cw20(Addr::unchecked(eur_token.to_string()));
-
     let _ac_addres = vault.auto_compounder.addr_str()?;
-    let _eur_asset = AssetEntry::new(EUR);
-    let _raw_asset = AssetEntry::new(RAW_TOKEN);
-    let raw_token_info = AssetInfo::cw20(raw_token.address().unwrap());
+    let raw_asset = AssetEntry::new(RAW_TOKEN);
+    let raw2_asset = AssetEntry::new(RAW_2_TOKEN);
 
-    let asset_infos = vec![eur_token.clone(), raw_token_info.clone()];
+    let asset_entries = vec![raw_asset.clone(), raw2_asset.clone()];
+    let asset_infos = vec![raw_token.address()?, raw_2_token.address()?]
+        .iter()
+        .map(|a| AssetInfo::Cw20(a.to_owned()))
+        .collect::<Vec<_>>();
 
-    let config = vault.auto_compounder.config()?;
+    let config: Config = vault.auto_compounder.config()?;
 
     // check the config
+    assert_that!(config.pool_data.assets).is_equal_to(asset_entries);
     assert_that!(config.pool_assets).is_equal_to(asset_infos);
 
-    // set balance of owner
-    mock.set_balance(&owner, vec![coin(100_000u128.into(), EUR.to_string())])?;
+    // deposit 10_000 raw and raw2 (cw20-cw20)
+    let amount = 10_000u128;
     raw_token
-        .call_as(&Addr::unchecked(WYNDEX_OWNER.to_string()))
-        .mint(100_000u128.into(), owner.to_string())?;
+        .call_as(&wyndex_owner)
+        .transfer(amount.into(), owner.to_string())?;
+    raw_token
+        .call_as(&wyndex_owner)
+        .transfer(amount.into(), user1.to_string())?;
+    raw_2_token
+        .call_as(&wyndex_owner)
+        .transfer(amount.into(), owner.to_string())?;
+
+    raw_token
+        .call_as(&owner)
+        .increase_allowance(amount.into(), _ac_addres.to_string(), None)?;
+    raw_2_token
+        .call_as(&owner)
+        .increase_allowance(amount.into(), _ac_addres.to_string(), None)?;
+
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(raw_asset.clone(), amount),
+            AnsAsset::new(raw2_asset.clone(), amount),
+        ],
+        None,
+        None,
+        &vec![],
+    )?;
+
+    let position = vault.auto_compounder.total_lp_position()?;
+    assert_that!(position).is_equal_to(Uint128::from(10_000u128));
+
+    let balance_owner = vault.vault_token.balance(owner.to_string())?;
+    assert_that!(balance_owner.balance.u128()).is_equal_to(10_000u128 * 10u128.pow(DECIMAL_OFFSET));
+
+    // single cw20asset deposit from different address
+    // single asset deposit from different address
+
+    raw_token
+        .call_as(&user1)
+        .increase_allowance(1000u128.into(), _ac_addres.to_string(), None)?;
+    vault.auto_compounder.call_as(&user1).deposit(
+        vec![AnsAsset::new(raw_asset, 1000u128)],
+        None,
+        None,
+        &vec![],
+    )?;
+
+    // check that the vault token is minted
+    let vault_token_balance = vault.vault_token.balance(owner.to_string())?;
+    assert_that!(vault_token_balance.balance.u128())
+        .is_equal_to(10000u128 * 10u128.pow(DECIMAL_OFFSET));
+    let new_position = vault.auto_compounder.total_lp_position()?;
+    // check if the user1 balance is correct
+    let vault_token_balance_user1 = vault.vault_token.balance(user1.to_string())?;
+    assert_that!(vault_token_balance_user1.balance.u128())
+        .is_equal_to(487u128 * 10u128.pow(DECIMAL_OFFSET));
+    assert_that!(new_position).is_greater_than(position);
+
+    vault.vault_token.call_as(&owner).send(
+        Uint128::from(4000u128 * 10u128.pow(DECIMAL_OFFSET)),
+        _ac_addres.clone(),
+        to_binary(&Cw20HookMsg::Redeem {})?,
+    )?;
+    // check that the vault token decreased
+    let vault_token_balance = vault.vault_token.balance(owner.to_string())?;
+    assert_that!(vault_token_balance.balance.u128())
+        .is_equal_to(6000u128 * 10u128.pow(DECIMAL_OFFSET));
 
     Ok(())
 }
@@ -290,6 +361,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
             AnsAsset::new(usd_asset, 10_000u128),
         ],
         None,
+        None,
         &[coin(10_000u128, EUR), coin(10_000u128, USD)],
     )?;
 
@@ -314,7 +386,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     )?;
     // check that the vault token decreased
     let vault_token_balance = vault_token.balance(owner.to_string())?;
-    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
+    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.clone())?;
     assert_that!(vault_token_balance.balance.u128()).is_equal_to(80000u128);
     assert_that!(pending_claims.u128()).is_equal_to(20000u128);
 
@@ -324,7 +396,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
         auto_compounder_addr.clone(),
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
-    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
+    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.clone())?;
     assert_that!(pending_claims.u128()).is_equal_to(40000u128);
 
     vault.auto_compounder.batch_unbond(None, None)?;
@@ -333,11 +405,11 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     // assert_that!(err).is_equal_to(AutocompounderError::UnbondingCooldownNotExpired { min_cooldown: (), latest_unbonding: () } {});
 
     // checks if the pending claims are now removed
-    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
+    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.clone())?;
     assert_that!(pending_claims.u128()).is_equal_to(0u128);
 
     mock.next_block()?;
-    let claims = vault.auto_compounder.claims(owner.to_string())?;
+    let claims = vault.auto_compounder.claims(owner.clone())?;
     let unbonding: Expiration = claims[0].unbonding_timestamp;
     if let Expiration::AtTime(time) = unbonding {
         mock.app.borrow_mut().update_block(|b| {
@@ -348,7 +420,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     vault.auto_compounder.withdraw()?;
 
     // check that the claim is removed
-    let claims: Vec<Claim> = vault.auto_compounder.claims(owner.to_string())?;
+    let claims: Vec<Claim> = vault.auto_compounder.claims(owner.clone())?;
     assert_that!(claims.len()).is_equal_to(0);
 
     let balances = mock.query_all_balances(&owner)?;
@@ -384,6 +456,87 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
         coin(100_000u128, eur_token.to_string()),
         coin(100_000u128, usd_token.to_string()),
     ]);
+    Ok(())
+}
+
+#[test]
+fn deposit_with_recipient() -> AResult {
+    let owner = Addr::unchecked(common::OWNER);
+    let user1: Addr = Addr::unchecked(common::USER1);
+
+    // create testing environment
+    let mock = Mock::new(&owner);
+
+    // create a vault
+    let vault = crate::create_vault(mock.clone(), EUR, USD)?;
+    let WynDex {
+        eur_token,
+        usd_token,
+        ..
+    } = vault.wyndex;
+    let vault_token = vault.vault_token;
+    let eur_asset = AssetEntry::new("eur");
+    let usd_asset = AssetEntry::new("usd");
+
+    // check config setup
+    let position = vault.auto_compounder.total_lp_position()?;
+    assert_that!(position).is_equal_to(Uint128::zero());
+
+    // give user some funds
+    mock.set_balances(&[(
+        &owner,
+        &[
+            coin(100_000u128, eur_token.to_string()),
+            coin(100_000u128, usd_token.to_string()),
+        ],
+    )])?;
+
+    vault.auto_compounder.deposit(
+        vec![
+            AnsAsset::new(eur_asset.clone(), 10000u128),
+            AnsAsset::new(usd_asset.clone(), 10000u128),
+        ],
+        None,
+        Some(user1.clone()),
+        &[coin(10_000u128, EUR), coin(10_000u128, USD)],
+    )?;
+
+    let position = vault.auto_compounder.total_lp_position()?;
+    assert_that!(position).is_equal_to(Uint128::from(10_000u128));
+
+    let balance_user1 = vault_token.balance(user1.to_string())?;
+    assert_that!(balance_user1.balance.u128()).is_equal_to(10_000u128 * 10u128.pow(DECIMAL_OFFSET));
+
+    // deposit with disallowed recipient
+    let err = vault
+        .auto_compounder
+        .deposit(
+            vec![
+                AnsAsset::new(eur_asset.clone(), 10000u128),
+                AnsAsset::new(usd_asset.clone(), 10000u128),
+            ],
+            None,
+            Some(vault.auto_compounder.address()?),
+            &[coin(10_000u128, EUR), coin(10_000u128, USD)],
+        )
+        .unwrap_err();
+    let expected_err = AutocompounderError::CannotSetRecipientToAccount {};
+    // assert_that!(err).is_equal_to(expected_err);
+
+    let err = vault
+        .auto_compounder
+        .deposit(
+            vec![
+                AnsAsset::new(eur_asset.clone(), 10000u128),
+                AnsAsset::new(usd_asset.clone(), 10000u128),
+            ],
+            None,
+            Some(vault.account.proxy.address()?),
+            &[coin(10_000u128, EUR), coin(10_000u128, USD)],
+        )
+        .unwrap_err();
+    // assert_that!(err.to_string()).is_equal_to(AutocompounderError::CannotSetRecipientToAccount {  }.to_string());
+
     Ok(())
 }
 
@@ -449,6 +602,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
             AnsAsset::new(usd_asset.clone(), 10000u128),
         ],
         None,
+        None,
         &[coin(10_000u128, EUR), coin(10_000u128, USD)],
     )?;
 
@@ -462,6 +616,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     vault.auto_compounder.set_sender(&user1);
     vault.auto_compounder.deposit(
         vec![AnsAsset::new(eur_asset, 1000u128)],
+        None,
         None,
         &[coin(1000u128, EUR)],
     )?;
@@ -480,6 +635,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     vault.auto_compounder.deposit(
         vec![AnsAsset::new(usd_asset, 1000u128)],
         None,
+        None,
         &[coin(1000u128, USD)],
     )?;
 
@@ -492,10 +648,10 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
         .is_equal_to(986u128 * 10u128.pow(DECIMAL_OFFSET));
 
     // check if the vault balance query functions properly:
-    let vault_balance_queried = vault.auto_compounder.balance(owner.to_string())?;
+    let vault_balance_queried = vault.auto_compounder.balance(owner.clone())?;
     assert_that!(vault_balance_queried).is_equal_to(Uint128::from(vault_token_balance.u128()));
 
-    let vault_balance_queried = vault.auto_compounder.balance(user1.to_string())?;
+    let vault_balance_queried = vault.auto_compounder.balance(user1.clone())?;
     assert_that!(vault_balance_queried)
         .is_equal_to(Uint128::from(vault_token_balance_user1.u128()));
 
@@ -533,7 +689,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     assert_that!(vault_token_balance.balance.u128())
         .is_equal_to(6000u128 * 10u128.pow(DECIMAL_OFFSET));
 
-    let pending_claim = vault.auto_compounder.pending_claims(owner.to_string())?;
+    let pending_claim = vault.auto_compounder.pending_claims(owner.clone())?;
     assert_that!(pending_claim.u128()).is_equal_to(4000u128 * 10u128.pow(DECIMAL_OFFSET));
     let vault_token_balance = vault_token.balance(vault.auto_compounder.address()?.to_string())?;
     assert_that!(vault_token_balance.balance.u128())
@@ -554,7 +710,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     vault.auto_compounder.batch_unbond(None, None)?;
 
     // query the claims of the auto-compounder
-    let claims = vault.auto_compounder.claims(owner.to_string())?;
+    let claims = vault.auto_compounder.claims(owner.clone())?;
     let expected_claim = Claim {
         unbonding_timestamp: Expiration::AtTime(mock.block_info()?.time.plus_seconds(1)),
         amount_of_vault_tokens_to_burn: (4000u128 * 10u128.pow(DECIMAL_OFFSET)).into(),
@@ -598,10 +754,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     )?;
 
     // testing general non unbonding staking contract functionality
-    let pending_claims = vault
-        .auto_compounder
-        .pending_claims(owner.to_string())?
-        .into();
+    let pending_claims = vault.auto_compounder.pending_claims(owner.clone())?.into();
     assert_that!(pending_claims).is_equal_to(6000u128 * 10u128.pow(DECIMAL_OFFSET)); // no unbonding period, so no pending claims
 
     vault.auto_compounder.batch_unbond(None, None)?; // batch unbonding not enabled
@@ -629,15 +782,12 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
 
-    let pending_claims = vault
-        .auto_compounder
-        .pending_claims(user1.to_string())?
-        .into();
+    let pending_claims = vault.auto_compounder.pending_claims(user1.clone())?.into();
     assert_that!(pending_claims).is_equal_to(vault_token_balance_user1.u128());
 
     vault.auto_compounder.batch_unbond(None, None)?;
 
-    let claims = vault.auto_compounder.claims(user1.to_string())?;
+    let claims = vault.auto_compounder.claims(user1.clone())?;
     let expected_claim = Claim {
         unbonding_timestamp: Expiration::AtTime(mock.block_info()?.time.plus_seconds(1)),
         amount_of_vault_tokens_to_burn: vault_token_balance_user1,
@@ -711,6 +861,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
             AnsAsset::new(eur_asset, 100_000u128),
             AnsAsset::new(usd_asset, 100_000u128),
         ],
+        None,
         None,
         &[coin(100_000u128, EUR), coin(100_000u128, USD)],
     )?;
@@ -816,6 +967,7 @@ fn test_deposit_fees_fee_token_and_withdraw_fees() -> AResult {
     vault.auto_compounder.deposit(
         vec![AnsAsset::new(eur_asset, 1_000u128)],
         Some(Decimal::percent(50)),
+        None,
         &[coin(1_000u128, EUR)],
     )?;
 
@@ -833,13 +985,13 @@ fn test_deposit_fees_fee_token_and_withdraw_fees() -> AResult {
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
 
-    let amount: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
+    let amount: Uint128 = vault.auto_compounder.pending_claims(owner.clone())?;
     assert_that!(amount).is_equal_to(owner_balance);
 
     let vault_supply = vault.auto_compounder.total_supply()?;
     // Unbond tokens & clear pending claims
     vault.auto_compounder.batch_unbond(None, None)?;
-    let claim: Vec<Claim> = vault.auto_compounder.claims(owner.to_string())?;
+    let claim: Vec<Claim> = vault.auto_compounder.claims(owner.clone())?;
     let expected_asset = convert_to_assets(
         amount - amount * fee_config.withdrawal,
         total_vault_lp,
@@ -893,6 +1045,7 @@ fn test_deposit_fees_non_fee_token() -> AResult {
     vault.auto_compounder.deposit(
         vec![AnsAsset::new(usd_asset, 1_000u128)],
         Some(Decimal::percent(50)),
+        None,
         &[coin(1_000u128, USD)],
     )?;
 
@@ -908,14 +1061,14 @@ fn test_deposit_fees_non_fee_token() -> AResult {
         to_binary(&Cw20HookMsg::Redeem {})?,
     )?;
 
-    let amount: Uint128 = vault.auto_compounder.pending_claims(owner.to_string())?;
+    let amount: Uint128 = vault.auto_compounder.pending_claims(owner.clone())?;
     assert_that!(amount).is_equal_to(owner_balance);
 
     let vault_supply = vault.auto_compounder.total_supply()?;
     let total_vault_lp: Uint128 = vault.auto_compounder.total_lp_position()?;
     // Unbond tokens & clear pending claims
     vault.auto_compounder.batch_unbond(None, None)?;
-    let claim: Vec<Claim> = vault.auto_compounder.claims(owner.to_string())?;
+    let claim: Vec<Claim> = vault.auto_compounder.claims(owner.clone())?;
     let expected_asset = convert_to_assets(
         amount - amount * fee_config.withdrawal,
         total_vault_lp,
@@ -980,6 +1133,7 @@ fn test_zero_performance_fees() -> AResult {
             AnsAsset::new(usd_asset, 100_000u128),
         ],
         None,
+        None,
         &[coin(100_000u128, EUR), coin(100_000u128, USD)],
     )?;
 
@@ -1030,6 +1184,7 @@ fn test_owned_funds_stay_in_vault() -> AResult {
             AnsAsset::new(eur_asset, 100_000u128),
             AnsAsset::new(usd_asset, 100_000u128),
         ],
+        None,
         None,
         &[coin(100_000u128, EUR), coin(100_000u128, USD)],
     )?;
@@ -1107,6 +1262,7 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
             AnsAsset::new(AssetEntry::new("usd"), 100_000u128),
         ],
         None,
+        None,
         &[coin(100_000u128, EUR), coin(100_000u128, USD)],
     )?;
 
@@ -1126,6 +1282,7 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
                 AnsAsset::new(AssetEntry::new("eur"), 10u128),
                 AnsAsset::new(AssetEntry::new("usd"), 10u128),
             ],
+            None,
             None,
             &[coin(10u128, EUR), coin(10u128, USD)],
         )?;
@@ -1253,9 +1410,9 @@ fn test_lp_deposit() -> AResult {
     Ok(())
 }
 
-fn paginate_all_claims(vault: &Vault<Mock>) -> Result<Vec<(String, Vec<Claim>)>, anyhow::Error> {
+fn paginate_all_claims(vault: &Vault<Mock>) -> Result<Vec<(Addr, Vec<Claim>)>, anyhow::Error> {
     let mut all_claims = vec![];
-    let mut start_after: Option<String> = None;
+    let mut start_after: Option<Addr> = None;
     loop {
         let claims = vault.auto_compounder.all_claims(Some(20), start_after)?;
         if claims.is_empty() {
@@ -1267,11 +1424,9 @@ fn paginate_all_claims(vault: &Vault<Mock>) -> Result<Vec<(String, Vec<Claim>)>,
     Ok(all_claims)
 }
 
-fn paginate_all_pending_claims(
-    vault: &Vault<Mock>,
-) -> Result<Vec<(String, Uint128)>, anyhow::Error> {
-    let mut pending_claims: Vec<(String, Uint128)> = vec![];
-    let mut start_after: Option<String> = None;
+fn paginate_all_pending_claims(vault: &Vault<Mock>) -> Result<Vec<(Addr, Uint128)>, anyhow::Error> {
+    let mut pending_claims: Vec<(Addr, Uint128)> = vec![];
+    let mut start_after: Option<Addr> = None;
     loop {
         let claims = vault
             .auto_compounder
@@ -1388,12 +1543,12 @@ fn vault_token_inflation_attack_original() -> AResult {
     )?;
 
     // attacker unbonds tokens
-    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(attacker.to_string())?;
+    let pending_claims: Uint128 = vault.auto_compounder.pending_claims(attacker.clone())?;
     assert_that!(pending_claims.u128()).is_equal_to(10u128.pow(DECIMAL_OFFSET));
     mock.wait_blocks(1)?;
     vault.auto_compounder.batch_unbond(None, None)?;
 
-    let claim: Vec<Claim> = vault.auto_compounder.claims(attacker.to_string())?;
+    let claim: Vec<Claim> = vault.auto_compounder.claims(attacker.clone())?;
     assert_that!(claim.first().unwrap().amount_of_lp_tokens_to_unbond.u128())
         .is_less_than_or_equal_to(attacker_donation);
     // attackers donation is higher than the amount it retreives from the attack!
