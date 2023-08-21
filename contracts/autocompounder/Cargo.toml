@@ -51,7 +51,6 @@ abstract-interface = { workspace = true, optional = true }
 cw-orch = { workspace = true, optional = true }
 abstract-core = { workspace = true }
 anyhow = { workspace = true, optional = true }
-cfg-if = "1.0.0"
 
 [dev-dependencies]
 wyndex-bundle = { workspace=true }

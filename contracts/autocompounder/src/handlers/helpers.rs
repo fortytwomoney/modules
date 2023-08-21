@@ -12,10 +12,11 @@ use abstract_sdk::AdapterInterface;
 use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
 use abstract_sdk::{AbstractSdkResult, Execution, TransferInterface};
 use cosmwasm_std::{
-    to_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, ReplyOn, StdError, SubMsg, Uint128,
-    WasmMsg, StdResult,
+    to_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, ReplyOn, StdError, StdResult, SubMsg,
+    Uint128, WasmMsg,
 };
 use cw20::MinterResponse;
+use crate::state::VAULT_TOKEN_SYMBOL;
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
@@ -23,7 +24,10 @@ use cw20_base::state::TokenInfo;
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
-// ------------------------------------------------------------
+#[cfg(feature = "kujira")]
+use kujira::msg::{DenomMsg, KujiraMsg};
+
+https://rust-analyzer.github.io/manual.html#inactive-code// ------------------------------------------------------------
 // Helper functions for vault tokens
 // ------------------------------------------------------------
 
@@ -35,7 +39,12 @@ pub fn create_lp_token_submsg(
     code_id: u64,
 ) -> Result<SubMsg, StdError> {
     if cfg!(feature = "kujira") {
-        todo!()
+        let denom = format!("factory/{minter}/{symbol}");
+        let msg = DenomMsg::Create {
+            subdenozm: denom.clone(),
+        };
+        
+        Ok(CosmosMsg::Custom(msg))
     } else {
         let msg = TokenInstantiateMsg {
             name,
@@ -63,6 +72,8 @@ pub fn create_lp_token_submsg(
 
 pub fn vault_token_total_supply(deps: Deps, config: &Config) -> AutocompounderResult<Uint128> {
     if cfg!(feature = "kujira") {
+
+
         todo!()
     } else {
         let AssetInfo::Cw20(token_addr) = &config.vault_token else {
@@ -85,23 +96,35 @@ pub fn vault_token_balance(
     config: &Config,
     addr: Addr,
 ) -> AutocompounderResult<Uint128> {
-    config.vault_token.query_balance(&deps.querier, addr)
-        .map_err(|err| AutocompounderError::Std(StdError::generic_err(err.to_string()) ))
-
+    config
+        .vault_token
+        .query_balance(&deps.querier, addr)
+        .map_err(|err| AutocompounderError::Std(StdError::generic_err(err.to_string())))
 }
 
 pub fn mint_vault_tokens_msg(
     config: &Config,
-    user_address: Addr,
+    minter: &Addr,
+    recipient: Addr,
     mint_amount: Uint128,
 ) -> Result<CosmosMsg, AutocompounderError> {
     if cfg!(feature = "kujira") {
+        let minter = minter.to_string();
+        let msg = CosmosMsg::Custom(KujiraMsg::Denom(DenomMsg::Mint {
+            subdenom: format!("factory/{minter}/{VAULT_TOKEN_SYMBOL}"),
+            amount: mint_amount,
+            recipient: recipient.to_string(),
+        }));
         todo!()
     } else {
+        let AssetInfo::Cw20(token_addr) = &config.vault_token else {
+            return Err(AutocompounderError::Std(StdError::generic_err(
+                "Vault token is not a cw20 token",
+            )));};
         let mint_msg = wasm_execute(
-            config.vault_token.to_string(),
+            token_addr.to_string(),
             &Mint {
-                recipient: user_address.to_string(),
+                recipient: recipient.to_string(),
                 amount: mint_amount,
             },
             vec![],
@@ -112,12 +135,16 @@ pub fn mint_vault_tokens_msg(
 }
 
 /// Creates the message to burn tokens from contract
-pub fn burn_vault_tokens_msg(config: &Config, amount: Uint128) -> StdResult<CosmosMsg> {
+pub fn burn_vault_tokens_msg(config: &Config, amount: Uint128) -> AutocompounderResult<CosmosMsg> {
     if cfg!(feature = "kujira") {
         todo!()
     } else {
+        let AssetInfo::Cw20(token_addr) = &config.vault_token else {
+            return Err(AutocompounderError::Std(StdError::generic_err(
+                "Vault token is not a cw20 token",
+            )));};
         let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
-        Ok(wasm_execute(config.vault_token.to_string(), &msg, vec![])?.into())
+        Ok(wasm_execute(token_addr, &msg, vec![])?.into())
     }
 }
 
@@ -253,7 +280,7 @@ pub mod test_helpers {
             ),
             pool_assets: vec![],
             liquidity_token: AssetInfoBase::Cw20(Addr::unchecked("eur_usd_lp")),
-            vault_token: AssetInfoBase::Cw20( Addr::unchecked("test_vault_token")),
+            vault_token: AssetInfoBase::Cw20(Addr::unchecked("test_vault_token")),
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown,
             max_swap_spread: Decimal::percent(50),

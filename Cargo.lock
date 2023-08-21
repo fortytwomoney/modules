@@ -1029,7 +1029,6 @@ dependencies = [
  "abstract-testing",
  "anyhow",
  "autocompounder",
- "cfg-if",
  "clap",
  "cosmwasm-schema",
  "cosmwasm-std",

@@ -183,7 +183,10 @@ fn create_vault(
 
     // set the vault token address
     let auto_compounder_config = auto_compounder.config()?;
-    vault_token.set_address(&auto_compounder_config.vault_token);
+    let AssetInfoBase::Cw20(vault_token_addr) = auto_compounder_config.vault_token else {
+        panic!("Vault token is not a cw20 token")
+    };
+    vault_token.set_address(&vault_token_addr);
 
     Ok(Vault {
         account,

@@ -2,7 +2,7 @@ use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER};
-use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG};
+use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_SYMBOL};
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_cw_staking::{
     msg::{StakingInfoResponse, StakingQueryMsg},
@@ -135,7 +135,7 @@ pub fn instantiate_handler(
         format!("4T2{pairing}"),
         // pool data is too long
         // format!("4T2 Vault Token for {pool_data}"),
-        "FTTV".to_string(), // TODO: find a better way to define name and symbol
+        VAULT_TOKEN_SYMBOL.to_string(), // TODO: find a better way to define name and symbol
         code_id,
     )?;
 

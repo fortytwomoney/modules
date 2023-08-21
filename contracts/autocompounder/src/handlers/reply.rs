@@ -60,7 +60,7 @@ pub fn instantiate_reply(
 
 pub fn lp_provision_reply(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     app: AutocompounderApp,
     _reply: Reply,
 ) -> AutocompounderResult {
@@ -99,7 +99,7 @@ pub fn lp_provision_reply(
     }
 
     // Mint vault tokens to the user
-    let mint_msg = mint_vault_tokens_msg(&config, user_address, mint_amount)?;
+    let mint_msg = mint_vault_tokens_msg(&config, &env.contract.address, user_address, mint_amount)?;
 
     // Stake the LP tokens
     let stake_msg = stake_lp_tokens(

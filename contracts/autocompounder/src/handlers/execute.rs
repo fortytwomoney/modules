@@ -370,7 +370,7 @@ fn deposit_lp(
         return Err(AutocompounderError::ZeroMintAmount {});
     }
 
-    let mint_msg = mint_vault_tokens_msg(&config, recipient, mint_amount)?;
+    let mint_msg = mint_vault_tokens_msg(&config, &env.contract.address, recipient, mint_amount)?;
     let stake_msg = stake_lp_tokens(
         deps.as_ref(),
         &app,

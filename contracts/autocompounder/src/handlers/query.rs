@@ -211,7 +211,7 @@ mod test {
             ),
             pool_assets: vec![],
             liquidity_token: cw_asset::AssetInfoBase::Cw20(Addr::unchecked("liquidity_token")),
-            vault_token: Addr::unchecked("vault_token"),
+            vault_token: cw_asset::AssetInfoBase::Cw20( Addr::unchecked("vault_token")),
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown: Some(Duration::Time(10)),
             max_swap_spread: Decimal::percent(50),
@@ -354,7 +354,7 @@ mod test {
 
             let vault_balance = Uint128::new(1000);
             let mut config = default_config();
-            config.vault_token = Addr::unchecked(TEST_VAULT_TOKEN);
+            config.vault_token = AssetInfo::cw20(Addr::unchecked(TEST_VAULT_TOKEN));
             CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
             let address = Addr::unchecked("addr0001");
@@ -369,7 +369,7 @@ mod test {
 
             let vault_balance = Uint128::new(1000);
             let mut config = default_config();
-            config.vault_token = Addr::unchecked(TEST_VAULT_TOKEN);
+            config.vault_token = AssetInfo::cw20(Addr::unchecked(TEST_VAULT_TOKEN));
             CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
             let total_supply = query_total_supply(deps.as_ref()).unwrap();
@@ -385,7 +385,7 @@ mod test {
 
             let lp_balance = Uint128::new(100);
             let mut config = default_config();
-            config.vault_token = Addr::unchecked(TEST_VAULT_TOKEN);
+            config.vault_token = AssetInfo::cw20(Addr::unchecked(TEST_VAULT_TOKEN));
             CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
             let total_lp_position = query_total_lp_position(&app, deps.as_ref()).unwrap();

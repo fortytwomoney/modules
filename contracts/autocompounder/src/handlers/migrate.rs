@@ -291,6 +291,26 @@ mod test {
             .set(CONFIG.as_slice(), &to_vec(&config).unwrap());
     }
 
+    fn set_v0_7_0_config(deps: DepsMut) {
+        let config = V0_7_0Config {
+            staking_target: StakingTarget::Contract(Addr::unchecked("staking_contract")),
+            pool_address: PoolAddress::Id(1),
+            pool_data: PoolMetadata {
+                dex: "test".to_string(),
+                pool_type: abstract_core::objects::PoolType::ConstantProduct,
+                assets: vec![],
+            },
+            pool_assets: vec![],
+            liquidity_token: AssetInfo::Cw20(Addr::unchecked("liquidity_token")),
+            vault_token: Addr::unchecked("vault_token"),
+            unbonding_period: None,
+            min_unbonding_cooldown: None,
+            max_swap_spread: Decimal::percent(5),
+        };
+        deps.storage
+            .set(CONFIG.as_slice(), &to_vec(&config).unwrap());
+    }
+
     #[test]
     fn test_migrate_from_v0_5_0() -> AResult {
         let mut deps = mock_dependencies();
@@ -386,6 +406,7 @@ mod test {
     #[test]
     fn full_migration_from_v7() -> AResult {
         let mut deps = app_init(false);
+        set_v0_7_0_config(deps.as_mut());
 
         let addr = Addr::unchecked("addr");
         let addr2 = Addr::unchecked("addr2");
