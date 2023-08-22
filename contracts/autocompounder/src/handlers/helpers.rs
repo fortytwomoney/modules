@@ -14,7 +14,10 @@ use abstract_dex_adapter::api::Dex;
 use abstract_sdk::AdapterInterface;
 use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
 use abstract_sdk::{AbstractSdkResult, Execution, TransferInterface};
+use cosmwasm_std::BankQuery;
+use cosmwasm_std::Coin;
 use cosmwasm_std::Reply;
+use cosmwasm_std::SupplyResponse;
 use cosmwasm_std::{
     to_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, ReplyOn, StdError,
     SubMsg, Uint128, WasmMsg,
@@ -25,8 +28,18 @@ use cw20_base::msg::ExecuteMsg::Mint;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
+
 use cw_utils::parse_reply_instantiate_data;
 
+pub fn query_supply(deps: Deps, denom: &str) -> AutocompounderResult<Coin> {
+    // this may not work because kujira has its own custom bindings. https://docs.rs/kujira-std/latest/kujira_std/enum.KujiraQuery.html
+        let request = BankQuery::Supply {
+            denom: denom.into(),
+        }
+        .into();
+        let res: SupplyResponse = deps.querier.query(&request)?;
+        Ok(res.amount)
+}
 // ------------------------------------------------------------
 // Helper functions for vault tokens
 // ------------------------------------------------------------
@@ -170,8 +183,13 @@ pub fn vault_token_total_supply(deps: Deps, config: &Config) -> AutocompounderRe
     if cfg!(feature = "kujira") {
         // raw query using protobuf msg
         // TODO: query the total supply if the token. 
+        let AssetInfo::Native(denom) = &config.vault_token else {
+            return Err(AutocompounderError::Std(StdError::generic_err(
+                "Vault token is not a native token",
+            )));};
+        let supply = query_supply(deps, denom)?;
 
-        todo!()
+        Ok(supply.amount)
     } else {
         let AssetInfo::Cw20(token_addr) = &config.vault_token else {
             return Err(AutocompounderError::Std(StdError::generic_err(
