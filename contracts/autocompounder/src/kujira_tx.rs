@@ -13,7 +13,7 @@ use cosmwasm_std::Uint128;
 /// Sources:
 /// - [kujiras protobufs](https://github.com/Team-Kujira/core/blob/master/proto/denom/tx.proto).
 /// - [kujiras message types](https://github.com/Team-Kujira/kujira.js/blob/master/src/kujira/kujira.denom/index.ts)
-/// ```
+/// ```ignore
 /// // MsgCreateDenom is the sdk.Msg type for allowing an account to create
 /// // a new denom.  It requires a sender address and a unique nonce
 /// // (to allow accounts to create multiple denoms)
@@ -35,7 +35,7 @@ pub fn encode_msg_create_denom(sender: &str, denom: &str) -> Vec<u8> {
 
 /// // MsgMint is the sdk.Msg type for allowing an admin account to mint
 /// more of a token. 
-/// ```
+/// ```ignore
 /// message MsgMint {
 ///   string sender = 1 [ (gogoproto.moretags) = "yaml:\"sender\"" ];
 ///   cosmos.base.v1beta1.Coin amount = 2 [
@@ -59,7 +59,7 @@ pub fn encode_msg_mint(sender: &str, denom: &str, amount: Uint128) -> Vec<u8> {
 
 /// // MsgBurn is the sdk.Msg type for allowing an admin account to burn
 /// // a token.  For now, we only support burning from the sender account.
-/// ```
+/// ```ignore
 /// message MsgBurn {
 ///   string sender = 1 [ (gogoproto.moretags) = "yaml:\"sender\"" ];
 ///   cosmos.base.v1beta1.Coin amount = 2 [
@@ -78,4 +78,22 @@ pub fn encode_msg_burn(sender: &str, denom: &str, amount: Uint128) -> Vec<u8> {
         .append_string(1, sender)
         .append_message(2, &coin)
         .into_vec()
+}
+
+/// Encodes the stargate query message to get the total supply of a denom.
+/// protobuf source: https://github.com/cosmos/cosmos-sdk/blob/c0fe4f7da17b7ec17d9bea6fcb57b4644f044b7a/proto/cosmos/bank/v1beta1/query.proto#L147-L150
+/// ```ignore
+/// // QuerySupplyOfRequest is the request type for the Query/SupplyOf RPC method.
+/// message QuerySupplyOfRequest {
+///   // denom is the coin denom to query balances for.
+///   string denom = 1;
+/// }
+/// ```
+/// 
+pub fn encode_query_supply_of(denom: &str) -> Vec<u8> {
+    let msg = Anybuf::new()
+        .append_string(1, denom.to_string())
+        .into_vec();
+
+    msg
 }

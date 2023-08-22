@@ -1,6 +1,7 @@
 use crate::contract::INSTANTIATE_REPLY_ID;
 use crate::kujira_tx::encode_msg_create_denom;
 use crate::kujira_tx::encode_msg_mint;
+use crate::kujira_tx::encode_query_supply_of;
 use crate::msg::Config;
 use crate::state::DECIMAL_OFFSET;
 
@@ -14,10 +15,12 @@ use abstract_dex_adapter::api::Dex;
 use abstract_sdk::AdapterInterface;
 use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
 use abstract_sdk::{AbstractSdkResult, Execution, TransferInterface};
-use cosmwasm_std::BankQuery;
+use cosmwasm_std::QueryRequest;
+
 use cosmwasm_std::Coin;
 use cosmwasm_std::Reply;
 use cosmwasm_std::SupplyResponse;
+
 use cosmwasm_std::{
     to_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, ReplyOn, StdError,
     SubMsg, Uint128, WasmMsg,
@@ -31,18 +34,18 @@ use cw_utils::Duration;
 
 use cw_utils::parse_reply_instantiate_data;
 
-pub fn query_supply(deps: Deps, denom: &str) -> AutocompounderResult<Coin> {
-    // this may not work because kujira has its own custom bindings. https://docs.rs/kujira-std/latest/kujira_std/enum.KujiraQuery.html
-        let request = BankQuery::Supply {
-            denom: denom.into(),
-        }
-        .into();
-        let res: SupplyResponse = deps.querier.query(&request)?;
-        Ok(res.amount)
-}
 // ------------------------------------------------------------
 // Helper functions for vault tokens
 // ------------------------------------------------------------
+pub fn query_supply_with_stargate(deps: Deps, denom: &str) -> AutocompounderResult<Coin> {
+    // this may not work because kujira has its own custom bindings. https://docs.rs/kujira-std/latest/kujira_std/enum.KujiraQuery.html
+        let request = QueryRequest::Stargate { 
+            path: "cosmos.bank.v1beta1.Query/SupplyOf".to_string(), 
+            data: encode_query_supply_of(denom).into(),
+        };
+        let res: SupplyResponse = deps.querier.query(&request)?;
+        Ok(res.amount)
+}
 
 pub fn format_native_denom_to_asset(sender: &str, denom: &str) -> AssetInfo {
     AssetInfo::Native(
@@ -187,8 +190,7 @@ pub fn vault_token_total_supply(deps: Deps, config: &Config) -> AutocompounderRe
             return Err(AutocompounderError::Std(StdError::generic_err(
                 "Vault token is not a native token",
             )));};
-        let supply = query_supply(deps, denom)?;
-
+        let supply = query_supply_with_stargate(deps, denom)?;
         Ok(supply.amount)
     } else {
         let AssetInfo::Cw20(token_addr) = &config.vault_token else {

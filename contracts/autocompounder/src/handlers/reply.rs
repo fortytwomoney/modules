@@ -39,6 +39,8 @@ pub fn instantiate_reply(
 ) -> AutocompounderResult {
     // Logic to execute on example reply
     let vault_token = if let Some(vault_token) = parse_instantiate_reply(reply)? {
+        // @improvement: ideally we'd also parse the Reply in case of native token, however i dont know how currently. so we store if beforehand.
+
 
         CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
             config.vault_token = vault_token.clone();
