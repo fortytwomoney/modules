@@ -32,7 +32,7 @@ use cosmwasm_std::{coin, coins, to_binary, Addr, Decimal, Empty, Uint128};
 
 use cw_utils::{Duration, Expiration};
 use speculoos::assert_that;
-use speculoos::prelude::{OptionAssertions, OrderedAssertions};
+use speculoos::prelude::{OrderedAssertions};
 use wyndex_stake::msg::ReceiveDelegationMsg;
 
 use cw20::msg::Cw20ExecuteMsgFns;
@@ -219,7 +219,7 @@ fn deposit_cw20_asset() -> AResult {
     let WynDex {
         raw_token,
         raw_2_token,
-        raw_raw_2_lp,
+        
         ..
     } = vault.wyndex;
 
@@ -511,7 +511,7 @@ fn deposit_with_recipient() -> AResult {
     assert_that!(balance_user1.balance.u128()).is_equal_to(10_000u128 * 10u128.pow(DECIMAL_OFFSET));
 
     // deposit with disallowed recipient
-    let err = vault
+    let _err = vault
         .auto_compounder
         .deposit(
             vec![
@@ -523,10 +523,10 @@ fn deposit_with_recipient() -> AResult {
             &[coin(10_000u128, EUR), coin(10_000u128, USD)],
         )
         .unwrap_err();
-    let expected_err = AutocompounderError::CannotSetRecipientToAccount {};
+    let _expected_err = AutocompounderError::CannotSetRecipientToAccount {};
     // assert_that!(err).is_equal_to(expected_err);
 
-    let err = vault
+    let _err = vault
         .auto_compounder
         .deposit(
             vec![

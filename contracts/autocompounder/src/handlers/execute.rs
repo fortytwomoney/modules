@@ -29,7 +29,7 @@ use abstract_sdk::{
 };
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use cosmwasm_std::{
-    from_binary, wasm_execute, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
+    from_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     Order, ReplyOn, Response, StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
@@ -441,14 +441,6 @@ fn transfer_token(
 ///
 /// Finally, the function returns a response with the constructed messages and a custom tag indicating that
 /// the batch unbonding process was executed.
-///
-/// # Parameters
-/// - `deps`, `env`, `app`: execution environment
-/// - `start_after`: An optional string indicating where to start processing claims.
-/// - `limit`: An optional limit on the number of claims to process.
-///
-/// # Returns
-/// - `AutocompounderResult`: The result of the batch unbonding process.
 pub fn batch_unbond(
     deps: DepsMut,
     env: Env,

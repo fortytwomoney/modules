@@ -953,6 +953,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anybuf"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f14538dd5b6befdc12b11aae1dddee64b670534d4fdbd28057bcc7c976c0e4eb"
+
+[[package]]
 name = "anyhow"
 version = "1.0.75"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1027,6 +1033,7 @@ dependencies = [
  "abstract-interface 0.18.0",
  "abstract-sdk 0.18.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "abstract-testing",
+ "anybuf",
  "anyhow",
  "autocompounder",
  "clap",

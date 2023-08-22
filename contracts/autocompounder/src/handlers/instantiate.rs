@@ -1,4 +1,4 @@
-use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
+use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER};
@@ -15,13 +15,12 @@ use abstract_sdk::{
     features::AbstractNameService,
 };
 use cosmwasm_std::{
-    to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError,
-    StdResult, SubMsg, WasmMsg,
+    Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult,
 };
-use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
-use super::helpers::create_lp_token_submsg;
+use super::helpers::{create_lp_token_submsg, format_native_denom_to_asset};
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
@@ -107,7 +106,8 @@ pub fn instantiate_handler(
         max_swap_spread.unwrap_or_else(|| Decimal::percent(DEFAULT_MAX_SPREAD.into()));
 
     let config: Config = Config {
-        vault_token: AssetInfo::cw20(Addr::unchecked("")),
+        // vault_token will be overwritten in the instantiate reply if we are using a cw20
+        vault_token: format_native_denom_to_asset(env.contract.address.as_str(), VAULT_TOKEN_SYMBOL),
         staking_target: staking_info.staking_target,
         liquidity_token: lp_token_info,
         pool_data,

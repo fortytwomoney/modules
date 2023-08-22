@@ -1,7 +1,9 @@
 use crate::contract::INSTANTIATE_REPLY_ID;
+use crate::kujira_tx::encode_msg_create_denom;
 use crate::kujira_tx::encode_msg_mint;
 use crate::msg::Config;
 use crate::state::DECIMAL_OFFSET;
+
 use crate::{
     contract::{AutocompounderApp, AutocompounderResult},
     error::AutocompounderError,
@@ -12,27 +14,29 @@ use abstract_dex_adapter::api::Dex;
 use abstract_sdk::AdapterInterface;
 use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
 use abstract_sdk::{AbstractSdkResult, Execution, TransferInterface};
+use cosmwasm_std::Reply;
 use cosmwasm_std::{
-    to_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, ReplyOn, StdError, StdResult, SubMsg,
-    Uint128, WasmMsg, Empty,
+    to_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, ReplyOn, StdError,
+    SubMsg, Uint128, WasmMsg,
 };
 use cw20::MinterResponse;
-use crate::state::VAULT_TOKEN_SYMBOL;
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
-use cw20_base::state::TokenInfo;
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
-
-// #[cfg(feature = "kujira")]
-use kujira::{KujiraMsg,DenomMsg, Denom};
+use cw_utils::parse_reply_instantiate_data;
 
 // ------------------------------------------------------------
 // Helper functions for vault tokens
 // ------------------------------------------------------------
 
-/// create a SubMsg to instantiate the Vault token.
+pub fn format_native_denom_to_asset(sender: &str, denom: &str) -> AssetInfo {
+    AssetInfo::Native(
+        format!("factory/{sender}/{denom}")
+    )
+}
+/// create a SubMsg to instantiate the Vault token with either the tokenfactory(kujira) or a cw20.
 pub fn create_lp_token_submsg(
     minter: String,
     name: String,
@@ -40,19 +44,19 @@ pub fn create_lp_token_submsg(
     code_id: u64,
 ) -> Result<SubMsg, StdError> {
     if cfg!(feature = "kujira") {
-        let denom = format!("factory/{minter}/{symbol}");
-        let msg = DenomMsg::Create {
-            subdenom: denom.into(),
-        };
+        let msg = encode_msg_create_denom(&minter, &symbol);
 
-        let cosmos_msg = CosmosMsg::Stargate { type_url: "/kujira.denom.".to_string(), value: to_binary(&msg)? };
+        let cosmos_msg = CosmosMsg::Stargate {
+            type_url: "/kujira.denom.MsgCreateDenom".to_string(),
+            value: to_binary(&msg)?,
+        };
         let sub_msg = SubMsg {
             msg: cosmos_msg,
             gas_limit: None,
             id: 0,
             reply_on: ReplyOn::Never, // this is like sending a normal message
         };
-        
+
         Ok(sub_msg)
     } else {
         let msg = TokenInstantiateMsg {
@@ -79,39 +83,22 @@ pub fn create_lp_token_submsg(
     }
 }
 
-pub fn vault_token_total_supply(deps: Deps, config: &Config) -> AutocompounderResult<Uint128> {
+/// parses the instantiate reply to get the contract address of the vault token or None if kujira. for kujira the denom is already set in instantiate.
+pub fn parse_instantiate_reply(reply: Reply) -> Result<Option<AssetInfo>, AutocompounderError> {
     if cfg!(feature = "kujira") {
-        // raw query using protobuf msg
+        Ok(None)
 
-
-        todo!()
     } else {
-        let AssetInfo::Cw20(token_addr) = &config.vault_token else {
-            return Err(AutocompounderError::Std(StdError::generic_err(
-                "Vault token is not a cw20 token",
-            )));};
-
-        let TokenInfoResponse {
-            total_supply: vault_tokens_total_supply,
-            ..
-        } = deps
-            .querier
-            .query_wasm_smart(token_addr, &Cw20QueryMsg::TokenInfo {})?;
-        Ok(vault_tokens_total_supply)
+        let response = parse_reply_instantiate_data(reply)
+            .map_err(|err| AutocompounderError::Std(StdError::generic_err(err.to_string())))?;
+    
+        let vault_token = AssetInfo::Cw20(Addr::unchecked(response.contract_address));
+        Ok(Some(vault_token))
     }
 }
 
-pub fn vault_token_balance(
-    deps: Deps,
-    config: &Config,
-    addr: Addr,
-) -> AutocompounderResult<Uint128> {
-    config
-        .vault_token
-        .query_balance(&deps.querier, addr)
-        .map_err(|err| AutocompounderError::Std(StdError::generic_err(err.to_string())))
-}
 
+/// Creates the message to mint tokens to `recipient`
 pub fn mint_vault_tokens_msg(
     config: &Config,
     minter: &Addr,
@@ -126,7 +113,10 @@ pub fn mint_vault_tokens_msg(
             )));};
 
         let proto_msg = encode_msg_mint(&minter, &denom, amount);
-        let msg = CosmosMsg::Stargate { type_url: "/kujira.denom.".to_string(), value: to_binary(&proto_msg)? };
+        let msg = CosmosMsg::Stargate {
+            type_url: "/kujira.denom.MsgMint".to_string(),
+            value: to_binary(&proto_msg)?,
+        };
         Ok(msg)
     } else {
         let AssetInfo::Cw20(token_addr) = &config.vault_token else {
@@ -147,7 +137,11 @@ pub fn mint_vault_tokens_msg(
 }
 
 /// Creates the message to burn tokens from contract
-pub fn burn_vault_tokens_msg(config: &Config, minter: &Addr, amount: Uint128) -> AutocompounderResult<CosmosMsg> {
+pub fn burn_vault_tokens_msg(
+    config: &Config,
+    minter: &Addr,
+    amount: Uint128,
+) -> AutocompounderResult<CosmosMsg> {
     if cfg!(feature = "kujira") {
         let minter = minter.to_string();
         let AssetInfo::Native(denom) = &config.vault_token else {
@@ -156,7 +150,10 @@ pub fn burn_vault_tokens_msg(config: &Config, minter: &Addr, amount: Uint128) ->
             )));};
 
         let proto_msg = encode_msg_mint(&minter, &denom, amount);
-        let msg = CosmosMsg::Stargate { type_url: "/kujira.denom.".to_string(), value: to_binary(&proto_msg)? };
+        let msg = CosmosMsg::Stargate {
+            type_url: "/kujira.denom.MsgBurn".to_string(),
+            value: to_binary(&proto_msg)?,
+        };
         Ok(msg)
     } else {
         let AssetInfo::Cw20(token_addr) = &config.vault_token else {
@@ -166,6 +163,41 @@ pub fn burn_vault_tokens_msg(config: &Config, minter: &Addr, amount: Uint128) ->
         let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
         Ok(wasm_execute(token_addr, &msg, vec![])?.into())
     }
+}
+
+/// query the total supply of the vault token
+pub fn vault_token_total_supply(deps: Deps, config: &Config) -> AutocompounderResult<Uint128> {
+    if cfg!(feature = "kujira") {
+        // raw query using protobuf msg
+        // TODO: query the total supply if the token. 
+
+        todo!()
+    } else {
+        let AssetInfo::Cw20(token_addr) = &config.vault_token else {
+            return Err(AutocompounderError::Std(StdError::generic_err(
+                "Vault token is not a cw20 token",
+            )));};
+
+        let TokenInfoResponse {
+            total_supply: vault_tokens_total_supply,
+            ..
+        } = deps
+            .querier
+            .query_wasm_smart(token_addr, &Cw20QueryMsg::TokenInfo {})?;
+        Ok(vault_tokens_total_supply)
+    }
+}
+
+/// query the balance of the vault token for user with `addr`
+pub fn vault_token_balance(
+    deps: Deps,
+    config: &Config,
+    addr: Addr,
+) -> AutocompounderResult<Uint128> {
+    config
+        .vault_token
+        .query_balance(&deps.querier, addr)
+        .map_err(|err| AutocompounderError::Std(StdError::generic_err(err.to_string())))
 }
 
 // ------------------------------------------------------------

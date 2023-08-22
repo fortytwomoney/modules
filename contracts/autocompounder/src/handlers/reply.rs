@@ -1,12 +1,12 @@
 use super::helpers::{
     convert_to_shares, vault_token_total_supply, mint_vault_tokens_msg, query_stake, stake_lp_tokens,
-    swap_rewards_with_reply, 
+    swap_rewards_with_reply, parse_instantiate_reply, 
 };
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, SWAPPED_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::response::MsgInstantiateContractResponse;
+
 use crate::state::{Config, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_cw_staking::{
@@ -24,7 +24,7 @@ use abstract_sdk::{
     AbstractSdkResult, Resolve, TransferInterface,
 };
 use cosmwasm_std::{
-    Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg,
+    CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdResult, SubMsg,
     Uint128,
 };
 use cw_asset::{Asset, AssetInfo};
@@ -38,23 +38,21 @@ pub fn instantiate_reply(
     reply: Reply,
 ) -> AutocompounderResult {
     // Logic to execute on example reply
-    let data = reply.result.unwrap().data.unwrap();
-    let res: MsgInstantiateContractResponse =
-        Message::parse_from_bytes(data.as_slice()).map_err(|_| {
-            StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data")
+    let vault_token = if let Some(vault_token) = parse_instantiate_reply(reply)? {
+
+        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
+            config.vault_token = vault_token.clone();
+            Ok(config)
         })?;
-
-    let vault_token_addr = res.get_contract_address();
-
-    CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
-        config.vault_token = AssetInfo::Cw20(Addr::unchecked(vault_token_addr));
-        Ok(config)
-    })?;
+        vault_token
+    } else {
+        CONFIG.load(deps.storage)?.vault_token
+    };
 
     Ok(app.custom_tag_response(
         Response::new(),
         "instantiate",
-        vec![("vault_token_addr", vault_token_addr)],
+        vec![("vault_token", vault_token.to_string())],
     ))
 }
 
@@ -376,6 +374,8 @@ mod test {
     use crate::test_common::app_init;
 
     mod withdraw_liquidity {
+
+        use cosmwasm_std::{StdError, Addr};
 
         use super::*;
 
