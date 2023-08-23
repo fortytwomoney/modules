@@ -81,7 +81,7 @@ pub fn convert_to_shares(
     )
 }
 
-fn create_vault(
+pub fn create_vault(
     mock: Mock,
     asset1: &str,
     asset2: &str,

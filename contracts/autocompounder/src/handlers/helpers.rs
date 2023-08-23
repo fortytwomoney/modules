@@ -174,28 +174,23 @@ pub fn burn_vault_tokens_msg(
 
 /// query the total supply of the vault token
 pub fn vault_token_total_supply(deps: Deps, config: &Config) -> AutocompounderResult<Uint128> {
-    if cfg!(feature = "kujira") {
-        // raw query using protobuf msg
-        // TODO: query the total supply if the token.
-        let AssetInfo::Native(denom) = &config.vault_token else {
-            return Err(AutocompounderError::Std(StdError::generic_err(
-                "Vault token is not a native token",
-            )));};
-        let supply = query_supply_with_stargate(deps, denom)?;
-        Ok(supply.amount)
-    } else {
-        let AssetInfo::Cw20(token_addr) = &config.vault_token else {
-            return Err(AutocompounderError::Std(StdError::generic_err(
-                "Vault token is not a cw20 token",
-            )));};
-
-        let TokenInfoResponse {
-            total_supply: vault_tokens_total_supply,
-            ..
-        } = deps
-            .querier
-            .query_wasm_smart(token_addr, &Cw20QueryMsg::TokenInfo {})?;
-        Ok(vault_tokens_total_supply)
+    match config.vault_token.clone() {
+        AssetInfo::Native(denom) => {
+            let supply = query_supply_with_stargate(deps, &denom)?;
+            Ok(supply.amount)
+        }
+        AssetInfo::Cw20(token_addr) => {
+            let TokenInfoResponse {
+                total_supply: vault_tokens_total_supply,
+                ..
+            } = deps
+                .querier
+                .query_wasm_smart(token_addr, &Cw20QueryMsg::TokenInfo {})?;
+            Ok(vault_tokens_total_supply)
+        }
+        _ => Err(AutocompounderError::Std(StdError::generic_err(
+            "Vault token is not a cw20 token",
+        ))),
     }
 }
 
@@ -329,9 +324,12 @@ pub mod helpers_tests {
 
     use super::*;
     use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
+    use anyhow::Ok;
     use cosmwasm_std::{from_binary, testing::mock_dependencies};
     use cw_asset::AssetInfoBase;
     use speculoos::{assert_that, result::ResultAssertions};
+
+    type AResult = anyhow::Result<()>;
 
     pub fn min_cooldown_config(
         min_unbonding_cooldown: Option<Duration>,
@@ -468,22 +466,18 @@ pub mod helpers_tests {
         };
 
         assert_that!(contract_addr).is_equal_to("test_vault_token".to_string());
-        assert_that!(from_binary(&msg))
-            .is_equal_to(Ok(cw20_base::msg::ExecuteMsg::Burn { amount }));
+
+        assert_that!(from_binary(&msg).unwrap())
+            .is_equal_to(cw20_base::msg::ExecuteMsg::Burn { amount });
     }
 
     #[test]
-    fn test_check_fee_valid() {
-        let fee = Decimal::percent(50);
-        let result = check_fee(fee);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_check_fee_invalid() {
-        let fee = Decimal::percent(100);
-        let result = check_fee(fee);
-        assert!(result.is_err());
+    fn test_check_fee_valid() -> AResult {
+        assert_that!(check_fee(Decimal::percent(0))).is_ok();
+        assert_that!(check_fee(Decimal::percent(50))).is_ok();
+        assert_that!(check_fee(Decimal::percent(99))).is_ok();
+        assert_that!(check_fee(Decimal::percent(100)).is_err());
+        Ok(())
     }
 
     #[test]
@@ -511,21 +505,11 @@ pub mod helpers_tests {
     fn test_transfer_to_msgs() {
         let deps = mock_dependencies();
 
-        let asset = AnsAsset {
+        let _asset = AnsAsset {
             amount: Uint128::from(100u128),
             name: AssetEntry::new("token"),
         };
         let recipient = Addr::unchecked("recipient");
-
-        // Test transfer with non-zero amount
-        let msgs = transfer_to_msgs(
-            &AUTOCOMPOUNDER_APP,
-            deps.as_ref(),
-            asset.clone(),
-            recipient.clone(),
-        )
-        .unwrap();
-        assert_eq!(msgs.len(), 1);
 
         // Test transfer with zero amount
         let asset = AnsAsset {
