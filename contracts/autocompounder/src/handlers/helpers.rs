@@ -22,8 +22,8 @@ use cosmwasm_std::Reply;
 use cosmwasm_std::SupplyResponse;
 
 use cosmwasm_std::{
-    to_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, ReplyOn, StdError,
-    SubMsg, Uint128, WasmMsg,
+    to_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, ReplyOn, StdError, SubMsg, Uint128,
+    WasmMsg,
 };
 use cw20::MinterResponse;
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
@@ -40,19 +40,17 @@ use cw_utils::parse_reply_instantiate_data;
 /// performs stargate query for the following path: "cosmos.bank.v1beta1.Query/SupplyOf".
 pub fn query_supply_with_stargate(deps: Deps, denom: &str) -> AutocompounderResult<Coin> {
     // this may not work because kujira has its own custom bindings. https://docs.rs/kujira-std/latest/kujira_std/enum.KujiraQuery.html
-        let request = QueryRequest::Stargate { 
-            path: "cosmos.bank.v1beta1.Query/SupplyOf".to_string(), 
-            data: encode_query_supply_of(denom).into(),
-        };
-        let res: SupplyResponse = deps.querier.query(&request)?;
-        Ok(res.amount)
+    let request = QueryRequest::Stargate {
+        path: "cosmos.bank.v1beta1.Query/SupplyOf".to_string(),
+        data: encode_query_supply_of(denom).into(),
+    };
+    let res: SupplyResponse = deps.querier.query(&request)?;
+    Ok(res.amount)
 }
 
 /// Formats the native denom to the asset info for the vault token with denom "factory/{`sender`}/{`denom`}"
 pub fn format_native_denom_to_asset(sender: &str, denom: &str) -> AssetInfo {
-    AssetInfo::Native(
-        format!("factory/{sender}/{denom}")
-    )
+    AssetInfo::Native(format!("factory/{sender}/{denom}"))
 }
 
 /// create a SubMsg to instantiate the Vault token with either the tokenfactory(kujira) or a cw20.
@@ -84,8 +82,7 @@ pub fn create_lp_token_submsg(
             id: INSTANTIATE_REPLY_ID,
             reply_on: ReplyOn::Success,
         })
-     } else {
-
+    } else {
         let msg = encode_msg_create_denom(&minter, &symbol);
 
         let cosmos_msg = CosmosMsg::Stargate {
@@ -104,14 +101,15 @@ pub fn create_lp_token_submsg(
 }
 
 /// parses the instantiate reply to get the contract address of the vault token or None if kujira. for kujira the denom is already set in instantiate.
-pub fn parse_instantiate_reply_cw20(reply: Reply) -> Result<Option<AssetInfo>, AutocompounderError> {
+pub fn parse_instantiate_reply_cw20(
+    reply: Reply,
+) -> Result<Option<AssetInfo>, AutocompounderError> {
     let response = parse_reply_instantiate_data(reply)
         .map_err(|err| AutocompounderError::Std(StdError::generic_err(err.to_string())))?;
 
     let vault_token = AssetInfo::Cw20(Addr::unchecked(response.contract_address));
     Ok(Some(vault_token))
 }
-
 
 /// Creates the message to mint tokens to `recipient`
 pub fn mint_vault_tokens_msg(
@@ -127,7 +125,7 @@ pub fn mint_vault_tokens_msg(
                 "Vault token is not a native token",
             )));};
 
-        let proto_msg = encode_msg_mint(&minter, &denom, amount);
+        let proto_msg = encode_msg_mint(&minter, denom, amount);
         let msg = CosmosMsg::Stargate {
             type_url: "/kujira.denom.MsgMint".to_string(),
             value: to_binary(&proto_msg)?,
@@ -164,7 +162,7 @@ pub fn burn_vault_tokens_msg(
                 "Vault token is not a native token",
             )));};
 
-        let proto_msg = encode_msg_mint(&minter, &denom, amount);
+        let proto_msg = encode_msg_mint(&minter, denom, amount);
         let msg = CosmosMsg::Stargate {
             type_url: "/kujira.denom.MsgBurn".to_string(),
             value: to_binary(&proto_msg)?,
@@ -184,7 +182,7 @@ pub fn burn_vault_tokens_msg(
 pub fn vault_token_total_supply(deps: Deps, config: &Config) -> AutocompounderResult<Uint128> {
     if cfg!(feature = "kujira") {
         // raw query using protobuf msg
-        // TODO: query the total supply if the token. 
+        // TODO: query the total supply if the token.
         let AssetInfo::Native(denom) = &config.vault_token else {
             return Err(AutocompounderError::Std(StdError::generic_err(
                 "Vault token is not a native token",

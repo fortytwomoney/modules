@@ -13,7 +13,7 @@ use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 
 use super::convert_to_assets;
-use super::helpers::{vault_token_total_supply, vault_token_balance};
+use super::helpers::{vault_token_balance, vault_token_total_supply};
 
 const DEFAULT_PAGE_SIZE: u8 = 5;
 const MAX_PAGE_SIZE: u8 = 20;
@@ -211,7 +211,7 @@ mod test {
             ),
             pool_assets: vec![],
             liquidity_token: cw_asset::AssetInfoBase::Cw20(Addr::unchecked("liquidity_token")),
-            vault_token: cw_asset::AssetInfoBase::Cw20( Addr::unchecked("vault_token")),
+            vault_token: cw_asset::AssetInfoBase::Cw20(Addr::unchecked("vault_token")),
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown: Some(Duration::Time(10)),
             max_swap_spread: Decimal::percent(50),

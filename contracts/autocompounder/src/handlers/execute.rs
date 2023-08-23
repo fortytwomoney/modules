@@ -1,7 +1,7 @@
 use super::convert_to_shares;
 use super::helpers::{
-    check_fee, convert_to_assets, vault_token_total_supply, query_stake,
-    stake_lp_tokens, transfer_to_msgs, mint_vault_tokens_msg, burn_vault_tokens_msg,
+    burn_vault_tokens_msg, check_fee, convert_to_assets, mint_vault_tokens_msg, query_stake,
+    stake_lp_tokens, transfer_to_msgs, vault_token_total_supply,
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
@@ -29,11 +29,11 @@ use abstract_sdk::{
 };
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use cosmwasm_std::{
-    from_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
-    Order, ReplyOn, Response, StdResult, SubMsg, Uint128,
+    Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response,
+    StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
-use cw_asset::{Asset, AssetInfo, AssetInfoBase, AssetList, AssetBase};
+use cw_asset::{Asset, AssetBase, AssetInfo, AssetInfoBase, AssetList};
 use cw_storage_plus::Bound;
 use cw_utils::Duration;
 use std::ops::Add;
@@ -66,11 +66,12 @@ pub fn execute_handler(
             recipient,
             max_spread,
         } => deposit(deps, info, env, app, funds, recipient, max_spread),
-        AutocompounderExecuteMsg::DepositLp { lp_token, recipient: receiver } => {
-            deposit_lp(deps, info, env, app, lp_token, receiver)
-        }
-        AutocompounderExecuteMsg::Redeem { amount , recipient} => {
-            redeem(deps, env, app, info.sender,  amount, recipient)
+        AutocompounderExecuteMsg::DepositLp {
+            lp_token,
+            recipient: receiver,
+        } => deposit_lp(deps, info, env, app, lp_token, receiver),
+        AutocompounderExecuteMsg::Redeem { amount, recipient } => {
+            redeem(deps, env, app, info.sender, amount, recipient)
         }
         AutocompounderExecuteMsg::Withdraw {} => withdraw_claims(deps, app, env, info.sender),
         AutocompounderExecuteMsg::BatchUnbond { start_after, limit } => {
@@ -436,8 +437,7 @@ fn transfer_token_to_autocompounder(
     match lp_token.info.clone() {
         AssetInfoBase::Cw20(_addr) => Ok(vec![Asset::cw20(_addr, lp_token.amount)
             .transfer_from_msg(sender, env.contract.address.clone())
-            .map_err(|e| -> AutocompounderError {e.into()})?
-            ]),
+            .map_err(|e| -> AutocompounderError { e.into() })?]),
         AssetInfoBase::Native(_denom) => Ok(vec![]),
         _ => Err(AutocompounderError::AssetError(
             cw_asset::AssetError::InvalidAssetFormat {
@@ -511,12 +511,14 @@ pub fn batch_unbond(
         deps.as_ref(),
         &app,
         config.pool_data.dex.clone(),
-        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token()).asset_entry(),
+        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token())
+            .asset_entry(),
         total_lp_amount_to_unbond,
         config.unbonding_period,
     );
 
-    let burn_msg = burn_vault_tokens_msg(&config, &env.contract.address, total_vault_tokens_to_burn)?;
+    let burn_msg =
+        burn_vault_tokens_msg(&config, &env.contract.address, total_vault_tokens_to_burn)?;
 
     let response = Response::new().add_messages(vec![unstake_msg, burn_msg]);
     Ok(app.custom_tag_response(response, "batch_unbond", vec![("4t2", "AC/UnbondBatch")]))
@@ -524,13 +526,17 @@ pub fn batch_unbond(
 
 /// Handles receiving CW20 messages
 pub fn receive(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    app: AutocompounderApp,
-    msg: Cw20ReceiveMsg,
+    _deps: DepsMut,
+    _env: Env,
+    _info: MessageInfo,
+    _app: AutocompounderApp,
+    _msg: Cw20ReceiveMsg,
 ) -> AutocompounderResult {
-    Err(AutocompounderError::Std(cosmwasm_std::StdError::GenericErr { msg: "cannot recieve c20 tokens. Deposit and redeem using allowance".to_string() }))
+    Err(AutocompounderError::Std(
+        cosmwasm_std::StdError::GenericErr {
+            msg: "cannot recieve c20 tokens. Deposit and redeem using allowance".to_string(),
+        },
+    ))
     // if msg.amount.is_zero() {
     //     return Err(AutocompounderError::ZeroDepositAmount {});
     // }
@@ -551,7 +557,7 @@ fn redeem(
     app: AutocompounderApp,
     sender: Addr,
     amount_of_vault_tokens_to_be_burned: Uint128,
-    recipient: Option<Addr>
+    recipient: Option<Addr>,
 ) -> AutocompounderResult {
     // parse sender
     let recipient = unwrap_recipient_is_allowed(
@@ -561,7 +567,10 @@ fn redeem(
     )?;
     let config = CONFIG.load(deps.storage)?;
 
-    let redeem_token = AssetBase::new(config.vault_token.clone(), amount_of_vault_tokens_to_be_burned);
+    let redeem_token = AssetBase::new(
+        config.vault_token.clone(),
+        amount_of_vault_tokens_to_be_burned,
+    );
     let transfer_msgs = transfer_token_to_autocompounder(redeem_token, sender, &env)?;
 
     if config.unbonding_period.is_none() {
@@ -577,8 +586,7 @@ fn redeem(
         register_pre_claim(deps, recipient, amount_of_vault_tokens_to_be_burned)?;
 
         Ok(app.custom_tag_response(
-            Response::new()
-                .add_messages(transfer_msgs),
+            Response::new().add_messages(transfer_msgs),
             "redeem",
             vec![("4t2", "AC/Register_pre_claim")],
         ))
@@ -662,7 +670,11 @@ fn redeem_without_bonding_period(
         lp_tokens_withdraw_amount,
         None,
     );
-    let burn_msg = burn_vault_tokens_msg(&config, &env.contract.address, amount_of_vault_tokens_to_be_burned)?;
+    let burn_msg = burn_vault_tokens_msg(
+        &config,
+        &env.contract.address,
+        amount_of_vault_tokens_to_be_burned,
+    )?;
 
     // 3) withdraw lp tokens
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
@@ -942,8 +954,6 @@ fn claim_unbonded_tokens(
         .unwrap()
 }
 
-
-
 /// Creates the the message to unstake lp tokens from the staking api
 fn unstake_lp_tokens(
     deps: Deps,
@@ -1030,7 +1040,7 @@ mod test {
 
         let response = redeem_without_bonding_period(
             deps.as_mut(),
-        &mock_env(),
+            &mock_env(),
             &sender,
             config.clone(),
             &AUTOCOMPOUNDER_APP,

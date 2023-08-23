@@ -14,10 +14,7 @@ use abstract_sdk::{
     core::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
     features::AbstractNameService,
 };
-use cosmwasm_std::{
-    Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Addr,
-};
+use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult};
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
@@ -152,7 +149,6 @@ pub fn instantiate_handler(
         .add_attribute("contract", AUTOCOMPOUNDER))
 }
 
-
 pub fn query_staking_info(
     deps: Deps,
     app: &AutocompounderApp,
@@ -241,7 +237,7 @@ mod test {
         Addr, Decimal,
     };
     use cw20::MinterResponse;
-use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
+    use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
     use cw_asset::AssetInfo;
     use speculoos::{assert_that, result::ResultAssertions};
 

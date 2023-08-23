@@ -32,7 +32,7 @@ use cosmwasm_std::{coin, coins, to_binary, Addr, Decimal, Empty, Uint128};
 
 use cw_utils::{Duration, Expiration};
 use speculoos::assert_that;
-use speculoos::prelude::{OrderedAssertions};
+use speculoos::prelude::OrderedAssertions;
 use wyndex_stake::msg::ReceiveDelegationMsg;
 
 use cw20::msg::Cw20ExecuteMsgFns;
@@ -147,7 +147,11 @@ fn create_vault(
         AUTOCOMPOUNDER,
         &abstract_core::app::InstantiateMsg {
             module: autocompounder::msg::AutocompounderInstantiateMsg {
-                code_id: if vault_token_is_cw20 { Some(vault_token_code_id) } else { None },
+                code_id: if vault_token_is_cw20 {
+                    Some(vault_token_code_id)
+                } else {
+                    None
+                },
                 commission_addr: COMMISSION_RECEIVER.to_string(),
                 deposit_fees: Decimal::percent(0),
                 dex: WYNDEX.to_string(),
@@ -220,7 +224,6 @@ fn deposit_cw20_asset() -> AResult {
     let WynDex {
         raw_token,
         raw_2_token,
-        
         ..
     } = vault.wyndex;
 
@@ -387,11 +390,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 
     // withdraw part from the auto-compounder
     let redeem_amount = Uint128::from(20000u128);
-    vault_token.increase_allowance(
-        redeem_amount,
-        auto_compounder_addr.clone(),
-        None,
-    )?;
+    vault_token.increase_allowance(redeem_amount, auto_compounder_addr.clone(), None)?;
     vault.auto_compounder.redeem(redeem_amount, None)?;
 
     // check that the vault token decreased
@@ -402,13 +401,9 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 
     // check that the pending claims are updated
     let redeem_amount = Uint128::from(20000u128);
-    vault_token.increase_allowance(
-        redeem_amount,
-        auto_compounder_addr.clone(),
-        None,
-    )?;
+    vault_token.increase_allowance(redeem_amount, auto_compounder_addr.clone(), None)?;
     vault.auto_compounder.redeem(redeem_amount, None)?;
-    
+
     let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.clone())?;
     assert_that!(pending_claims.u128()).is_equal_to(40000u128);
 
@@ -451,12 +446,8 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     let generator_staked_balance = staked.stakes.first().unwrap();
     assert_that!(generator_staked_balance.stake.u128()).is_equal_to(6000u128);
 
-     let redeem_amount = Uint128::from(60000u128);
-    vault_token.increase_allowance(
-        redeem_amount,
-        auto_compounder_addr.clone(),
-        None,
-    )?;
+    let redeem_amount = Uint128::from(60000u128);
+    vault_token.increase_allowance(redeem_amount, auto_compounder_addr.clone(), None)?;
     vault.auto_compounder.redeem(redeem_amount, None)?;
 
     vault.auto_compounder.batch_unbond(None, None)?;
@@ -695,11 +686,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     // withdraw part from the auto-compounder
     vault.auto_compounder.set_sender(&owner);
     let redeem_amount = Uint128::from(4000u128 * 10u128.pow(DECIMAL_OFFSET));
-    vault_token.increase_allowance(
-        redeem_amount,
-        auto_compounder_addr.clone(),
-        None,
-    )?;
+    vault_token.increase_allowance(redeem_amount, auto_compounder_addr.clone(), None)?;
     vault.auto_compounder.redeem(redeem_amount, None)?;
 
     // check that the vault token decreased
@@ -767,11 +754,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
 
     // withdraw all owner funds from the auto-compounder
     let redeem_amount = Uint128::from(6000u128 * 10u128.pow(DECIMAL_OFFSET));
-    vault_token.increase_allowance(
-        redeem_amount,
-        auto_compounder_addr.clone(),
-        None,
-    )?;
+    vault_token.increase_allowance(redeem_amount, auto_compounder_addr.clone(), None)?;
     vault.auto_compounder.redeem(redeem_amount, None)?;
 
     // testing general non unbonding staking contract functionality
@@ -797,12 +780,8 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
 
     vault.auto_compounder.set_sender(&user1);
     vault_token.set_sender(&user1);
-    let redeem_amount = vault_token_balance_user1; 
-    vault_token.increase_allowance(
-        redeem_amount,
-        auto_compounder_addr.clone(),
-        None,
-    )?;
+    let redeem_amount = vault_token_balance_user1;
+    vault_token.increase_allowance(redeem_amount, auto_compounder_addr.clone(), None)?;
     vault.auto_compounder.redeem(redeem_amount, None)?;
 
     let pending_claims = vault.auto_compounder.pending_claims(user1.clone())?.into();
@@ -930,11 +909,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
 
     // Redeem vault tokens and create pending claim of user tokens to see if the user actually received more of EUR and USD then they deposited
     let redeem_amount = vault_token_balance.balance;
-    vault_token.increase_allowance(
-        redeem_amount,
-        auto_compounder_addr.clone(),
-        None,
-    )?;
+    vault_token.increase_allowance(redeem_amount, auto_compounder_addr.clone(), None)?;
     vault.auto_compounder.redeem(redeem_amount, None)?;
 
     // Unbond tokens & clear pending claims
@@ -1005,11 +980,7 @@ fn test_deposit_fees_fee_token_and_withdraw_fees() -> AResult {
     let owner_balance = vault_token.balance(owner.to_string())?.balance;
 
     let redeem_amount = owner_balance;
-    vault_token.increase_allowance(
-        redeem_amount,
-        vault.auto_compounder.addr_str()?,
-        None,
-    )?;
+    vault_token.increase_allowance(redeem_amount, vault.auto_compounder.addr_str()?, None)?;
     vault.auto_compounder.redeem(redeem_amount, None)?;
 
     let amount: Uint128 = vault.auto_compounder.pending_claims(owner.clone())?;
@@ -1083,11 +1054,7 @@ fn test_deposit_fees_non_fee_token() -> AResult {
     let owner_balance = vault_token.balance(owner.to_string())?.balance;
 
     let redeem_amount = owner_balance;
-    vault_token.increase_allowance(
-        redeem_amount,
-        vault.auto_compounder.addr_str()?,
-        None,
-    )?;
+    vault_token.increase_allowance(redeem_amount, vault.auto_compounder.addr_str()?, None)?;
     vault.auto_compounder.redeem(redeem_amount, None)?;
 
     let amount: Uint128 = vault.auto_compounder.pending_claims(owner.clone())?;
@@ -1238,13 +1205,8 @@ fn test_owned_funds_stay_in_vault() -> AResult {
     // assert_that!(vault_eur_balance.u128()).is_equal_to(100_000u128);
     // assert_that!(vault_usd_balance.u128()).is_equal_to(100_000u128);
 
-    
     let redeem_amount = vault_token.balance(owner.to_string())?.balance;
-    vault_token.increase_allowance(
-        redeem_amount,
-        vault.auto_compounder.addr_str()?,
-        None,
-    )?;
+    vault_token.increase_allowance(redeem_amount, vault.auto_compounder.addr_str()?, None)?;
     vault.auto_compounder.redeem(redeem_amount, None)?;
 
     // Unbond tokens & clear pending claims
@@ -1282,7 +1244,7 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
     let mock = Mock::new(&owner);
 
     let mut vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
-    let mut vault_token = vault.vault_token.to_owned();
+    let vault_token = vault.vault_token.to_owned();
     let WynDex { .. } = vault.wyndex;
 
     // deposit big amount by owner:
@@ -1323,11 +1285,14 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
         let vault_token_balance = vault_token.balance(addr.to_string())?.balance;
         let redeem_amount = vault_token_balance;
         vault.vault_token.call_as(addr).increase_allowance(
-        redeem_amount,
-        vault.auto_compounder.addr_str()?,
-        None,
-    )?;
-    vault.auto_compounder.call_as(addr).redeem(redeem_amount, None)?;
+            redeem_amount,
+            vault.auto_compounder.addr_str()?,
+            None,
+        )?;
+        vault
+            .auto_compounder
+            .call_as(addr)
+            .redeem(redeem_amount, None)?;
     }
     // max 20 page per call. Test it by doing 30
     let claims = vault.auto_compounder.all_pending_claims(Some(30), None)?;
@@ -1501,7 +1466,7 @@ fn vault_token_inflation_attack_original() -> AResult {
     };
 
     let vault_token = vault.vault_token;
-    let auto_compounder_addr = vault.auto_compounder.addr_str().unwrap();
+    let _auto_compounder_addr = vault.auto_compounder.addr_str().unwrap();
 
     let user_deposit = 100_000u128;
     // mint lp tokens to the user and the attacker
@@ -1568,14 +1533,17 @@ fn vault_token_inflation_attack_original() -> AResult {
         .is_equal_to(3.99_f32.mul(10.0_f32.powf(DECIMAL_OFFSET as f32)) as u128);
 
     // attacker withdraws the initial deposit
-        let redeem_amount = 10u128.pow(DECIMAL_OFFSET).into();
-        vault_token.call_as(&attacker).increase_allowance(
+    let redeem_amount = 10u128.pow(DECIMAL_OFFSET).into();
+    vault_token.call_as(&attacker).increase_allowance(
         redeem_amount,
         vault.auto_compounder.addr_str()?,
         None,
     )?;
-    vault.auto_compounder.call_as(&attacker).redeem(redeem_amount, None)?;
-    
+    vault
+        .auto_compounder
+        .call_as(&attacker)
+        .redeem(redeem_amount, None)?;
+
     // attacker unbonds tokens
     let pending_claims: Uint128 = vault.auto_compounder.pending_claims(attacker.clone())?;
     assert_that!(pending_claims.u128()).is_equal_to(10u128.pow(DECIMAL_OFFSET));

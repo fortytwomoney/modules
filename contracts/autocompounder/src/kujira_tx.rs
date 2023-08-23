@@ -1,14 +1,14 @@
 /// This file contains the manually written protobuf encoding for the kujira token factory messages.
 /// The protobuf file can be found here: https://github.com/Team-Kujira/core/blob/master/proto/denom/tx.proto
-/// A mapping of the typeUrls can be found here: https://github.com/Team-Kujira/kujira.js/blob/master/src/kujira/kujira.denom/index.ts 
-/// 
-/// 
+/// A mapping of the typeUrls can be found here: https://github.com/Team-Kujira/kujira.js/blob/master/src/kujira/kujira.denom/index.ts
+///
+///
 /// NOTE on MsgCreateDenom.nonce:
 /// Hans, [21 Aug 2023 at 16:21:07]: subdenom in the custom bindings maps to the nonce parameter in MsgCreateDenom https://github.com/Team-Kujira/core/blob/master/x/denom/wasm/interface_msg.go#L74
 use anybuf::Anybuf;
 use cosmwasm_std::Uint128;
 
-/// Encodes a Kujira's MsgCreateDenom message to binary. 
+/// Encodes a Kujira's MsgCreateDenom message to binary.
 /// Denom will be in the format: factory/{sender}/{`denom`}.
 /// Sources:
 /// - [kujiras protobufs](https://github.com/Team-Kujira/core/blob/master/proto/denom/tx.proto).
@@ -24,17 +24,14 @@ use cosmwasm_std::Uint128;
 /// ```
 pub fn encode_msg_create_denom(sender: &str, denom: &str) -> Vec<u8> {
     // like from their docs: https://docs.kujira.app/developers/smart-contracts/token-factory#creation
-
-    let msg = Anybuf::new()
-        .append_string(1, sender.to_string())
-        .append_string(2, denom.to_string())
-        .into_vec();
-
-    msg
+    Anybuf::new()
+        .append_string(1, sender)
+        .append_string(2, denom)
+        .into_vec()
 }
 
 /// // MsgMint is the sdk.Msg type for allowing an admin account to mint
-/// more of a token. 
+/// more of a token.
 /// ```ignore
 /// message MsgMint {
 ///   string sender = 1 [ (gogoproto.moretags) = "yaml:\"sender\"" ];
@@ -45,9 +42,8 @@ pub fn encode_msg_create_denom(sender: &str, denom: &str) -> Vec<u8> {
 ///   string recipient = 3 [ (gogoproto.moretags) = "yaml:\"recipient\"" ];
 /// }
 pub fn encode_msg_mint(sender: &str, denom: &str, amount: Uint128) -> Vec<u8> {
-    
     let coin = Anybuf::new()
-        .append_string(1, denom.to_string())
+        .append_string(1, denom)
         .append_string(2, amount.to_string());
 
     Anybuf::new()
@@ -55,7 +51,6 @@ pub fn encode_msg_mint(sender: &str, denom: &str, amount: Uint128) -> Vec<u8> {
         .append_message(2, &coin)
         .into_vec()
 }
-
 
 /// // MsgBurn is the sdk.Msg type for allowing an admin account to burn
 /// // a token.  For now, we only support burning from the sender account.
@@ -69,9 +64,8 @@ pub fn encode_msg_mint(sender: &str, denom: &str, amount: Uint128) -> Vec<u8> {
 /// }
 /// ```
 pub fn encode_msg_burn(sender: &str, denom: &str, amount: Uint128) -> Vec<u8> {
-    
     let coin = Anybuf::new()
-        .append_string(1, denom.to_string())
+        .append_string(1, denom)
         .append_string(2, amount.to_string());
 
     Anybuf::new()
@@ -89,11 +83,7 @@ pub fn encode_msg_burn(sender: &str, denom: &str, amount: Uint128) -> Vec<u8> {
 ///   string denom = 1;
 /// }
 /// ```
-/// 
+///
 pub fn encode_query_supply_of(denom: &str) -> Vec<u8> {
-    let msg = Anybuf::new()
-        .append_string(1, denom.to_string())
-        .into_vec();
-
-    msg
+    Anybuf::new().append_string(1, denom).into_vec()
 }

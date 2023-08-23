@@ -269,7 +269,7 @@ mod test_common {
                 info,
                 abstract_core::app::InstantiateMsg {
                     module: crate::msg::AutocompounderInstantiateMsg {
-                        code_id: if vault_token_is_cw20 { Some(1)} else {None},
+                        code_id: if vault_token_is_cw20 { Some(1) } else { None },
                         commission_addr: COMMISSION_RECEIVER.to_string(),
                         deposit_fees: Decimal::percent(3),
                         dex: WYNDEX.to_string(),

@@ -1,13 +1,12 @@
 use super::helpers::{
-    convert_to_shares, vault_token_total_supply, mint_vault_tokens_msg, query_stake, stake_lp_tokens,
-    swap_rewards_with_reply, parse_instantiate_reply_cw20, 
+    convert_to_shares, mint_vault_tokens_msg, parse_instantiate_reply_cw20, query_stake,
+    stake_lp_tokens, swap_rewards_with_reply, vault_token_total_supply,
 };
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, SWAPPED_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 
-use crate::response::MsgInstantiateContractResponse;
 use crate::state::{Config, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_cw_staking::{
@@ -25,8 +24,7 @@ use abstract_sdk::{
     AbstractSdkResult, Resolve, TransferInterface,
 };
 use cosmwasm_std::{
-    CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdResult, SubMsg,
-    Uint128,
+    CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdResult, SubMsg, Uint128,
 };
 use cw_asset::{Asset, AssetInfo};
 
@@ -41,14 +39,16 @@ pub fn instantiate_reply(
     let vault_token = if let Some(vault_token) = parse_instantiate_reply_cw20(reply)? {
         // @improvement: ideally we'd also parse the Reply in case of native token, however i dont know how currently. so we store if beforehand.
 
-
         CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
             config.vault_token = vault_token.clone();
             Ok(config)
         })?;
         vault_token
     } else {
-        return Err(AutocompounderError::Std(cosmwasm_std::StdError::ParseErr { target_type: "MsgInstantiateContractResponse".to_string(), msg: "instantiate reply couldnt be parsed to target".to_string() }));
+        return Err(AutocompounderError::Std(cosmwasm_std::StdError::ParseErr {
+            target_type: "MsgInstantiateContractResponse".to_string(),
+            msg: "instantiate reply couldnt be parsed to target".to_string(),
+        }));
         // CONFIG.load(deps.storage)?.vault_token
     };
 
@@ -100,7 +100,8 @@ pub fn lp_provision_reply(
     }
 
     // Mint vault tokens to the user
-    let mint_msg = mint_vault_tokens_msg(&config, &env.contract.address, user_address, mint_amount)?;
+    let mint_msg =
+        mint_vault_tokens_msg(&config, &env.contract.address, user_address, mint_amount)?;
 
     // Stake the LP tokens
     let stake_msg = stake_lp_tokens(
@@ -378,7 +379,7 @@ mod test {
 
     mod withdraw_liquidity {
 
-        use cosmwasm_std::{StdError, Addr};
+        use cosmwasm_std::{Addr, StdError};
 
         use super::*;
 
@@ -402,7 +403,7 @@ mod test {
         /// 5. check the stored balances of the CACHED_ASSETS in the storage and the user address
         fn succesful_withdrawal_with_balances() -> anyhow::Result<()> {
             let mut deps = app_init(false, true); // Assuming you have this helper function already set up.
-                                            // let module = MockModule::new();
+                                                  // let module = MockModule::new();
             let config = min_cooldown_config(None); // Using the same config helper as before.
             CONFIG.save(deps.as_mut().storage, &config)?; // Saving the config to the storage.
             let env = mock_env(); // Using the same mock_env helper as before.
