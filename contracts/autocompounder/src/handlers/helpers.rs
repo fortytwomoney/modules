@@ -504,11 +504,6 @@ pub mod helpers_tests {
     #[test]
     fn test_transfer_to_msgs() {
         let deps = mock_dependencies();
-
-        let _asset = AnsAsset {
-            amount: Uint128::from(100u128),
-            name: AssetEntry::new("token"),
-        };
         let recipient = Addr::unchecked("recipient");
 
         // Test transfer with zero amount
