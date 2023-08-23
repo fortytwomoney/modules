@@ -54,6 +54,7 @@ pub fn format_native_denom_to_asset(sender: &str, denom: &str) -> AssetInfo {
         format!("factory/{sender}/{denom}")
     )
 }
+
 /// create a SubMsg to instantiate the Vault token with either the tokenfactory(kujira) or a cw20.
 pub fn create_lp_token_submsg(
     minter: String,
@@ -103,17 +104,12 @@ pub fn create_lp_token_submsg(
 }
 
 /// parses the instantiate reply to get the contract address of the vault token or None if kujira. for kujira the denom is already set in instantiate.
-pub fn parse_instantiate_reply(reply: Reply) -> Result<Option<AssetInfo>, AutocompounderError> {
-    if cfg!(feature = "kujira") {
-        Ok(None)
+pub fn parse_instantiate_reply_cw20(reply: Reply) -> Result<Option<AssetInfo>, AutocompounderError> {
+    let response = parse_reply_instantiate_data(reply)
+        .map_err(|err| AutocompounderError::Std(StdError::generic_err(err.to_string())))?;
 
-    } else {
-        let response = parse_reply_instantiate_data(reply)
-            .map_err(|err| AutocompounderError::Std(StdError::generic_err(err.to_string())))?;
-    
-        let vault_token = AssetInfo::Cw20(Addr::unchecked(response.contract_address));
-        Ok(Some(vault_token))
-    }
+    let vault_token = AssetInfo::Cw20(Addr::unchecked(response.contract_address));
+    Ok(Some(vault_token))
 }
 
 

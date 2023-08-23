@@ -16,8 +16,9 @@ use abstract_sdk::{
 };
 use cosmwasm_std::{
     Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult,
+    StdResult, Addr,
 };
+use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
 use super::helpers::{create_lp_token_submsg, format_native_denom_to_asset};
@@ -105,9 +106,15 @@ pub fn instantiate_handler(
     let max_swap_spread =
         max_swap_spread.unwrap_or_else(|| Decimal::percent(DEFAULT_MAX_SPREAD.into()));
 
+    // vault_token will be overwritten in the instantiate reply if we are using a cw20
+    let vault_token = if code_id.is_some() {
+        AssetInfo::cw20(Addr::unchecked(""))
+    } else {
+        format_native_denom_to_asset(env.contract.address.as_str(), VAULT_TOKEN_SYMBOL)
+    };
+
     let config: Config = Config {
-        // vault_token will be overwritten in the instantiate reply if we are using a cw20
-        vault_token: format_native_denom_to_asset(env.contract.address.as_str(), VAULT_TOKEN_SYMBOL),
+        vault_token,
         staking_target: staking_info.staking_target,
         liquidity_token: lp_token_info,
         pool_data,
@@ -136,7 +143,7 @@ pub fn instantiate_handler(
         // pool data is too long
         // format!("4T2 Vault Token for {pool_data}"),
         VAULT_TOKEN_SYMBOL.to_string(), // TODO: find a better way to define name and symbol
-        code_id,
+        code_id, // if code_id is none, submsg will be like normal msg: no reply (for now).
     )?;
 
     Ok(Response::new()

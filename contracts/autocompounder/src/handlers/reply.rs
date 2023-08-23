@@ -1,12 +1,13 @@
 use super::helpers::{
     convert_to_shares, vault_token_total_supply, mint_vault_tokens_msg, query_stake, stake_lp_tokens,
-    swap_rewards_with_reply, parse_instantiate_reply, 
+    swap_rewards_with_reply, parse_instantiate_reply_cw20, 
 };
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, SWAPPED_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 
+use crate::response::MsgInstantiateContractResponse;
 use crate::state::{Config, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_cw_staking::{
@@ -37,7 +38,7 @@ pub fn instantiate_reply(
     reply: Reply,
 ) -> AutocompounderResult {
     // Logic to execute on example reply
-    let vault_token = if let Some(vault_token) = parse_instantiate_reply(reply)? {
+    let vault_token = if let Some(vault_token) = parse_instantiate_reply_cw20(reply)? {
         // @improvement: ideally we'd also parse the Reply in case of native token, however i dont know how currently. so we store if beforehand.
 
 
@@ -47,7 +48,8 @@ pub fn instantiate_reply(
         })?;
         vault_token
     } else {
-        CONFIG.load(deps.storage)?.vault_token
+        return Err(AutocompounderError::Std(cosmwasm_std::StdError::ParseErr { target_type: "MsgInstantiateContractResponse".to_string(), msg: "instantiate reply couldnt be parsed to target".to_string() }));
+        // CONFIG.load(deps.storage)?.vault_token
     };
 
     Ok(app.custom_tag_response(
