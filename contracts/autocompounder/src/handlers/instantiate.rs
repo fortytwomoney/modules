@@ -62,14 +62,6 @@ pub fn instantiate_handler(
     };
     let lp_token_info = ans.query(&lp_token)?;
 
-    // // match on the info and get cw20
-    // let lp_token_addr: Addr = match lp_token_info {
-    //     cw_asset::AssetInfoBase::Cw20(addr) => Ok(addr),
-    //     _ => Err(AutocompounderError::Std(StdError::generic_err(
-    //         "LP token is not a cw20",
-    //     ))),
-    // }?;
-
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
     // get staking info

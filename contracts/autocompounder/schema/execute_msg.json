@@ -194,7 +194,38 @@
                 "lp_token": {
                   "$ref": "#/definitions/AnsAsset"
                 },
-                "receiver": {
+                "recipient": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/Addr"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "redeem"
+          ],
+          "properties": {
+            "redeem": {
+              "type": "object",
+              "required": [
+                "amount"
+              ],
+              "properties": {
+                "amount": {
+                  "$ref": "#/definitions/Uint128"
+                },
+                "recipient": {
                   "anyOf": [
                     {
                       "$ref": "#/definitions/Addr"

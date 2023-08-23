@@ -361,7 +361,7 @@ pub mod helpers_tests {
     }
 
     #[test]
-    #[ignore = "Cannot test stargate queries in unittest"]
+    #[ignore = "Cannot (yet?) test stargate queries in unittest"]
     fn test_query_supply_with_stargate() {
         let deps = mock_dependencies();
 

@@ -34,7 +34,6 @@
       "description": "Init msg",
       "type": "object",
       "required": [
-        "code_id",
         "commission_addr",
         "deposit_fees",
         "dex",
@@ -46,7 +45,10 @@
       "properties": {
         "code_id": {
           "description": "cw20 code id",
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "format": "uint64",
           "minimum": 0.0
         },

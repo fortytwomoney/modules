@@ -8,7 +8,6 @@
     "description": "Init msg",
     "type": "object",
     "required": [
-      "code_id",
       "commission_addr",
       "deposit_fees",
       "dex",
@@ -20,7 +19,10 @@
     "properties": {
       "code_id": {
         "description": "cw20 code id",
-        "type": "integer",
+        "type": [
+          "integer",
+          "null"
+        ],
         "format": "uint64",
         "minimum": 0.0
       },
@@ -253,7 +255,38 @@
               "lp_token": {
                 "$ref": "#/definitions/AnsAsset"
               },
-              "receiver": {
+              "recipient": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Addr"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "redeem"
+        ],
+        "properties": {
+          "redeem": {
+            "type": "object",
+            "required": [
+              "amount"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Uint128"
+              },
+              "recipient": {
                 "anyOf": [
                   {
                     "$ref": "#/definitions/Addr"
@@ -1033,7 +1066,7 @@
           "description": "Vault token",
           "allOf": [
             {
-              "$ref": "#/definitions/Addr"
+              "$ref": "#/definitions/AssetInfoBase_for_Addr"
             }
           ]
         }
