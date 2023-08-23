@@ -13,7 +13,7 @@ use crate::contract::{
     LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector, Cw20HookMsg};
+use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector};
 use crate::state::{
     Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
     FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS,
@@ -33,7 +33,7 @@ use cosmwasm_std::{
     Order, ReplyOn, Response, StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
-use cw_asset::{Asset, AssetInfo, AssetInfoBase, AssetList};
+use cw_asset::{Asset, AssetInfo, AssetInfoBase, AssetList, AssetBase};
 use cw_storage_plus::Bound;
 use cw_utils::Duration;
 use std::ops::Add;
@@ -66,8 +66,11 @@ pub fn execute_handler(
             recipient,
             max_spread,
         } => deposit(deps, info, env, app, funds, recipient, max_spread),
-        AutocompounderExecuteMsg::DepositLp { lp_token, receiver } => {
+        AutocompounderExecuteMsg::DepositLp { lp_token, recipient: receiver } => {
             deposit_lp(deps, info, env, app, lp_token, receiver)
+        }
+        AutocompounderExecuteMsg::Redeem { amount , recipient} => {
+            redeem(deps, env, app, info.sender,  amount, recipient)
         }
         AutocompounderExecuteMsg::Withdraw {} => withdraw_claims(deps, app, env, info.sender),
         AutocompounderExecuteMsg::BatchUnbond { start_after, limit } => {
@@ -346,7 +349,7 @@ fn deposit_lp(
     // let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
 
     // transfer the asset to the proxy contract
-    let transfer_msg = transfer_token(lp_token, info.sender, &app, deps.as_ref())?;
+    let transfer_msg = transfer_token_to_proxy(lp_token, info.sender, &app, deps.as_ref())?;
 
     let staked_lp = query_stake(
         deps.as_ref(),
@@ -406,8 +409,7 @@ fn deduct_fee(lp_asset: AnsAsset, fee: Decimal) -> (AnsAsset, AnsAsset) {
 
 /// Transfer lp token to the proxy contract whether it is a cw20 or native token. Returns CosmosMsg
 /// For cw20 tokens, it will call transfer_from and it needs a allowance to be set, otherwhise the execution will error.
-
-fn transfer_token(
+fn transfer_token_to_proxy(
     lp_token: Asset,
     sender: Addr,
     app: &AutocompounderApp,
@@ -418,6 +420,25 @@ fn transfer_token(
             .transfer_from_msg(sender, app.proxy_address(deps)?)
             .map_err(|e| e.into()),
         AssetInfoBase::Native(_denom) => Ok(app.bank(deps).deposit(vec![lp_token])?.swap_remove(0)),
+        _ => Err(AutocompounderError::AssetError(
+            cw_asset::AssetError::InvalidAssetFormat {
+                received: lp_token.to_string(),
+            },
+        )),
+    }
+}
+
+fn transfer_token_to_autocompounder(
+    lp_token: Asset,
+    sender: Addr,
+    env: &Env,
+) -> Result<Vec<CosmosMsg>, AutocompounderError> {
+    match lp_token.info.clone() {
+        AssetInfoBase::Cw20(_addr) => Ok(vec![Asset::cw20(_addr, lp_token.amount)
+            .transfer_from_msg(sender, env.contract.address.clone())
+            .map_err(|e| -> AutocompounderError {e.into()})?
+            ]),
+        AssetInfoBase::Native(_denom) => Ok(vec![]),
         _ => Err(AutocompounderError::AssetError(
             cw_asset::AssetError::InvalidAssetFormat {
                 received: lp_token.to_string(),
@@ -509,13 +530,14 @@ pub fn receive(
     app: AutocompounderApp,
     msg: Cw20ReceiveMsg,
 ) -> AutocompounderResult {
-    if msg.amount.is_zero() {
-        return Err(AutocompounderError::ZeroDepositAmount {});
-    }
-    // Withdraw fn can only be called by liquidity token or the lp token
-    match from_binary(&msg.msg)? {
-        Cw20HookMsg::Redeem {} => redeem(deps, env, app, info.sender, msg.sender, msg.amount),
-    }
+    Err(AutocompounderError::Std(cosmwasm_std::StdError::GenericErr { msg: "cannot recieve c20 tokens. Deposit and redeem using allowance".to_string() }))
+    // if msg.amount.is_zero() {
+    //     return Err(AutocompounderError::ZeroDepositAmount {});
+    // }
+    // // Withdraw fn can only be called by liquidity token or the lp token
+    // match from_binary(&msg.msg)? {
+    //     Cw20HookMsg::Redeem {} => redeem(deps, env, app, info.sender, msg.sender, msg.amount),
+    // }
 }
 
 /// Redeems the vault tokens for the underlying asset.
@@ -527,36 +549,36 @@ fn redeem(
     deps: DepsMut,
     env: Env,
     app: AutocompounderApp,
-    cw20_sender: Addr,
-    sender: String,
+    sender: Addr,
     amount_of_vault_tokens_to_be_burned: Uint128,
+    recipient: Option<Addr>
 ) -> AutocompounderResult {
     // parse sender
-    let sender = deps.api.addr_validate(&sender)?;
-
-    // check if the cw20 sender is the vault token
+    let recipient = unwrap_recipient_is_allowed(
+        recipient,
+        &sender,
+        forbidden_deposit_addresses(deps.as_ref(), &env, &app)?,
+    )?;
     let config = CONFIG.load(deps.storage)?;
-    let AssetInfo::Cw20(token_addr) = config.vault_token.clone() else {
-        return Err(AutocompounderError::SenderIsNotVaultToken {  });
-    };
-    if cw20_sender != token_addr {
-        return Err(AutocompounderError::SenderIsNotVaultToken {});
-    }
+
+    let redeem_token = AssetBase::new(config.vault_token.clone(), amount_of_vault_tokens_to_be_burned);
+    let transfer_msgs = transfer_token_to_autocompounder(redeem_token, sender, &env)?;
 
     if config.unbonding_period.is_none() {
         redeem_without_bonding_period(
             deps,
             &env,
-            &sender,
+            &recipient,
             config,
             &app,
             amount_of_vault_tokens_to_be_burned,
         )
     } else {
-        register_pre_claim(deps, sender, amount_of_vault_tokens_to_be_burned)?;
+        register_pre_claim(deps, recipient, amount_of_vault_tokens_to_be_burned)?;
 
         Ok(app.custom_tag_response(
-            Response::new(),
+            Response::new()
+                .add_messages(transfer_msgs),
             "redeem",
             vec![("4t2", "AC/Register_pre_claim")],
         ))

@@ -95,7 +95,11 @@ pub enum AutocompounderExecuteMsg {
     /// Deposit LP tokens. Requires approval for cw20 tokens
     DepositLp {
         lp_token: OfferAsset,
-        receiver: Option<Addr>,
+        recipient: Option<Addr>,
+    },
+    Redeem {
+        amount: Uint128,
+        recipient: Option<Addr>,
     },
     /// Withdraw all unbonded funds
     Withdraw {},
@@ -169,11 +173,11 @@ pub enum AutocompounderQueryMsg {
     Balance { address: Addr },
 }
 
-#[cosmwasm_schema::cw_serde]
-pub enum Cw20HookMsg {
-    /// Withdraws a given amount from the vault.
-    Redeem {},
-}
+// #[cosmwasm_schema::cw_serde]
+// pub enum Cw20HookMsg {
+//     /// Withdraws a given amount from the vault.
+//     // Redeem {},
+// }
 
 /// Vault fee structure
 #[cosmwasm_schema::cw_serde]
