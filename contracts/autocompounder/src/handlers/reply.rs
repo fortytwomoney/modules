@@ -363,7 +363,7 @@ fn get_staking_rewards(
 #[cfg(test)]
 mod test {
     use crate::contract::{AUTOCOMPOUNDER_APP, LP_WITHDRAWAL_REPLY_ID};
-    use crate::handlers::helpers::test_helpers::min_cooldown_config;
+    use crate::handlers::helpers::helpers_tests::min_cooldown_config;
 
     // use abstract_sdk::mock_module::MockModule;
     use abstract_testing::prelude::TEST_PROXY;

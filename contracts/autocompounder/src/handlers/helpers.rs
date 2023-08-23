@@ -1,4 +1,5 @@
 use crate::contract::INSTANTIATE_REPLY_ID;
+use crate::kujira_tx::encode_msg_burn;
 use crate::kujira_tx::encode_msg_create_denom;
 use crate::kujira_tx::encode_msg_mint;
 use crate::kujira_tx::encode_query_supply_of;
@@ -29,6 +30,7 @@ use cw20::MinterResponse;
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
+use cw_asset::AssetError;
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
@@ -120,7 +122,7 @@ pub fn mint_vault_tokens_msg(
 ) -> Result<CosmosMsg, AutocompounderError> {
     match config.vault_token.clone() {
         AssetInfo::Native(denom) => {
-            let proto_msg = encode_msg_mint(&minter.as_str(), denom.as_str(), amount);
+            let proto_msg = encode_msg_mint(minter.as_str(), denom.as_str(), amount);
             let msg = CosmosMsg::Stargate {
                 type_url: "/kujira.denom.MsgMint".to_string(),
                 value: to_binary(&proto_msg)?,
@@ -151,26 +153,22 @@ pub fn burn_vault_tokens_msg(
     minter: &Addr,
     amount: Uint128,
 ) -> AutocompounderResult<CosmosMsg> {
-    if cfg!(feature = "kujira") {
-        let minter = minter.to_string();
-        let AssetInfo::Native(denom) = &config.vault_token else {
-            return Err(AutocompounderError::Std(StdError::generic_err(
-                "Vault token is not a native token",
-            )));};
-
-        let proto_msg = encode_msg_mint(&minter, denom, amount);
-        let msg = CosmosMsg::Stargate {
-            type_url: "/kujira.denom.MsgBurn".to_string(),
-            value: to_binary(&proto_msg)?,
-        };
-        Ok(msg)
-    } else {
-        let AssetInfo::Cw20(token_addr) = &config.vault_token else {
-            return Err(AutocompounderError::Std(StdError::generic_err(
-                "Vault token is not a cw20 token",
-            )));};
-        let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
-        Ok(wasm_execute(token_addr, &msg, vec![])?.into())
+    match config.vault_token.clone() {
+        AssetInfo::Native(denom) => {
+            let proto_msg = encode_msg_burn(minter.as_str(), &denom, amount);
+            let msg = CosmosMsg::Stargate {
+                type_url: "/kujira.denom.MsgBurn".to_string(),
+                value: to_binary(&proto_msg)?,
+            };
+            Ok(msg)
+        }
+        AssetInfo::Cw20(token_addr) => {
+            let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
+            Ok(wasm_execute(token_addr, &msg, vec![])?.into())
+        }
+        _ => Err(AutocompounderError::AssetError(
+            AssetError::InvalidAssetType { ty: "".to_string() },
+        )),
     }
 }
 
@@ -210,7 +208,7 @@ pub fn vault_token_balance(
     config
         .vault_token
         .query_balance(&deps.querier, addr)
-        .map_err(|err| AutocompounderError::Std(StdError::generic_err(err.to_string())))
+        .map_err(AutocompounderError::AssetError)
 }
 
 // ------------------------------------------------------------
@@ -280,6 +278,7 @@ pub fn check_fee(fee: Decimal) -> Result<(), AutocompounderError> {
     }
     Ok(())
 }
+
 /// swaps all rewards that are not in the target assets and add a reply id to the latest swapmsg
 pub fn swap_rewards_with_reply(
     rewards: Vec<AnsAsset>,
@@ -325,14 +324,19 @@ pub fn transfer_to_msgs(
 }
 
 #[cfg(test)]
-pub mod test_helpers {
+pub mod helpers_tests {
+    use crate::contract::AUTOCOMPOUNDER_APP;
+
     use super::*;
     use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
-    use cosmwasm_std::testing::mock_dependencies;
+    use cosmwasm_std::{from_binary, testing::mock_dependencies};
     use cw_asset::AssetInfoBase;
     use speculoos::{assert_that, result::ResultAssertions};
 
-    pub fn min_cooldown_config(min_unbonding_cooldown: Option<Duration>, vt_is_native:bool) -> Config {
+    pub fn min_cooldown_config(
+        min_unbonding_cooldown: Option<Duration>,
+        vt_is_native: bool,
+    ) -> Config {
         let assets = vec![AssetEntry::new("eur"), AssetEntry::new("usd")];
 
         Config {
@@ -361,12 +365,12 @@ pub mod test_helpers {
     #[test]
     #[ignore = "Cannot test stargate queries in unittest"]
     fn test_query_supply_with_stargate() {
-        let mut deps = mock_dependencies();
-        // TODO: Mock the querier response for the stargate query
-        let denom = "testdenom";
+        let deps = mock_dependencies();
+
+        let denom = "test_vault_token";
+
         let result = query_supply_with_stargate(deps.as_ref(), denom);
         assert!(result.is_ok());
-        // TODO: Assert the expected result
     }
 
     #[test]
@@ -374,7 +378,10 @@ pub mod test_helpers {
         let sender = "sender";
         let denom = "denom";
         let result = format_native_denom_to_asset(sender, denom);
-        assert_eq!(result, AssetInfo::Native(format!("factory/{}/{}", sender, denom)));
+        assert_eq!(
+            result,
+            AssetInfo::Native(format!("factory/{}/{}", sender, denom))
+        );
     }
 
     #[test]
@@ -383,7 +390,8 @@ pub mod test_helpers {
         let name = "name".to_string();
         let symbol = "symbol".to_string();
         let code_id = Some(1u64);
-        let result = create_vault_token_submsg(minter.clone(), name.clone(), symbol.clone(), code_id);
+        let result =
+            create_vault_token_submsg(minter.clone(), name.clone(), symbol.clone(), code_id);
         assert_that!(result).is_ok();
 
         let submsg = result.unwrap();
@@ -398,35 +406,70 @@ pub mod test_helpers {
         let symbol = "symbol".to_string();
         let result = create_vault_token_submsg(minter.clone(), name.clone(), symbol.clone(), None);
         assert!(result.is_ok());
-        // TODO: Assert the expected result without code_id
+
         let submsg = result.unwrap();
         assert_that!(submsg.reply_on).is_equal_to(ReplyOn::Never);
         assert_that!(submsg.id).is_equal_to(0);
     }
 
     #[test]
-    fn test_mint_vault_tokens_msg_kujira() {
-        let mut config = min_cooldown_config(Some(Duration::Time(1)), true);
+    fn test_mint_vault_tokens_msg() {
         let minter = &Addr::unchecked("minter");
         let recipient = Addr::unchecked("recipient");
         let amount = Uint128::from(100u128);
-        let result = mint_vault_tokens_msg(&config, minter, recipient, amount);
-        assert!(result.is_ok());
-        // TODO: Assert the expected result for kujira feature
 
+        // native token
+        let config = min_cooldown_config(Some(Duration::Time(1)), true);
+        let result = mint_vault_tokens_msg(&config, minter, recipient.clone(), amount);
+        assert_that!(result.is_ok());
+        let msg = result.unwrap();
+
+        let CosmosMsg::Stargate { type_url, value: _ } = msg else {
+            panic!("Expected a Stargate message");
+        };
+
+        assert_that!(type_url).is_equal_to("/kujira.denom.MsgMint".to_string());
+
+        // cw20 token
+        let config = min_cooldown_config(Some(Duration::Time(1)), false);
+        let result = mint_vault_tokens_msg(&config, minter, recipient, amount);
+        assert_that!(result).is_ok();
+        let msg = result.unwrap();
+        let CosmosMsg::Wasm(WasmMsg::Execute { contract_addr, msg: _, funds: _ }) = msg else {
+            panic!("Expected a Wasm message");
+        };
+
+        assert_that!(contract_addr).is_equal_to("test_vault_token".to_string());
     }
-
     #[test]
-    fn test_mint_vault_tokens_msg_cw20() {
-
-        let mut config = min_cooldown_config(Some(Duration::Time(1)), false);
-        
+    fn test_mint_burn_tokens_msg() {
         let minter = &Addr::unchecked("minter");
-        let recipient = Addr::unchecked("recipient");
         let amount = Uint128::from(100u128);
-        let result = mint_vault_tokens_msg(&config, minter, recipient, amount);
-        assert!(result.is_ok());
-        // TODO: Assert the expected result for cw20 token
+
+        // native token
+        let config = min_cooldown_config(Some(Duration::Time(1)), true);
+        let result = burn_vault_tokens_msg(&config, minter, amount);
+        assert_that!(result.is_ok());
+        let msg = result.unwrap();
+        let CosmosMsg::Stargate { type_url, value: _ } = msg else {
+            panic!("Expected a Stargate message");
+        };
+
+        assert_that!(type_url).is_equal_to("/kujira.denom.MsgBurn".to_string());
+
+        // cw20 token
+        let config = min_cooldown_config(Some(Duration::Time(1)), false);
+        let result = burn_vault_tokens_msg(&config, minter, amount);
+        assert_that!(result).is_ok();
+
+        let msg = result.unwrap();
+        let CosmosMsg::Wasm(WasmMsg::Execute { contract_addr, msg, funds: _ }) = msg else {
+            panic!("Expected a Wasm message");
+        };
+
+        assert_that!(contract_addr).is_equal_to("test_vault_token".to_string());
+        assert_that!(from_binary(&msg))
+            .is_equal_to(Ok(cw20_base::msg::ExecuteMsg::Burn { amount }));
     }
 
     #[test]
@@ -450,8 +493,9 @@ pub mod test_helpers {
         let total_supply = Uint128::from(500u128);
         let result = convert_to_assets(shares, total_assets, total_supply);
         let reverse = convert_to_shares(result, total_assets, total_supply);
-        assert_eq!(result, Uint128::from(200u128 - 4u128)); // rounding error leads to -2
-        assert_that!(reverse).is_equal_to(Uint128::from(shares.u128() - 1u128)); // rounding error leads to -1
+        assert_eq!(result, Uint128::from(200u128 - 4u128)); // rounding error leads to -4
+        assert_that!(reverse).is_equal_to(Uint128::from(shares.u128() - 1u128));
+        // rounding error leads to -1
     }
 
     #[test]
@@ -462,5 +506,39 @@ pub mod test_helpers {
         let result = convert_to_shares(assets, total_assets, total_supply);
         assert_eq!(result, Uint128::from(50u128));
     }
-    // ... Continue adding tests for other functions ...
+
+    #[test]
+    fn test_transfer_to_msgs() {
+        let deps = mock_dependencies();
+
+        let asset = AnsAsset {
+            amount: Uint128::from(100u128),
+            name: AssetEntry::new("token"),
+        };
+        let recipient = Addr::unchecked("recipient");
+
+        // Test transfer with non-zero amount
+        let msgs = transfer_to_msgs(
+            &AUTOCOMPOUNDER_APP,
+            deps.as_ref(),
+            asset.clone(),
+            recipient.clone(),
+        )
+        .unwrap();
+        assert_eq!(msgs.len(), 1);
+
+        // Test transfer with zero amount
+        let asset = AnsAsset {
+            amount: Uint128::zero(),
+            name: AssetEntry::new("token"),
+        };
+        let msgs = transfer_to_msgs(
+            &AUTOCOMPOUNDER_APP,
+            deps.as_ref(),
+            asset.clone(),
+            recipient.clone(),
+        )
+        .unwrap();
+        assert_eq!(msgs.len(), 0);
+    }
 }

@@ -983,7 +983,7 @@ fn unstake_lp_tokens(
 mod test {
     use super::{redeem_without_bonding_period, *};
 
-    use crate::handlers::helpers::test_helpers::min_cooldown_config;
+    use crate::handlers::helpers::helpers_tests::min_cooldown_config;
     use crate::msg::ExecuteMsg;
     use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_init};
 
