@@ -405,7 +405,7 @@ mod test {
 
     #[test]
     fn full_migration_from_v7() -> AResult {
-        let mut deps = app_init(false);
+        let mut deps = app_init(false, true);
         set_v0_7_0_config(deps.as_mut());
 
         let addr = Addr::unchecked("addr");

@@ -85,6 +85,7 @@ fn create_vault(
     mock: Mock,
     asset1: &str,
     asset2: &str,
+    vault_token_is_cw20: bool,
 ) -> Result<Vault<Mock>, AbstractInterfaceError> {
     // Deploy abstract
     let abstract_ = Abstract::deploy_on(mock.clone(), Empty {})?;
@@ -126,7 +127,7 @@ fn create_vault(
 
     let vault_token = AbstractCw20Base::new(VAULT_TOKEN, mock.clone());
     // upload the vault token code
-    let vault_toke_code_id = vault_token.upload()?.uploaded_code_id()?;
+    let vault_token_code_id = vault_token.upload()?.uploaded_code_id()?;
     // Create an Account that we will turn into a vault
     let account = abstract_.account_factory.create_default_account(
         abstract_core::objects::gov_type::GovernanceDetails::Monarchy {
@@ -146,7 +147,7 @@ fn create_vault(
         AUTOCOMPOUNDER,
         &abstract_core::app::InstantiateMsg {
             module: autocompounder::msg::AutocompounderInstantiateMsg {
-                code_id: vault_toke_code_id,
+                code_id: if vault_token_is_cw20 { Some(vault_token_code_id) } else { None },
                 commission_addr: COMMISSION_RECEIVER.to_string(),
                 deposit_fees: Decimal::percent(0),
                 dex: WYNDEX.to_string(),
@@ -215,7 +216,7 @@ fn deposit_cw20_asset() -> AResult {
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
     let user1 = Addr::unchecked(common::USER1);
     let mock = Mock::new(&owner);
-    let vault = crate::create_vault(mock.clone(), RAW_TOKEN, RAW_2_TOKEN)?;
+    let vault = crate::create_vault(mock.clone(), RAW_TOKEN, RAW_2_TOKEN, true)?;
     let WynDex {
         raw_token,
         raw_2_token,
@@ -330,7 +331,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let vault = crate::create_vault(mock.clone(), EUR, USD)?;
+    let vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
     let WynDex {
         eur_token,
         usd_token,
@@ -471,7 +472,7 @@ fn deposit_with_recipient() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let vault = crate::create_vault(mock.clone(), EUR, USD)?;
+    let vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
     let WynDex {
         eur_token,
         usd_token,
@@ -559,7 +560,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let mut vault = crate::create_vault(mock.clone(), EUR, USD)?;
+    let mut vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
     let WynDex {
         eur_token,
         usd_token,
@@ -827,7 +828,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let mut vault = crate::create_vault(mock.clone(), EUR, USD)?;
+    let mut vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
     let WynDex {
         eur_token,
         usd_token,
@@ -942,7 +943,7 @@ fn test_deposit_fees_fee_token_and_withdraw_fees() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let vault = crate::create_vault(mock.clone(), EUR, USD)?;
+    let vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
     let WynDex { eur_token, .. } = vault.wyndex;
     let vault_token = vault.vault_token;
     let eur_asset = AssetEntry::new("eur");
@@ -1024,7 +1025,7 @@ fn test_deposit_fees_non_fee_token() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let vault = crate::create_vault(mock.clone(), EUR, USD)?;
+    let vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
     let WynDex { usd_token, .. } = vault.wyndex;
     let vault_token = vault.vault_token;
     let _eur_asset = AssetEntry::new("eur");
@@ -1098,7 +1099,7 @@ fn test_zero_performance_fees() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let mut vault = crate::create_vault(mock.clone(), EUR, USD)?;
+    let mut vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
     let WynDex {
         eur_token,
         usd_token,
@@ -1159,7 +1160,7 @@ fn test_owned_funds_stay_in_vault() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
     let mock = Mock::new(&owner);
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
-    let vault = crate::create_vault(mock.clone(), EUR, USD)?;
+    let vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
     let WynDex {
         eur_token,
         usd_token,
@@ -1253,7 +1254,7 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
 
     let mock = Mock::new(&owner);
 
-    let mut vault = crate::create_vault(mock.clone(), EUR, USD)?;
+    let mut vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
     let mut vault_token = vault.vault_token.to_owned();
     let WynDex { .. } = vault.wyndex;
 
@@ -1338,7 +1339,7 @@ fn test_lp_deposit() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let vault = crate::create_vault(mock, EUR, USD)?;
+    let vault = crate::create_vault(mock, EUR, USD, true)?;
     let WynDex {
         eur_usd_pair,
         eur_usd_lp,
@@ -1453,7 +1454,7 @@ fn vault_token_inflation_attack_original() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let vault = crate::create_vault(mock.clone(), EUR, USD)?;
+    let vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
     let WynDex {
         eur_usd_pair,
         eur_usd_lp,
@@ -1572,7 +1573,7 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
     let mock = Mock::new(&owner);
 
     // create a vault
-    let vault = crate::create_vault(mock, EUR, USD)?;
+    let vault = crate::create_vault(mock, EUR, USD, true)?;
     let WynDex {
         eur_usd_pair,
         eur_usd_lp,

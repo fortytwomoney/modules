@@ -28,7 +28,6 @@ use cosmwasm_std::{
     Uint128,
 };
 use cw_asset::{Asset, AssetInfo};
-use protobuf::Message;
 
 /// Handle a reply for the [`INSTANTIATE_REPLY_ID`] reply.
 pub fn instantiate_reply(
@@ -400,7 +399,7 @@ mod test {
         /// 4. check the response messages and attributes
         /// 5. check the stored balances of the CACHED_ASSETS in the storage and the user address
         fn succesful_withdrawal_with_balances() -> anyhow::Result<()> {
-            let mut deps = app_init(false); // Assuming you have this helper function already set up.
+            let mut deps = app_init(false, true); // Assuming you have this helper function already set up.
                                             // let module = MockModule::new();
             let config = min_cooldown_config(None); // Using the same config helper as before.
             CONFIG.save(deps.as_mut().storage, &config)?; // Saving the config to the storage.
@@ -480,7 +479,7 @@ mod test {
 
         #[test]
         fn no_cached_addr_or_assets() -> anyhow::Result<()> {
-            let mut deps = app_init(false); // Assuming you have this helper function already set up.
+            let mut deps = app_init(false, true); // Assuming you have this helper function already set up.
 
             let res =
                 lp_withdrawal_reply(deps.as_mut(), mock_env(), AUTOCOMPOUNDER_APP, empty_reply());

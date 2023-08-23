@@ -226,7 +226,7 @@ mod test {
         #[test]
         fn test_query_claims() {
             let _config = default_config();
-            let mut deps = app_init(true);
+            let mut deps = app_init(true, true);
             let claim = Claim {
                 unbonding_timestamp: Expiration::AtTime(Timestamp::from_seconds(100)),
                 amount_of_vault_tokens_to_burn: 1000u128.into(),
@@ -251,7 +251,7 @@ mod test {
 
         #[test]
         fn test_query_all_claims() {
-            let mut deps = app_init(true);
+            let mut deps = app_init(true, true);
 
             // Set up some claims
             let claim1 = Claim {
@@ -325,7 +325,7 @@ mod test {
 
         #[test]
         fn test_query_latest_unbonding() {
-            let mut deps = app_init(true);
+            let mut deps = app_init(true, true);
             let expiration = Expiration::AtHeight(10);
 
             // Store the latest unbonding expiration in storage
@@ -350,7 +350,7 @@ mod test {
 
         #[test]
         fn test_query_balance() {
-            let mut deps = app_init(false);
+            let mut deps = app_init(false, true);
 
             let vault_balance = Uint128::new(1000);
             let mut config = default_config();
@@ -365,7 +365,7 @@ mod test {
 
         #[test]
         fn test_query_total_supply() {
-            let mut deps = app_init(false);
+            let mut deps = app_init(false, true);
 
             let vault_balance = Uint128::new(1000);
             let mut config = default_config();
@@ -378,7 +378,7 @@ mod test {
 
         #[test]
         fn test_query_total_lp_position() {
-            let mut deps = app_init(false);
+            let mut deps = app_init(false, true);
             let _info = mock_info("test", &[]);
 
             let app = AutocompounderApp::new("test", "test_version", None);
@@ -394,7 +394,7 @@ mod test {
 
         #[test]
         fn test_query_assets_per_shares() {
-            let mut deps = app_init(false);
+            let mut deps = app_init(false, true);
             let app = AutocompounderApp::new("test", "test_version", None);
 
             let assets_per_share =

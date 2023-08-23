@@ -242,7 +242,7 @@ use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 
     #[test]
     fn test_app_instantiation() -> anyhow::Result<()> {
-        let deps = app_init(false);
+        let deps = app_init(false, true);
         let config = CONFIG.load(deps.as_ref().storage).unwrap();
         let fee_config = FEE_CONFIG.load(deps.as_ref().storage).unwrap();
         assert_that!(config.pool_assets.len()).is_equal_to(2);
@@ -272,7 +272,7 @@ use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
             info,
             abstract_core::app::InstantiateMsg {
                 module: crate::msg::AutocompounderInstantiateMsg {
-                    code_id: 1,
+                    code_id: Some(1),
                     commission_addr: COMMISSION_RECEIVER.to_string(),
                     deposit_fees: Decimal::percent(3),
                     dex: ASTROPORT.to_string(),

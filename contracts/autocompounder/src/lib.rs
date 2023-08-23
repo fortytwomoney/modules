@@ -252,7 +252,7 @@ mod test_common {
             )
     }
 
-    pub fn app_init(is_unbonding_period_enabled: bool) -> MockDeps {
+    pub fn app_init(is_unbonding_period_enabled: bool, vault_token_is_cw20: bool) -> MockDeps {
         let mut deps = mock_dependencies();
         let info = mock_info(TEST_MODULE_FACTORY, &[]);
 
@@ -269,7 +269,7 @@ mod test_common {
                 info,
                 abstract_core::app::InstantiateMsg {
                     module: crate::msg::AutocompounderInstantiateMsg {
-                        code_id: 1,
+                        code_id: if vault_token_is_cw20 { Some(1)} else {None},
                         commission_addr: COMMISSION_RECEIVER.to_string(),
                         deposit_fees: Decimal::percent(3),
                         dex: WYNDEX.to_string(),

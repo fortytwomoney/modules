@@ -64,7 +64,7 @@ pub struct AutocompounderInstantiateMsg {
     /// address that receives the fee commissions
     pub commission_addr: String,
     /// cw20 code id
-    pub code_id: u64,
+    pub code_id: Option<u64>,
     /// Name of the target dex
     pub dex: DexName,
     /// Assets in the pool

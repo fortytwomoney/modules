@@ -983,7 +983,7 @@ mod test {
 
     #[test]
     fn test_redeem_without_bonding_period() -> anyhow::Result<()> {
-        let mut deps = app_init(false);
+        let mut deps = app_init(false, true);
         let config = min_cooldown_config(None);
         let sender = Addr::unchecked("sender");
         let amount = Uint128::new(100);
@@ -1056,7 +1056,7 @@ mod test {
 
         #[test]
         fn only_admin() -> anyhow::Result<()> {
-            let mut deps = app_init(false);
+            let mut deps = app_init(false, true);
             let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
                 performance: None,
                 deposit: Some(Decimal::percent(1)),
@@ -1079,7 +1079,7 @@ mod test {
         }
         #[test]
         fn cannot_set_fee_above_or_equal_1() -> anyhow::Result<()> {
-            let mut deps = app_init(false);
+            let mut deps = app_init(false, true);
             let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
                 performance: None,
                 deposit: Some(Decimal::one()),
@@ -1097,7 +1097,7 @@ mod test {
         #[test]
         fn update_fee_collector() -> anyhow::Result<()> {
             const NEW_FEE_COLLECTOR: &str = "new_fee_collector_addr";
-            let mut deps = app_init(false);
+            let mut deps = app_init(false, true);
             let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
                 performance: None,
                 deposit: None,
@@ -1135,7 +1135,7 @@ mod test {
 
         #[test]
         fn update_staking_config_only_admin() -> anyhow::Result<()> {
-            let mut deps = app_init(true);
+            let mut deps = app_init(true, true);
             let msg = AutocompounderExecuteMsg::UpdateStakingConfig {
                 preferred_bonding_period: BondingPeriodSelector::Longest,
             };
@@ -1157,7 +1157,7 @@ mod test {
 
     #[test]
     fn cannot_batch_unbond_if_unbonding_not_enabled() -> anyhow::Result<()> {
-        let mut deps = app_init(false);
+        let mut deps = app_init(false, true);
         let msg = AutocompounderExecuteMsg::BatchUnbond {
             start_after: None,
             limit: None,
@@ -1171,7 +1171,7 @@ mod test {
 
     #[test]
     fn cannot_send_wrong_coins() -> anyhow::Result<()> {
-        let mut deps = app_init(true);
+        let mut deps = app_init(true, true);
         let msg = AutocompounderExecuteMsg::Deposit {
             funds: vec![AnsAsset::new("eur", Uint128::one())],
             recipient: None,
@@ -1198,7 +1198,7 @@ mod test {
 
     #[test]
     fn cannot_withdraw_liquidity_if_no_claims() -> anyhow::Result<()> {
-        let mut deps = app_init(true);
+        let mut deps = app_init(true, true);
         let msg = AutocompounderExecuteMsg::Withdraw {};
         let resp = execute_as_manager(deps.as_mut(), msg);
         assert_that!(resp)

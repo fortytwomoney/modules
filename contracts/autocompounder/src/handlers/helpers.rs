@@ -37,6 +37,7 @@ use cw_utils::parse_reply_instantiate_data;
 // ------------------------------------------------------------
 // Helper functions for vault tokens
 // ------------------------------------------------------------
+/// performs stargate query for the following path: "cosmos.bank.v1beta1.Query/SupplyOf".
 pub fn query_supply_with_stargate(deps: Deps, denom: &str) -> AutocompounderResult<Coin> {
     // this may not work because kujira has its own custom bindings. https://docs.rs/kujira-std/latest/kujira_std/enum.KujiraQuery.html
         let request = QueryRequest::Stargate { 
@@ -47,6 +48,7 @@ pub fn query_supply_with_stargate(deps: Deps, denom: &str) -> AutocompounderResu
         Ok(res.amount)
 }
 
+/// Formats the native denom to the asset info for the vault token with denom "factory/{`sender`}/{`denom`}"
 pub fn format_native_denom_to_asset(sender: &str, denom: &str) -> AssetInfo {
     AssetInfo::Native(
         format!("factory/{sender}/{denom}")
@@ -57,24 +59,9 @@ pub fn create_lp_token_submsg(
     minter: String,
     name: String,
     symbol: String,
-    code_id: u64,
+    code_id: Option<u64>,
 ) -> Result<SubMsg, StdError> {
-    if cfg!(feature = "kujira") {
-        let msg = encode_msg_create_denom(&minter, &symbol);
-
-        let cosmos_msg = CosmosMsg::Stargate {
-            type_url: "/kujira.denom.MsgCreateDenom".to_string(),
-            value: to_binary(&msg)?,
-        };
-        let sub_msg = SubMsg {
-            msg: cosmos_msg,
-            gas_limit: None,
-            id: 0,
-            reply_on: ReplyOn::Never, // this is like sending a normal message
-        };
-
-        Ok(sub_msg)
-    } else {
+    if let Some(code_id) = code_id {
         let msg = TokenInstantiateMsg {
             name,
             symbol,
@@ -96,6 +83,22 @@ pub fn create_lp_token_submsg(
             id: INSTANTIATE_REPLY_ID,
             reply_on: ReplyOn::Success,
         })
+     } else {
+
+        let msg = encode_msg_create_denom(&minter, &symbol);
+
+        let cosmos_msg = CosmosMsg::Stargate {
+            type_url: "/kujira.denom.MsgCreateDenom".to_string(),
+            value: to_binary(&msg)?,
+        };
+        let sub_msg = SubMsg {
+            msg: cosmos_msg,
+            gas_limit: None,
+            id: 0,
+            reply_on: ReplyOn::Never, // this is like sending a normal message
+        };
+
+        Ok(sub_msg)
     }
 }
 
