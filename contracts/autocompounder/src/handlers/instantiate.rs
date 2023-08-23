@@ -18,7 +18,7 @@ use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Env, MessageInfo, Response, Std
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
-use super::helpers::{create_lp_token_submsg, format_native_denom_to_asset};
+use super::helpers::{create_vault_token_submsg, format_native_denom_to_asset};
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
@@ -134,7 +134,7 @@ pub fn instantiate_handler(
     FEE_CONFIG.save(deps.storage, &fee_config)?;
 
     // create LP token SubMsg
-    let sub_msg = create_lp_token_submsg(
+    let sub_msg = create_vault_token_submsg(
         env.contract.address.to_string(),
         format!("4T2{pairing}"),
         // pool data is too long

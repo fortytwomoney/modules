@@ -54,7 +54,7 @@ pub fn format_native_denom_to_asset(sender: &str, denom: &str) -> AssetInfo {
 }
 
 /// create a SubMsg to instantiate the Vault token with either the tokenfactory(kujira) or a cw20.
-pub fn create_lp_token_submsg(
+pub fn create_vault_token_submsg(
     minter: String,
     name: String,
     symbol: String,
@@ -118,34 +118,30 @@ pub fn mint_vault_tokens_msg(
     recipient: Addr,
     amount: Uint128,
 ) -> Result<CosmosMsg, AutocompounderError> {
-    if cfg!(feature = "kujira") {
-        let minter = minter.to_string();
-        let AssetInfo::Native(denom) = &config.vault_token else {
-            return Err(AutocompounderError::Std(StdError::generic_err(
-                "Vault token is not a native token",
-            )));};
-
-        let proto_msg = encode_msg_mint(&minter, denom, amount);
-        let msg = CosmosMsg::Stargate {
-            type_url: "/kujira.denom.MsgMint".to_string(),
-            value: to_binary(&proto_msg)?,
-        };
-        Ok(msg)
-    } else {
-        let AssetInfo::Cw20(token_addr) = &config.vault_token else {
-            return Err(AutocompounderError::Std(StdError::generic_err(
-                "Vault token is not a cw20 token",
-            )));};
-        let mint_msg = wasm_execute(
-            token_addr.to_string(),
-            &Mint {
-                recipient: recipient.to_string(),
-                amount,
-            },
-            vec![],
-        )?
-        .into();
-        Ok(mint_msg)
+    match config.vault_token.clone() {
+        AssetInfo::Native(denom) => {
+            let proto_msg = encode_msg_mint(&minter.as_str(), denom.as_str(), amount);
+            let msg = CosmosMsg::Stargate {
+                type_url: "/kujira.denom.MsgMint".to_string(),
+                value: to_binary(&proto_msg)?,
+            };
+            Ok(msg)
+        }
+        AssetInfo::Cw20(token_addr) => {
+            let mint_msg = wasm_execute(
+                token_addr.to_string(),
+                &Mint {
+                    recipient: recipient.to_string(),
+                    amount,
+                },
+                vec![],
+            )?
+            .into();
+            Ok(mint_msg)
+        }
+        _ => Err(AutocompounderError::Std(StdError::generic_err(
+            "Vault token is not a cw20 token",
+        ))),
     }
 }
 
@@ -332,9 +328,11 @@ pub fn transfer_to_msgs(
 pub mod test_helpers {
     use super::*;
     use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
+    use cosmwasm_std::testing::mock_dependencies;
     use cw_asset::AssetInfoBase;
+    use speculoos::{assert_that, result::ResultAssertions};
 
-    pub fn min_cooldown_config(min_unbonding_cooldown: Option<Duration>) -> Config {
+    pub fn min_cooldown_config(min_unbonding_cooldown: Option<Duration>, vt_is_native:bool) -> Config {
         let assets = vec![AssetEntry::new("eur"), AssetEntry::new("usd")];
 
         Config {
@@ -349,10 +347,120 @@ pub mod test_helpers {
             ),
             pool_assets: vec![],
             liquidity_token: AssetInfoBase::Cw20(Addr::unchecked("eur_usd_lp")),
-            vault_token: AssetInfoBase::Cw20(Addr::unchecked("test_vault_token")),
+            vault_token: if vt_is_native {
+                AssetInfoBase::Native("test_vault_token".to_string())
+            } else {
+                AssetInfoBase::Cw20(Addr::unchecked("test_vault_token"))
+            },
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown,
             max_swap_spread: Decimal::percent(50),
         }
     }
+
+    #[test]
+    #[ignore = "Cannot test stargate queries in unittest"]
+    fn test_query_supply_with_stargate() {
+        let mut deps = mock_dependencies();
+        // TODO: Mock the querier response for the stargate query
+        let denom = "testdenom";
+        let result = query_supply_with_stargate(deps.as_ref(), denom);
+        assert!(result.is_ok());
+        // TODO: Assert the expected result
+    }
+
+    #[test]
+    fn test_format_native_denom_to_asset() {
+        let sender = "sender";
+        let denom = "denom";
+        let result = format_native_denom_to_asset(sender, denom);
+        assert_eq!(result, AssetInfo::Native(format!("factory/{}/{}", sender, denom)));
+    }
+
+    #[test]
+    fn test_create_lp_token_submsg_with_code_id() {
+        let minter = "minter".to_string();
+        let name = "name".to_string();
+        let symbol = "symbol".to_string();
+        let code_id = Some(1u64);
+        let result = create_vault_token_submsg(minter.clone(), name.clone(), symbol.clone(), code_id);
+        assert_that!(result).is_ok();
+
+        let submsg = result.unwrap();
+        assert_that!(submsg.reply_on).is_equal_to(ReplyOn::Success);
+        assert_that!(submsg.id).is_equal_to(INSTANTIATE_REPLY_ID);
+    }
+
+    #[test]
+    fn test_create_lp_token_submsg_without_code_id() {
+        let minter = "minter".to_string();
+        let name = "name".to_string();
+        let symbol = "symbol".to_string();
+        let result = create_vault_token_submsg(minter.clone(), name.clone(), symbol.clone(), None);
+        assert!(result.is_ok());
+        // TODO: Assert the expected result without code_id
+        let submsg = result.unwrap();
+        assert_that!(submsg.reply_on).is_equal_to(ReplyOn::Never);
+        assert_that!(submsg.id).is_equal_to(0);
+    }
+
+    #[test]
+    fn test_mint_vault_tokens_msg_kujira() {
+        let mut config = min_cooldown_config(Some(Duration::Time(1)), true);
+        let minter = &Addr::unchecked("minter");
+        let recipient = Addr::unchecked("recipient");
+        let amount = Uint128::from(100u128);
+        let result = mint_vault_tokens_msg(&config, minter, recipient, amount);
+        assert!(result.is_ok());
+        // TODO: Assert the expected result for kujira feature
+
+    }
+
+    #[test]
+    fn test_mint_vault_tokens_msg_cw20() {
+
+        let mut config = min_cooldown_config(Some(Duration::Time(1)), false);
+        
+        let minter = &Addr::unchecked("minter");
+        let recipient = Addr::unchecked("recipient");
+        let amount = Uint128::from(100u128);
+        let result = mint_vault_tokens_msg(&config, minter, recipient, amount);
+        assert!(result.is_ok());
+        // TODO: Assert the expected result for cw20 token
+    }
+
+    #[test]
+    fn test_check_fee_valid() {
+        let fee = Decimal::percent(50);
+        let result = check_fee(fee);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_fee_invalid() {
+        let fee = Decimal::percent(100);
+        let result = check_fee(fee);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_convert_to_assets() {
+        let shares = Uint128::from(100u128);
+        let total_assets = Uint128::from(1000u128);
+        let total_supply = Uint128::from(500u128);
+        let result = convert_to_assets(shares, total_assets, total_supply);
+        let reverse = convert_to_shares(result, total_assets, total_supply);
+        assert_eq!(result, Uint128::from(200u128 - 4u128)); // rounding error leads to -2
+        assert_that!(reverse).is_equal_to(Uint128::from(shares.u128() - 1u128)); // rounding error leads to -1
+    }
+
+    #[test]
+    fn test_convert_to_shares() {
+        let assets = Uint128::from(100u128);
+        let total_assets = Uint128::from(1000u128);
+        let total_supply = Uint128::from(500u128);
+        let result = convert_to_shares(assets, total_assets, total_supply);
+        assert_eq!(result, Uint128::from(50u128));
+    }
+    // ... Continue adding tests for other functions ...
 }

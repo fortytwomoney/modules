@@ -404,7 +404,7 @@ mod test {
         fn succesful_withdrawal_with_balances() -> anyhow::Result<()> {
             let mut deps = app_init(false, true); // Assuming you have this helper function already set up.
                                                   // let module = MockModule::new();
-            let config = min_cooldown_config(None); // Using the same config helper as before.
+            let config = min_cooldown_config(None, false); // Using the same config helper as before.
             CONFIG.save(deps.as_mut().storage, &config)?; // Saving the config to the storage.
             let env = mock_env(); // Using the same mock_env helper as before.
             let eur_asset = AssetInfo::native("eur".to_string());

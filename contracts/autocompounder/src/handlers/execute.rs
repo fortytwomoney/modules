@@ -1016,7 +1016,7 @@ mod test {
     #[test]
     fn test_redeem_without_bonding_period() -> anyhow::Result<()> {
         let mut deps = app_init(false, true);
-        let config = min_cooldown_config(None);
+        let config = min_cooldown_config(None, false);
         let sender = Addr::unchecked("sender");
         let amount = Uint128::new(100);
 
@@ -1243,7 +1243,7 @@ mod test {
     fn test_check_unbonding_cooldown_with_no_latest_unbonding() {
         let mut deps = mock_dependencies();
 
-        let config = min_cooldown_config(Some(Duration::Time(60)));
+        let config = min_cooldown_config(Some(Duration::Time(60)), false);
         let env = mock_env();
         let result = check_unbonding_cooldown(&deps.as_mut(), &config, &env);
         assert!(result.is_ok());
@@ -1252,7 +1252,7 @@ mod test {
     #[test]
     fn test_check_unbonding_cooldown_with_expired_unbonding() {
         let mut deps = mock_dependencies();
-        let config = min_cooldown_config(Some(Duration::Time(60)));
+        let config = min_cooldown_config(Some(Duration::Time(60)), false);
         let env = mock_env();
         let latest_unbonding = Expiration::AtTime(env.block.time.minus_seconds(60));
 
@@ -1275,7 +1275,7 @@ mod test {
     #[test]
     fn test_check_unbonding_cooldown_with_unexpired_unbonding() {
         let mut deps = mock_dependencies();
-        let config = min_cooldown_config(Some(Duration::Time(60)));
+        let config = min_cooldown_config(Some(Duration::Time(60)), false);
         let env = mock_env();
 
         let latest_unbonding = Expiration::AtTime(env.block.time.minus_seconds(59));
