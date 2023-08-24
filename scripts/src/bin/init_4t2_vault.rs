@@ -72,6 +72,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         "pisco-1" => ("astroport", "terra2>luna", 83),
         "phoenix-1" => ("astroport", "terra2>luna", 69),
         "osmo-test-5" => ("osmosis5", "osmosis5>osmo", 1),
+        // "harpoon-1" => ("")
         _ => panic!("Unknown network id: {}", args.network_id),
     };
 
@@ -150,7 +151,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                 /// address that recieves the fee commissions
                 commission_addr: sender.to_string(),
                 /// cw20 code id
-                code_id: cw20_code_id,
+                code_id: Some(cw20_code_id),
                 /// Name of the target dex
                 dex: dex.into(),
                 /// Assets in the pool

@@ -13,6 +13,7 @@ use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 
 use super::convert_to_assets;
+use super::helpers::{vault_token_balance, vault_token_total_supply};
 
 const DEFAULT_PAGE_SIZE: u8 = 5;
 const MAX_PAGE_SIZE: u8 = 20;
@@ -155,21 +156,12 @@ pub fn query_total_lp_position(
 
 pub fn query_balance(deps: Deps, address: Addr) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
-    let vault_balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
-        config.vault_token,
-        &cw20::Cw20QueryMsg::Balance {
-            address: address.to_string(),
-        },
-    )?;
-    Ok(vault_balance.balance)
+    vault_token_balance(deps, &config, address)
 }
 
 pub fn query_total_supply(deps: Deps) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
-    let token_info: cw20::TokenInfoResponse = deps
-        .querier
-        .query_wasm_smart(config.vault_token, &cw20::Cw20QueryMsg::TokenInfo {})?;
-    Ok(token_info.total_supply)
+    vault_token_total_supply(deps, &config)
 }
 
 pub fn query_assets_per_shares(
@@ -219,7 +211,7 @@ mod test {
             ),
             pool_assets: vec![],
             liquidity_token: cw_asset::AssetInfoBase::Cw20(Addr::unchecked("liquidity_token")),
-            vault_token: Addr::unchecked("vault_token"),
+            vault_token: cw_asset::AssetInfoBase::Cw20(Addr::unchecked("vault_token")),
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown: Some(Duration::Time(10)),
             max_swap_spread: Decimal::percent(50),
@@ -234,7 +226,7 @@ mod test {
         #[test]
         fn test_query_claims() {
             let _config = default_config();
-            let mut deps = app_init(true);
+            let mut deps = app_init(true, true);
             let claim = Claim {
                 unbonding_timestamp: Expiration::AtTime(Timestamp::from_seconds(100)),
                 amount_of_vault_tokens_to_burn: 1000u128.into(),
@@ -259,7 +251,7 @@ mod test {
 
         #[test]
         fn test_query_all_claims() {
-            let mut deps = app_init(true);
+            let mut deps = app_init(true, true);
 
             // Set up some claims
             let claim1 = Claim {
@@ -333,7 +325,7 @@ mod test {
 
         #[test]
         fn test_query_latest_unbonding() {
-            let mut deps = app_init(true);
+            let mut deps = app_init(true, true);
             let expiration = Expiration::AtHeight(10);
 
             // Store the latest unbonding expiration in storage
@@ -350,17 +342,19 @@ mod test {
     }
 
     mod vault_token {
+        use cw_asset::AssetInfo;
+
         use crate::test_common::TEST_VAULT_TOKEN;
 
         use super::*;
 
         #[test]
         fn test_query_balance() {
-            let mut deps = app_init(false);
+            let mut deps = app_init(false, true);
 
             let vault_balance = Uint128::new(1000);
             let mut config = default_config();
-            config.vault_token = Addr::unchecked(TEST_VAULT_TOKEN);
+            config.vault_token = AssetInfo::cw20(Addr::unchecked(TEST_VAULT_TOKEN));
             CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
             let address = Addr::unchecked("addr0001");
@@ -371,11 +365,11 @@ mod test {
 
         #[test]
         fn test_query_total_supply() {
-            let mut deps = app_init(false);
+            let mut deps = app_init(false, true);
 
             let vault_balance = Uint128::new(1000);
             let mut config = default_config();
-            config.vault_token = Addr::unchecked(TEST_VAULT_TOKEN);
+            config.vault_token = AssetInfo::cw20(Addr::unchecked(TEST_VAULT_TOKEN));
             CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
             let total_supply = query_total_supply(deps.as_ref()).unwrap();
@@ -384,14 +378,14 @@ mod test {
 
         #[test]
         fn test_query_total_lp_position() {
-            let mut deps = app_init(false);
+            let mut deps = app_init(false, true);
             let _info = mock_info("test", &[]);
 
             let app = AutocompounderApp::new("test", "test_version", None);
 
             let lp_balance = Uint128::new(100);
             let mut config = default_config();
-            config.vault_token = Addr::unchecked(TEST_VAULT_TOKEN);
+            config.vault_token = AssetInfo::cw20(Addr::unchecked(TEST_VAULT_TOKEN));
             CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
             let total_lp_position = query_total_lp_position(&app, deps.as_ref()).unwrap();
@@ -400,13 +394,13 @@ mod test {
 
         #[test]
         fn test_query_assets_per_shares() {
-            let mut deps = app_init(false);
+            let mut deps = app_init(false, true);
             let app = AutocompounderApp::new("test", "test_version", None);
 
             let assets_per_share =
                 convert_to_assets(1000u128.into(), 100u128.into(), 1000u128.into());
             let mut config = default_config();
-            config.vault_token = Addr::unchecked(TEST_VAULT_TOKEN);
+            config.vault_token = AssetInfo::cw20(Addr::unchecked(TEST_VAULT_TOKEN));
             CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
             let result =

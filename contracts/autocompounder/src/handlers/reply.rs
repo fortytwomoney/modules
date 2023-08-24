@@ -1,12 +1,12 @@
 use super::helpers::{
-    convert_to_shares, cw20_total_supply, mint_vault_tokens, query_stake, stake_lp_tokens,
-    swap_rewards_with_reply,
+    convert_to_shares, mint_vault_tokens_msg, parse_instantiate_reply_cw20, query_stake,
+    stake_lp_tokens, swap_rewards_with_reply, vault_token_total_supply,
 };
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, SWAPPED_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::response::MsgInstantiateContractResponse;
+
 use crate::state::{Config, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_cw_staking::{
@@ -24,11 +24,9 @@ use abstract_sdk::{
     AbstractSdkResult, Resolve, TransferInterface,
 };
 use cosmwasm_std::{
-    Addr, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg,
-    Uint128,
+    CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdResult, SubMsg, Uint128,
 };
 use cw_asset::{Asset, AssetInfo};
-use protobuf::Message;
 
 /// Handle a reply for the [`INSTANTIATE_REPLY_ID`] reply.
 pub fn instantiate_reply(
@@ -38,29 +36,32 @@ pub fn instantiate_reply(
     reply: Reply,
 ) -> AutocompounderResult {
     // Logic to execute on example reply
-    let data = reply.result.unwrap().data.unwrap();
-    let res: MsgInstantiateContractResponse =
-        Message::parse_from_bytes(data.as_slice()).map_err(|_| {
-            StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data")
+    let vault_token = if let Some(vault_token) = parse_instantiate_reply_cw20(reply)? {
+        // @improvement: ideally we'd also parse the Reply in case of native token, however i dont know how currently. so we store if beforehand.
+
+        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
+            config.vault_token = vault_token.clone();
+            Ok(config)
         })?;
-
-    let vault_token_addr = res.get_contract_address();
-
-    CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
-        config.vault_token = Addr::unchecked(vault_token_addr);
-        Ok(config)
-    })?;
+        vault_token
+    } else {
+        return Err(AutocompounderError::Std(cosmwasm_std::StdError::ParseErr {
+            target_type: "MsgInstantiateContractResponse".to_string(),
+            msg: "instantiate reply couldnt be parsed to target".to_string(),
+        }));
+        // CONFIG.load(deps.storage)?.vault_token
+    };
 
     Ok(app.custom_tag_response(
         Response::new(),
         "instantiate",
-        vec![("vault_token_addr", vault_token_addr)],
+        vec![("vault_token", vault_token.to_string())],
     ))
 }
 
 pub fn lp_provision_reply(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     app: AutocompounderApp,
     _reply: Reply,
 ) -> AutocompounderResult {
@@ -72,7 +73,7 @@ pub fn lp_provision_reply(
     CACHED_USER_ADDR.remove(deps.storage);
 
     // get the total supply of Vault token
-    let current_vault_supply = cw20_total_supply(deps.as_ref(), &config)?;
+    let current_vault_supply = vault_token_total_supply(deps.as_ref(), &config)?;
 
     // Retrieve the number of LP tokens minted/staked.
     let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
@@ -99,7 +100,8 @@ pub fn lp_provision_reply(
     }
 
     // Mint vault tokens to the user
-    let mint_msg = mint_vault_tokens(&config, user_address, mint_amount)?;
+    let mint_msg =
+        mint_vault_tokens_msg(&config, &env.contract.address, user_address, mint_amount)?;
 
     // Stake the LP tokens
     let stake_msg = stake_lp_tokens(
@@ -361,7 +363,7 @@ fn get_staking_rewards(
 #[cfg(test)]
 mod test {
     use crate::contract::{AUTOCOMPOUNDER_APP, LP_WITHDRAWAL_REPLY_ID};
-    use crate::handlers::helpers::test_helpers::min_cooldown_config;
+    use crate::handlers::helpers::helpers_tests::min_cooldown_config;
 
     // use abstract_sdk::mock_module::MockModule;
     use abstract_testing::prelude::TEST_PROXY;
@@ -376,6 +378,8 @@ mod test {
     use crate::test_common::app_init;
 
     mod withdraw_liquidity {
+
+        use cosmwasm_std::{Addr, StdError};
 
         use super::*;
 
@@ -398,9 +402,9 @@ mod test {
         /// 4. check the response messages and attributes
         /// 5. check the stored balances of the CACHED_ASSETS in the storage and the user address
         fn succesful_withdrawal_with_balances() -> anyhow::Result<()> {
-            let mut deps = app_init(false); // Assuming you have this helper function already set up.
-                                            // let module = MockModule::new();
-            let config = min_cooldown_config(None); // Using the same config helper as before.
+            let mut deps = app_init(false, true); // Assuming you have this helper function already set up.
+                                                  // let module = MockModule::new();
+            let config = min_cooldown_config(None, false); // Using the same config helper as before.
             CONFIG.save(deps.as_mut().storage, &config)?; // Saving the config to the storage.
             let env = mock_env(); // Using the same mock_env helper as before.
             let eur_asset = AssetInfo::native("eur".to_string());
@@ -478,7 +482,7 @@ mod test {
 
         #[test]
         fn no_cached_addr_or_assets() -> anyhow::Result<()> {
-            let mut deps = app_init(false); // Assuming you have this helper function already set up.
+            let mut deps = app_init(false, true); // Assuming you have this helper function already set up.
 
             let res =
                 lp_withdrawal_reply(deps.as_mut(), mock_env(), AUTOCOMPOUNDER_APP, empty_reply());

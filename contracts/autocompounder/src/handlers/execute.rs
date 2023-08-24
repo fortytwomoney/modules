@@ -1,7 +1,7 @@
 use super::convert_to_shares;
 use super::helpers::{
-    check_fee, convert_to_assets, cw20_total_supply, mint_vault_tokens, query_stake,
-    stake_lp_tokens, transfer_to_msgs,
+    burn_vault_tokens_msg, check_fee, convert_to_assets, mint_vault_tokens_msg, query_stake,
+    stake_lp_tokens, transfer_to_msgs, vault_token_total_supply,
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
@@ -13,7 +13,7 @@ use crate::contract::{
     LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector, Cw20HookMsg};
+use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector};
 use crate::state::{
     Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
     FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS,
@@ -29,11 +29,11 @@ use abstract_sdk::{
 };
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use cosmwasm_std::{
-    from_binary, wasm_execute, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
-    Order, ReplyOn, Response, StdResult, SubMsg, Uint128,
+    Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response,
+    StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
-use cw_asset::{Asset, AssetInfo, AssetInfoBase, AssetList};
+use cw_asset::{Asset, AssetBase, AssetInfo, AssetInfoBase, AssetList};
 use cw_storage_plus::Bound;
 use cw_utils::Duration;
 use std::ops::Add;
@@ -66,8 +66,12 @@ pub fn execute_handler(
             recipient,
             max_spread,
         } => deposit(deps, info, env, app, funds, recipient, max_spread),
-        AutocompounderExecuteMsg::DepositLp { lp_token, receiver } => {
-            deposit_lp(deps, info, env, app, lp_token, receiver)
+        AutocompounderExecuteMsg::DepositLp {
+            lp_token,
+            recipient: receiver,
+        } => deposit_lp(deps, info, env, app, lp_token, receiver),
+        AutocompounderExecuteMsg::Redeem { amount, recipient } => {
+            redeem(deps, env, app, info.sender, amount, recipient)
         }
         AutocompounderExecuteMsg::Withdraw {} => withdraw_claims(deps, app, env, info.sender),
         AutocompounderExecuteMsg::BatchUnbond { start_after, limit } => {
@@ -283,7 +287,7 @@ pub fn deposit(
     let recipient = unwrap_recipient_is_allowed(
         recipient,
         &info.sender,
-        forbidden_deposit_addresses(deps.as_ref(), env, &app)?,
+        forbidden_deposit_addresses(deps.as_ref(), &env, &app)?,
     )?;
     CACHED_USER_ADDR.save(deps.storage, &recipient)?;
 
@@ -314,10 +318,10 @@ fn unwrap_recipient_is_allowed(
 
 fn forbidden_deposit_addresses(
     deps: Deps,
-    env: Env,
+    env: &Env,
     app: &AutocompounderApp,
 ) -> Result<Vec<Addr>, AutocompounderError> {
-    Ok(vec![app.proxy_address(deps)?, env.contract.address])
+    Ok(vec![app.proxy_address(deps)?, env.contract.address.clone()])
 }
 
 fn deposit_lp(
@@ -336,7 +340,7 @@ fn deposit_lp(
     let recipient = unwrap_recipient_is_allowed(
         recipient,
         &info.sender,
-        forbidden_deposit_addresses(deps.as_ref(), env, &app)?,
+        forbidden_deposit_addresses(deps.as_ref(), &env, &app)?,
     )?;
 
     if lp_token.info != config.liquidity_token {
@@ -346,7 +350,7 @@ fn deposit_lp(
     // let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
 
     // transfer the asset to the proxy contract
-    let transfer_msg = transfer_token(lp_token, info.sender, &app, deps.as_ref())?;
+    let transfer_msg = transfer_token_to_proxy(lp_token, info.sender, &app, deps.as_ref())?;
 
     let staked_lp = query_stake(
         deps.as_ref(),
@@ -364,13 +368,13 @@ fn deposit_lp(
         fee_config.fee_collector_addr,
     )?;
 
-    let current_vault_supply = cw20_total_supply(deps.as_ref(), &config)?;
+    let current_vault_supply = vault_token_total_supply(deps.as_ref(), &config)?;
     let mint_amount = convert_to_shares(lp_asset.amount, staked_lp, current_vault_supply);
     if mint_amount.is_zero() {
         return Err(AutocompounderError::ZeroMintAmount {});
     }
 
-    let mint_msg = mint_vault_tokens(&config, recipient, mint_amount)?;
+    let mint_msg = mint_vault_tokens_msg(&config, &env.contract.address, recipient, mint_amount)?;
     let stake_msg = stake_lp_tokens(
         deps.as_ref(),
         &app,
@@ -406,8 +410,7 @@ fn deduct_fee(lp_asset: AnsAsset, fee: Decimal) -> (AnsAsset, AnsAsset) {
 
 /// Transfer lp token to the proxy contract whether it is a cw20 or native token. Returns CosmosMsg
 /// For cw20 tokens, it will call transfer_from and it needs a allowance to be set, otherwhise the execution will error.
-
-fn transfer_token(
+fn transfer_token_to_proxy(
     lp_token: Asset,
     sender: Addr,
     app: &AutocompounderApp,
@@ -418,6 +421,24 @@ fn transfer_token(
             .transfer_from_msg(sender, app.proxy_address(deps)?)
             .map_err(|e| e.into()),
         AssetInfoBase::Native(_denom) => Ok(app.bank(deps).deposit(vec![lp_token])?.swap_remove(0)),
+        _ => Err(AutocompounderError::AssetError(
+            cw_asset::AssetError::InvalidAssetFormat {
+                received: lp_token.to_string(),
+            },
+        )),
+    }
+}
+
+fn transfer_token_to_autocompounder(
+    lp_token: Asset,
+    sender: Addr,
+    env: &Env,
+) -> Result<Vec<CosmosMsg>, AutocompounderError> {
+    match lp_token.info.clone() {
+        AssetInfoBase::Cw20(_addr) => Ok(vec![Asset::cw20(_addr, lp_token.amount)
+            .transfer_from_msg(sender, env.contract.address.clone())
+            .map_err(|e| -> AutocompounderError { e.into() })?]),
+        AssetInfoBase::Native(_denom) => Ok(vec![]),
         _ => Err(AutocompounderError::AssetError(
             cw_asset::AssetError::InvalidAssetFormat {
                 received: lp_token.to_string(),
@@ -441,14 +462,6 @@ fn transfer_token(
 ///
 /// Finally, the function returns a response with the constructed messages and a custom tag indicating that
 /// the batch unbonding process was executed.
-///
-/// # Parameters
-/// - `deps`, `env`, `app`: execution environment
-/// - `start_after`: An optional string indicating where to start processing claims.
-/// - `limit`: An optional limit on the number of claims to process.
-///
-/// # Returns
-/// - `AutocompounderResult`: The result of the batch unbonding process.
 pub fn batch_unbond(
     deps: DepsMut,
     env: Env,
@@ -480,7 +493,7 @@ pub fn batch_unbond(
             &fee_config,
             &app,
             pending_claims.clone(),
-            env,
+            &env,
         )?;
 
     // clear pending claims
@@ -498,12 +511,14 @@ pub fn batch_unbond(
         deps.as_ref(),
         &app,
         config.pool_data.dex.clone(),
-        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data).lp_token()).asset_entry(),
+        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token())
+            .asset_entry(),
         total_lp_amount_to_unbond,
         config.unbonding_period,
     );
 
-    let burn_msg = get_burn_msg(&config.vault_token, total_vault_tokens_to_burn)?;
+    let burn_msg =
+        burn_vault_tokens_msg(&config, &env.contract.address, total_vault_tokens_to_burn)?;
 
     let response = Response::new().add_messages(vec![unstake_msg, burn_msg]);
     Ok(app.custom_tag_response(response, "batch_unbond", vec![("4t2", "AC/UnbondBatch")]))
@@ -511,19 +526,24 @@ pub fn batch_unbond(
 
 /// Handles receiving CW20 messages
 pub fn receive(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    app: AutocompounderApp,
-    msg: Cw20ReceiveMsg,
+    _deps: DepsMut,
+    _env: Env,
+    _info: MessageInfo,
+    _app: AutocompounderApp,
+    _msg: Cw20ReceiveMsg,
 ) -> AutocompounderResult {
-    if msg.amount.is_zero() {
-        return Err(AutocompounderError::ZeroDepositAmount {});
-    }
-    // Withdraw fn can only be called by liquidity token or the lp token
-    match from_binary(&msg.msg)? {
-        Cw20HookMsg::Redeem {} => redeem(deps, env, app, info.sender, msg.sender, msg.amount),
-    }
+    Err(AutocompounderError::Std(
+        cosmwasm_std::StdError::GenericErr {
+            msg: "cannot recieve c20 tokens. Deposit and redeem using allowance".to_string(),
+        },
+    ))
+    // if msg.amount.is_zero() {
+    //     return Err(AutocompounderError::ZeroDepositAmount {});
+    // }
+    // // Withdraw fn can only be called by liquidity token or the lp token
+    // match from_binary(&msg.msg)? {
+    //     Cw20HookMsg::Redeem {} => redeem(deps, env, app, info.sender, msg.sender, msg.amount),
+    // }
 }
 
 /// Redeems the vault tokens for the underlying asset.
@@ -533,34 +553,40 @@ pub fn receive(
 /// If yes, it registers a pre-claim for the sender.  This will be processed in batches by calling `ExecuteMsg::BatchUnbond` .
 fn redeem(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     app: AutocompounderApp,
-    cw20_sender: Addr,
-    sender: String,
+    sender: Addr,
     amount_of_vault_tokens_to_be_burned: Uint128,
+    recipient: Option<Addr>,
 ) -> AutocompounderResult {
     // parse sender
-    let sender = deps.api.addr_validate(&sender)?;
-
-    // check if the cw20 sender is the vault token
+    let recipient = unwrap_recipient_is_allowed(
+        recipient,
+        &sender,
+        forbidden_deposit_addresses(deps.as_ref(), &env, &app)?,
+    )?;
     let config = CONFIG.load(deps.storage)?;
-    if cw20_sender != config.vault_token {
-        return Err(AutocompounderError::SenderIsNotVaultToken {});
-    }
+
+    let redeem_token = AssetBase::new(
+        config.vault_token.clone(),
+        amount_of_vault_tokens_to_be_burned,
+    );
+    let transfer_msgs = transfer_token_to_autocompounder(redeem_token, sender, &env)?;
 
     if config.unbonding_period.is_none() {
         redeem_without_bonding_period(
             deps,
-            &sender,
+            &env,
+            &recipient,
             config,
             &app,
             amount_of_vault_tokens_to_be_burned,
         )
     } else {
-        register_pre_claim(deps, sender, amount_of_vault_tokens_to_be_burned)?;
+        register_pre_claim(deps, recipient, amount_of_vault_tokens_to_be_burned)?;
 
         Ok(app.custom_tag_response(
-            Response::new(),
+            Response::new().add_messages(transfer_msgs),
             "redeem",
             vec![("4t2", "AC/Register_pre_claim")],
         ))
@@ -593,6 +619,7 @@ fn register_pre_claim(
 /// This will unstake the lp tokens, burn the vault tokens, withdraw the underlying assets and send them to the user
 fn redeem_without_bonding_period(
     deps: DepsMut,
+    env: &Env,
     sender: &Addr,
     config: Config,
     app: &AutocompounderApp,
@@ -611,7 +638,7 @@ fn redeem_without_bonding_period(
     })?;
 
     // 1) get the total supply of Vault token
-    let total_supply_vault = cw20_total_supply(deps.as_ref(), &config)?;
+    let total_supply_vault = vault_token_total_supply(deps.as_ref(), &config)?;
     let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
 
     // 2) get total staked lp token
@@ -643,7 +670,11 @@ fn redeem_without_bonding_period(
         lp_tokens_withdraw_amount,
         None,
     );
-    let burn_msg = get_burn_msg(&config.vault_token, amount_of_vault_tokens_to_be_burned)?;
+    let burn_msg = burn_vault_tokens_msg(
+        &config,
+        &env.contract.address,
+        amount_of_vault_tokens_to_be_burned,
+    )?;
 
     // 3) withdraw lp tokens
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
@@ -789,7 +820,7 @@ fn calculate_withdrawals(
     fee_config: &FeeConfig,
     app: &AutocompounderApp,
     pending_claims: Vec<(Addr, Uint128)>,
-    env: Env,
+    env: &Env,
 ) -> Result<(Uint128, Uint128, Vec<(Addr, Vec<Claim>)>), AutocompounderError> {
     let lp_token =
         AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token())
@@ -804,7 +835,7 @@ fn calculate_withdrawals(
     let mut total_vault_tokens_to_burn = Uint128::from(0u128);
 
     // 1) get the total supply of Vault token
-    let vault_tokens_total_supply = cw20_total_supply(deps, config)?;
+    let vault_tokens_total_supply = vault_token_total_supply(deps, config)?;
 
     // 2) get total staked lp token
     let total_lp_tokens_staked_in_vault = query_stake(
@@ -923,13 +954,6 @@ fn claim_unbonded_tokens(
         .unwrap()
 }
 
-/// Creates the message to burn tokens from contract
-fn get_burn_msg(contract: &Addr, amount: Uint128) -> StdResult<CosmosMsg> {
-    let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
-
-    Ok(wasm_execute(contract.to_string(), &msg, vec![])?.into())
-}
-
 /// Creates the the message to unstake lp tokens from the staking api
 fn unstake_lp_tokens(
     deps: Deps,
@@ -959,7 +983,7 @@ fn unstake_lp_tokens(
 mod test {
     use super::{redeem_without_bonding_period, *};
 
-    use crate::handlers::helpers::test_helpers::min_cooldown_config;
+    use crate::handlers::helpers::helpers_tests::min_cooldown_config;
     use crate::msg::ExecuteMsg;
     use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_init};
 
@@ -991,8 +1015,8 @@ mod test {
 
     #[test]
     fn test_redeem_without_bonding_period() -> anyhow::Result<()> {
-        let mut deps = app_init(false);
-        let config = min_cooldown_config(None);
+        let mut deps = app_init(false, true);
+        let config = min_cooldown_config(None, false);
         let sender = Addr::unchecked("sender");
         let amount = Uint128::new(100);
 
@@ -1016,6 +1040,7 @@ mod test {
 
         let response = redeem_without_bonding_period(
             deps.as_mut(),
+            &mock_env(),
             &sender,
             config.clone(),
             &AUTOCOMPOUNDER_APP,
@@ -1063,7 +1088,7 @@ mod test {
 
         #[test]
         fn only_admin() -> anyhow::Result<()> {
-            let mut deps = app_init(false);
+            let mut deps = app_init(false, true);
             let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
                 performance: None,
                 deposit: Some(Decimal::percent(1)),
@@ -1086,7 +1111,7 @@ mod test {
         }
         #[test]
         fn cannot_set_fee_above_or_equal_1() -> anyhow::Result<()> {
-            let mut deps = app_init(false);
+            let mut deps = app_init(false, true);
             let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
                 performance: None,
                 deposit: Some(Decimal::one()),
@@ -1104,7 +1129,7 @@ mod test {
         #[test]
         fn update_fee_collector() -> anyhow::Result<()> {
             const NEW_FEE_COLLECTOR: &str = "new_fee_collector_addr";
-            let mut deps = app_init(false);
+            let mut deps = app_init(false, true);
             let msg = AutocompounderExecuteMsg::UpdateFeeConfig {
                 performance: None,
                 deposit: None,
@@ -1142,7 +1167,7 @@ mod test {
 
         #[test]
         fn update_staking_config_only_admin() -> anyhow::Result<()> {
-            let mut deps = app_init(true);
+            let mut deps = app_init(true, true);
             let msg = AutocompounderExecuteMsg::UpdateStakingConfig {
                 preferred_bonding_period: BondingPeriodSelector::Longest,
             };
@@ -1164,7 +1189,7 @@ mod test {
 
     #[test]
     fn cannot_batch_unbond_if_unbonding_not_enabled() -> anyhow::Result<()> {
-        let mut deps = app_init(false);
+        let mut deps = app_init(false, true);
         let msg = AutocompounderExecuteMsg::BatchUnbond {
             start_after: None,
             limit: None,
@@ -1178,7 +1203,7 @@ mod test {
 
     #[test]
     fn cannot_send_wrong_coins() -> anyhow::Result<()> {
-        let mut deps = app_init(true);
+        let mut deps = app_init(true, true);
         let msg = AutocompounderExecuteMsg::Deposit {
             funds: vec![AnsAsset::new("eur", Uint128::one())],
             recipient: None,
@@ -1205,7 +1230,7 @@ mod test {
 
     #[test]
     fn cannot_withdraw_liquidity_if_no_claims() -> anyhow::Result<()> {
-        let mut deps = app_init(true);
+        let mut deps = app_init(true, true);
         let msg = AutocompounderExecuteMsg::Withdraw {};
         let resp = execute_as_manager(deps.as_mut(), msg);
         assert_that!(resp)
@@ -1218,7 +1243,7 @@ mod test {
     fn test_check_unbonding_cooldown_with_no_latest_unbonding() {
         let mut deps = mock_dependencies();
 
-        let config = min_cooldown_config(Some(Duration::Time(60)));
+        let config = min_cooldown_config(Some(Duration::Time(60)), false);
         let env = mock_env();
         let result = check_unbonding_cooldown(&deps.as_mut(), &config, &env);
         assert!(result.is_ok());
@@ -1227,7 +1252,7 @@ mod test {
     #[test]
     fn test_check_unbonding_cooldown_with_expired_unbonding() {
         let mut deps = mock_dependencies();
-        let config = min_cooldown_config(Some(Duration::Time(60)));
+        let config = min_cooldown_config(Some(Duration::Time(60)), false);
         let env = mock_env();
         let latest_unbonding = Expiration::AtTime(env.block.time.minus_seconds(60));
 
@@ -1250,7 +1275,7 @@ mod test {
     #[test]
     fn test_check_unbonding_cooldown_with_unexpired_unbonding() {
         let mut deps = mock_dependencies();
-        let config = min_cooldown_config(Some(Duration::Time(60)));
+        let config = min_cooldown_config(Some(Duration::Time(60)), false);
         let env = mock_env();
 
         let latest_unbonding = Expiration::AtTime(env.block.time.minus_seconds(59));

@@ -21,3 +21,4 @@ pub const MAX_BATCH_SIZE: u32 = 1000;
 pub const DECIMAL_OFFSET: u32 = 1;
 /// Default max spread for the vault in percentage
 pub const DEFAULT_MAX_SPREAD: u32 = 20;
+pub const VAULT_TOKEN_SYMBOL: &str = "FTTV";

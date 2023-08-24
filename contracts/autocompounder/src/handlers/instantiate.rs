@@ -1,8 +1,8 @@
-use crate::contract::{AutocompounderApp, AutocompounderResult, INSTANTIATE_REPLY_ID};
+use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER};
-use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG};
+use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_SYMBOL};
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_cw_staking::{
     msg::{StakingInfoResponse, StakingQueryMsg},
@@ -14,13 +14,11 @@ use abstract_sdk::{
     core::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
     features::AbstractNameService,
 };
-use cosmwasm_std::{
-    to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, ReplyOn, Response, StdError,
-    StdResult, SubMsg, WasmMsg,
-};
-use cw20::MinterResponse;
-use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
+use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult};
+use cw_asset::AssetInfo;
 use cw_utils::Duration;
+
+use super::helpers::{create_vault_token_submsg, format_native_denom_to_asset};
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
@@ -64,14 +62,6 @@ pub fn instantiate_handler(
     };
     let lp_token_info = ans.query(&lp_token)?;
 
-    // // match on the info and get cw20
-    // let lp_token_addr: Addr = match lp_token_info {
-    //     cw_asset::AssetInfoBase::Cw20(addr) => Ok(addr),
-    //     _ => Err(AutocompounderError::Std(StdError::generic_err(
-    //         "LP token is not a cw20",
-    //     ))),
-    // }?;
-
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
     // get staking info
@@ -105,8 +95,15 @@ pub fn instantiate_handler(
     let max_swap_spread =
         max_swap_spread.unwrap_or_else(|| Decimal::percent(DEFAULT_MAX_SPREAD.into()));
 
+    // vault_token will be overwritten in the instantiate reply if we are using a cw20
+    let vault_token = if code_id.is_some() {
+        AssetInfo::cw20(Addr::unchecked(""))
+    } else {
+        format_native_denom_to_asset(env.contract.address.as_str(), VAULT_TOKEN_SYMBOL)
+    };
+
     let config: Config = Config {
-        vault_token: Addr::unchecked(""),
+        vault_token,
         staking_target: staking_info.staking_target,
         liquidity_token: lp_token_info,
         pool_data,
@@ -129,49 +126,19 @@ pub fn instantiate_handler(
     FEE_CONFIG.save(deps.storage, &fee_config)?;
 
     // create LP token SubMsg
-    let sub_msg = create_lp_token_submsg(
+    let sub_msg = create_vault_token_submsg(
         env.contract.address.to_string(),
         format!("4T2{pairing}"),
         // pool data is too long
         // format!("4T2 Vault Token for {pool_data}"),
-        "FTTV".to_string(), // TODO: find a better way to define name and symbol
-        code_id,
+        VAULT_TOKEN_SYMBOL.to_string(), // TODO: find a better way to define name and symbol
+        code_id, // if code_id is none, submsg will be like normal msg: no reply (for now).
     )?;
 
     Ok(Response::new()
         .add_submessage(sub_msg)
         .add_attribute("action", "instantiate")
         .add_attribute("contract", AUTOCOMPOUNDER))
-}
-
-/// create a SubMsg to instantiate the Vault token.
-fn create_lp_token_submsg(
-    minter: String,
-    name: String,
-    symbol: String,
-    code_id: u64,
-) -> Result<SubMsg, StdError> {
-    let msg = TokenInstantiateMsg {
-        name,
-        symbol,
-        decimals: 6,
-        initial_balances: vec![],
-        mint: Some(MinterResponse { minter, cap: None }),
-        marketing: None,
-    };
-    Ok(SubMsg {
-        msg: WasmMsg::Instantiate {
-            admin: None,
-            code_id,
-            msg: to_binary(&msg)?,
-            funds: vec![],
-            label: "4T2 Vault Token".to_string(),
-        }
-        .into(),
-        gas_limit: None,
-        id: INSTANTIATE_REPLY_ID,
-        reply_on: ReplyOn::Success,
-    })
 }
 
 pub fn query_staking_info(
@@ -195,6 +162,7 @@ pub fn query_staking_info(
     Ok(res)
 }
 
+/// Retrieves the unbonding period and minimum unbonding cooldown based on the staking info and preferred bonding period.
 pub fn get_unbonding_period_and_min_unbonding_cooldown(
     staking_info: StakingInfoResponse,
     preferred_bonding_period: BondingPeriodSelector,
@@ -202,27 +170,15 @@ pub fn get_unbonding_period_and_min_unbonding_cooldown(
     if let (max_claims, Some(mut unbonding_periods)) =
         (staking_info.max_claims, staking_info.unbonding_periods)
     {
-        if !(unbonding_periods
-            .iter()
-            .all(|x| matches!(x, Duration::Height(_))))
-            && !(unbonding_periods
-                .iter()
-                .all(|x| matches!(x, Duration::Time(_))))
+        if !all_durations_are_height(&unbonding_periods)
+            && !all_durations_are_time(&unbonding_periods)
         {
             return Err(AutocompounderError::Std(StdError::generic_err(
                 "Unbonding periods are not all heights or all times",
             )));
         }
 
-        unbonding_periods.sort_by(|a, b| {
-            if let (Duration::Height(a), Duration::Height(b)) = (a, b) {
-                a.cmp(b)
-            } else if let (Duration::Time(a), Duration::Time(b)) = (a, b) {
-                a.cmp(b)
-            } else {
-                unreachable!()
-            } // This part is unreachable because of the check above
-        });
+        sort_unbonding_periods(&mut unbonding_periods);
 
         let unbonding_duration = match preferred_bonding_period {
             BondingPeriodSelector::Shortest => *unbonding_periods.first().unwrap(),
@@ -238,14 +194,56 @@ pub fn get_unbonding_period_and_min_unbonding_cooldown(
                 }
             }
         };
-        let min_unbonding_cooldown = max_claims.map(|max| match &unbonding_duration {
-            Duration::Height(block) => Duration::Height(block.saturating_div(max.into())),
-            Duration::Time(secs) => Duration::Time(secs.saturating_div(max.into())),
-        });
+
+        let min_unbonding_cooldown =
+            compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
         Ok((Some(unbonding_duration), min_unbonding_cooldown))
     } else {
         Ok((None, None))
     }
+}
+
+/// computes the minimum cooldown period based on the max claims and unbonding duration.
+fn compute_min_unbonding_cooldown(
+    max_claims: Option<u32>,
+    unbonding_duration: Duration,
+) -> Result<Option<Duration>, AutocompounderError> {
+    if max_claims.is_none() {
+        return Ok(None);
+    } else if max_claims == Some(0) {
+        return Err(AutocompounderError::Std(StdError::generic_err(
+            "Max claims cannot be 0.",
+        )));
+    }
+
+    let min_unbonding_cooldown = max_claims.map(|max| match &unbonding_duration {
+        Duration::Height(block) => Duration::Height(block.saturating_div(max.into())),
+        Duration::Time(secs) => Duration::Time(secs.saturating_div(max.into())),
+    });
+    Ok(min_unbonding_cooldown)
+}
+
+/// Sorts the unbonding periods based on their type.
+fn sort_unbonding_periods(unbonding_periods: &mut [Duration]) {
+    unbonding_periods.sort_by(|a, b| match (a, b) {
+        (Duration::Height(a_height), Duration::Height(b_height)) => a_height.cmp(b_height),
+        (Duration::Time(a_time), Duration::Time(b_time)) => a_time.cmp(b_time),
+        _ => panic!("Mismatched duration types, which should have been checked earlier."),
+    });
+}
+
+/// Checks if all durations are of type Height.
+fn all_durations_are_height(unbonding_periods: &[Duration]) -> bool {
+    unbonding_periods
+        .iter()
+        .all(|x| matches!(x, Duration::Height(_)))
+}
+
+/// Checks if all durations are of type Time.
+fn all_durations_are_time(unbonding_periods: &[Duration]) -> bool {
+    unbonding_periods
+        .iter()
+        .all(|x| matches!(x, Duration::Time(_)))
 }
 
 #[cfg(test)]
@@ -261,6 +259,8 @@ mod test {
         testing::{mock_dependencies, mock_env, mock_info},
         Addr, Decimal,
     };
+    use cw20::MinterResponse;
+    use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
     use cw_asset::AssetInfo;
     use speculoos::{assert_that, result::ResultAssertions};
 
@@ -268,7 +268,7 @@ mod test {
 
     #[test]
     fn test_app_instantiation() -> anyhow::Result<()> {
-        let deps = app_init(false);
+        let deps = app_init(false, true);
         let config = CONFIG.load(deps.as_ref().storage).unwrap();
         let fee_config = FEE_CONFIG.load(deps.as_ref().storage).unwrap();
         assert_that!(config.pool_assets.len()).is_equal_to(2);
@@ -298,7 +298,7 @@ mod test {
             info,
             abstract_core::app::InstantiateMsg {
                 module: crate::msg::AutocompounderInstantiateMsg {
-                    code_id: 1,
+                    code_id: Some(1),
                     commission_addr: COMMISSION_RECEIVER.to_string(),
                     deposit_fees: Decimal::percent(3),
                     dex: ASTROPORT.to_string(),
@@ -342,5 +342,123 @@ mod test {
         };
 
         msg.validate().unwrap();
+    }
+
+    mod unbonding_period_tests {
+        use super::*;
+
+        #[test]
+        fn test_all_durations_are_height() {
+            let durations = vec![
+                Duration::Height(10),
+                Duration::Height(20),
+                Duration::Height(30),
+            ];
+            assert_eq!(all_durations_are_height(&durations), true);
+
+            let mixed_durations = vec![
+                Duration::Height(10),
+                Duration::Time(20),
+                Duration::Height(30),
+            ];
+            assert_eq!(all_durations_are_height(&mixed_durations), false);
+        }
+
+        #[test]
+        fn test_all_durations_are_time() {
+            let durations = vec![Duration::Time(10), Duration::Time(20), Duration::Time(30)];
+            assert_eq!(all_durations_are_time(&durations), true);
+
+            let mixed_durations = vec![
+                Duration::Height(10),
+                Duration::Time(20),
+                Duration::Height(30),
+            ];
+            assert_eq!(all_durations_are_time(&mixed_durations), false);
+        }
+
+        #[test]
+        fn test_sort_unbonding_periods_height() {
+            let mut durations = vec![
+                Duration::Height(30),
+                Duration::Height(10),
+                Duration::Height(20),
+            ];
+            sort_unbonding_periods(&mut durations);
+            assert_eq!(
+                durations,
+                vec![
+                    Duration::Height(10),
+                    Duration::Height(20),
+                    Duration::Height(30),
+                ]
+            );
+        }
+
+        #[test]
+        fn test_sort_unbonding_periods_time() {
+            let mut durations = vec![Duration::Time(30), Duration::Time(10), Duration::Time(20)];
+            sort_unbonding_periods(&mut durations);
+            assert_eq!(
+                durations,
+                vec![Duration::Time(10), Duration::Time(20), Duration::Time(30),]
+            );
+        }
+
+        #[test]
+        #[should_panic(
+            expected = "Mismatched duration types, which should have been checked earlier."
+        )]
+        fn test_sort_unbonding_periods_mixed() {
+            let mut mixed_durations = vec![
+                Duration::Height(10),
+                Duration::Time(20),
+                Duration::Height(30),
+            ];
+            sort_unbonding_periods(&mut mixed_durations);
+        }
+    }
+
+    mod cooldown_tests {
+        type AResult = anyhow::Result<()>;
+
+        use super::*;
+        #[test]
+        fn test_compute_min_unbonding_cooldown_height() -> AResult {
+            let max_claims = Some(2);
+            let unbonding_duration = Duration::Height(10);
+            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
+            assert_eq!(result, Some(Duration::Height(5)));
+            Ok(())
+        }
+
+        #[test]
+        fn test_compute_min_unbonding_cooldown_time() -> AResult {
+            let max_claims = Some(2);
+            let unbonding_duration = Duration::Time(10);
+            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
+            assert_eq!(result, Some(Duration::Time(5)));
+            Ok(())
+        }
+
+        #[test]
+        fn test_compute_min_unbonding_cooldown_no_max_claims() -> AResult {
+            let max_claims = None;
+            let unbonding_duration = Duration::Height(10);
+            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
+            assert_eq!(result, None);
+            Ok(())
+        }
+
+        #[test]
+        fn test_compute_min_unbonding_cooldown_zero_max_claims() -> AResult {
+            let max_claims = Some(0);
+            let unbonding_duration = Duration::Height(10);
+            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration);
+            assert_that!(result)
+                .is_err()
+                .matches(|e| matches!(e, AutocompounderError::Std(_)));
+            Ok(())
+        }
     }
 }

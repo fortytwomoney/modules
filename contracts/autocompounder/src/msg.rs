@@ -64,7 +64,7 @@ pub struct AutocompounderInstantiateMsg {
     /// address that receives the fee commissions
     pub commission_addr: String,
     /// cw20 code id
-    pub code_id: u64,
+    pub code_id: Option<u64>,
     /// Name of the target dex
     pub dex: DexName,
     /// Assets in the pool
@@ -95,7 +95,11 @@ pub enum AutocompounderExecuteMsg {
     /// Deposit LP tokens. Requires approval for cw20 tokens
     DepositLp {
         lp_token: OfferAsset,
-        receiver: Option<Addr>,
+        recipient: Option<Addr>,
+    },
+    Redeem {
+        amount: Uint128,
+        recipient: Option<Addr>,
     },
     /// Withdraw all unbonded funds
     Withdraw {},
@@ -169,11 +173,11 @@ pub enum AutocompounderQueryMsg {
     Balance { address: Addr },
 }
 
-#[cosmwasm_schema::cw_serde]
-pub enum Cw20HookMsg {
-    /// Withdraws a given amount from the vault.
-    Redeem {},
-}
+// #[cosmwasm_schema::cw_serde]
+// pub enum Cw20HookMsg {
+//     /// Withdraws a given amount from the vault.
+//     // Redeem {},
+// }
 
 /// Vault fee structure
 #[cosmwasm_schema::cw_serde]
@@ -198,7 +202,7 @@ pub struct Config {
     /// Address of the LP token contract
     pub liquidity_token: AssetInfoBase<Addr>,
     /// Vault token
-    pub vault_token: Addr,
+    pub vault_token: AssetInfoBase<Addr>,
     /// Pool bonding period
     pub unbonding_period: Option<Duration>,
     /// minimum unbonding cooldown
