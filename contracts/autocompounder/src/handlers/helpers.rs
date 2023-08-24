@@ -320,16 +320,80 @@ pub fn transfer_to_msgs(
 
 #[cfg(test)]
 pub mod helpers_tests {
-    use crate::contract::AUTOCOMPOUNDER_APP;
+    use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_base_mock_querier};
 
     use super::*;
     use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
-    use anyhow::Ok;
-    use cosmwasm_std::{from_binary, testing::mock_dependencies};
+    use cosmwasm_std::{
+        from_binary, from_slice,
+        testing::{mock_dependencies, MockApi, MockStorage},
+        Empty, OwnedDeps, Querier, SystemResult,
+    };
     use cw_asset::AssetInfoBase;
     use speculoos::{assert_that, result::ResultAssertions};
 
     type AResult = anyhow::Result<()>;
+
+    struct MockStargateQuerier {}
+
+    impl MockStargateQuerier {
+        fn new() -> Self {
+            Self {}
+        }
+    }
+
+    impl Querier for MockStargateQuerier {
+        fn raw_query(&self, bin_request: &[u8]) -> cosmwasm_std::QuerierResult {
+            let request: QueryRequest<Empty> = match from_slice(bin_request) {
+                Ok(request) => request,
+                Err(err) => {
+                    return SystemResult::Err(cosmwasm_std::SystemError::InvalidRequest {
+                        error: err.to_string(),
+                        request: bin_request.into(),
+                    })
+                }
+            };
+            self.handle_query(&request)
+        }
+    }
+
+    impl MockStargateQuerier {
+        fn handle_query(&self, request: &QueryRequest<Empty>) -> cosmwasm_std::QuerierResult {
+            match request {
+                QueryRequest::Stargate { path, data: _ } => {
+                    if path == "cosmos.bank.v1beta1.Query/SupplyOf" {
+                        let coin = Coin {
+                            denom: "test_vault_token".to_string(),
+                            amount: Uint128::from(100u128),
+                        };
+                        let mut supply = SupplyResponse::default();
+                        supply.amount = coin;
+                        SystemResult::Ok(cosmwasm_std::ContractResult::Ok(
+                            to_binary(&supply).unwrap(),
+                        ))
+                    } else {
+                        SystemResult::Err(cosmwasm_std::SystemError::UnsupportedRequest {
+                            kind: format!("query for path: {path}"),
+                        })
+                    }
+                }
+                _ => SystemResult::Err(cosmwasm_std::SystemError::UnsupportedRequest {
+                    kind: "only stargate allowed".to_string(),
+                }),
+            }
+        }
+    }
+
+    fn mock_deps_with_stargate() -> OwnedDeps<MockStorage, MockApi, MockStargateQuerier> {
+        let custom_querier: MockStargateQuerier = MockStargateQuerier::new();
+
+        OwnedDeps {
+            storage: MockStorage::default(),
+            api: MockApi::default(),
+            querier: custom_querier,
+            custom_query_type: Default::default(),
+        }
+    }
 
     pub fn min_cooldown_config(
         min_unbonding_cooldown: Option<Duration>,
@@ -361,14 +425,36 @@ pub mod helpers_tests {
     }
 
     #[test]
-    #[ignore = "Cannot (yet?) test stargate queries in unittest"]
     fn test_query_supply_with_stargate() {
-        let deps = mock_dependencies();
+        let deps = mock_deps_with_stargate();
 
         let denom = "test_vault_token";
 
         let result = query_supply_with_stargate(deps.as_ref(), denom);
         assert!(result.is_ok());
+        assert_that!(result).is_ok();
+        let supply = result.unwrap();
+        assert_that!(supply.amount).is_equal_to(Uint128::from(100u128));
+        assert_that!(supply.denom).is_equal_to(denom.to_string());
+    }
+
+    #[test]
+    fn vault_token_total_supply_native() -> AResult {
+        let deps = mock_deps_with_stargate();
+        let config = min_cooldown_config(Some(Duration::Time(1)), true);
+        let supply = vault_token_total_supply(deps.as_ref(), &config)?;
+        assert_that!(supply).is_equal_to(Uint128::from(100u128));
+        Ok(())
+    }
+
+    #[test]
+    fn vault_token_total_supply_cw20() -> AResult {
+        let mut deps = mock_dependencies();
+        deps.querier = app_base_mock_querier().build();
+        let config = min_cooldown_config(Some(Duration::Time(1)), false);
+        let supply = vault_token_total_supply(deps.as_ref(), &config)?;
+        assert_that!(supply).is_equal_to(Uint128::from(1000u128));
+        Ok(())
     }
 
     #[test]

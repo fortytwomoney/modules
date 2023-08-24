@@ -162,6 +162,7 @@ pub fn query_staking_info(
     Ok(res)
 }
 
+/// Retrieves the unbonding period and minimum unbonding cooldown based on the staking info and preferred bonding period.
 pub fn get_unbonding_period_and_min_unbonding_cooldown(
     staking_info: StakingInfoResponse,
     preferred_bonding_period: BondingPeriodSelector,
@@ -169,27 +170,15 @@ pub fn get_unbonding_period_and_min_unbonding_cooldown(
     if let (max_claims, Some(mut unbonding_periods)) =
         (staking_info.max_claims, staking_info.unbonding_periods)
     {
-        if !(unbonding_periods
-            .iter()
-            .all(|x| matches!(x, Duration::Height(_))))
-            && !(unbonding_periods
-                .iter()
-                .all(|x| matches!(x, Duration::Time(_))))
+        if !all_durations_are_height(&unbonding_periods)
+            && !all_durations_are_time(&unbonding_periods)
         {
             return Err(AutocompounderError::Std(StdError::generic_err(
                 "Unbonding periods are not all heights or all times",
             )));
         }
 
-        unbonding_periods.sort_by(|a, b| {
-            if let (Duration::Height(a), Duration::Height(b)) = (a, b) {
-                a.cmp(b)
-            } else if let (Duration::Time(a), Duration::Time(b)) = (a, b) {
-                a.cmp(b)
-            } else {
-                unreachable!()
-            } // This part is unreachable because of the check above
-        });
+        sort_unbonding_periods(&mut unbonding_periods);
 
         let unbonding_duration = match preferred_bonding_period {
             BondingPeriodSelector::Shortest => *unbonding_periods.first().unwrap(),
@@ -205,14 +194,56 @@ pub fn get_unbonding_period_and_min_unbonding_cooldown(
                 }
             }
         };
-        let min_unbonding_cooldown = max_claims.map(|max| match &unbonding_duration {
-            Duration::Height(block) => Duration::Height(block.saturating_div(max.into())),
-            Duration::Time(secs) => Duration::Time(secs.saturating_div(max.into())),
-        });
+
+        let min_unbonding_cooldown =
+            compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
         Ok((Some(unbonding_duration), min_unbonding_cooldown))
     } else {
         Ok((None, None))
     }
+}
+
+/// computes the minimum cooldown period based on the max claims and unbonding duration.
+fn compute_min_unbonding_cooldown(
+    max_claims: Option<u32>,
+    unbonding_duration: Duration,
+) -> Result<Option<Duration>, AutocompounderError> {
+    if max_claims.is_none() {
+        return Ok(None);
+    } else if max_claims == Some(0) {
+        return Err(AutocompounderError::Std(StdError::generic_err(
+            "Max claims cannot be 0.",
+        )));
+    }
+
+    let min_unbonding_cooldown = max_claims.map(|max| match &unbonding_duration {
+        Duration::Height(block) => Duration::Height(block.saturating_div(max.into())),
+        Duration::Time(secs) => Duration::Time(secs.saturating_div(max.into())),
+    });
+    Ok(min_unbonding_cooldown)
+}
+
+/// Sorts the unbonding periods based on their type.
+fn sort_unbonding_periods(unbonding_periods: &mut [Duration]) {
+    unbonding_periods.sort_by(|a, b| match (a, b) {
+        (Duration::Height(a_height), Duration::Height(b_height)) => a_height.cmp(b_height),
+        (Duration::Time(a_time), Duration::Time(b_time)) => a_time.cmp(b_time),
+        _ => panic!("Mismatched duration types, which should have been checked earlier."),
+    });
+}
+
+/// Checks if all durations are of type Height.
+fn all_durations_are_height(unbonding_periods: &[Duration]) -> bool {
+    unbonding_periods
+        .iter()
+        .all(|x| matches!(x, Duration::Height(_)))
+}
+
+/// Checks if all durations are of type Time.
+fn all_durations_are_time(unbonding_periods: &[Duration]) -> bool {
+    unbonding_periods
+        .iter()
+        .all(|x| matches!(x, Duration::Time(_)))
 }
 
 #[cfg(test)]
@@ -311,5 +342,123 @@ mod test {
         };
 
         msg.validate().unwrap();
+    }
+
+    mod unbonding_period_tests {
+        use super::*;
+
+        #[test]
+        fn test_all_durations_are_height() {
+            let durations = vec![
+                Duration::Height(10),
+                Duration::Height(20),
+                Duration::Height(30),
+            ];
+            assert_eq!(all_durations_are_height(&durations), true);
+
+            let mixed_durations = vec![
+                Duration::Height(10),
+                Duration::Time(20),
+                Duration::Height(30),
+            ];
+            assert_eq!(all_durations_are_height(&mixed_durations), false);
+        }
+
+        #[test]
+        fn test_all_durations_are_time() {
+            let durations = vec![Duration::Time(10), Duration::Time(20), Duration::Time(30)];
+            assert_eq!(all_durations_are_time(&durations), true);
+
+            let mixed_durations = vec![
+                Duration::Height(10),
+                Duration::Time(20),
+                Duration::Height(30),
+            ];
+            assert_eq!(all_durations_are_time(&mixed_durations), false);
+        }
+
+        #[test]
+        fn test_sort_unbonding_periods_height() {
+            let mut durations = vec![
+                Duration::Height(30),
+                Duration::Height(10),
+                Duration::Height(20),
+            ];
+            sort_unbonding_periods(&mut durations);
+            assert_eq!(
+                durations,
+                vec![
+                    Duration::Height(10),
+                    Duration::Height(20),
+                    Duration::Height(30),
+                ]
+            );
+        }
+
+        #[test]
+        fn test_sort_unbonding_periods_time() {
+            let mut durations = vec![Duration::Time(30), Duration::Time(10), Duration::Time(20)];
+            sort_unbonding_periods(&mut durations);
+            assert_eq!(
+                durations,
+                vec![Duration::Time(10), Duration::Time(20), Duration::Time(30),]
+            );
+        }
+
+        #[test]
+        #[should_panic(
+            expected = "Mismatched duration types, which should have been checked earlier."
+        )]
+        fn test_sort_unbonding_periods_mixed() {
+            let mut mixed_durations = vec![
+                Duration::Height(10),
+                Duration::Time(20),
+                Duration::Height(30),
+            ];
+            sort_unbonding_periods(&mut mixed_durations);
+        }
+    }
+
+    mod cooldown_tests {
+        type AResult = anyhow::Result<()>;
+
+        use super::*;
+        #[test]
+        fn test_compute_min_unbonding_cooldown_height() -> AResult {
+            let max_claims = Some(2);
+            let unbonding_duration = Duration::Height(10);
+            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
+            assert_eq!(result, Some(Duration::Height(5)));
+            Ok(())
+        }
+
+        #[test]
+        fn test_compute_min_unbonding_cooldown_time() -> AResult {
+            let max_claims = Some(2);
+            let unbonding_duration = Duration::Time(10);
+            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
+            assert_eq!(result, Some(Duration::Time(5)));
+            Ok(())
+        }
+
+        #[test]
+        fn test_compute_min_unbonding_cooldown_no_max_claims() -> AResult {
+            let max_claims = None;
+            let unbonding_duration = Duration::Height(10);
+            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
+            assert_eq!(result, None);
+            Ok(())
+        }
+
+        #[test]
+        fn test_compute_min_unbonding_cooldown_zero_max_claims() -> AResult {
+            let max_claims = Some(0);
+            let unbonding_duration = Duration::Height(10);
+            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration);
+            assert_that!(result)
+                .is_err()
+                .matches(|e| matches!(e, AutocompounderError::Std(_)));
+            Ok(())
+        }
     }
 }
