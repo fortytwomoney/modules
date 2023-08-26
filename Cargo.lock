@@ -188,7 +188,7 @@ dependencies = [
  "cw-address-like",
  "cw-asset",
  "cw-controllers",
- "cw-orch",
+ "cw-orch 0.13.3",
  "cw-ownable",
  "cw-semver",
  "cw-storage-plus 1.1.0",
@@ -213,7 +213,7 @@ dependencies = [
  "cw-address-like",
  "cw-asset",
  "cw-controllers",
- "cw-orch",
+ "cw-orch 0.13.3",
  "cw-ownable",
  "cw-semver",
  "cw-storage-plus 1.1.0",
@@ -269,7 +269,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-asset",
  "cw-controllers",
- "cw-orch",
+ "cw-orch 0.13.3",
  "cw-utils",
  "schemars",
  "serde",
@@ -298,7 +298,7 @@ checksum = "c8473ba5011ac16e67dc67e3ec3d05c1f0d681dd8f6c82334d21f6a4a8d4ce8b"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
- "cw-orch",
+ "cw-orch 0.13.3",
  "cw-utils",
  "schemars",
  "serde",
@@ -314,7 +314,7 @@ dependencies = [
  "abstract-cw20",
  "cosmwasm-schema",
  "cosmwasm-std",
- "cw-orch",
+ "cw-orch 0.13.3",
  "cw-storage-plus 1.1.0",
  "cw-utils",
  "schemars",
@@ -342,7 +342,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-asset",
- "cw-orch",
+ "cw-orch 0.13.3",
  "cw-storage-plus 1.1.0",
  "cw20 0.10.3",
  "schemars",
@@ -447,7 +447,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-asset",
  "cw-controllers",
- "cw-orch",
+ "cw-orch 0.13.3",
  "cw-storage-plus 1.1.0",
  "cw2 1.1.0",
  "log",
@@ -477,7 +477,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-asset",
  "cw-controllers",
- "cw-orch",
+ "cw-orch 0.13.3",
  "cw-storage-plus 1.1.0",
  "cw2 1.1.0",
  "log",
@@ -744,7 +744,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-asset",
- "cw-orch",
+ "cw-orch 0.13.3",
  "cw-storage-plus 1.1.0",
  "cw-utils",
  "cw20 1.1.0",
@@ -1042,7 +1042,7 @@ dependencies = [
  "cw-asset",
  "cw-controllers",
  "cw-multi-test",
- "cw-orch",
+ "cw-orch 0.13.3",
  "cw-storage-plus 1.1.0",
  "cw-utils",
  "dotenv",
@@ -1564,6 +1564,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "curve25519-dalek"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f711ade317dd348950a9910f81c5947e3d8907ebd2b83f76203ff1807e6a2bc2"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "curve25519-dalek-derive",
+ "digest 0.10.7",
+ "fiat-crypto",
+ "platforms",
+ "rustc_version",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "curve25519-dalek-derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83fdaf97f4804dcebfa5862639bc9ce4121e82140bec2a987ac5140294865b5b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.29",
+]
+
+[[package]]
 name = "curve25519-dalek-ng"
 version = "4.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1647,15 +1675,15 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "cw-multi-test",
- "cw-orch-contract-derive",
- "cw-orch-fns-derive",
+ "cw-orch-contract-derive 0.13.3",
+ "cw-orch-fns-derive 0.13.3",
  "derive_builder",
- "ed25519-dalek",
+ "ed25519-dalek 1.0.1",
  "eyre",
  "hex",
  "hkd32",
- "ibc-chain-registry",
- "ibc-relayer-types",
+ "ibc-chain-registry 0.24.1",
+ "ibc-relayer-types 0.24.1",
  "log",
  "prost 0.11.9",
  "rand_core 0.6.4",
@@ -1673,6 +1701,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-orch"
+version = "0.15.0"
+source = "git+https://github.com/AbstractSDK/cw-orchestrator?branch=fix/make-broadcast-public#ac7c49a6d421c354826cb6bf4f6d5a6596f9bf51"
+dependencies = [
+ "anyhow",
+ "cosmrs",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-orch-contract-derive 0.15.0",
+ "cw-orch-core",
+ "cw-orch-daemon",
+ "cw-orch-fns-derive 0.15.0",
+ "cw-orch-mock",
+ "cw-orch-networks",
+ "cw-utils",
+ "log",
+ "schemars",
+ "serde",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "cw-orch-contract-derive"
 version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1685,6 +1736,72 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-orch-contract-derive"
+version = "0.15.0"
+source = "git+https://github.com/AbstractSDK/cw-orchestrator?branch=fix/make-broadcast-public#ac7c49a6d421c354826cb6bf4f6d5a6596f9bf51"
+dependencies = [
+ "convert_case",
+ "log",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "cw-orch-core"
+version = "0.15.0"
+source = "git+https://github.com/AbstractSDK/cw-orchestrator?branch=fix/make-broadcast-public#ac7c49a6d421c354826cb6bf4f6d5a6596f9bf51"
+dependencies = [
+ "anyhow",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "log",
+ "serde",
+ "serde_json",
+ "sha256",
+ "thiserror",
+]
+
+[[package]]
+name = "cw-orch-daemon"
+version = "0.15.0"
+source = "git+https://github.com/AbstractSDK/cw-orchestrator?branch=fix/make-broadcast-public#ac7c49a6d421c354826cb6bf4f6d5a6596f9bf51"
+dependencies = [
+ "anyhow",
+ "base16",
+ "base64 0.21.2",
+ "bitcoin",
+ "chrono",
+ "cosmrs",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-orch-contract-derive 0.15.0",
+ "cw-orch-core",
+ "cw-orch-fns-derive 0.15.0",
+ "cw-orch-networks",
+ "derive_builder",
+ "ed25519-dalek 2.0.0",
+ "eyre",
+ "hex",
+ "hkd32",
+ "ibc-chain-registry 0.25.0",
+ "ibc-relayer-types 0.25.0",
+ "log",
+ "prost 0.11.9",
+ "rand_core 0.6.4",
+ "reqwest",
+ "ring",
+ "ripemd",
+ "schemars",
+ "secp256k1",
+ "serde",
+ "serde_json",
+ "sha256",
+ "thiserror",
+ "tokio",
+ "tonic",
+]
+
+[[package]]
 name = "cw-orch-fns-derive"
 version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1694,6 +1811,38 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "cw-orch-fns-derive"
+version = "0.15.0"
+source = "git+https://github.com/AbstractSDK/cw-orchestrator?branch=fix/make-broadcast-public#ac7c49a6d421c354826cb6bf4f6d5a6596f9bf51"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "cw-orch-mock"
+version = "0.15.0"
+source = "git+https://github.com/AbstractSDK/cw-orchestrator?branch=fix/make-broadcast-public#ac7c49a6d421c354826cb6bf4f6d5a6596f9bf51"
+dependencies = [
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-orch-core",
+ "cw-utils",
+ "serde",
+]
+
+[[package]]
+name = "cw-orch-networks"
+version = "0.15.0"
+source = "git+https://github.com/AbstractSDK/cw-orchestrator?branch=fix/make-broadcast-public#ac7c49a6d421c354826cb6bf4f6d5a6596f9bf51"
+dependencies = [
+ "ibc-chain-registry 0.25.0",
+ "serde",
 ]
 
 [[package]]
@@ -2084,6 +2233,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60f6d271ca33075c88028be6f04d502853d63a5ece419d269c15315d4fc1cf1d"
 dependencies = [
  "pkcs8 0.10.2",
+ "serde",
  "signature 2.1.0",
 ]
 
@@ -2106,7 +2256,7 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c762bae6dcaf24c4c84667b8579785430908723d5c889f469d76a41d59cc7a9d"
 dependencies = [
- "curve25519-dalek",
+ "curve25519-dalek 3.2.0",
  "ed25519 1.5.3",
  "rand 0.7.3",
  "serde",
@@ -2116,12 +2266,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "ed25519-dalek"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7277392b266383ef8396db7fdeb1e77b6c52fed775f5df15bb24f35b72156980"
+dependencies = [
+ "curve25519-dalek 4.0.0",
+ "ed25519 2.2.2",
+ "serde",
+ "sha2 0.10.7",
+ "zeroize",
+]
+
+[[package]]
 name = "ed25519-zebra"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c24f403d068ad0b359e577a77f92392118be3f3c927538f2bb544a5ecd828c6"
 dependencies = [
- "curve25519-dalek",
+ "curve25519-dalek 3.2.0",
  "hashbrown",
  "hex",
  "rand_core 0.6.4",
@@ -2263,7 +2426,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-asset",
  "cw-controllers",
- "cw-orch",
+ "cw-orch 0.13.3",
  "cw-storage-plus 1.1.0",
  "cw-utils",
  "dotenv",
@@ -2298,6 +2461,12 @@ dependencies = [
  "rand_core 0.6.4",
  "subtle",
 ]
+
+[[package]]
+name = "fiat-crypto"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e825f6987101665dea6ec934c09ec6d721de7bc1bf92248e1d5810c8cd636b77"
 
 [[package]]
 name = "fixed-hash"
@@ -2359,7 +2528,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-asset",
- "cw-orch",
+ "cw-orch 0.13.3",
  "cw-storage-plus 1.1.0",
  "cw-utils",
  "schemars",
@@ -2804,8 +2973,29 @@ dependencies = [
  "flex-error",
  "futures",
  "http",
- "ibc-proto",
- "ibc-relayer-types",
+ "ibc-proto 0.31.0",
+ "ibc-relayer-types 0.24.1",
+ "itertools",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tendermint-rpc",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "ibc-chain-registry"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e550fe9592ad7096831442b38c45837c6385f683a55cf5eb32460e468ecddb4"
+dependencies = [
+ "async-trait",
+ "flex-error",
+ "futures",
+ "http",
+ "ibc-proto 0.32.1",
+ "ibc-relayer-types 0.25.0",
  "itertools",
  "reqwest",
  "serde",
@@ -2833,6 +3023,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "ibc-proto"
+version = "0.32.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11c352715b36685c2543556a77091fb16af5d26257d5ce9c28e6756c1ccd71aa"
+dependencies = [
+ "base64 0.21.2",
+ "bytes",
+ "flex-error",
+ "ics23",
+ "prost 0.11.9",
+ "serde",
+ "subtle-encoding",
+ "tendermint-proto",
+ "tonic",
+]
+
+[[package]]
 name = "ibc-relayer-types"
 version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2843,7 +3050,36 @@ dependencies = [
  "dyn-clone",
  "erased-serde",
  "flex-error",
- "ibc-proto",
+ "ibc-proto 0.31.0",
+ "ics23",
+ "itertools",
+ "num-rational",
+ "primitive-types",
+ "prost 0.11.9",
+ "safe-regex",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "subtle-encoding",
+ "tendermint",
+ "tendermint-light-client-verifier",
+ "tendermint-proto",
+ "time 0.3.20",
+ "uint",
+]
+
+[[package]]
+name = "ibc-relayer-types"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "979d3443208e3a3174287bafa179afb05922edde3db25539f5dde29625c18b7f"
+dependencies = [
+ "bytes",
+ "derive_more",
+ "dyn-clone",
+ "erased-serde",
+ "flex-error",
+ "ibc-proto 0.32.1",
  "ics23",
  "itertools",
  "num-rational",
@@ -3485,6 +3721,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
 
 [[package]]
+name = "platforms"
+version = "3.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3d7ddaed09e0eb771a79ab0fd64609ba0afb0a8366421957936ad14cbd13630"
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4056,8 +4298,9 @@ dependencies = [
  "anyhow",
  "autocompounder",
  "clap",
+ "cosmrs",
  "cosmwasm-std",
- "cw-orch",
+ "cw-orch 0.15.0",
  "dotenv",
  "env_logger",
  "fee-collector",
@@ -5364,7 +5607,7 @@ dependencies = [
  "cw-asset",
  "cw-controllers",
  "cw-multi-test",
- "cw-orch",
+ "cw-orch 0.13.3",
  "wyndex 1.1.2",
  "wyndex-factory",
  "wyndex-multi-hop",
