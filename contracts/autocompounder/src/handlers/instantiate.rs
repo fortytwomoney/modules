@@ -1,6 +1,7 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
+use crate::kujira_tx::format_tokenfactory_denom;
 use crate::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER};
 use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_SYMBOL};
 use abstract_core::objects::AnsEntryConvertor;
@@ -18,7 +19,7 @@ use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Env, MessageInfo, Response, Std
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
-use super::helpers::{create_vault_token_submsg, format_native_denom_to_asset};
+use super::helpers::{create_vault_token_submsg};
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
@@ -99,7 +100,7 @@ pub fn instantiate_handler(
     let vault_token = if code_id.is_some() {
         AssetInfo::cw20(Addr::unchecked(""))
     } else {
-        format_native_denom_to_asset(env.contract.address.as_str(), VAULT_TOKEN_SYMBOL)
+        AssetInfo::Native(format_tokenfactory_denom(env.contract.address.as_str(), VAULT_TOKEN_SYMBOL))
     };
 
     let config: Config = Config {

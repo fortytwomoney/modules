@@ -280,7 +280,6 @@ fn deposit_cw20_asset() -> AResult {
 
     // single cw20asset deposit from different address
     // single asset deposit from different address
-
     raw_token
         .call_as(&user1)
         .increase_allowance(1000u128.into(), _ac_addres.to_string(), None)?;
