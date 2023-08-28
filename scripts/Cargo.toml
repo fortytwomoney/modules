@@ -7,8 +7,7 @@ edition.workspace = true
 
 [dependencies]
 
-cw-orch = { git="https://github.com/AbstractSDK/cw-orchestrator", branch="fix/make-broadcast-public", features = ["daemon"] }
-# cw-orch = { workspace = true, features = ["daemon"] }
+cw-orch = { workspace = true, features = ["daemon"] }
 abstract-interface = { workspace = true, features = ["daemon"] }
 
 log = { workspace = true }
@@ -26,4 +25,3 @@ clap = { workspace = true }
 speculoos = { workspace = true }
 autocompounder = { workspace = true, features = ["interface"] }
 fee-collector = { workspace = true, features = ["interface"] }
-cosmrs = "0.14.0"

@@ -1,7 +1,9 @@
+use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
 use cw_orch::daemon::DaemonBuilder;
 use cw_orch::deploy::Deploy;
 use cw_orch::environment::{CwEnv, TxResponse};
 use cw_orch::prelude::*;
+use cw_orch::prelude::queriers::{Bank, DaemonQuerier};
 use std::env;
 use std::sync::Arc;
 
@@ -17,7 +19,7 @@ use abstract_cw_staking::CW_STAKING;
 use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
 
 use clap::Parser;
-use cosmwasm_std::{Addr, Decimal, Empty};
+use cosmwasm_std::{Addr, Decimal, Empty, Uint128};
 use cw_orch::daemon::networks::parse_network;
 
 use autocompounder::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER};
@@ -65,14 +67,14 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
     let (dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
-        "uni-6" => ("wyndex", "juno>junox", 4012),
-        "juno-1" => ("wyndex", "juno>juno", 1),
-        "pion-1" => ("astroport", "neutron>astro", 188),
-        "neutron-1" => ("astroport", "neutron>astro", 180),
-        "pisco-1" => ("astroport", "terra2>luna", 83),
-        "phoenix-1" => ("astroport", "terra2>luna", 69),
-        "osmo-test-5" => ("osmosis5", "osmosis5>osmo", 1),
-        // "harpoon-1" => ("")
+        "uni-6" => ("wyndex", "juno>junox", Some(4012)),
+        "juno-1" => ("wyndex", "juno>juno", Some(1)),
+        "pion-1" => ("astroport", "neutron>astro", Some(188)),
+        "neutron-1" => ("astroport", "neutron>astro", Some(180)),
+        "pisco-1" => ("astroport", "terra2>luna", Some(83)),
+        "phoenix-1" => ("astroport", "terra2>luna", Some(69)),
+        "osmo-test-5" => ("osmosis5", "osmosis5>osmo", Some(1)),
+        "harpoon-1" => ("kujira", "kujira>kujira", None),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
 
@@ -87,6 +89,17 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         .chain(network)
         .build()?;
     let sender = chain.sender();
+
+    if cw20_code_id.is_none() {
+        let bank = Bank::new(chain.channel());
+        let balance: u128= rt.block_on(
+            bank.balance(&sender, Some("ukuji".to_string()))
+        ).unwrap()[0].amount.parse()?;
+        if balance  < TOKEN_FACTORY_CREATION_FEE {
+            panic!("Not enough ukuji to pay for token factory creation fee");
+        }
+        panic!("There is no way to provide the ac instantiation with funds at the moment");
+    }
 
     let abstr = Abstract::load_from(chain.clone())?;
 
@@ -151,7 +164,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                 /// address that recieves the fee commissions
                 commission_addr: sender.to_string(),
                 /// cw20 code id
-                code_id: Some(cw20_code_id),
+                code_id: cw20_code_id,
                 /// Name of the target dex
                 dex: dex.into(),
                 /// Assets in the pool
