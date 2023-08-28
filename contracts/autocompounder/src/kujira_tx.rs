@@ -6,9 +6,9 @@
 /// NOTE on MsgCreateDenom.nonce:
 /// Hans, [21 Aug 2023 at 16:21:07]: subdenom in the custom bindings maps to the nonce parameter in MsgCreateDenom https://github.com/Team-Kujira/core/blob/master/x/denom/wasm/interface_msg.go#L74
 use anybuf::Anybuf;
-use cosmwasm_std::{Uint128, Addr, StdError, CosmosMsg, to_binary};
+use cosmwasm_std::{to_binary, Addr, CosmosMsg, StdError, Uint128};
 
-pub const MSG_CREATE_DENOM_TYPE_URL: &str =  "/kujira.denom.MsgCreateDenom";
+pub const MSG_CREATE_DENOM_TYPE_URL: &str = "/kujira.denom.MsgCreateDenom";
 pub const MSG_MINT_TYPE_URL: &str = "/kujira.denom.MsgMint";
 pub const MSG_BURN_TYPE_URL: &str = "/kujira.denom.MsgBurn";
 
@@ -39,7 +39,10 @@ pub fn encode_msg_create_denom(sender: &str, denom: &str) -> Vec<u8> {
         .into_vec()
 }
 
-pub fn tokenfactory_create_denom_msg(minter: String, symbol: String) -> Result<CosmosMsg, StdError> {
+pub fn tokenfactory_create_denom_msg(
+    minter: String,
+    symbol: String,
+) -> Result<CosmosMsg, StdError> {
     let msg = encode_msg_create_denom(&minter, &symbol);
     let cosmos_msg = CosmosMsg::Stargate {
         type_url: MSG_CREATE_DENOM_TYPE_URL.to_string(),
@@ -71,7 +74,12 @@ pub fn encode_msg_mint(sender: &str, denom: &str, amount: Uint128, recipient: &s
         .into_vec()
 }
 
-pub fn tokenfactory_mint_msg(minter: &Addr, denom: String, amount: Uint128, recipient: &str) -> Result<CosmosMsg, StdError> {
+pub fn tokenfactory_mint_msg(
+    minter: &Addr,
+    denom: String,
+    amount: Uint128,
+    recipient: &str,
+) -> Result<CosmosMsg, StdError> {
     let proto_msg = encode_msg_mint(minter.as_str(), denom.as_str(), amount, recipient);
     let msg = CosmosMsg::Stargate {
         type_url: MSG_MINT_TYPE_URL.to_string(),
@@ -101,7 +109,11 @@ pub fn encode_msg_burn(sender: &str, denom: &str, amount: Uint128) -> Vec<u8> {
         .into_vec()
 }
 
-pub fn tokenfactory_burn_msg(minter: &Addr, denom: String, amount: Uint128) -> Result<CosmosMsg, StdError> {
+pub fn tokenfactory_burn_msg(
+    minter: &Addr,
+    denom: String,
+    amount: Uint128,
+) -> Result<CosmosMsg, StdError> {
     let proto_msg = encode_msg_burn(minter.as_str(), &denom, amount);
     let msg = CosmosMsg::Stargate {
         type_url: MSG_BURN_TYPE_URL.to_string(),

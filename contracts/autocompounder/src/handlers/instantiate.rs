@@ -19,7 +19,7 @@ use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Env, MessageInfo, Response, Std
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
-use super::helpers::{create_vault_token_submsg};
+use super::helpers::create_vault_token_submsg;
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
@@ -100,7 +100,10 @@ pub fn instantiate_handler(
     let vault_token = if code_id.is_some() {
         AssetInfo::cw20(Addr::unchecked(""))
     } else {
-        AssetInfo::Native(format_tokenfactory_denom(env.contract.address.as_str(), VAULT_TOKEN_SYMBOL))
+        AssetInfo::Native(format_tokenfactory_denom(
+            env.contract.address.as_str(),
+            VAULT_TOKEN_SYMBOL,
+        ))
     };
 
     let config: Config = Config {
@@ -355,27 +358,27 @@ mod test {
                 Duration::Height(20),
                 Duration::Height(30),
             ];
-            assert_eq!(all_durations_are_height(&durations), true);
+            assert!(all_durations_are_height(&durations));
 
             let mixed_durations = vec![
                 Duration::Height(10),
                 Duration::Time(20),
                 Duration::Height(30),
             ];
-            assert_eq!(all_durations_are_height(&mixed_durations), false);
+            assert!(!all_durations_are_height(&mixed_durations));
         }
 
         #[test]
         fn test_all_durations_are_time() {
             let durations = vec![Duration::Time(10), Duration::Time(20), Duration::Time(30)];
-            assert_eq!(all_durations_are_time(&durations), true);
+            assert!(all_durations_are_time(&durations));
 
             let mixed_durations = vec![
                 Duration::Height(10),
                 Duration::Time(20),
                 Duration::Height(30),
             ];
-            assert_eq!(all_durations_are_time(&mixed_durations), false);
+            assert!(!all_durations_are_time(&mixed_durations));
         }
 
         #[test]

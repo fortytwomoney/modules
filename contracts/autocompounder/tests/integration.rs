@@ -61,9 +61,7 @@ pub fn convert_to_assets(
 pub fn cw20_lp_token(liquidity_token: AssetInfoBase<Addr>) -> Result<Addr, AutocompounderError> {
     match liquidity_token {
         AssetInfoBase::Cw20(contract_addr) => Ok(contract_addr),
-        _ => {
-            return Err(AutocompounderError::SenderIsNotLpToken {});
-        }
+        _ => Err(AutocompounderError::SenderIsNotLpToken {}),
     }
 }
 
@@ -232,7 +230,7 @@ fn deposit_cw20_asset() -> AResult {
     let raw2_asset = AssetEntry::new(RAW_2_TOKEN);
 
     let asset_entries = vec![raw_asset.clone(), raw2_asset.clone()];
-    let asset_infos = vec![raw_token.address()?, raw_2_token.address()?]
+    let asset_infos = [raw_token.address()?, raw_2_token.address()?]
         .iter()
         .map(|a| AssetInfo::Cw20(a.to_owned()))
         .collect::<Vec<_>>();
@@ -269,7 +267,7 @@ fn deposit_cw20_asset() -> AResult {
         ],
         None,
         None,
-        &vec![],
+        &[],
     )?;
 
     let position = vault.auto_compounder.total_lp_position()?;
@@ -287,7 +285,7 @@ fn deposit_cw20_asset() -> AResult {
         vec![AnsAsset::new(raw_asset, 1000u128)],
         None,
         None,
-        &vec![],
+        &[],
     )?;
 
     // check that the vault token is minted

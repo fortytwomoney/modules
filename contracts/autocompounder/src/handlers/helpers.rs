@@ -1,7 +1,6 @@
 use crate::contract::INSTANTIATE_REPLY_ID;
 use crate::kujira_tx::encode_msg_burn;
-use crate::kujira_tx::encode_msg_create_denom;
-use crate::kujira_tx::encode_msg_mint;
+
 use crate::kujira_tx::encode_query_supply_of;
 use crate::kujira_tx::tokenfactory_create_denom_msg;
 use crate::kujira_tx::tokenfactory_mint_msg;
@@ -94,7 +93,6 @@ pub fn create_vault_token_submsg(
     }
 }
 
-
 /// parses the instantiate reply to get the contract address of the vault token or None if kujira. for kujira the denom is already set in instantiate.
 pub fn parse_instantiate_reply_cw20(
     reply: Reply,
@@ -115,8 +113,7 @@ pub fn mint_vault_tokens_msg(
 ) -> Result<CosmosMsg, AutocompounderError> {
     match config.vault_token.clone() {
         AssetInfo::Native(denom) => {
-            tokenfactory_mint_msg(minter, denom, amount, recipient.as_str())
-                .map_err(|e| e.into())
+            tokenfactory_mint_msg(minter, denom, amount, recipient.as_str()).map_err(|e| e.into())
         }
         AssetInfo::Cw20(token_addr) => {
             let mint_msg = wasm_execute(
@@ -136,7 +133,6 @@ pub fn mint_vault_tokens_msg(
     }
 }
 
-
 /// Creates the message to burn tokens from contract
 pub fn burn_vault_tokens_msg(
     config: &Config,
@@ -144,9 +140,7 @@ pub fn burn_vault_tokens_msg(
     amount: Uint128,
 ) -> AutocompounderResult<CosmosMsg> {
     match config.vault_token.clone() {
-        AssetInfo::Native(denom) => {
-            tokenfactory_burn_msg(minter, denom, amount)
-        }
+        AssetInfo::Native(denom) => tokenfactory_burn_msg(minter, denom, amount),
         AssetInfo::Cw20(token_addr) => {
             let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
             Ok(wasm_execute(token_addr, &msg, vec![])?.into())
@@ -157,7 +151,11 @@ pub fn burn_vault_tokens_msg(
     }
 }
 
-pub fn tokenfactory_burn_msg(minter: &Addr, denom: String, amount: Uint128) -> Result<CosmosMsg, AutocompounderError> {
+pub fn tokenfactory_burn_msg(
+    minter: &Addr,
+    denom: String,
+    amount: Uint128,
+) -> Result<CosmosMsg, AutocompounderError> {
     let proto_msg = encode_msg_burn(minter.as_str(), &denom, amount);
     let msg = CosmosMsg::Stargate {
         type_url: "/kujira.denom.MsgBurn".to_string(),
@@ -314,7 +312,10 @@ pub fn transfer_to_msgs(
 
 #[cfg(test)]
 pub mod helpers_tests {
-    use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_base_mock_querier, kujira_tx::format_tokenfactory_denom};
+    use crate::{
+        contract::AUTOCOMPOUNDER_APP, kujira_tx::format_tokenfactory_denom,
+        test_common::app_base_mock_querier,
+    };
 
     use super::*;
     use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
@@ -513,7 +514,12 @@ pub mod helpers_tests {
         let result = mint_vault_tokens_msg(&config, minter, recipient, amount);
         assert_that!(result).is_ok();
         let msg = result.unwrap();
-        let CosmosMsg::Wasm(WasmMsg::Execute { contract_addr, msg: _, funds: _ }) = msg else {
+        let CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr,
+            msg: _,
+            funds: _,
+        }) = msg
+        else {
             panic!("Expected a Wasm message");
         };
 
@@ -541,7 +547,12 @@ pub mod helpers_tests {
         assert_that!(result).is_ok();
 
         let msg = result.unwrap();
-        let CosmosMsg::Wasm(WasmMsg::Execute { contract_addr, msg, funds: _ }) = msg else {
+        let CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr,
+            msg,
+            funds: _,
+        }) = msg
+        else {
             panic!("Expected a Wasm message");
         };
 

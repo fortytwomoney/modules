@@ -316,7 +316,7 @@ mod test {
         let mut deps = mock_dependencies();
         set_v0_5_0_config(deps.as_mut());
 
-        let _resp = migrate_from_v0_5_0(&mut deps.as_mut()).unwrap();
+        migrate_from_v0_5_0(&mut deps.as_mut()).unwrap();
         let config = CONFIG.load(deps.as_ref().storage).unwrap();
         assert_that!(config.staking_target)
             .is_equal_to(StakingTarget::Contract(Addr::unchecked("staking_contract")));
@@ -328,7 +328,7 @@ mod test {
         let mut deps = mock_dependencies();
         set_v0_6_0_config(deps.as_mut());
 
-        let _resp = migrate_from_v0_6_0(&mut deps.as_mut()).unwrap();
+        migrate_from_v0_6_0(&mut deps.as_mut()).unwrap();
         let config = CONFIG.load(deps.as_ref().storage).unwrap();
         assert_that!(config.staking_target)
             .is_equal_to(StakingTarget::Contract(Addr::unchecked("staking_contract")));
@@ -365,7 +365,7 @@ mod test {
             &vec![claim1.clone(), claim2.clone()],
         )?;
 
-        let _resp = migrate_from_v0_7_claims(&mut deps.as_mut()).unwrap();
+        migrate_from_v0_7_claims(&mut deps.as_mut()).unwrap();
         let claims = CLAIMS.load(deps.as_ref().storage, addr).unwrap();
         assert_that!(claims).is_equal_to(vec![claim1.clone()]);
 
@@ -390,7 +390,7 @@ mod test {
         V0_7_PENDING_CLAIMS.save(deps.as_mut().storage, addr.to_string(), &amount1)?;
         V0_7_PENDING_CLAIMS.save(deps.as_mut().storage, addr2.to_string(), &amount2)?;
 
-        let _resp = migrate_from_v0_7_pending_claims(&mut deps.as_mut()).unwrap();
+        migrate_from_v0_7_pending_claims(&mut deps.as_mut()).unwrap();
         let claims = PENDING_CLAIMS.load(deps.as_ref().storage, addr).unwrap();
         assert_that!(claims).is_equal_to(amount1);
 

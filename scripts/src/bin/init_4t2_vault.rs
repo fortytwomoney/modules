@@ -2,8 +2,8 @@ use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
 use cw_orch::daemon::DaemonBuilder;
 use cw_orch::deploy::Deploy;
 use cw_orch::environment::{CwEnv, TxResponse};
-use cw_orch::prelude::*;
 use cw_orch::prelude::queriers::{Bank, DaemonQuerier};
+use cw_orch::prelude::*;
 use std::env;
 use std::sync::Arc;
 
@@ -19,7 +19,7 @@ use abstract_cw_staking::CW_STAKING;
 use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
 
 use clap::Parser;
-use cosmwasm_std::{Addr, Decimal, Empty, Uint128};
+use cosmwasm_std::{Addr, Decimal, Empty};
 use cw_orch::daemon::networks::parse_network;
 
 use autocompounder::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER};
@@ -92,10 +92,12 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     if cw20_code_id.is_none() {
         let bank = Bank::new(chain.channel());
-        let balance: u128= rt.block_on(
-            bank.balance(&sender, Some("ukuji".to_string()))
-        ).unwrap()[0].amount.parse()?;
-        if balance  < TOKEN_FACTORY_CREATION_FEE {
+        let balance: u128 = rt
+            .block_on(bank.balance(&sender, Some("ukuji".to_string())))
+            .unwrap()[0]
+            .amount
+            .parse()?;
+        if balance < TOKEN_FACTORY_CREATION_FEE {
             panic!("Not enough ukuji to pay for token factory creation fee");
         }
         panic!("There is no way to provide the ac instantiation with funds at the moment");

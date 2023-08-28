@@ -14,7 +14,7 @@ check:
   cargo check --all-features
 
 lintfix:
-  cargo clippy --fix --allow-staged --allow-dirty --all-features
+  cargo clippy --fix --allow-staged --allow-dirty 
   cargo fmt --all
 
 create-vault network paired other_asset +args='':
