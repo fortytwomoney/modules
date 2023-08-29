@@ -1,5 +1,4 @@
 use crate::contract::INSTANTIATE_REPLY_ID;
-use crate::kujira_tx::encode_msg_burn;
 
 use crate::kujira_tx::encode_query_supply_of;
 use crate::kujira_tx::tokenfactory_burn_msg;
