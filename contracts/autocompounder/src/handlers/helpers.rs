@@ -1,8 +1,9 @@
 use crate::contract::INSTANTIATE_REPLY_ID;
-use crate::kujira_tx::encode_msg_burn;
-use crate::kujira_tx::encode_msg_create_denom;
-use crate::kujira_tx::encode_msg_mint;
+
 use crate::kujira_tx::encode_query_supply_of;
+use crate::kujira_tx::tokenfactory_burn_msg;
+use crate::kujira_tx::tokenfactory_create_denom_msg;
+use crate::kujira_tx::tokenfactory_mint_msg;
 use crate::msg::Config;
 use crate::state::DECIMAL_OFFSET;
 
@@ -50,11 +51,6 @@ pub fn query_supply_with_stargate(deps: Deps, denom: &str) -> AutocompounderResu
     Ok(res.amount)
 }
 
-/// Formats the native denom to the asset info for the vault token with denom "factory/{`sender`}/{`denom`}"
-pub fn format_native_denom_to_asset(sender: &str, denom: &str) -> AssetInfo {
-    AssetInfo::Native(format!("factory/{sender}/{denom}"))
-}
-
 /// create a SubMsg to instantiate the Vault token with either the tokenfactory(kujira) or a cw20.
 pub fn create_vault_token_submsg(
     minter: String,
@@ -85,12 +81,7 @@ pub fn create_vault_token_submsg(
             reply_on: ReplyOn::Success,
         })
     } else {
-        let msg = encode_msg_create_denom(&minter, &symbol);
-
-        let cosmos_msg = CosmosMsg::Stargate {
-            type_url: "/kujira.denom.MsgCreateDenom".to_string(),
-            value: to_binary(&msg)?,
-        };
+        let cosmos_msg = tokenfactory_create_denom_msg(minter, symbol)?;
         let sub_msg = SubMsg {
             msg: cosmos_msg,
             gas_limit: None,
@@ -122,12 +113,7 @@ pub fn mint_vault_tokens_msg(
 ) -> Result<CosmosMsg, AutocompounderError> {
     match config.vault_token.clone() {
         AssetInfo::Native(denom) => {
-            let proto_msg = encode_msg_mint(minter.as_str(), denom.as_str(), amount);
-            let msg = CosmosMsg::Stargate {
-                type_url: "/kujira.denom.MsgMint".to_string(),
-                value: to_binary(&proto_msg)?,
-            };
-            Ok(msg)
+            tokenfactory_mint_msg(minter, denom, amount, recipient.as_str()).map_err(|e| e.into())
         }
         AssetInfo::Cw20(token_addr) => {
             let mint_msg = wasm_execute(
@@ -155,12 +141,7 @@ pub fn burn_vault_tokens_msg(
 ) -> AutocompounderResult<CosmosMsg> {
     match config.vault_token.clone() {
         AssetInfo::Native(denom) => {
-            let proto_msg = encode_msg_burn(minter.as_str(), &denom, amount);
-            let msg = CosmosMsg::Stargate {
-                type_url: "/kujira.denom.MsgBurn".to_string(),
-                value: to_binary(&proto_msg)?,
-            };
-            Ok(msg)
+            tokenfactory_burn_msg(minter, denom, amount).map_err(|e| e.into())
         }
         AssetInfo::Cw20(token_addr) => {
             let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
@@ -320,7 +301,10 @@ pub fn transfer_to_msgs(
 
 #[cfg(test)]
 pub mod helpers_tests {
-    use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_base_mock_querier};
+    use crate::{
+        contract::AUTOCOMPOUNDER_APP, kujira_tx::format_tokenfactory_denom,
+        test_common::app_base_mock_querier,
+    };
 
     use super::*;
     use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
@@ -461,7 +445,7 @@ pub mod helpers_tests {
     fn test_format_native_denom_to_asset() {
         let sender = "sender";
         let denom = "denom";
-        let result = format_native_denom_to_asset(sender, denom);
+        let result = AssetInfo::Native(format_tokenfactory_denom(sender, denom));
         assert_eq!(
             result,
             AssetInfo::Native(format!("factory/{}/{}", sender, denom))
@@ -519,7 +503,12 @@ pub mod helpers_tests {
         let result = mint_vault_tokens_msg(&config, minter, recipient, amount);
         assert_that!(result).is_ok();
         let msg = result.unwrap();
-        let CosmosMsg::Wasm(WasmMsg::Execute { contract_addr, msg: _, funds: _ }) = msg else {
+        let CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr,
+            msg: _,
+            funds: _,
+        }) = msg
+        else {
             panic!("Expected a Wasm message");
         };
 
@@ -547,7 +536,12 @@ pub mod helpers_tests {
         assert_that!(result).is_ok();
 
         let msg = result.unwrap();
-        let CosmosMsg::Wasm(WasmMsg::Execute { contract_addr, msg, funds: _ }) = msg else {
+        let CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr,
+            msg,
+            funds: _,
+        }) = msg
+        else {
             panic!("Expected a Wasm message");
         };
 

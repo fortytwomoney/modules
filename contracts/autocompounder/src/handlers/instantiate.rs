@@ -1,6 +1,7 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
+use crate::kujira_tx::format_tokenfactory_denom;
 use crate::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER};
 use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_SYMBOL};
 use abstract_core::objects::AnsEntryConvertor;
@@ -18,7 +19,7 @@ use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Env, MessageInfo, Response, Std
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
-use super::helpers::{create_vault_token_submsg, format_native_denom_to_asset};
+use super::helpers::create_vault_token_submsg;
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
@@ -99,7 +100,10 @@ pub fn instantiate_handler(
     let vault_token = if code_id.is_some() {
         AssetInfo::cw20(Addr::unchecked(""))
     } else {
-        format_native_denom_to_asset(env.contract.address.as_str(), VAULT_TOKEN_SYMBOL)
+        AssetInfo::Native(format_tokenfactory_denom(
+            env.contract.address.as_str(),
+            VAULT_TOKEN_SYMBOL,
+        ))
     };
 
     let config: Config = Config {
@@ -282,6 +286,14 @@ mod test {
             withdrawal: Decimal::percent(3),
             fee_collector_addr: Addr::unchecked("commission_receiver".to_string()),
         });
+
+        // test native token factory asset
+        let deps = app_init(false, false);
+        let config = CONFIG.load(deps.as_ref().storage).unwrap();
+        assert_that!(config.vault_token).is_equal_to(AssetInfo::Native(format_tokenfactory_denom(
+            "cosmos2contract",
+            VAULT_TOKEN_SYMBOL,
+        )));
         Ok(())
     }
 
@@ -354,27 +366,27 @@ mod test {
                 Duration::Height(20),
                 Duration::Height(30),
             ];
-            assert_eq!(all_durations_are_height(&durations), true);
+            assert!(all_durations_are_height(&durations));
 
             let mixed_durations = vec![
                 Duration::Height(10),
                 Duration::Time(20),
                 Duration::Height(30),
             ];
-            assert_eq!(all_durations_are_height(&mixed_durations), false);
+            assert!(!all_durations_are_height(&mixed_durations));
         }
 
         #[test]
         fn test_all_durations_are_time() {
             let durations = vec![Duration::Time(10), Duration::Time(20), Duration::Time(30)];
-            assert_eq!(all_durations_are_time(&durations), true);
+            assert!(all_durations_are_time(&durations));
 
             let mixed_durations = vec![
                 Duration::Height(10),
                 Duration::Time(20),
                 Duration::Height(30),
             ];
-            assert_eq!(all_durations_are_time(&mixed_durations), false);
+            assert!(!all_durations_are_time(&mixed_durations));
         }
 
         #[test]

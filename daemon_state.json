@@ -161,5 +161,25 @@
         "abstract:version-control": "terra17kwvwlmlcvf6cj0yjj4a5ff9u9vtd95jcl5zg0reznm0n3xt2l6qpmymqp"
       }
     }
+  },
+  "kujira": {
+    "harpoon-4": {
+      "code_ids": {
+        "abstract:account-factory": 2315,
+        "abstract:ans-host": 2313,
+        "abstract:manager": 2317,
+        "abstract:module-factory": 2316,
+        "abstract:proxy": 2318,
+        "abstract:version-control": 2314
+      },
+      "default": {
+        "abstract:account-factory": "kujira1rlehpu6498uzj6yn23yaqr9tuqdjkfr65r7qjsg00y86ssfxayzs2rj9k5",
+        "abstract:ans-host": "kujira1glu0wrtg7hj2735tqava4yvqkshw3elg03qlp9dhp2f36w84ywfq9k4w8w",
+        "abstract:manager": "kujira179yhwynmfdwufwagecxs4xnwheccnz567545yxtl70jsmrwlyhpsk0fw3r",
+        "abstract:module-factory": "kujira1x9fjglm0uckwduw9mnju4z557zpt9gkzul9cenl5dapjyqs6zmks5zvz6k",
+        "abstract:proxy": "kujira1d920d2n733vngw3sc7vth7p2lwyrt4ksj70amm3fqcl375n4fj9s8pzt96",
+        "abstract:version-control": "kujira1m4ndfxzjgldcgl3rgczuj9e8t5d0jqc7hzytt25e78xzcffpxlzslxtwm4"
+      }
+    }
   }
 }

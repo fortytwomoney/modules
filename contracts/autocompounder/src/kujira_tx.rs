@@ -6,7 +6,16 @@
 /// NOTE on MsgCreateDenom.nonce:
 /// Hans, [21 Aug 2023 at 16:21:07]: subdenom in the custom bindings maps to the nonce parameter in MsgCreateDenom https://github.com/Team-Kujira/core/blob/master/x/denom/wasm/interface_msg.go#L74
 use anybuf::Anybuf;
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{to_binary, Addr, CosmosMsg, StdError, Uint128};
+
+pub const MSG_CREATE_DENOM_TYPE_URL: &str = "/kujira.denom.MsgCreateDenom";
+pub const MSG_MINT_TYPE_URL: &str = "/kujira.denom.MsgMint";
+pub const MSG_BURN_TYPE_URL: &str = "/kujira.denom.MsgBurn";
+
+pub const DENOM_PARAMS_PATH: &str = "/kujira.denom.Query/Params";
+pub const SUPPLY_OF_PATH: &str = "/cosmos.bank.v1beta1.Query/SupplyOf";
+
+pub const TOKEN_FACTORY_CREATION_FEE: u128 = 100_000_000u128;
 
 /// Encodes a Kujira's MsgCreateDenom message to binary.
 /// Denom will be in the format: factory/{sender}/{`denom`}.
@@ -30,6 +39,18 @@ pub fn encode_msg_create_denom(sender: &str, denom: &str) -> Vec<u8> {
         .into_vec()
 }
 
+pub fn tokenfactory_create_denom_msg(
+    minter: String,
+    symbol: String,
+) -> Result<CosmosMsg, StdError> {
+    let msg = encode_msg_create_denom(&minter, &symbol);
+    let cosmos_msg = CosmosMsg::Stargate {
+        type_url: MSG_CREATE_DENOM_TYPE_URL.to_string(),
+        value: to_binary(&msg)?,
+    };
+    Ok(cosmos_msg)
+}
+
 /// // MsgMint is the sdk.Msg type for allowing an admin account to mint
 /// more of a token.
 /// ```ignore
@@ -41,7 +62,7 @@ pub fn encode_msg_create_denom(sender: &str, denom: &str) -> Vec<u8> {
 ///   ];
 ///   string recipient = 3 [ (gogoproto.moretags) = "yaml:\"recipient\"" ];
 /// }
-pub fn encode_msg_mint(sender: &str, denom: &str, amount: Uint128) -> Vec<u8> {
+pub fn encode_msg_mint(sender: &str, denom: &str, amount: Uint128, recipient: &str) -> Vec<u8> {
     let coin = Anybuf::new()
         .append_string(1, denom)
         .append_string(2, amount.to_string());
@@ -49,9 +70,23 @@ pub fn encode_msg_mint(sender: &str, denom: &str, amount: Uint128) -> Vec<u8> {
     Anybuf::new()
         .append_string(1, sender)
         .append_message(2, &coin)
+        .append_string(3, recipient)
         .into_vec()
 }
 
+pub fn tokenfactory_mint_msg(
+    minter: &Addr,
+    denom: String,
+    amount: Uint128,
+    recipient: &str,
+) -> Result<CosmosMsg, StdError> {
+    let proto_msg = encode_msg_mint(minter.as_str(), denom.as_str(), amount, recipient);
+    let msg = CosmosMsg::Stargate {
+        type_url: MSG_MINT_TYPE_URL.to_string(),
+        value: to_binary(&proto_msg)?,
+    };
+    Ok(msg)
+}
 /// // MsgBurn is the sdk.Msg type for allowing an admin account to burn
 /// // a token.  For now, we only support burning from the sender account.
 /// ```ignore
@@ -74,6 +109,19 @@ pub fn encode_msg_burn(sender: &str, denom: &str, amount: Uint128) -> Vec<u8> {
         .into_vec()
 }
 
+pub fn tokenfactory_burn_msg(
+    minter: &Addr,
+    denom: String,
+    amount: Uint128,
+) -> Result<CosmosMsg, StdError> {
+    let proto_msg = encode_msg_burn(minter.as_str(), &denom, amount);
+    let msg = CosmosMsg::Stargate {
+        type_url: MSG_BURN_TYPE_URL.to_string(),
+        value: to_binary(&proto_msg)?,
+    };
+    Ok(msg)
+}
+
 /// Encodes the stargate query message to get the total supply of a denom.
 /// protobuf source: https://github.com/cosmos/cosmos-sdk/blob/c0fe4f7da17b7ec17d9bea6fcb57b4644f044b7a/proto/cosmos/bank/v1beta1/query.proto#L147-L150
 /// ```ignore
@@ -86,4 +134,9 @@ pub fn encode_msg_burn(sender: &str, denom: &str, amount: Uint128) -> Vec<u8> {
 ///
 pub fn encode_query_supply_of(denom: &str) -> Vec<u8> {
     Anybuf::new().append_string(1, denom).into_vec()
+}
+
+/// Formats the native denom to the asset info for the vault token with denom "factory/{`sender`}/{`denom`}"
+pub fn format_tokenfactory_denom(sender: &str, denom: &str) -> String {
+    format!("factory/{sender}/{denom}")
 }

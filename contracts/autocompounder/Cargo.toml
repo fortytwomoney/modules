@@ -70,6 +70,8 @@ abstract-cw-staking = { workspace=true, features = [
 abstract-interface = { workspace = true, features = ["daemon"] }
 abstract-testing = { workspace = true }
 abstract-core = { workspace = true }
+cw-orch = { workspace = true , features = ["daemon"]}
+cosmrs = "0.14.0"
 
 cw-multi-test = { workspace = true }
 anyhow = { workspace = true }
