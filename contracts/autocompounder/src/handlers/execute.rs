@@ -1,7 +1,8 @@
 use super::convert_to_shares;
 use super::helpers::{
-    burn_vault_tokens_msg, check_fee, convert_to_assets, mint_vault_tokens_msg, query_stake,
-    stake_lp_tokens, transfer_to_msgs, vault_token_total_supply,
+    burn_vault_tokens_msg, check_fee, convert_to_assets, create_vault_token_submsg,
+    mint_vault_tokens_msg, query_stake, stake_lp_tokens, transfer_to_msgs,
+    vault_token_total_supply, create_subdenom_from_pool_assets, validate_denom,
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
@@ -13,10 +14,12 @@ use crate::contract::{
     LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
+use crate::kujira_tx::format_tokenfactory_denom;
 use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector};
 use crate::state::{
     Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
-    FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS,
+    FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS, VAULT_TOKEN_IS_INITIALIZED,
+    VAULT_TOKEN_SYMBOL,
 };
 use abstract_cw_staking::msg::{StakingAction, StakingExecuteMsg};
 use abstract_cw_staking::CW_STAKING;
@@ -30,7 +33,7 @@ use abstract_sdk::{
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use cosmwasm_std::{
     Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response,
-    StdResult, SubMsg, Uint128,
+    StdResult, SubMsg, Uint128, StdError,
 };
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetBase, AssetInfo, AssetInfoBase, AssetList};
@@ -46,6 +49,9 @@ pub fn execute_handler(
     app: AutocompounderApp,
     msg: AutocompounderExecuteMsg,
 ) -> AutocompounderResult {
+    // if the msg is not of variant 'CreateDenom' then check if the vault token is initialized
+    pre_execute_check(&msg, deps.as_ref())?;
+
     match msg {
         AutocompounderExecuteMsg::UpdateFeeConfig {
             performance,
@@ -81,7 +87,69 @@ pub fn execute_handler(
         AutocompounderExecuteMsg::UpdateStakingConfig {
             preferred_bonding_period,
         } => update_staking_config(deps, app, info, preferred_bonding_period),
+        AutocompounderExecuteMsg::CreateDenom {} => create_denom(deps, app, info, &env),
     }
+}
+
+fn pre_execute_check(
+    msg: &AutocompounderExecuteMsg,
+    deps: Deps,
+) -> Result<(), AutocompounderError> {
+    let is_instantiated = VAULT_TOKEN_IS_INITIALIZED.load(deps.storage)?;
+    if let AutocompounderExecuteMsg::CreateDenom {} = *msg {
+        if is_instantiated {
+            return Err(AutocompounderError::VaultTokenAlreadyInitialized {});
+        }
+        Ok(())
+    } else {
+        if !is_instantiated {
+            return Err(AutocompounderError::VaultTokenNotInitialized {});
+        }
+        Ok(())
+    }
+}
+
+fn create_denom(
+    deps: DepsMut,
+    app: AutocompounderApp,
+    info: MessageInfo,
+    env: &Env,
+) -> AutocompounderResult {
+    let config = CONFIG.load(deps.storage)?;
+    app.admin.assert_admin(deps.as_ref(), &info.sender)?;
+    let wanted_fund = Coin::new(100_000_000u128.into(), "ukuji".to_string());
+    if info.funds != vec![wanted_fund.clone()] {
+        return Err(AutocompounderError::InvalidFunds {
+            wanted_funds: wanted_fund.to_string(),
+        });
+    }
+    let contract_address = env.contract.address.to_string();
+    let subdenom = create_subdenom_from_pool_assets(&config);
+    let denom = format_tokenfactory_denom(&contract_address, &subdenom);
+
+    if !validate_denom(&denom) {
+        return Err(AutocompounderError::Std(StdError::generic_err(
+            "Invalid denom",
+        )));
+    }
+
+    let msg = create_vault_token_submsg(
+        contract_address.clone(),
+            &config,
+        None,
+    )?;
+
+    CONFIG.update(deps.storage, |mut config| -> StdResult<Config> {
+        config.vault_token = AssetInfo::Native(denom);
+        Ok(config)
+    })?;
+    VAULT_TOKEN_IS_INITIALIZED.save(deps.storage, &true)?;
+
+    Ok(app.custom_tag_response(
+        Response::new().add_submessage(msg),
+        "create_denom",
+        vec![("4t2", "/AC/CreateDenom")],
+    ))
 }
 
 pub fn update_staking_config(
@@ -1077,6 +1145,100 @@ mod test {
         assert_that!(abstract_attributes[3])
             .is_equal_to(Attribute::new("lp_token_withdraw_amount", "10"));
         Ok(())
+    }
+
+    mod create_denom {
+        use cosmwasm_std::StdError;
+        use crate::kujira_tx::MSG_CREATE_DENOM_TYPE_URL;
+
+        use super::*;
+
+        #[test]
+        fn test_pre_execute_check() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+
+            let msg = AutocompounderExecuteMsg::Redeem {
+                amount: Uint128::new(100),
+                recipient: None,
+            };
+            let res = pre_execute_check(&msg, deps.as_ref());
+            assert_that!(res)
+                .is_err()
+                .is_equal_to(AutocompounderError::Std(StdError::not_found("bool")));
+
+            VAULT_TOKEN_IS_INITIALIZED.save(deps.as_mut().storage, &false)?;
+
+            let res = pre_execute_check(&msg, deps.as_ref());
+            assert_that!(res)
+                .is_err()
+                .is_equal_to(AutocompounderError::VaultTokenNotInitialized {});
+
+            VAULT_TOKEN_IS_INITIALIZED.save(deps.as_mut().storage, &true)?;
+            let res = pre_execute_check(&msg, deps.as_ref());
+            assert_that!(res).is_ok();
+
+            let msg = AutocompounderExecuteMsg::CreateDenom {};
+            let res = pre_execute_check(&msg, deps.as_ref());
+            assert_that!(res)
+                .is_err()
+                .is_equal_to(AutocompounderError::VaultTokenAlreadyInitialized {});
+
+            VAULT_TOKEN_IS_INITIALIZED.save(deps.as_mut().storage, &false)?;
+            let res = pre_execute_check(&msg, deps.as_ref());
+            assert_that!(res).is_ok();
+
+            Ok(())
+        }
+
+        #[test]
+        fn create_denom_admin_only() -> anyhow::Result<()> {
+            let mut deps = app_init(false, false);
+            VAULT_TOKEN_IS_INITIALIZED.save(deps.as_mut().storage, &false)?;
+            let msg = AutocompounderExecuteMsg::CreateDenom {};
+            let wanted_fund = Coin::new(100_000_000u128.into(), "ukuji".to_string());
+
+            let res = execute_as(deps.as_mut(), "not_manager", msg.clone(), &[]);
+            assert_that!(res)
+                .is_err()
+                .is_equal_to(AutocompounderError::Admin(AdminError::NotAdmin {}));
+
+            let res = execute_as(deps.as_mut(), TEST_MANAGER, msg.clone(), &[]);
+            assert_that!(res)
+                .is_err()
+                .is_equal_to(AutocompounderError::InvalidFunds {
+                    wanted_funds: wanted_fund.to_string(),
+                });
+
+            let res = execute_as(
+                deps.as_mut(),
+                TEST_MANAGER,
+                msg,
+                &[Coin {
+                    denom: "ukuji".to_string(),
+                    amount: Uint128::new(100_000_000),
+                }],
+            );
+            assert_that!(res).is_ok().matches(|r| {
+                r.messages.len() == 1
+                    && if let CosmosMsg::Stargate {
+                        type_url: url,
+                        value: _,
+                    } = &r.messages[0].msg
+                    {
+                        url == MSG_CREATE_DENOM_TYPE_URL
+                    } else {
+                        false
+                    }
+            });
+
+            let res = VAULT_TOKEN_IS_INITIALIZED.load(deps.as_ref().storage)?;
+            assert_that!(res).is_equal_to(true);
+
+            let config = CONFIG.load(deps.as_ref().storage)?;
+            assert_that!(config.vault_token).is_equal_to(AssetInfo::Native("factory/cosmos2contract/FTTV".to_string()));
+
+            Ok(())
+        }
     }
 
     mod fee_config {

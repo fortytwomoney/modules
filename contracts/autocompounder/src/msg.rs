@@ -114,6 +114,8 @@ pub enum AutocompounderExecuteMsg {
     UpdateStakingConfig {
         preferred_bonding_period: BondingPeriodSelector,
     },
+    #[cfg_attr(feature = "interface", payable)]
+    CreateDenom {},
 }
 
 #[cosmwasm_schema::cw_serde]

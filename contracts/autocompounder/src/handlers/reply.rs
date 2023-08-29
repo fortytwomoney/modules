@@ -7,7 +7,7 @@ use crate::contract::{
 };
 use crate::error::AutocompounderError;
 
-use crate::state::{Config, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
+use crate::state::{Config, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG, VAULT_TOKEN_IS_INITIALIZED};
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_cw_staking::{
     msg::{RewardTokensResponse, StakingQueryMsg},
@@ -51,6 +51,7 @@ pub fn instantiate_reply(
         }));
         // CONFIG.load(deps.storage)?.vault_token
     };
+    VAULT_TOKEN_IS_INITIALIZED.save(deps.storage, &true)?;
 
     Ok(app.custom_tag_response(
         Response::new(),
@@ -488,7 +489,7 @@ mod test {
                 lp_withdrawal_reply(deps.as_mut(), mock_env(), AUTOCOMPOUNDER_APP, empty_reply());
             assert_that!(res).is_err();
             assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(
-                StdError::NotFound {
+                StdError::NotFound { 
                     kind: "cosmwasm_std::addresses::Addr".to_string(),
                 },
             ));

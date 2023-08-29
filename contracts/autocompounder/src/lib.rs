@@ -12,7 +12,7 @@ pub mod kujira_tx;
 
 #[cfg(test)]
 mod test_common {
-    use crate::msg::BondingPeriodSelector;
+    use crate::{msg::BondingPeriodSelector, state::VAULT_TOKEN_IS_INITIALIZED};
     use abstract_cw_staking::msg::{
         StakeResponse, StakingInfoResponse, StakingQueryMsg, StakingTarget,
     };
@@ -286,6 +286,9 @@ mod test_common {
             )
             .unwrap();
 
+        if vault_token_is_cw20 {
+            VAULT_TOKEN_IS_INITIALIZED.save(deps.as_mut().storage, &true).unwrap();
+        }
         deps
     }
 }

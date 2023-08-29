@@ -16,6 +16,8 @@ pub const CLAIMS: Map<Addr, Vec<Claim>> = Map::new("claims");
 pub const CONFIG: Item<Config> = Item::new("config");
 pub const FEE_CONFIG: Item<FeeConfig> = Item::new("fee_config");
 
+pub const VAULT_TOKEN_IS_INITIALIZED: Item<bool> = Item::new("is_initialized");
+
 pub const DEFAULT_BATCH_SIZE: u32 = 100;
 pub const MAX_BATCH_SIZE: u32 = 1000;
 pub const DECIMAL_OFFSET: u32 = 1;

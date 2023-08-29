@@ -41,6 +41,7 @@ schemars = "0.8.1"
 serde = { workspace = true }
 thiserror = { workspace = true }
 kujira = { version = "0.8.2" }
+regex ={ version = "1.9" }
 
 abstract-app = { workspace=true }
 abstract-sdk = { workspace=true }
