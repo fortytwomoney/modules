@@ -2,6 +2,7 @@ use crate::contract::INSTANTIATE_REPLY_ID;
 use crate::kujira_tx::encode_msg_burn;
 
 use crate::kujira_tx::encode_query_supply_of;
+use crate::kujira_tx::tokenfactory_burn_msg;
 use crate::kujira_tx::tokenfactory_create_denom_msg;
 use crate::kujira_tx::tokenfactory_mint_msg;
 use crate::msg::Config;
@@ -140,7 +141,9 @@ pub fn burn_vault_tokens_msg(
     amount: Uint128,
 ) -> AutocompounderResult<CosmosMsg> {
     match config.vault_token.clone() {
-        AssetInfo::Native(denom) => tokenfactory_burn_msg(minter, denom, amount),
+        AssetInfo::Native(denom) => {
+            tokenfactory_burn_msg(minter, denom, amount).map_err(|e| e.into())
+        }
         AssetInfo::Cw20(token_addr) => {
             let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
             Ok(wasm_execute(token_addr, &msg, vec![])?.into())
@@ -149,19 +152,6 @@ pub fn burn_vault_tokens_msg(
             AssetError::InvalidAssetType { ty: "".to_string() },
         )),
     }
-}
-
-pub fn tokenfactory_burn_msg(
-    minter: &Addr,
-    denom: String,
-    amount: Uint128,
-) -> Result<CosmosMsg, AutocompounderError> {
-    let proto_msg = encode_msg_burn(minter.as_str(), &denom, amount);
-    let msg = CosmosMsg::Stargate {
-        type_url: "/kujira.denom.MsgBurn".to_string(),
-        value: to_binary(&proto_msg)?,
-    };
-    Ok(msg)
 }
 
 /// query the total supply of the vault token

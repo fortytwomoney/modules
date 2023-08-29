@@ -286,6 +286,14 @@ mod test {
             withdrawal: Decimal::percent(3),
             fee_collector_addr: Addr::unchecked("commission_receiver".to_string()),
         });
+
+        // test native token factory asset
+        let deps = app_init(false, false);
+        let config = CONFIG.load(deps.as_ref().storage).unwrap();
+        assert_that!(config.vault_token).is_equal_to(AssetInfo::Native(format_tokenfactory_denom(
+            "cosmos2contract",
+            VAULT_TOKEN_SYMBOL,
+        )));
         Ok(())
     }
 
