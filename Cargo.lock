@@ -1049,6 +1049,7 @@ dependencies = [
  "env_logger",
  "kujira",
  "protobuf",
+ "regex",
  "rstest 0.16.0",
  "schemars",
  "semver",

@@ -14,6 +14,7 @@ use crate::{
     error::AutocompounderError,
 };
 use abstract_core::objects::AnsAsset;
+use abstract_core::objects::PoolMetadata;
 use abstract_cw_staking::{msg::*, CW_STAKING};
 use abstract_dex_adapter::api::Dex;
 use abstract_sdk::AdapterInterface;
@@ -60,11 +61,11 @@ pub fn create_vault_token_submsg(
     config: &Config,
     code_id: Option<u64>,
 ) -> Result<SubMsg, StdError> {
-    let subdenom = create_subdenom_from_pool_assets(config);
-    let denom = format_tokenfactory_denom(&minter, &subdenom);
-    if !validate_denom(&denom) {
-        return Err(StdError::generic_err(format!("Invalid denom {denom}")));
+    let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
+    if !validate_denom(&subdenom) {
+        return Err(StdError::generic_err(format!("Invalid denom {subdenom}")));
     }
+    let denom = format_tokenfactory_denom(&minter, &subdenom);
     
     if let Some(code_id) = code_id {
         let msg = TokenInstantiateMsg {
@@ -240,16 +241,18 @@ pub fn stake_lp_tokens(
     )
 }
 
-pub fn create_subdenom_from_pool_assets(config: &Config, ) -> String {
-   format!("V-4T2/{}",config.pool_data.to_string())
-
+pub fn create_subdenom_from_pool_assets(pool_data: &PoolMetadata, ) -> String {
+    let mut full_denom = format!("VT_4T2/{}",pool_data.to_string()).replace(",", "_");
+    full_denom.truncate(50);
+    full_denom
 }
 
 pub fn validate_denom(denom: &str) -> bool {
     // denom must conform the following regex:`[a-zA-Z][a-zA-Z0-9/:._-]{2,127}`. 
+    // cw20 name must be between 3 and 50 bytes long.
     // see https://github.com/cosmos/cosmos-sdk/blob/c9144f02dda85d2bbf09115a134ba7f81c9a5052/types/coin.go#L838-L840
     // check regex
-    let re = Regex::new(r"^[a-zA-Z][a-zA-Z0-9/:._-]{2,127}$").unwrap();
+    let re = Regex::new(r"^[a-zA-Z][a-zA-Z0-9/:._-]{2,49}$").unwrap();
     re.is_match(&denom)
 }
 
@@ -620,5 +623,60 @@ pub mod helpers_tests {
         )
         .unwrap();
         assert_eq!(msgs.len(), 0);
+    }
+
+    mod denom {
+        use super::*;
+        use abstract_core::objects::PoolMetadata;
+        use speculoos::prelude::BooleanAssertions;
+
+        fn eur_usd_pool() -> PoolMetadata {
+            PoolMetadata::new(
+                "wyndex",
+                abstract_core::objects::PoolType::ConstantProduct,
+                vec![AssetEntry::new("juno/eur"), AssetEntry::new("juno/usd")],
+            )
+        }
+        fn eur_usd_pool_long() -> PoolMetadata {
+            PoolMetadata::new(
+                "wyndex",
+                abstract_core::objects::PoolType::ConstantProduct,
+                vec![AssetEntry::new("neutron/eur"), AssetEntry::new("neutron/usd")],
+            )
+        }
+
+        #[test]
+        fn create_denom_from_pool() {
+            let pool = eur_usd_pool();
+            let denom = create_subdenom_from_pool_assets(&pool);
+            assert_eq!(denom, "VT_4T2/wyndex:juno/eur_juno/usd:constant_product");
+
+            let long_pool = eur_usd_pool_long();
+            let denom = create_subdenom_from_pool_assets(&long_pool);
+            assert_eq!(denom, "VT_4T2/wyndex:neutron/eur_neutron/usd:constant_pro");
+
+            
+        }
+
+        #[test]
+        fn valid_denom() {
+            let invalid_denom = "A";
+            assert_that!(validate_denom(invalid_denom)).is_false();
+
+            let valid_denom = "Aa1/";
+            assert_that!(validate_denom(valid_denom)).is_true();
+            
+            let valid_denom = "VT_4T2/wyndex:eur_usd:constant_product";
+            assert_that!(validate_denom(valid_denom)).is_true();
+
+            let toolong_denom = "VT_4T2/wyndex:eur_usd:constant_product_1234567890_toolong";
+            assert_that!(validate_denom(toolong_denom)).is_false();
+
+            let pool= eur_usd_pool();
+            let denom = create_subdenom_from_pool_assets(&pool);
+            assert_that!(validate_denom(&denom)).is_true();
+        }
+
+        
     }
 }

@@ -124,14 +124,14 @@ fn create_denom(
         });
     }
     let contract_address = env.contract.address.to_string();
-    let subdenom = create_subdenom_from_pool_assets(&config);
-    let denom = format_tokenfactory_denom(&contract_address, &subdenom);
-
-    if !validate_denom(&denom) {
+    let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
+    if !validate_denom(&subdenom) {
         return Err(AutocompounderError::Std(StdError::generic_err(
-            "Invalid denom",
+            format!("Invalid denom {subdenom}"),
         )));
     }
+    let denom = format_tokenfactory_denom(&contract_address, &subdenom);
+
 
     let msg = create_vault_token_submsg(
         contract_address.clone(),
@@ -1209,6 +1209,8 @@ mod test {
                     wanted_funds: wanted_fund.to_string(),
                 });
 
+            // dbg!(CONFIG.load(deps.as_ref().storage)?);
+
             let res = execute_as(
                 deps.as_mut(),
                 TEST_MANAGER,
@@ -1235,7 +1237,7 @@ mod test {
             assert_that!(res).is_equal_to(true);
 
             let config = CONFIG.load(deps.as_ref().storage)?;
-            assert_that!(config.vault_token).is_equal_to(AssetInfo::Native("factory/cosmos2contract/FTTV".to_string()));
+            assert_that!(config.vault_token).is_equal_to(AssetInfo::Native("factory/cosmos2contract/VT_4T2/wyndex:eur_usd:constant_product".to_string()));
 
             Ok(())
         }
