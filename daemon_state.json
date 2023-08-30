@@ -170,7 +170,8 @@
         "abstract:manager": 2317,
         "abstract:module-factory": 2316,
         "abstract:proxy": 2318,
-        "abstract:version-control": 2314
+        "abstract:version-control": 2314,
+        "4t2:autocompounder": 2389
       },
       "default": {
         "abstract:account-factory": "kujira1rlehpu6498uzj6yn23yaqr9tuqdjkfr65r7qjsg00y86ssfxayzs2rj9k5",
