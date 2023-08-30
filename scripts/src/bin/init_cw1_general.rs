@@ -1,15 +1,15 @@
-use std::sync::Arc;
-use cw_orch::prelude::*;
+use cw1_general::msg::InstantiateMsg as Cw1InstantiateMsg;
 use cw_orch::deploy::Deploy;
 use cw_orch::environment::{CwEnv, TxResponse};
+use cw_orch::prelude::*;
+use std::sync::Arc;
 
 use clap::Parser;
-use cw1_general::Cw1General;
+use cw1_general::contract::Cw1General;
 use cw1_general::contract::CONTRACT_NAME;
 use cw_orch::prelude::{networks::parse_network, DaemonBuilder};
 
-
-fn init_cw1(args:Arguments) -> anyhow::Result<()> {
+fn init_cw1(args: Arguments) -> anyhow::Result<()> {
     let network = parse_network(&args.network_id);
     let rt = Arc::new(tokio::runtime::Runtime::new()?);
     let chain = DaemonBuilder::default()
@@ -17,13 +17,14 @@ fn init_cw1(args:Arguments) -> anyhow::Result<()> {
         .chain(network)
         .build()?;
 
-    let cw1 = Cw1General::new(CONTRACT_NAME, chain);
-    cw1.upload(())?;
-    cw1.instantiate(())?;
+    let cw1 = Cw1General::new(CONTRACT_NAME, chain.clone());
+    cw1.code_id()?;
+    cw1.upload()?;
+    cw1.instantiate(&Cw1InstantiateMsg {}, None, None)?;
+
 
     Ok(())
 }
-
 
 fn main() {
     dotenv().ok();
@@ -41,8 +42,6 @@ fn main() {
 
         std::process::exit(1);
     }
-
-
 }
 
 #[derive(Parser, Default, Debug)]
