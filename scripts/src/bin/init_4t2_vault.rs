@@ -1,3 +1,5 @@
+use autocompounder::interface::AutocompounderApp;
+use autocompounder::msg::AutocompounderExecuteMsgFns;
 use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
 use cw_orch::daemon::DaemonBuilder;
 use cw_orch::deploy::Deploy;
@@ -19,7 +21,7 @@ use abstract_cw_staking::CW_STAKING;
 use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
 
 use clap::Parser;
-use cosmwasm_std::{Addr, Decimal, Empty};
+use cosmwasm_std::{Addr, Decimal, Empty, coin};
 use cw_orch::daemon::networks::parse_network;
 
 use autocompounder::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER};
@@ -112,7 +114,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     } else {
         create_vault_account(
             &abstr.account_factory,
-            chain,
+            chain.clone(),
             GovernanceDetails::Monarchy {
                 monarch: sender.to_string(),
             },
@@ -203,6 +205,10 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             },
         ),
     )?;
+
+    let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
+    autocompounder.set_address(&autocompounder_address);
+    autocompounder.create_denom(&[coin(100_000_000, "ukuji")])?;
 
     Ok(())
 }
