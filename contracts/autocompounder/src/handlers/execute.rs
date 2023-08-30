@@ -1,8 +1,8 @@
 use super::convert_to_shares;
 use super::helpers::{
-    burn_vault_tokens_msg, check_fee, convert_to_assets, create_vault_token_submsg,
-    mint_vault_tokens_msg, query_stake, stake_lp_tokens, transfer_to_msgs,
-    vault_token_total_supply, create_subdenom_from_pool_assets, validate_denom,
+    burn_vault_tokens_msg, check_fee, convert_to_assets, create_subdenom_from_pool_assets,
+    create_vault_token_submsg, mint_vault_tokens_msg, query_stake, stake_lp_tokens,
+    transfer_to_msgs, validate_denom, vault_token_total_supply,
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
@@ -19,7 +19,6 @@ use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector};
 use crate::state::{
     Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
     FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS, VAULT_TOKEN_IS_INITIALIZED,
-    VAULT_TOKEN_SYMBOL,
 };
 use abstract_cw_staking::msg::{StakingAction, StakingExecuteMsg};
 use abstract_cw_staking::CW_STAKING;
@@ -33,7 +32,7 @@ use abstract_sdk::{
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use cosmwasm_std::{
     Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response,
-    StdResult, SubMsg, Uint128, StdError,
+    StdError, StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetBase, AssetInfo, AssetInfoBase, AssetList};
@@ -117,7 +116,8 @@ fn create_denom(
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     app.admin.assert_admin(deps.as_ref(), &info.sender)?;
-    let wanted_fund = Coin::new(100_000_000u128.into(), "ukuji".to_string());
+
+    let wanted_fund = Coin::new(100_000_000u128, "ukuji".to_string());
     if info.funds != vec![wanted_fund.clone()] {
         return Err(AutocompounderError::InvalidFunds {
             wanted_funds: wanted_fund.to_string(),
@@ -126,21 +126,16 @@ fn create_denom(
     let contract_address = env.contract.address.to_string();
     let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
     if !validate_denom(&subdenom) {
-        return Err(AutocompounderError::Std(StdError::generic_err(
-            format!("Invalid denom {subdenom}"),
-        )));
+        return Err(AutocompounderError::Std(StdError::generic_err(format!(
+            "Invalid denom {subdenom}"
+        ))));
     }
     let denom = format_tokenfactory_denom(&contract_address, &subdenom);
 
-
-    let msg = create_vault_token_submsg(
-        contract_address.clone(),
-            &config,
-        None,
-    )?;
+    let msg = create_vault_token_submsg(contract_address.clone(), &config, None)?;
 
     CONFIG.update(deps.storage, |mut config| -> StdResult<Config> {
-        config.vault_token = AssetInfo::Native(denom);
+        config.vault_token = AssetInfo::Native(denom.clone());
         Ok(config)
     })?;
     VAULT_TOKEN_IS_INITIALIZED.save(deps.storage, &true)?;
@@ -148,7 +143,7 @@ fn create_denom(
     Ok(app.custom_tag_response(
         Response::new().add_submessage(msg),
         "create_denom",
-        vec![("4t2", "/AC/CreateDenom")],
+        vec![("denom", denom)],
     ))
 }
 
@@ -185,7 +180,12 @@ pub fn update_staking_config(
     Ok(app.custom_tag_response(
         Response::new(),
         "update_config_with_staking_contract_data",
-        vec![("4t2", "/AC/UpdateConfigWithStakingContractData")],
+        vec![(
+            "unbonding_period",
+            config
+                .unbonding_period
+                .map_or("none".to_string(), |f| format!("{:?}", f)),
+        )],
     ))
 }
 
@@ -366,7 +366,11 @@ pub fn deposit(
     if !account_msgs.messages().is_empty() {
         response = response.add_message(app.executor(deps.as_ref()).execute(vec![account_msgs])?);
     }
-    Ok(app.custom_tag_response(response, "deposit", vec![("4t2", "/AC/Deposit")]))
+    Ok(app.custom_tag_response(
+        response,
+        "deposit",
+        vec![("recipient", recipient.to_string())],
+    ))
 }
 
 fn unwrap_recipient_is_allowed(
@@ -442,7 +446,12 @@ fn deposit_lp(
         return Err(AutocompounderError::ZeroMintAmount {});
     }
 
-    let mint_msg = mint_vault_tokens_msg(&config, &env.contract.address, recipient, mint_amount)?;
+    let mint_msg = mint_vault_tokens_msg(
+        &config,
+        &env.contract.address,
+        recipient.clone(),
+        mint_amount,
+    )?;
     let stake_msg = stake_lp_tokens(
         deps.as_ref(),
         &app,
@@ -456,7 +465,11 @@ fn deposit_lp(
         .add_messages(vec![mint_msg, stake_msg])
         .add_messages(fee_msgs);
 
-    Ok(app.custom_tag_response(res, "deposit-lp", vec![("4t2", "/AC/DepositLP")]))
+    Ok(app.custom_tag_response(
+        res,
+        "deposit-lp",
+        vec![("recipient", recipient.to_string())],
+    ))
 }
 
 /// Deducts a specified fee from a given LP asset.
@@ -589,7 +602,14 @@ pub fn batch_unbond(
         burn_vault_tokens_msg(&config, &env.contract.address, total_vault_tokens_to_burn)?;
 
     let response = Response::new().add_messages(vec![unstake_msg, burn_msg]);
-    Ok(app.custom_tag_response(response, "batch_unbond", vec![("4t2", "AC/UnbondBatch")]))
+    Ok(app.custom_tag_response(
+        response,
+        "batch_unbond",
+        vec![
+            ("unbond_amount", total_lp_amount_to_unbond.to_string()),
+            ("burn_amount", total_vault_tokens_to_burn.to_string()),
+        ],
+    ))
 }
 
 /// Handles receiving CW20 messages
@@ -651,12 +671,15 @@ fn redeem(
             amount_of_vault_tokens_to_be_burned,
         )
     } else {
-        register_pre_claim(deps, recipient, amount_of_vault_tokens_to_be_burned)?;
+        register_pre_claim(deps, recipient.clone(), amount_of_vault_tokens_to_be_burned)?;
 
         Ok(app.custom_tag_response(
             Response::new().add_messages(transfer_msgs),
-            "redeem",
-            vec![("4t2", "AC/Register_pre_claim")],
+            "claim_registered",
+            vec![
+                ("recipient", recipient.to_string()),
+                ("amount", amount_of_vault_tokens_to_be_burned.to_string()),
+            ],
         ))
     }
 }
@@ -842,7 +865,7 @@ pub fn withdraw_claims(
         return Err(AutocompounderError::NoMaturedClaims {});
     }
 
-    CLAIMS.save(deps.storage, sender, &ongoing_claims)?;
+    CLAIMS.save(deps.storage, sender.clone(), &ongoing_claims)?;
 
     // 2) sum up all matured claims
     let lp_tokens_to_withdraw: Uint128 =
@@ -874,7 +897,7 @@ pub fn withdraw_claims(
         response,
         "withdraw_claims",
         vec![
-            ("4t2", "AC/Withdraw_claims".to_string()),
+            ("recipient", sender.to_string()),
             ("lp_tokens_to_withdraw", lp_tokens_to_withdraw.to_string()),
         ],
     ))
@@ -1148,8 +1171,8 @@ mod test {
     }
 
     mod create_denom {
-        use cosmwasm_std::StdError;
         use crate::kujira_tx::MSG_CREATE_DENOM_TYPE_URL;
+        use cosmwasm_std::StdError;
 
         use super::*;
 
@@ -1195,7 +1218,7 @@ mod test {
             let mut deps = app_init(false, false);
             VAULT_TOKEN_IS_INITIALIZED.save(deps.as_mut().storage, &false)?;
             let msg = AutocompounderExecuteMsg::CreateDenom {};
-            let wanted_fund = Coin::new(100_000_000u128.into(), "ukuji".to_string());
+            let wanted_fund = Coin::new(100_000_000u128, "ukuji".to_string());
 
             let res = execute_as(deps.as_mut(), "not_manager", msg.clone(), &[]);
             assert_that!(res)
@@ -1237,7 +1260,9 @@ mod test {
             assert_that!(res).is_equal_to(true);
 
             let config = CONFIG.load(deps.as_ref().storage)?;
-            assert_that!(config.vault_token).is_equal_to(AssetInfo::Native("factory/cosmos2contract/VT_4T2/wyndex:eur_usd:constant_product".to_string()));
+            assert_that!(config.vault_token).is_equal_to(AssetInfo::Native(
+                "factory/cosmos2contract/VT_4T2/wyndex:eur_usd:constant_product".to_string(),
+            ));
 
             Ok(())
         }

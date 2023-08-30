@@ -3,7 +3,9 @@ use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::kujira_tx::format_tokenfactory_denom;
 use crate::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER};
-use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_SYMBOL, VAULT_TOKEN_IS_INITIALIZED};
+use crate::state::{
+    Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_IS_INITIALIZED, VAULT_TOKEN_SYMBOL,
+};
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_cw_staking::{
     msg::{StakingInfoResponse, StakingQueryMsg},
@@ -19,7 +21,7 @@ use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Env, MessageInfo, Response, Std
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
-use super::helpers::{create_vault_token_submsg, create_subdenom_from_pool_assets};
+use super::helpers::create_vault_token_submsg;
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(

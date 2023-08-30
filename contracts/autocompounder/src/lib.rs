@@ -287,7 +287,9 @@ mod test_common {
             .unwrap();
 
         if vault_token_is_cw20 {
-            VAULT_TOKEN_IS_INITIALIZED.save(deps.as_mut().storage, &true).unwrap();
+            VAULT_TOKEN_IS_INITIALIZED
+                .save(deps.as_mut().storage, &true)
+                .unwrap();
         }
         deps
     }

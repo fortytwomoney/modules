@@ -7,7 +7,9 @@ use crate::contract::{
 };
 use crate::error::AutocompounderError;
 
-use crate::state::{Config, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG, VAULT_TOKEN_IS_INITIALIZED};
+use crate::state::{
+    Config, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG, VAULT_TOKEN_IS_INITIALIZED,
+};
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_cw_staking::{
     msg::{RewardTokensResponse, StakingQueryMsg},
@@ -55,7 +57,7 @@ pub fn instantiate_reply(
 
     Ok(app.custom_tag_response(
         Response::new(),
-        "instantiate",
+        "instantiate_reply",
         vec![("vault_token", vault_token.to_string())],
     ))
 }
@@ -231,7 +233,7 @@ pub fn lp_compound_reply(
             .add_messages(app.executor(deps.as_ref()).execute(messages))
             .add_submessages(submessages);
 
-        Ok(app.tag_response(response, "provide_liquidity"))
+        Ok(app.tag_response(response, "lp_compound_reply"))
     } else {
         let (swap_msgs, submsg) = swap_rewards_with_reply(
             rewards,
@@ -248,7 +250,7 @@ pub fn lp_compound_reply(
             .add_messages(app.executor(deps.as_ref()).execute(messages))
             .add_messages(swap_msgs)
             .add_submessages(submessages);
-        Ok(app.tag_response(response, "swap_rewards"))
+        Ok(app.tag_response(response, "lp_compound_reply"))
     }
 }
 
@@ -283,7 +285,7 @@ pub fn swapped_reply(
     let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
     let response = Response::new().add_submessage(submsg);
-    Ok(app.tag_response(response, "provide_liquidity"))
+    Ok(app.tag_response(response, "swapped_reply"))
 }
 
 pub fn compound_lp_provision_reply(
@@ -316,7 +318,7 @@ pub fn compound_lp_provision_reply(
 
     let response = Response::new().add_message(stake_msg);
 
-    Ok(app.tag_response(response, "stake"))
+    Ok(app.tag_response(response, "compound_lp_provision_reply"))
 }
 
 fn query_rewards(
@@ -489,7 +491,7 @@ mod test {
                 lp_withdrawal_reply(deps.as_mut(), mock_env(), AUTOCOMPOUNDER_APP, empty_reply());
             assert_that!(res).is_err();
             assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(
-                StdError::NotFound { 
+                StdError::NotFound {
                     kind: "cosmwasm_std::addresses::Addr".to_string(),
                 },
             ));

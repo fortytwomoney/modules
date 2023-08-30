@@ -65,8 +65,8 @@ pub fn create_vault_token_submsg(
     if !validate_denom(&subdenom) {
         return Err(StdError::generic_err(format!("Invalid denom {subdenom}")));
     }
-    let denom = format_tokenfactory_denom(&minter, &subdenom);
-    
+    let _denom = format_tokenfactory_denom(&minter, &subdenom);
+
     if let Some(code_id) = code_id {
         let msg = TokenInstantiateMsg {
             name: subdenom,
@@ -241,19 +241,19 @@ pub fn stake_lp_tokens(
     )
 }
 
-pub fn create_subdenom_from_pool_assets(pool_data: &PoolMetadata, ) -> String {
-    let mut full_denom = format!("VT_4T2/{}",pool_data.to_string()).replace(",", "_");
+pub fn create_subdenom_from_pool_assets(pool_data: &PoolMetadata) -> String {
+    let mut full_denom = format!("VT_4T2/{}", pool_data).replace(',', "_");
     full_denom.truncate(50);
     full_denom
 }
 
 pub fn validate_denom(denom: &str) -> bool {
-    // denom must conform the following regex:`[a-zA-Z][a-zA-Z0-9/:._-]{2,127}`. 
+    // denom must conform the following regex:`[a-zA-Z][a-zA-Z0-9/:._-]{2,127}`.
     // cw20 name must be between 3 and 50 bytes long.
     // see https://github.com/cosmos/cosmos-sdk/blob/c9144f02dda85d2bbf09115a134ba7f81c9a5052/types/coin.go#L838-L840
     // check regex
     let re = Regex::new(r"^[a-zA-Z][a-zA-Z0-9/:._-]{2,49}$").unwrap();
-    re.is_match(&denom)
+    re.is_match(denom)
 }
 
 /// Convert vault tokens to lp assets
@@ -483,8 +483,7 @@ pub mod helpers_tests {
 
         let minter = "minter".to_string();
         let code_id = Some(1u64);
-        let result =
-            create_vault_token_submsg(minter.clone(), &config, code_id);
+        let result = create_vault_token_submsg(minter.clone(), &config, code_id);
         assert_that!(result).is_ok();
 
         let submsg = result.unwrap();
@@ -641,7 +640,10 @@ pub mod helpers_tests {
             PoolMetadata::new(
                 "wyndex",
                 abstract_core::objects::PoolType::ConstantProduct,
-                vec![AssetEntry::new("neutron/eur"), AssetEntry::new("neutron/usd")],
+                vec![
+                    AssetEntry::new("neutron/eur"),
+                    AssetEntry::new("neutron/usd"),
+                ],
             )
         }
 
@@ -654,8 +656,6 @@ pub mod helpers_tests {
             let long_pool = eur_usd_pool_long();
             let denom = create_subdenom_from_pool_assets(&long_pool);
             assert_eq!(denom, "VT_4T2/wyndex:neutron/eur_neutron/usd:constant_pro");
-
-            
         }
 
         #[test]
@@ -665,18 +665,16 @@ pub mod helpers_tests {
 
             let valid_denom = "Aa1/";
             assert_that!(validate_denom(valid_denom)).is_true();
-            
+
             let valid_denom = "VT_4T2/wyndex:eur_usd:constant_product";
             assert_that!(validate_denom(valid_denom)).is_true();
 
             let toolong_denom = "VT_4T2/wyndex:eur_usd:constant_product_1234567890_toolong";
             assert_that!(validate_denom(toolong_denom)).is_false();
 
-            let pool= eur_usd_pool();
+            let pool = eur_usd_pool();
             let denom = create_subdenom_from_pool_assets(&pool);
             assert_that!(validate_denom(&denom)).is_true();
         }
-
-        
     }
 }
