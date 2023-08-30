@@ -2,7 +2,7 @@ use super::convert_to_shares;
 use super::helpers::{
     burn_vault_tokens_msg, check_fee, convert_to_assets, create_subdenom_from_pool_assets,
     create_vault_token_submsg, mint_vault_tokens_msg, query_stake, stake_lp_tokens,
-    transfer_to_msgs, validate_denom, vault_token_total_supply,
+    transfer_to_msgs, vault_token_total_supply,
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
@@ -32,7 +32,7 @@ use abstract_sdk::{
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use cosmwasm_std::{
     Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response,
-    StdError, StdResult, SubMsg, Uint128,
+    StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetBase, AssetInfo, AssetInfoBase, AssetList};
@@ -125,14 +125,8 @@ fn create_denom(
     }
     let contract_address = env.contract.address.to_string();
     let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
-    if !validate_denom(&subdenom) {
-        return Err(AutocompounderError::Std(StdError::generic_err(format!(
-            "Invalid denom {subdenom}"
-        ))));
-    }
     let denom = format_tokenfactory_denom(&contract_address, &subdenom);
-
-    let msg = create_vault_token_submsg(contract_address.clone(), &config, None)?;
+    let msg = create_vault_token_submsg(contract_address.clone(), subdenom, None)?;
 
     CONFIG.update(deps.storage, |mut config| -> StdResult<Config> {
         config.vault_token = AssetInfo::Native(denom.clone());

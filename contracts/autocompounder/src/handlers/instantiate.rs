@@ -21,7 +21,7 @@ use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Env, MessageInfo, Response, Std
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
-use super::helpers::create_vault_token_submsg;
+use super::helpers::{create_subdenom_from_pool_assets, create_vault_token_submsg};
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
@@ -133,9 +133,10 @@ pub fn instantiate_handler(
     FEE_CONFIG.save(deps.storage, &fee_config)?;
 
     // create LP token SubMsg
+    let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
     let sub_msg = create_vault_token_submsg(
         env.contract.address.to_string(),
-        &config,
+        subdenom,
         code_id, // if code_id is none, submsg will be like normal msg: no reply (for now).
     )?;
 

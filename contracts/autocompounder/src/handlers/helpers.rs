@@ -1,7 +1,6 @@
 use crate::contract::INSTANTIATE_REPLY_ID;
 
 use crate::kujira_tx::encode_query_supply_of;
-use crate::kujira_tx::format_tokenfactory_denom;
 use crate::kujira_tx::tokenfactory_burn_msg;
 use crate::kujira_tx::tokenfactory_create_denom_msg;
 use crate::kujira_tx::tokenfactory_mint_msg;
@@ -39,7 +38,6 @@ use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
 use cw_utils::parse_reply_instantiate_data;
-use regex::Regex;
 
 // ------------------------------------------------------------
 // Helper functions for vault tokens
@@ -58,15 +56,9 @@ pub fn query_supply_with_stargate(deps: Deps, denom: &str) -> AutocompounderResu
 /// create a SubMsg to instantiate the Vault token with either the tokenfactory(kujira) or a cw20.
 pub fn create_vault_token_submsg(
     minter: String,
-    config: &Config,
+    subdenom: String,
     code_id: Option<u64>,
 ) -> Result<SubMsg, StdError> {
-    let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
-    if !validate_denom(&subdenom) {
-        return Err(StdError::generic_err(format!("Invalid denom {subdenom}")));
-    }
-    let _denom = format_tokenfactory_denom(&minter, &subdenom);
-
     if let Some(code_id) = code_id {
         let msg = TokenInstantiateMsg {
             name: subdenom,
@@ -245,15 +237,6 @@ pub fn create_subdenom_from_pool_assets(pool_data: &PoolMetadata) -> String {
     let mut full_denom = format!("VT_4T2/{}", pool_data).replace(',', "_");
     full_denom.truncate(50);
     full_denom
-}
-
-pub fn validate_denom(denom: &str) -> bool {
-    // denom must conform the following regex:`[a-zA-Z][a-zA-Z0-9/:._-]{2,127}`.
-    // cw20 name must be between 3 and 50 bytes long.
-    // see https://github.com/cosmos/cosmos-sdk/blob/c9144f02dda85d2bbf09115a134ba7f81c9a5052/types/coin.go#L838-L840
-    // check regex
-    let re = Regex::new(r"^[a-zA-Z][a-zA-Z0-9/:._-]{2,49}$").unwrap();
-    re.is_match(denom)
 }
 
 /// Convert vault tokens to lp assets
@@ -479,11 +462,11 @@ pub mod helpers_tests {
 
     #[test]
     fn test_create_lp_token_submsg_with_code_id() {
-        let config = min_cooldown_config(Some(Duration::Time(1)), false);
-
         let minter = "minter".to_string();
+        let subdenom = "subdenom".to_string();
         let code_id = Some(1u64);
-        let result = create_vault_token_submsg(minter.clone(), &config, code_id);
+
+        let result = create_vault_token_submsg(minter.clone(), subdenom, code_id);
         assert_that!(result).is_ok();
 
         let submsg = result.unwrap();
@@ -493,9 +476,9 @@ pub mod helpers_tests {
 
     #[test]
     fn test_create_lp_token_submsg_without_code_id() {
-        let config = min_cooldown_config(Some(Duration::Time(1)), false);
         let minter = "minter".to_string();
-        let result = create_vault_token_submsg(minter.clone(), &config, None);
+
+        let result = create_vault_token_submsg(minter.clone(), "subdenom".to_string(), None);
         assert!(result.is_ok());
 
         let submsg = result.unwrap();
@@ -627,7 +610,6 @@ pub mod helpers_tests {
     mod denom {
         use super::*;
         use abstract_core::objects::PoolMetadata;
-        use speculoos::prelude::BooleanAssertions;
 
         fn eur_usd_pool() -> PoolMetadata {
             PoolMetadata::new(
@@ -656,25 +638,6 @@ pub mod helpers_tests {
             let long_pool = eur_usd_pool_long();
             let denom = create_subdenom_from_pool_assets(&long_pool);
             assert_eq!(denom, "VT_4T2/wyndex:neutron/eur_neutron/usd:constant_pro");
-        }
-
-        #[test]
-        fn valid_denom() {
-            let invalid_denom = "A";
-            assert_that!(validate_denom(invalid_denom)).is_false();
-
-            let valid_denom = "Aa1/";
-            assert_that!(validate_denom(valid_denom)).is_true();
-
-            let valid_denom = "VT_4T2/wyndex:eur_usd:constant_product";
-            assert_that!(validate_denom(valid_denom)).is_true();
-
-            let toolong_denom = "VT_4T2/wyndex:eur_usd:constant_product_1234567890_toolong";
-            assert_that!(validate_denom(toolong_denom)).is_false();
-
-            let pool = eur_usd_pool();
-            let denom = create_subdenom_from_pool_assets(&pool);
-            assert_that!(validate_denom(&denom)).is_true();
         }
     }
 }

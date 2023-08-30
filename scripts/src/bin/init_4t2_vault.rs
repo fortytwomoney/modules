@@ -74,7 +74,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         "pisco-1" => ("astroport", "terra2>luna", Some(83)),
         "phoenix-1" => ("astroport", "terra2>luna", Some(69)),
         "osmo-test-5" => ("osmosis5", "osmosis5>osmo", Some(1)),
-        "harpoon-1" => ("kujira", "kujira>kujira", None),
+        "harpoon-4" => ("kujira", "kujira>kuji", None),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
 
@@ -100,7 +100,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         if balance < TOKEN_FACTORY_CREATION_FEE {
             panic!("Not enough ukuji to pay for token factory creation fee");
         }
-        panic!("There is no way to provide the ac instantiation with funds at the moment");
     }
 
     let abstr = Abstract::load_from(chain.clone())?;
