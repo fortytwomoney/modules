@@ -117,7 +117,7 @@ fn create_denom(
     let config = CONFIG.load(deps.storage)?;
     app.admin.assert_admin(deps.as_ref(), &info.sender)?;
 
-    check_denom_creation_funds(deps.as_ref(), &info.funds)?;
+    // check_denom_creation_funds(deps.as_ref(), &info.funds)?;
 
     let contract_address = env.contract.address.to_string();
     let subdenom = create_subdenom_from_pool_assets(&config.pool_data);

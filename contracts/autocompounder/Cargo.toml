@@ -27,7 +27,7 @@ interface = ["export", "dep:abstract-interface", "dep:cw-orch", "dep:anyhow", "a
 kujira = []
 
 [dependencies]
-cosmwasm-std = { workspace = true }
+cosmwasm-std = { workspace = true, features = ["stargate"]}
 cw-asset = { workspace = true }
 cw-controllers = { workspace = true }
 cosmwasm-schema = { workspace = true }

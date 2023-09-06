@@ -27,9 +27,9 @@ fn deploy_autocompounder(
     let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
     // autocompounder.deploy(version)?;
-    // autocompounder.upload()?;
+    autocompounder.upload()?;
 
-    autocompounder.set_code_id(2408);
+    autocompounder.set_code_id(2418);
 
     let abstr = Abstract::<Daemon>::load_from(autocompounder.get_chain().to_owned())?;
             abstr

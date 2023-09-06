@@ -47,7 +47,7 @@ pub fn tokenfactory_create_denom_msg(
     let msg = encode_msg_create_denom(&minter, &subdenom);
     let cosmos_msg = CosmosMsg::Stargate {
         type_url: MSG_CREATE_DENOM_TYPE_URL.to_string(),
-        value: to_binary(&msg)?,
+        value: msg.into(),
     };
     Ok(cosmos_msg)
 }

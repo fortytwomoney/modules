@@ -234,9 +234,10 @@ pub fn stake_lp_tokens(
 }
 
 pub fn create_subdenom_from_pool_assets(pool_data: &PoolMetadata) -> String {
-    let mut full_denom = format!("VT_4T2/{}", pool_data).replace(',', "_");
+    let mut full_denom = format!("VT_4T2/{}", pool_data).replace(',', "_").replace(">", "-");
     full_denom.truncate(50);
     full_denom
+    // uery failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 0: dispatch: submessages: dispatch: submessages: invalid denom: factory/kujira1ymhjs8gcx0m84sz6mma66rqft55dlvc0uw08qzwptv9xsvc5ejsq2dpe8n/VT_4T2/kujira:kujira>kuji_kujira>usk:constant_prod: invalid denom [/home/ubuntu/kujira/x/denom/types/msgs.go:37] With gas wanted: '100000000' and gas used: '222752' : unknown request
 }
 
 /// Convert vault tokens to lp assets
