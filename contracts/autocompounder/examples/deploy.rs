@@ -1,4 +1,4 @@
-use abstract_interface::AppDeployer;
+use abstract_interface::{AppDeployer, Abstract};
 use cw_orch::daemon::ChainInfo;
 
 use autocompounder::interface::AutocompounderApp;
@@ -8,6 +8,7 @@ use cw_orch::prelude::*;
 use std::env;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
+use cw_orch::deploy::Deploy;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -25,7 +26,15 @@ fn deploy_autocompounder(
 
     let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
-    autocompounder.deploy(version)?;
+    // autocompounder.deploy(version)?;
+    // autocompounder.upload()?;
+
+    autocompounder.set_code_id(2408);
+
+    let abstr = Abstract::<Daemon>::load_from(autocompounder.get_chain().to_owned())?;
+            abstr
+            .version_control
+            .register_apps(vec![(autocompounder.as_instance(), version.to_string())])?;
 
     Ok(())
 }

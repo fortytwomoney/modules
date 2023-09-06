@@ -6,7 +6,8 @@
 /// NOTE on MsgCreateDenom.nonce:
 /// Hans, [21 Aug 2023 at 16:21:07]: subdenom in the custom bindings maps to the nonce parameter in MsgCreateDenom https://github.com/Team-Kujira/core/blob/master/x/denom/wasm/interface_msg.go#L74
 use anybuf::Anybuf;
-use cosmwasm_std::{to_binary, Addr, CosmosMsg, StdError, Uint128};
+use cosmwasm_std::{to_binary, Addr, CosmosMsg, StdError, Uint128, QueryRequest, Coin, from_binary, Deps, Empty};
+use serde::{Serialize, Deserialize};
 
 pub const MSG_CREATE_DENOM_TYPE_URL: &str = "/kujira.denom.MsgCreateDenom";
 pub const MSG_MINT_TYPE_URL: &str = "/kujira.denom.MsgMint";
@@ -134,6 +135,50 @@ pub fn tokenfactory_burn_msg(
 ///
 pub fn encode_query_supply_of(denom: &str) -> Vec<u8> {
     Anybuf::new().append_string(1, denom).into_vec()
+}
+
+/// Encodes the stargate query message to get the total supply of a denom.
+/// 
+
+
+pub fn encode_query_params() -> Vec<u8> {
+    Anybuf::new().into_vec()
+}
+
+/// ParamsResponse is the response type for the Query/Params RPC method. https://github.com/Team-Kujira/core/blob/master/proto/denom/params.proto
+/// ```ignore
+/// // Params holds parameters for the denom module
+/// message Params {
+///   repeated cosmos.base.v1beta1.Coin creation_fee = 1 [
+///     (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins",
+///     (gogoproto.moretags) = "yaml:\"creation_fee\"",
+///     (gogoproto.nullable) = false
+///   ];
+/// }
+/// ```
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+pub struct Params {
+    pub creation_fee: Coin,
+}
+
+/// 
+/// 
+pub fn tokenfactory_params_query_request() -> Result<QueryRequest<Empty>, StdError> {
+    let proto_msg = encode_query_params();
+    let q_request = QueryRequest::Stargate {
+        path: DENOM_PARAMS_PATH.to_string(),
+        data: to_binary(&proto_msg)?,
+    };
+    
+    Ok(q_request)
+
+}
+
+pub fn query_tokenfactory_params(deps: Deps) -> Result<Params, StdError> {
+    let q_request = tokenfactory_params_query_request()?;
+    let response = deps.querier.query(&q_request)?;
+    let params_response: Params = from_binary(&response)?;
+    Ok(params_response)
 }
 
 /// Formats the native denom to the asset info for the vault token with denom "factory/{`sender`}/{`denom`}"

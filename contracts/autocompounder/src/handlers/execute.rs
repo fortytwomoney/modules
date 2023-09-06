@@ -14,7 +14,7 @@ use crate::contract::{
     LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::kujira_tx::format_tokenfactory_denom;
+use crate::kujira_tx::{format_tokenfactory_denom, tokenfactory_params_query_request, query_tokenfactory_params};
 use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector};
 use crate::state::{
     Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
@@ -117,12 +117,8 @@ fn create_denom(
     let config = CONFIG.load(deps.storage)?;
     app.admin.assert_admin(deps.as_ref(), &info.sender)?;
 
-    let wanted_fund = Coin::new(100_000_000u128, "ukuji".to_string());
-    if info.funds != vec![wanted_fund.clone()] {
-        return Err(AutocompounderError::InvalidFunds {
-            wanted_funds: wanted_fund.to_string(),
-        });
-    }
+    check_denom_creation_funds(deps.as_ref(), &info.funds)?;
+
     let contract_address = env.contract.address.to_string();
     let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
     let denom = format_tokenfactory_denom(&contract_address, &subdenom);
@@ -139,6 +135,23 @@ fn create_denom(
         "create_denom",
         vec![("denom", denom)],
     ))
+}
+
+    fn check_denom_creation_funds(deps: Deps, funds: &Vec<Coin>) -> Result<(), AutocompounderError> {
+
+    let params = query_tokenfactory_params(deps)?;
+    let wanted_coin = params.creation_fee;
+
+
+    if funds != &vec![wanted_coin.clone()] {
+        let funds_string: String = funds.into_iter()
+            .map(|f| f.to_string()).collect::<Vec<String>>()
+            .join(",");
+        return Err(AutocompounderError::InvalidFunds {
+            wanted_funds: wanted_coin.to_string(), actual_funds: funds_string
+        });
+    }
+    return Ok(());
 }
 
 pub fn update_staking_config(
@@ -1223,10 +1236,9 @@ mod test {
             assert_that!(res)
                 .is_err()
                 .is_equal_to(AutocompounderError::InvalidFunds {
-                    wanted_funds: wanted_fund.to_string(),
+                    actual_funds: "".to_string(), // no funds sent
+                    wanted_funds: wanted_fund.to_string()
                 });
-
-            // dbg!(CONFIG.load(deps.as_ref().storage)?);
 
             let res = execute_as(
                 deps.as_mut(),

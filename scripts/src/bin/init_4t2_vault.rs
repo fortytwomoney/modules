@@ -137,11 +137,11 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     }
 
     // First uninstall autocompounder if found
-    if account.manager.is_module_installed(AUTOCOMPOUNDER)? {
-        account
-            .manager
-            .uninstall_module(AUTOCOMPOUNDER.to_string())?;
-    }
+    // if account.manager.is_module_installed(AUTOCOMPOUNDER)? {
+    //     account
+    //         .manager
+    //         .uninstall_module(AUTOCOMPOUNDER.to_string())?;
+    // }
 
     // Install both modules
     let new_module_version = ModuleVersion::from(MODULE_VERSION);
@@ -206,9 +206,11 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         ),
     )?;
 
-    let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
-    autocompounder.set_address(&autocompounder_address);
-    autocompounder.create_denom(&[coin(100_000_000, "ukuji")])?;
+    if cw20_code_id.is_none() {
+        let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
+        autocompounder.set_address(&autocompounder_address);
+        autocompounder.create_denom(&[coin(100_000_000, "ukuji")])?;
+    }
 
     Ok(())
 }
