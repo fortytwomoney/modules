@@ -1,7 +1,7 @@
 use crate::contract::INSTANTIATE_REPLY_ID;
 
 use crate::kujira_tx::encode_query_supply_of;
-use crate::kujira_tx::query_tokenfactory_params;
+
 use crate::kujira_tx::tokenfactory_burn_msg;
 use crate::kujira_tx::tokenfactory_create_denom_msg;
 use crate::kujira_tx::tokenfactory_mint_msg;
@@ -235,7 +235,9 @@ pub fn stake_lp_tokens(
 }
 
 pub fn create_subdenom_from_pool_assets(pool_data: &PoolMetadata) -> String {
-    let mut full_denom = format!("VT_4T2/{}", pool_data).replace(',', "_").replace(">", "-");
+    let mut full_denom = format!("VT_4T2/{}", pool_data)
+        .replace(',', "_")
+        .replace('>', "-");
     full_denom.truncate(50);
     full_denom
     // uery failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 0: dispatch: submessages: dispatch: submessages: invalid denom: factory/kujira1ymhjs8gcx0m84sz6mma66rqft55dlvc0uw08qzwptv9xsvc5ejsq2dpe8n/VT_4T2/kujira:kujira>kuji_kujira>usk:constant_prod: invalid denom [/home/ubuntu/kujira/x/denom/types/msgs.go:37] With gas wanted: '100000000' and gas used: '222752' : unknown request
@@ -468,7 +470,7 @@ pub mod helpers_tests {
         let subdenom = "subdenom".to_string();
         let code_id = Some(1u64);
 
-        let result = create_vault_token_submsg(minter.clone(), subdenom, code_id);
+        let result = create_vault_token_submsg(minter, subdenom, code_id);
         assert_that!(result).is_ok();
 
         let submsg = result.unwrap();
@@ -480,7 +482,7 @@ pub mod helpers_tests {
     fn test_create_lp_token_submsg_without_code_id() {
         let minter = "minter".to_string();
 
-        let result = create_vault_token_submsg(minter.clone(), "subdenom".to_string(), None);
+        let result = create_vault_token_submsg(minter, "subdenom".to_string(), None);
         assert!(result.is_ok());
 
         let submsg = result.unwrap();
@@ -599,13 +601,7 @@ pub mod helpers_tests {
             amount: Uint128::zero(),
             name: AssetEntry::new("token"),
         };
-        let msgs = transfer_to_msgs(
-            &AUTOCOMPOUNDER_APP,
-            deps.as_ref(),
-            asset.clone(),
-            recipient.clone(),
-        )
-        .unwrap();
+        let msgs = transfer_to_msgs(&AUTOCOMPOUNDER_APP, deps.as_ref(), asset, recipient).unwrap();
         assert_eq!(msgs.len(), 0);
     }
 

@@ -88,7 +88,10 @@ pub enum AutocompounderError {
     CannotSetRecipientToAccount {},
 
     #[error("invalid funds. needs to be exactly {wanted_funds}, but was {actual_funds}")]
-    InvalidFunds { wanted_funds: String, actual_funds: String },
+    InvalidFunds {
+        wanted_funds: String,
+        actual_funds: String,
+    },
 
     #[error("Vault token is not initialized")]
     VaultTokenNotInitialized {},

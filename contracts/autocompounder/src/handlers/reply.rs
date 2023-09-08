@@ -157,7 +157,7 @@ pub fn lp_withdrawal_reply(
 fn cached_asset_balance_differences(
     owned_assets: Vec<Asset>,
     deps: &Deps,
-    pool_assets: &Vec<AssetEntry>,
+    pool_assets: &[AssetEntry],
 ) -> Result<Vec<AnsAsset>, AutocompounderError> {
     let funds = owned_assets
         .into_iter()
@@ -251,7 +251,7 @@ fn deduct_performance_fees(
     deps: &DepsMut<'_>,
     messages: &mut Vec<AccountAction>,
 ) -> Result<(), AutocompounderError> {
-    Ok(if !fee_config.performance.is_zero() {
+    if !fee_config.performance.is_zero() {
         // deduct fee from rewards
         let fees = deduct_fees_from_rewards(rewards, fee_config.performance);
 
@@ -262,13 +262,11 @@ fn deduct_performance_fees(
                 .transfer(fees, &fee_config.fee_collector_addr)?;
             messages.push(transfer_msg);
         }
-    })
+    };
+    Ok(())
 }
 
-fn deduct_fees_from_rewards(
-    rewards: &mut Vec<AnsAsset>,
-    performance_fee: Decimal,
-) -> Vec<AnsAsset> {
+fn deduct_fees_from_rewards(rewards: &mut [AnsAsset], performance_fee: Decimal) -> Vec<AnsAsset> {
     let fees = rewards
         .iter_mut()
         .map(|reward| -> AnsAsset {
@@ -563,11 +561,11 @@ mod test {
             let pool_assets = vec![AssetEntry::new("asset1"), AssetEntry::new("asset2")];
 
             // Mock the CACHED_ASSETS load
-           owned_assets.iter().for_each(|f| CACHED_ASSETS.save(
-                deps.as_mut().storage,
-                f.info.to_string(),
-                &f.amount,
-            ).unwrap());
+            owned_assets.iter().for_each(|f| {
+                CACHED_ASSETS
+                    .save(deps.as_mut().storage, f.info.to_string(), &f.amount)
+                    .unwrap()
+            });
 
             let result =
                 cached_asset_balance_differences(owned_assets, &deps.as_ref(), &pool_assets);
@@ -618,65 +616,58 @@ mod test {
     }
 
     #[cfg(test)]
-mod deduct_fees {
-    use super::*;
-    use speculoos::prelude::*;
+    mod deduct_fees {
+        use super::*;
+        use speculoos::prelude::*;
 
-    #[test]
-    fn deduct_fees_from_rewards_non_zero_fee() {
-        let mut rewards = vec![
-            AnsAsset::new("asset1".to_string(), 100u128),
-            AnsAsset::new("asset2".to_string(), 150u128),
-        ];
-        let performance_fee = Decimal::percent(10); // 10% fee
+        #[test]
+        fn deduct_fees_from_rewards_non_zero_fee() {
+            let mut rewards = vec![
+                AnsAsset::new("asset1".to_string(), 100u128),
+                AnsAsset::new("asset2".to_string(), 150u128),
+            ];
+            let performance_fee = Decimal::percent(10); // 10% fee
 
-        let fees = deduct_fees_from_rewards(&mut rewards, performance_fee);
+            let fees = deduct_fees_from_rewards(&mut rewards, performance_fee);
 
-        // Check updated rewards
-        assert_that!(&rewards)
-            .contains(&AnsAsset::new("asset1".to_string(), 90u128)); // 10% deducted
-        assert_that!(&rewards)
-            .contains(&AnsAsset::new("asset2".to_string(), 135u128)); // 10% deducted
+            // Check updated rewards
+            assert_that!(&rewards).contains(&AnsAsset::new("asset1".to_string(), 90u128)); // 10% deducted
+            assert_that!(&rewards).contains(&AnsAsset::new("asset2".to_string(), 135u128)); // 10% deducted
 
-        // Check fees
-        assert_that!(&fees)
-            .contains(&AnsAsset::new("asset1".to_string(), 10u128));
-        assert_that!(&fees)
-            .contains(&AnsAsset::new("asset2".to_string(), 15u128));
+            // Check fees
+            assert_that!(&fees).contains(&AnsAsset::new("asset1".to_string(), 10u128));
+            assert_that!(&fees).contains(&AnsAsset::new("asset2".to_string(), 15u128));
+        }
+
+        #[test]
+        fn deduct_fees_from_rewards_zero_fee() {
+            let mut rewards = vec![
+                AnsAsset::new("asset1".to_string(), 100u128),
+                AnsAsset::new("asset2".to_string(), 150u128),
+            ];
+            let performance_fee = Decimal::zero(); // 0% fee
+
+            let fees = deduct_fees_from_rewards(&mut rewards, performance_fee);
+
+            // Check updated rewards (should remain unchanged)
+            assert_that!(&rewards).contains(&AnsAsset::new("asset1".to_string(), 100u128));
+            assert_that!(&rewards).contains(&AnsAsset::new("asset2".to_string(), 150u128));
+
+            // Check fees (should be zero)
+            assert_that!(&fees).is_empty();
+        }
+
+        #[test]
+        fn deduct_fees_from_rewards_empty_rewards() {
+            let mut rewards = vec![];
+            let performance_fee = Decimal::percent(10); // 10% fee
+
+            let fees = deduct_fees_from_rewards(&mut rewards, performance_fee);
+
+            // Check that rewards are still empty
+            assert_that!(&rewards).is_empty();
+            // Check that fees are zero
+            assert_that!(&fees).is_empty();
+        }
     }
-
-    #[test]
-    fn deduct_fees_from_rewards_zero_fee() {
-        let mut rewards = vec![
-            AnsAsset::new("asset1".to_string(), 100u128),
-            AnsAsset::new("asset2".to_string(), 150u128),
-        ];
-        let performance_fee = Decimal::zero(); // 0% fee
-
-        let fees = deduct_fees_from_rewards(&mut rewards, performance_fee);
-
-        // Check updated rewards (should remain unchanged)
-        assert_that!(&rewards)
-            .contains(&AnsAsset::new("asset1".to_string(), 100u128));
-        assert_that!(&rewards)
-            .contains(&AnsAsset::new("asset2".to_string(), 150u128));
-
-        // Check fees (should be zero)
-        assert_that!(&fees).is_empty();
-    }
-
-    #[test]
-    fn deduct_fees_from_rewards_empty_rewards() {
-        let mut rewards = vec![];
-        let performance_fee = Decimal::percent(10); // 10% fee
-
-        let fees = deduct_fees_from_rewards(&mut rewards, performance_fee);
-
-        // Check that rewards are still empty
-        assert_that!(&rewards).is_empty();
-        // Check that fees are zero
-        assert_that!(&fees).is_empty();
-    }
-}
-
 }

@@ -14,9 +14,7 @@ use crate::contract::{
     LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::kujira_tx::{
-    format_tokenfactory_denom, query_tokenfactory_params, tokenfactory_params_query_request,
-};
+use crate::kujira_tx::format_tokenfactory_denom;
 use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector};
 use crate::state::{
     Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
@@ -27,7 +25,7 @@ use abstract_cw_staking::CW_STAKING;
 use abstract_dex_adapter::api::DexInterface;
 use abstract_sdk::Execution;
 use abstract_sdk::{
-    core::objects::{AnsAsset, AssetEntry, LpToken},
+    core::objects::{AnsAsset, AssetEntry},
     features::{AbstractNameService, AccountIdentification},
     Resolve, TransferInterface,
 };
@@ -123,7 +121,7 @@ fn create_denom(
 
     let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
     let denom = format_tokenfactory_denom(&contract_address, &subdenom);
-    let msg = create_vault_token_submsg(contract_address.clone(), subdenom, None)?;
+    let msg = create_vault_token_submsg(contract_address, subdenom, None)?;
 
     CONFIG.update(deps.storage, |mut config| -> StdResult<Config> {
         config.vault_token = AssetInfo::Native(denom.clone());
@@ -337,7 +335,7 @@ fn add_asset_if_single_fund(funds: &mut Vec<AnsAsset>, config: &Config) {
     };
 }
 
-fn deduct_deposit_fees(funds: &mut Vec<AnsAsset>, fee_config: &FeeConfig) -> Vec<AnsAsset> {
+fn deduct_deposit_fees(funds: &mut [AnsAsset], fee_config: &FeeConfig) -> Vec<AnsAsset> {
     let mut fees = vec![];
     funds.iter_mut().for_each(|asset| {
         let fee = asset.amount * fee_config.deposit;
@@ -350,10 +348,7 @@ fn deduct_deposit_fees(funds: &mut Vec<AnsAsset>, fee_config: &FeeConfig) -> Vec
     fees
 }
 
-fn check_all_funds_in_pool(
-    funds: &Vec<AnsAsset>,
-    config: &Config,
-) -> Result<(), AutocompounderError> {
+fn check_all_funds_in_pool(funds: &[AnsAsset], config: &Config) -> Result<(), AutocompounderError> {
     for asset in funds.iter() {
         if !config.pool_data.assets.contains(&asset.name) {
             return Err(AutocompounderError::AssetNotInPool {
@@ -1150,7 +1145,7 @@ mod test {
         let cached_assets: Vec<(String, Uint128)> = CACHED_ASSETS
             .range(&deps.storage, None, None, Order::Ascending)
             .map(|x| x.unwrap())
-            .map(|(k, v)| (k.to_string(), v))
+            .map(|(k, v)| (k, v))
             .collect();
         assert_that!(cached_assets).has_length(2);
         assert_that!(cached_assets[0]).is_equal_to(("native:eur".to_string(), 1000u128.into()));
@@ -1161,7 +1156,7 @@ mod test {
         assert_that!(response.messages[0].msg).is_equal_to(unstake_lp_tokens(
             deps.as_ref(),
             &AUTOCOMPOUNDER_APP,
-            config.pool_data.dex.clone(),
+            config.pool_data.dex,
             AssetEntry::new("wyndex/eur,usd"),
             10u128.into(),
             None,
@@ -1656,7 +1651,7 @@ mod test {
             let mut deps = mock_dependencies();
 
             let sender = String::from("sender");
-            let sender_addr = Addr::unchecked(sender.clone());
+            let sender_addr = Addr::unchecked(sender);
             let amount_of_vault_tokens_to_be_burned = Uint128::new(100);
 
             // Test case when there is no pending claim for the sender
@@ -1682,7 +1677,7 @@ mod test {
             assert!(res.is_ok());
 
             let pending_claim = PENDING_CLAIMS
-                .load(deps.as_ref().storage, sender_addr.clone())
+                .load(deps.as_ref().storage, sender_addr)
                 .unwrap();
             assert_eq!(
                 pending_claim,

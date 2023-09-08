@@ -1,6 +1,6 @@
 use autocompounder::interface::AutocompounderApp;
-use autocompounder::msg::AutocompounderExecuteMsgFns;
 use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
+use autocompounder::msg::AutocompounderExecuteMsgFns;
 use cw_orch::daemon::DaemonBuilder;
 use cw_orch::deploy::Deploy;
 use cw_orch::environment::{CwEnv, TxResponse};
@@ -21,7 +21,7 @@ use abstract_cw_staking::CW_STAKING;
 use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
 
 use clap::Parser;
-use cosmwasm_std::{Addr, Decimal, Empty, coin};
+use cosmwasm_std::{coin, Addr, Decimal, Empty};
 use cw_orch::daemon::networks::parse_network;
 
 use autocompounder::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER};
@@ -207,7 +207,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     )?;
 
     if cw20_code_id.is_none() {
-        let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
+        let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
         autocompounder.set_address(&autocompounder_address);
         autocompounder.create_denom(&[coin(100_000_000, "ukuji")])?;
     }

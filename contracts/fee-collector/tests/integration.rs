@@ -233,12 +233,12 @@ fn test_update_config() -> AResult {
         .add_allowed_assets(vec![eur_asset.clone()])?;
     let allowed_assets: Vec<AssetEntry> = app.fee_collector.allowed_assets()?;
     assert_that!(allowed_assets.len()).is_equal_to(1);
-    assert_that!(allowed_assets).contains(eur_asset.clone());
+    assert_that!(allowed_assets).contains(eur_asset);
 
     // dex api doesnt support multi hop swaps and in the test case there is no wynd usd pool.
     app.fee_collector
         .call_as(&app.account.manager.address()?)
-        .add_allowed_assets(vec![wynd_asset.clone()])
+        .add_allowed_assets(vec![wynd_asset])
         .unwrap_err();
 
     // update allowed assets with assets that are not supported by the dex
@@ -301,7 +301,7 @@ fn test_add_allowed_assets() -> AResult {
     let eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);
     let wynd_token = AssetEntry::new(WYND_TOKEN);
-    let app = create_fee_collector(mock.clone(), vec![usd_asset.clone(), wynd_token.clone()])?;
+    let app = create_fee_collector(mock, vec![usd_asset.clone(), wynd_token.clone()])?;
 
     // not admin
     let _err = app

@@ -6,8 +6,10 @@
 /// NOTE on MsgCreateDenom.nonce:
 /// Hans, [21 Aug 2023 at 16:21:07]: subdenom in the custom bindings maps to the nonce parameter in MsgCreateDenom https://github.com/Team-Kujira/core/blob/master/x/denom/wasm/interface_msg.go#L74
 use anybuf::Anybuf;
-use cosmwasm_std::{to_binary, Addr, CosmosMsg, StdError, Uint128, QueryRequest, Coin, from_binary, Deps, Empty};
-use serde::{Serialize, Deserialize};
+use cosmwasm_std::{
+    from_binary, to_binary, Addr, Coin, CosmosMsg, Deps, Empty, QueryRequest, StdError, Uint128,
+};
+use serde::{Deserialize, Serialize};
 
 pub const MSG_CREATE_DENOM_TYPE_URL: &str = "/kujira.denom.MsgCreateDenom";
 pub const MSG_MINT_TYPE_URL: &str = "/kujira.denom.MsgMint";
@@ -138,8 +140,7 @@ pub fn encode_query_supply_of(denom: &str) -> Vec<u8> {
 }
 
 /// Encodes the stargate query message to get the total supply of a denom.
-/// 
-
+///
 
 pub fn encode_query_params() -> Vec<u8> {
     Anybuf::new().into_vec()
@@ -161,17 +162,16 @@ pub struct Params {
     pub creation_fee: Coin,
 }
 
-/// 
-/// 
+///
+///
 pub fn tokenfactory_params_query_request() -> Result<QueryRequest<Empty>, StdError> {
     let proto_msg = encode_query_params();
     let q_request = QueryRequest::Stargate {
         path: DENOM_PARAMS_PATH.to_string(),
         data: to_binary(&proto_msg)?,
     };
-    
-    Ok(q_request)
 
+    Ok(q_request)
 }
 
 pub fn query_tokenfactory_params(deps: Deps) -> Result<Params, StdError> {

@@ -140,6 +140,7 @@ pub fn instantiate_handler(
         code_id, // if code_id is none, submsg will be like normal msg: no reply (for now).
     )?;
 
+    // quick fix to not mint denom if code_id is none. We cant mint denom without funds.
     let sub_msgs = if code_id.is_some() {
         vec![sub_msg]
     } else {
