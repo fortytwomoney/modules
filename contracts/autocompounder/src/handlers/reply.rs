@@ -246,7 +246,7 @@ pub fn lp_compound_reply(
 
 fn deduct_performance_fees(
     fee_config: FeeConfig,
-    rewards: &mut Vec<AnsAsset>,
+    rewards: &mut [AnsAsset],
     app: &AutocompounderApp,
     deps: &DepsMut<'_>,
     messages: &mut Vec<AccountAction>,

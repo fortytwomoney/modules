@@ -11,7 +11,6 @@ use std::sync::Arc;
 
 use abstract_core::{
     account_factory, adapter, app,
-    manager::ExecuteMsgFns,
     objects::module::ModuleInfo,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
     registry::{ANS_HOST, MANAGER, PROXY},
