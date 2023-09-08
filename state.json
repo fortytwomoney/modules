@@ -106,7 +106,7 @@
     },
     "pion-1": {
       "code_ids": {
-        "4t2:autocompounder": 2401,
+        "4t2:autocompounder": 1495,
         "4t2:fee-collector": 1400,
         "abstract:account-factory": 1286,
         "abstract:ans-host": 1284,
@@ -116,11 +116,13 @@
         "abstract:version-control": 1285
       },
       "default": {
+        "4t2:autocompounder": "neutron1yg5n98qq2pm8ms4f37fx8k8uvtzmmaum352va6yd85rk8fgtfzjse48ern",
         "abstract:account-factory": "neutron1nw4waa8lsjfq5a3x96h0ekscqfy0dn6fez7yy597ph3r8weurqsq49udpm",
         "abstract:ans-host": "neutron1fcmwjrfjw9z306m8cy5d9j2c50xxxtjdgnyzq4yjdht95cm8mj0q3pj8rm",
-        "abstract:manager": "neutron1gze9yud8mmlvpecpptvhw7j3njf2gwtyhswj7q9jl50q9gyx7wuqfuarq4",
+        "abstract:cw-staking": "neutron14wtwr3s9veaxz4fjdccc8x0x3atw0yecsnhwsajm6q9x2eyce6cqq0y2f5",
+        "abstract:manager": "neutron1z30ngun68gn69v608net79tg4avkvl8pe7ew7vf3y5emumw6ahzqtr0l2k",
         "abstract:module-factory": "neutron1aujd27w8q7v2yvprh5m8xlz47e6czl069snehwudtgk3g3qu8huqrsvvgs",
-        "abstract:proxy": "neutron1gdutu5mptq8geettvlt2pz9teq5c5p7sv3lsfgnh6cklhw0knrhquu54h7",
+        "abstract:proxy": "neutron1avf6xaxcf28yr43laqnkud8m8zxfd9zz5r4z50c58z9fw7yllegsg5554g",
         "abstract:version-control": "neutron1fetr8pjntvzl7pzkvyg4d3lz9qyjta6tmfc3pw6hj2nafatguyhqrqt79f"
       }
     }

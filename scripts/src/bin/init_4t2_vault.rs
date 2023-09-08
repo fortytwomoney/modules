@@ -143,9 +143,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     // }
 
     // Install both modules
+    // let new_module_version = ModuleVersion::from("0.7.1");
     let new_module_version = ModuleVersion::from(MODULE_VERSION);
-
-    // account.manager.install_module(CW_STAKING, &Empty {})?;
 
     account.manager.install_module_version(
         AUTOCOMPOUNDER,

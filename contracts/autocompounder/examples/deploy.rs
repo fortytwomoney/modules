@@ -1,9 +1,9 @@
-use abstract_interface::Abstract;
+use abstract_interface::{AppDeployer};
 use cw_orch::daemon::ChainInfo;
 
 use autocompounder::interface::AutocompounderApp;
 use autocompounder::msg::AUTOCOMPOUNDER;
-use cw_orch::deploy::Deploy;
+
 use cw_orch::prelude::networks::parse_network;
 use cw_orch::prelude::*;
 use std::env;
@@ -26,15 +26,15 @@ fn deploy_autocompounder(
 
     let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
 
-    // autocompounder.deploy(version)?;
-    autocompounder.upload()?;
+    autocompounder.deploy(version)?;
+    // autocompounder.upload()?;
 
     // autocompounder.set_code_id(241);
 
-    let abstr = Abstract::<Daemon>::load_from(autocompounder.get_chain().to_owned())?;
-    abstr
-        .version_control
-        .register_apps(vec![(autocompounder.as_instance(), version.to_string())])?;
+    // let abstr = Abstract::<Daemon>::load_from(autocompounder.get_chain().to_owned())?;
+    // abstr
+    //     .version_control
+    //     .register_apps(vec![(autocompounder.as_instance(), version.to_string())])?;
 
     Ok(())
 }
