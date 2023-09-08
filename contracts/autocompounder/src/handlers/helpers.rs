@@ -1,6 +1,7 @@
 use crate::contract::INSTANTIATE_REPLY_ID;
 
 use crate::kujira_tx::encode_query_supply_of;
+use crate::kujira_tx::query_tokenfactory_params;
 use crate::kujira_tx::tokenfactory_burn_msg;
 use crate::kujira_tx::tokenfactory_create_denom_msg;
 use crate::kujira_tx::tokenfactory_mint_msg;

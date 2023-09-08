@@ -14,7 +14,9 @@ use crate::contract::{
     LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::kujira_tx::{format_tokenfactory_denom, tokenfactory_params_query_request, query_tokenfactory_params};
+use crate::kujira_tx::{
+    format_tokenfactory_denom, query_tokenfactory_params, tokenfactory_params_query_request,
+};
 use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector};
 use crate::state::{
     Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
@@ -114,12 +116,11 @@ fn create_denom(
     info: MessageInfo,
     env: &Env,
 ) -> AutocompounderResult {
-    let config = CONFIG.load(deps.storage)?;
     app.admin.assert_admin(deps.as_ref(), &info.sender)?;
 
-    // check_denom_creation_funds(deps.as_ref(), &info.funds)?;
-
+    let config = CONFIG.load(deps.storage)?;
     let contract_address = env.contract.address.to_string();
+
     let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
     let denom = format_tokenfactory_denom(&contract_address, &subdenom);
     let msg = create_vault_token_submsg(contract_address.clone(), subdenom, None)?;
@@ -128,6 +129,7 @@ fn create_denom(
         config.vault_token = AssetInfo::Native(denom.clone());
         Ok(config)
     })?;
+
     VAULT_TOKEN_IS_INITIALIZED.save(deps.storage, &true)?;
 
     Ok(app.custom_tag_response(
@@ -135,23 +137,6 @@ fn create_denom(
         "create_denom",
         vec![("denom", denom)],
     ))
-}
-
-    fn check_denom_creation_funds(deps: Deps, funds: &Vec<Coin>) -> Result<(), AutocompounderError> {
-
-    let params = query_tokenfactory_params(deps)?;
-    let wanted_coin = params.creation_fee;
-
-
-    if funds != &vec![wanted_coin.clone()] {
-        let funds_string: String = funds.into_iter()
-            .map(|f| f.to_string()).collect::<Vec<String>>()
-            .join(",");
-        return Err(AutocompounderError::InvalidFunds {
-            wanted_funds: wanted_coin.to_string(), actual_funds: funds_string
-        });
-    }
-    return Ok(());
 }
 
 pub fn update_staking_config(
@@ -164,10 +149,7 @@ pub fn update_staking_config(
 
     let mut config = CONFIG.load(deps.storage)?;
 
-    let lp_token = LpToken {
-        dex: config.pool_data.dex.clone(),
-        assets: config.pool_data.assets.clone(),
-    };
+    let lp_token = config.lp_token();
 
     // get staking info
     let staking_info = query_staking_info(
@@ -257,7 +239,7 @@ pub fn deposit(
     let fee_config = FEE_CONFIG.load(deps.storage)?;
 
     let ans_host = app.ans_host(deps.as_ref())?;
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
+    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
     let resolved_pool_assets = config.pool_data.assets.resolve(&deps.querier, &ans_host)?;
     let _lptoken = config.liquidity_token.clone();
 
@@ -265,22 +247,9 @@ pub fn deposit(
     let mut submessages = vec![];
 
     // check if sent coins are only correct coins
-    for Coin { denom, amount: _ } in info.funds.iter() {
-        if !resolved_pool_assets.contains(&AssetInfo::Native(denom.clone())) {
-            return Err(AutocompounderError::CoinNotInPool {
-                denom: denom.clone(),
-            });
-        }
-    }
-
+    check_info_funds_correct(&info, resolved_pool_assets)?;
     // check if all the assets in funds are present in the pool
-    for asset in funds.iter() {
-        if !config.pool_data.assets.contains(&asset.name) {
-            return Err(AutocompounderError::AssetNotInPool {
-                asset: asset.name.to_string(),
-            });
-        }
-    }
+    check_all_funds_in_pool(&funds, &config)?;
 
     let mut claimed_deposits: AssetList = funds.resolve(&deps.querier, &ans_host)?.into();
     // deduct all the received `Coin`s from the claimed deposit, errors if not enough funds were provided
@@ -309,19 +278,7 @@ pub fn deposit(
 
     // deduct deposit fee
     if !fee_config.deposit.is_zero() {
-        let mut fees = vec![];
-        funds = funds
-            .into_iter()
-            .map(|mut asset| {
-                let fee = asset.amount * fee_config.deposit;
-                let fee_asset = AnsAsset::new(asset.name.clone(), fee);
-                asset.amount -= fee;
-                if !fee.is_zero() {
-                    fees.push(fee_asset);
-                }
-                asset
-            })
-            .collect::<Vec<_>>();
+        let fees = deduct_deposit_fees(&mut funds, &fee_config);
 
         // 3) Send fees to the feecollector
         if !fees.is_empty() {
@@ -332,18 +289,7 @@ pub fn deposit(
         }
     }
 
-    // Add the other asset if there is only one asset for liquidity provision
-    let funds = if funds.len() == 1 {
-        let mut funds = funds;
-        config.pool_data.assets.iter().for_each(|asset| {
-            if !funds[0].name.eq(asset) {
-                funds.push(AnsAsset::new(asset.clone(), 0u128))
-            }
-        });
-        funds
-    } else {
-        funds
-    };
+    add_asset_if_single_fund(&mut funds, &config);
 
     let provide_liquidity_msg: CosmosMsg =
         dex.provide_liquidity(funds, Some(max_spread.unwrap_or(config.max_swap_spread)))?;
@@ -378,6 +324,58 @@ pub fn deposit(
         "deposit",
         vec![("recipient", recipient.to_string())],
     ))
+}
+
+/// Add the other asset if there is only one asset. This is needed for the lp provision to work.
+fn add_asset_if_single_fund(funds: &mut Vec<AnsAsset>, config: &Config) {
+    if funds.len() == 1 {
+        config.pool_data.assets.iter().for_each(|asset| {
+            if !funds[0].name.eq(asset) {
+                funds.push(AnsAsset::new(asset.clone(), 0u128))
+            }
+        });
+    };
+}
+
+fn deduct_deposit_fees(funds: &mut Vec<AnsAsset>, fee_config: &FeeConfig) -> Vec<AnsAsset> {
+    let mut fees = vec![];
+    funds.iter_mut().for_each(|asset| {
+        let fee = asset.amount * fee_config.deposit;
+        let fee_asset = AnsAsset::new(asset.name.clone(), fee);
+        asset.amount -= fee;
+        if !fee.is_zero() {
+            fees.push(fee_asset);
+        }
+    });
+    fees
+}
+
+fn check_all_funds_in_pool(
+    funds: &Vec<AnsAsset>,
+    config: &Config,
+) -> Result<(), AutocompounderError> {
+    for asset in funds.iter() {
+        if !config.pool_data.assets.contains(&asset.name) {
+            return Err(AutocompounderError::AssetNotInPool {
+                asset: asset.name.to_string(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn check_info_funds_correct(
+    info: &MessageInfo,
+    resolved_pool_assets: Vec<AssetInfoBase<Addr>>,
+) -> Result<(), AutocompounderError> {
+    for Coin { denom, amount: _ } in info.funds.iter() {
+        if !resolved_pool_assets.contains(&AssetInfo::Native(denom.clone())) {
+            return Err(AutocompounderError::CoinNotInPool {
+                denom: denom.clone(),
+            });
+        }
+    }
+    Ok(())
 }
 
 fn unwrap_recipient_is_allowed(
@@ -1177,6 +1175,125 @@ mod test {
         Ok(())
     }
 
+    mod deposit_helpers {
+        use super::*;
+        use cosmwasm_std::coins;
+        use speculoos::prelude::*;
+
+        fn deposit_fee_config(percent: u64) -> FeeConfig {
+            FeeConfig {
+                deposit: Decimal::percent(percent),
+                performance: Decimal::zero(),
+                withdrawal: Decimal::zero(),
+                fee_collector_addr: Addr::unchecked("fee_collector"), // 10% fee
+            }
+        }
+
+        #[test]
+        fn add_asset_if_single_fund_adds_when_one_asset() {
+            let config = min_cooldown_config(None, false);
+            let mut funds = vec![AnsAsset::new("eur".to_string(), 100u128)];
+
+            add_asset_if_single_fund(&mut funds, &config);
+
+            assert_that!(funds).has_length(2);
+            assert_that!(&funds).contains(&AnsAsset::new("eur".to_string(), 100u128));
+            assert_that!(&funds).contains(&AnsAsset::new("usd".to_string(), 0u128));
+        }
+
+        #[test]
+        fn add_asset_if_single_fund_does_nothing_when_multiple_assets() {
+            let config = min_cooldown_config(None, false);
+            let mut funds = vec![
+                AnsAsset::new("eur".to_string(), 100u128),
+                AnsAsset::new("usd".to_string(), 50u128),
+            ];
+
+            add_asset_if_single_fund(&mut funds, &config);
+
+            assert_that!(&funds).contains(&AnsAsset::new("eur".to_string(), 100u128));
+            assert_that!(&funds).contains(&AnsAsset::new("usd".to_string(), 50u128));
+        }
+
+        #[test]
+        fn deduct_deposit_fees_applies_fee() {
+            let mut funds = vec![AnsAsset::new("asset1".to_string(), 100u128)];
+            let fee_config = deposit_fee_config(10);
+
+            let fees = deduct_deposit_fees(&mut funds, &fee_config);
+
+            assert_that!(funds[0].amount).is_equal_to(Uint128::from(90u128)); // 10% deducted
+            assert_that!(&fees).contains(&AnsAsset::new("asset1".to_string(), 10u128));
+        }
+
+        #[test]
+        fn deduct_deposit_fees_zero_fee() {
+            let mut funds = vec![AnsAsset::new("asset1".to_string(), 100u128)];
+            let fee_config = deposit_fee_config(0);
+
+            let fees = deduct_deposit_fees(&mut funds, &fee_config);
+
+            assert_that!(&funds[0].amount).is_equal_to(Uint128::from(100u128)); // No deduction
+            assert_that!(&fees).is_empty();
+        }
+
+        #[test]
+        fn check_all_funds_in_pool_all_present() {
+            let funds = vec![AnsAsset::new("eur".to_string(), 100u128)];
+            let config = min_cooldown_config(None, false);
+
+            let result = check_all_funds_in_pool(&funds, &config);
+
+            assert_that!(&result).is_ok();
+        }
+
+        #[test]
+        fn check_all_funds_in_pool_some_absent() {
+            let config = min_cooldown_config(None, false);
+            let funds = vec![
+                AnsAsset::new("eur".to_string(), 100u128),
+                AnsAsset::new("asset3".to_string(), 50u128),
+            ];
+
+            let result = check_all_funds_in_pool(&funds, &config);
+
+            assert_that!(&result)
+                .is_err()
+                .is_equal_to(AutocompounderError::AssetNotInPool {
+                    asset: "asset3".to_string(),
+                });
+        }
+
+        #[test]
+        fn check_info_funds_correct_all_present() {
+            let info = mock_info("sender", &coins(100, "coin1"));
+            let resolved_pool_assets = vec![
+                AssetInfo::Native("coin1".to_string()),
+                AssetInfo::Cw20(Addr::unchecked("coin2".to_string())),
+            ];
+
+            let result = check_info_funds_correct(&info, resolved_pool_assets);
+            assert_that!(&result).is_ok();
+        }
+
+        #[test]
+        fn check_info_funds_correct_some_absent() {
+            let info = mock_info("sender", &coins(100, "coin3"));
+            let resolved_pool_assets = vec![
+                AssetInfo::Native("coin1".to_string()),
+                AssetInfo::Native("coin2".to_string()),
+            ];
+
+            let result = check_info_funds_correct(&info, resolved_pool_assets);
+
+            assert_that!(&result)
+                .is_err()
+                .is_equal_to(AutocompounderError::CoinNotInPool {
+                    denom: "coin3".to_string(),
+                });
+        }
+    }
+
     mod create_denom {
         use crate::kujira_tx::MSG_CREATE_DENOM_TYPE_URL;
         use cosmwasm_std::StdError;
@@ -1225,20 +1342,11 @@ mod test {
             let mut deps = app_init(false, false);
             VAULT_TOKEN_IS_INITIALIZED.save(deps.as_mut().storage, &false)?;
             let msg = AutocompounderExecuteMsg::CreateDenom {};
-            let wanted_fund = Coin::new(100_000_000u128, "ukuji".to_string());
 
             let res = execute_as(deps.as_mut(), "not_manager", msg.clone(), &[]);
             assert_that!(res)
                 .is_err()
                 .is_equal_to(AutocompounderError::Admin(AdminError::NotAdmin {}));
-
-            let res = execute_as(deps.as_mut(), TEST_MANAGER, msg.clone(), &[]);
-            assert_that!(res)
-                .is_err()
-                .is_equal_to(AutocompounderError::InvalidFunds {
-                    actual_funds: "".to_string(), // no funds sent
-                    wanted_funds: wanted_fund.to_string()
-                });
 
             let res = execute_as(
                 deps.as_mut(),

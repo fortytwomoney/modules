@@ -8,16 +8,16 @@ use crate::contract::{
 use crate::error::AutocompounderError;
 
 use crate::state::{
-    Config, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG, VAULT_TOKEN_IS_INITIALIZED,
+    Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG,
+    VAULT_TOKEN_IS_INITIALIZED,
 };
-use abstract_core::objects::AnsEntryConvertor;
+use abstract_core::objects::{AnsEntryConvertor, AssetEntry};
 use abstract_cw_staking::{
     msg::{RewardTokensResponse, StakingQueryMsg},
     CW_STAKING,
 };
 use abstract_dex_adapter::api::DexInterface;
 use abstract_dex_adapter::msg::OfferAsset;
-use abstract_sdk::AdapterInterface;
 use abstract_sdk::Execution;
 use abstract_sdk::{
     core::objects::{AnsAsset, PoolMetadata},
@@ -25,6 +25,7 @@ use abstract_sdk::{
     features::{AbstractNameService, AccountIdentification},
     AbstractSdkResult, Resolve, TransferInterface,
 };
+use abstract_sdk::{AccountAction, AdapterInterface};
 use cosmwasm_std::{
     CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdResult, SubMsg, Uint128,
 };
@@ -79,7 +80,7 @@ pub fn lp_provision_reply(
     let current_vault_supply = vault_token_total_supply(deps.as_ref(), &config)?;
 
     // Retrieve the number of LP tokens minted/staked.
-    let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
+    let lp_token = config.lp_token();
     let received_lp = lp_token
         .resolve(&deps.querier, &ans_host)?
         .query_balance(&deps.querier, proxy_address.to_string())?;
@@ -135,19 +136,10 @@ pub fn lp_withdrawal_reply(
     let bank = app.bank(deps.as_ref());
 
     let owned_assets = bank.balances(&config.pool_data.assets)?;
-    let funds = owned_assets
-        .into_iter()
-        .enumerate()
-        .map(|(i, asset)| -> StdResult<_> {
-            let prev_amount = CACHED_ASSETS.load(deps.storage, asset.info.to_string())?;
-            let amount = asset.amount.checked_sub(prev_amount)?;
-            Ok(AnsAsset::new(config.pool_data.assets[i].clone(), amount))
-        })
-        .collect::<StdResult<Vec<AnsAsset>>>()
-        .map_err(AutocompounderError::Std)?;
+    let funds =
+        cached_asset_balance_differences(owned_assets, &deps.as_ref(), &config.pool_data.assets)?;
 
     let transfer_msg = bank.transfer(funds.clone(), &user_address)?;
-
     CACHED_ASSETS.clear(deps.storage);
 
     let response =
@@ -159,6 +151,25 @@ pub fn lp_withdrawal_reply(
             .into_iter()
             .map(|asset| ("recieved", asset.to_string())),
     ))
+}
+
+/// Calculates the difference between the currently proxy-owned assets and the assets that were cached before the lp_withdrawal_reply
+fn cached_asset_balance_differences(
+    owned_assets: Vec<Asset>,
+    deps: &Deps,
+    pool_assets: &Vec<AssetEntry>,
+) -> Result<Vec<AnsAsset>, AutocompounderError> {
+    let funds = owned_assets
+        .into_iter()
+        .enumerate()
+        .map(|(i, asset)| -> StdResult<_> {
+            let prev_amount = CACHED_ASSETS.load(deps.storage, asset.info.to_string())?;
+            let amount = asset.amount.checked_sub(prev_amount)?;
+            Ok(AnsAsset::new(pool_assets[i].clone(), amount))
+        })
+        .collect::<StdResult<Vec<AnsAsset>>>()
+        .map_err(AutocompounderError::Std)?;
+    Ok(funds)
 }
 
 pub fn lp_compound_reply(
@@ -182,35 +193,15 @@ pub fn lp_compound_reply(
         return Err(AutocompounderError::NoRewards {});
     }
 
-    if !fee_config.performance.is_zero() {
-        // deduct fee from rewards
-        let fees = rewards
-            .iter_mut()
-            .map(|reward| -> AnsAsset {
-                let fee = reward.amount * fee_config.performance;
+    deduct_performance_fees(fee_config, &mut rewards, &app, &deps, &mut messages)?;
 
-                reward.amount -= fee;
-
-                AnsAsset::new(reward.name.clone(), fee)
-            })
-            .filter(|fee| fee.amount > Uint128::zero())
-            .collect::<Vec<AnsAsset>>();
-
-        // Send fees to the fee collector
-        if !fees.is_empty() {
-            let transfer_msg = app
-                .bank(deps.as_ref())
-                .transfer(fees, &fee_config.fee_collector_addr)?;
-            messages.push(transfer_msg);
-        }
-    }
     // Swap rewards to token in pool
     // check if asset is not in pool assets
     let pool_assets = config.pool_data.assets;
     if rewards.iter().all(|f| pool_assets.contains(&f.name)) {
         // if all assets are in the pool, we can just provide liquidity
-        // The liquditiy assets are all the pool assets with the amount of the rewards
-        let liquidity_assets = pool_assets
+        // These assets are all the pool assets with the amount of the rewards
+        let assets = pool_assets
             .iter()
             .map(|pool_asset| -> AnsAsset {
                 // Get the amount of the reward or return 0
@@ -224,8 +215,7 @@ pub fn lp_compound_reply(
             .collect::<Vec<OfferAsset>>();
 
         // provide liquidity
-        let lp_msg: CosmosMsg =
-            dex.provide_liquidity(liquidity_assets, Some(Decimal::percent(50)))?;
+        let lp_msg: CosmosMsg = dex.provide_liquidity(assets, Some(Decimal::percent(50)))?;
 
         submessages.push(SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID));
 
@@ -252,6 +242,44 @@ pub fn lp_compound_reply(
             .add_submessages(submessages);
         Ok(app.tag_response(response, "lp_compound_reply"))
     }
+}
+
+fn deduct_performance_fees(
+    fee_config: FeeConfig,
+    rewards: &mut Vec<AnsAsset>,
+    app: &AutocompounderApp,
+    deps: &DepsMut<'_>,
+    messages: &mut Vec<AccountAction>,
+) -> Result<(), AutocompounderError> {
+    Ok(if !fee_config.performance.is_zero() {
+        // deduct fee from rewards
+        let fees = deduct_fees_from_rewards(rewards, fee_config.performance);
+
+        // Send fees to the fee collector
+        if !fees.is_empty() {
+            let transfer_msg = app
+                .bank(deps.as_ref())
+                .transfer(fees, &fee_config.fee_collector_addr)?;
+            messages.push(transfer_msg);
+        }
+    })
+}
+
+fn deduct_fees_from_rewards(
+    rewards: &mut Vec<AnsAsset>,
+    performance_fee: Decimal,
+) -> Vec<AnsAsset> {
+    let fees = rewards
+        .iter_mut()
+        .map(|reward| -> AnsAsset {
+            let fee = reward.amount * performance_fee;
+            reward.amount -= fee;
+
+            AnsAsset::new(reward.name.clone(), fee)
+        })
+        .filter(|fee| fee.amount > Uint128::zero())
+        .collect::<Vec<AnsAsset>>();
+    fees
 }
 
 /// Queries the balances of pool assets and provides liquidity to the pool
@@ -508,4 +536,147 @@ mod test {
             Ok(())
         }
     }
+
+    #[cfg(test)]
+    mod cached_assets {
+
+        use super::*;
+        use cosmwasm_std::{testing::mock_dependencies, Addr};
+
+        fn asset1(amount: u128) -> Asset {
+            Asset {
+                info: cw_asset::AssetInfoBase::Cw20(Addr::unchecked("asset1".to_string())),
+                amount: amount.into(),
+            }
+        }
+        fn asset2() -> Asset {
+            Asset {
+                info: cw_asset::AssetInfoBase::Cw20(Addr::unchecked("asset2".to_string())),
+                amount: 200u128.into(),
+            }
+        }
+
+        #[test]
+        fn cached_asset_balance_differences_all_greater() -> anyhow::Result<()> {
+            let owned_assets = vec![asset1(1000u128), asset2()];
+            let mut deps = mock_dependencies();
+            let pool_assets = vec![AssetEntry::new("asset1"), AssetEntry::new("asset2")];
+
+            // Mock the CACHED_ASSETS load
+           owned_assets.iter().for_each(|f| CACHED_ASSETS.save(
+                deps.as_mut().storage,
+                f.info.to_string(),
+                &f.amount,
+            ).unwrap());
+
+            let result =
+                cached_asset_balance_differences(owned_assets, &deps.as_ref(), &pool_assets);
+
+            assert_that!(&result).is_ok().is_equal_to(vec![
+                AnsAsset::new("asset1".to_string(), 0u128),
+                AnsAsset::new("asset2".to_string(), 0u128),
+            ]);
+            Ok(())
+        }
+
+        #[test]
+        fn cached_asset_balance_differences_some_less() -> anyhow::Result<()> {
+            let owned_assets = vec![asset1(50u128), asset2()];
+            let mut deps = mock_dependencies();
+            let pool_assets = vec![AssetEntry::new("asset1"), AssetEntry::new("asset2")];
+
+            // Mock the CACHED_ASSETS load
+            CACHED_ASSETS.save(
+                deps.as_mut().storage,
+                "asset1".to_string(),
+                &Uint128::from(50u128),
+            )?;
+            CACHED_ASSETS.save(
+                deps.as_mut().storage,
+                "asset2".to_string(),
+                &Uint128::from(100u128),
+            )?;
+
+            let result =
+                cached_asset_balance_differences(owned_assets, &deps.as_ref(), &pool_assets);
+
+            assert_that!(&result).is_err();
+            Ok(())
+        }
+
+        #[test]
+        fn cached_asset_balance_differences_empty_assets() {
+            let owned_assets = vec![];
+            let deps = mock_dependencies();
+            let pool_assets = vec![];
+
+            let result =
+                cached_asset_balance_differences(owned_assets, &deps.as_ref(), &pool_assets);
+
+            assert_that!(&result).is_ok().is_empty();
+        }
+    }
+
+    #[cfg(test)]
+mod deduct_fees {
+    use super::*;
+    use speculoos::prelude::*;
+
+    #[test]
+    fn deduct_fees_from_rewards_non_zero_fee() {
+        let mut rewards = vec![
+            AnsAsset::new("asset1".to_string(), 100u128),
+            AnsAsset::new("asset2".to_string(), 150u128),
+        ];
+        let performance_fee = Decimal::percent(10); // 10% fee
+
+        let fees = deduct_fees_from_rewards(&mut rewards, performance_fee);
+
+        // Check updated rewards
+        assert_that!(&rewards)
+            .contains(&AnsAsset::new("asset1".to_string(), 90u128)); // 10% deducted
+        assert_that!(&rewards)
+            .contains(&AnsAsset::new("asset2".to_string(), 135u128)); // 10% deducted
+
+        // Check fees
+        assert_that!(&fees)
+            .contains(&AnsAsset::new("asset1".to_string(), 10u128));
+        assert_that!(&fees)
+            .contains(&AnsAsset::new("asset2".to_string(), 15u128));
+    }
+
+    #[test]
+    fn deduct_fees_from_rewards_zero_fee() {
+        let mut rewards = vec![
+            AnsAsset::new("asset1".to_string(), 100u128),
+            AnsAsset::new("asset2".to_string(), 150u128),
+        ];
+        let performance_fee = Decimal::zero(); // 0% fee
+
+        let fees = deduct_fees_from_rewards(&mut rewards, performance_fee);
+
+        // Check updated rewards (should remain unchanged)
+        assert_that!(&rewards)
+            .contains(&AnsAsset::new("asset1".to_string(), 100u128));
+        assert_that!(&rewards)
+            .contains(&AnsAsset::new("asset2".to_string(), 150u128));
+
+        // Check fees (should be zero)
+        assert_that!(&fees).is_empty();
+    }
+
+    #[test]
+    fn deduct_fees_from_rewards_empty_rewards() {
+        let mut rewards = vec![];
+        let performance_fee = Decimal::percent(10); // 10% fee
+
+        let fees = deduct_fees_from_rewards(&mut rewards, performance_fee);
+
+        // Check that rewards are still empty
+        assert_that!(&rewards).is_empty();
+        // Check that fees are zero
+        assert_that!(&fees).is_empty();
+    }
+}
+
 }

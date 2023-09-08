@@ -29,7 +29,7 @@ fn deploy_autocompounder(
     // autocompounder.deploy(version)?;
     autocompounder.upload()?;
 
-    autocompounder.set_code_id(2418);
+    // autocompounder.set_code_id(241);
 
     let abstr = Abstract::<Daemon>::load_from(autocompounder.get_chain().to_owned())?;
             abstr

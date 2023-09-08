@@ -28,6 +28,7 @@
 //! ## Migration
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
+use abstract_core::objects::LpToken;
 use abstract_cw_staking::msg::StakingTarget;
 use abstract_dex_adapter::msg::OfferAsset;
 use abstract_sdk::core::app;
@@ -211,6 +212,15 @@ pub struct Config {
     pub min_unbonding_cooldown: Option<Duration>,
     /// maximum compound spread
     pub max_swap_spread: Decimal,
+}
+
+impl Config {
+    pub fn lp_token(&self) -> LpToken {
+        LpToken {
+            dex: self.pool_data.dex.clone(),
+            assets: self.pool_data.assets.clone(),
+        }
+    }
 }
 
 #[cosmwasm_schema::cw_serde]
