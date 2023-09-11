@@ -8,6 +8,9 @@ jobs:
       image: xd009642/tarpaulin
       options: --security-opt seccomp=unconfined
     steps:
+      # Removes unneccesary space according to https://github.com/orgs/community/discussions/25678#discussioncomment-5242449
+      - name: Clear cache
+        run: rm -rf /opt/hostedtoolcache 
       - name: Checkout repository
         uses: actions/checkout@v3
       - uses: webfactory/ssh-agent@v0.7.0
