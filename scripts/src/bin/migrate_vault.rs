@@ -58,20 +58,29 @@ fn migrate_vault(args: Arguments) -> anyhow::Result<()> {
     );
 
     let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
-    if vault.autocompounder.is_running_latest()? {
+    if !vault.autocompounder.latest_is_uploaded()? {
         println!(
-            "Vault is already running the latest registered version. Deploying new version. {}",
+            "Wasm hash on chain is outdated. Uploading and registering new version... {}",
             new_version
         );
-        autocompounder.deploy(new_version)?;
 
+        autocompounder.deploy(new_version).map_err(|e| {
+            println!("Error deploying. If its a version error, try do switch this part of the code to 
+            manual uploading and version registration, as that surpasses the version control. {:?}", e);
+            e
+        })?;
+    
         // // in case the .deploy function complains about versioning, use this:
         // // WARNING: This will overwrite the currently registered code for the version if it exists
         // autocompounder.upload()?;
         //     abstr
         // .version_control
         // .register_apps(vec![(autocompounder.as_instance(), version.to_string())])?;
+    } else {
+        println!("Vault is already uploaded. {}", new_version);
     }
+
+    println!("updating vault dependencies...");
 
     vault.update()?;
 
