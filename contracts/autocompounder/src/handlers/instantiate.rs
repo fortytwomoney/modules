@@ -3,7 +3,9 @@ use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::kujira_tx::format_tokenfactory_denom;
 use crate::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER};
-use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_SYMBOL};
+use crate::state::{
+    Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_IS_INITIALIZED, VAULT_TOKEN_SYMBOL,
+};
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_cw_staking::{
     msg::{StakingInfoResponse, StakingQueryMsg},
@@ -19,7 +21,7 @@ use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Env, MessageInfo, Response, Std
 use cw_asset::AssetInfo;
 use cw_utils::Duration;
 
-use super::helpers::create_vault_token_submsg;
+use super::helpers::{create_subdenom_from_pool_assets, create_vault_token_submsg};
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
@@ -119,6 +121,7 @@ pub fn instantiate_handler(
     };
 
     CONFIG.save(deps.storage, &config)?;
+    VAULT_TOKEN_IS_INITIALIZED.save(deps.storage, &false)?;
 
     let fee_config = FeeConfig {
         performance: performance_fees,
@@ -130,17 +133,22 @@ pub fn instantiate_handler(
     FEE_CONFIG.save(deps.storage, &fee_config)?;
 
     // create LP token SubMsg
+    let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
     let sub_msg = create_vault_token_submsg(
         env.contract.address.to_string(),
-        format!("4T2{pairing}"),
-        // pool data is too long
-        // format!("4T2 Vault Token for {pool_data}"),
-        VAULT_TOKEN_SYMBOL.to_string(), // TODO: find a better way to define name and symbol
+        subdenom,
         code_id, // if code_id is none, submsg will be like normal msg: no reply (for now).
     )?;
 
+    // quick fix to not mint denom if code_id is none. We cant mint denom without funds.
+    let sub_msgs = if code_id.is_some() {
+        vec![sub_msg]
+    } else {
+        vec![]
+    };
+
     Ok(Response::new()
-        .add_submessage(sub_msg)
+        .add_submessages(sub_msgs)
         .add_attribute("action", "instantiate")
         .add_attribute("contract", AUTOCOMPOUNDER))
 }

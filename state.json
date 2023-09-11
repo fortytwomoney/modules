@@ -48,7 +48,8 @@
         "abstract:manager": 2738,
         "abstract:module-factory": 2737,
         "abstract:proxy": 2739,
-        "abstract:version-control": 2735
+        "abstract:version-control": 2735,
+        "crates.io:cw1-general": 3386
       },
       "default": {
         "abstract:account-factory": "juno1gkk3a7nprf3x6ultdm32hhx0xvwlugt88nvs40a02ya6wq9u6uus83w3cf",
@@ -56,7 +57,30 @@
         "abstract:manager": "juno1jlqs59egawn8dx7ym3xyz3f9h8vz5ye0gvxpdn30tzq85vj74mssza43rk",
         "abstract:module-factory": "juno19nrr0hdumgd9sxxaqt06usg3wkt63rctr77v5xqtgfqpr5gmts2sksh6d3",
         "abstract:proxy": "juno1pcnjcyyh4e2l3lg9kpx32lmgnqr462svj83vj55c8ttzpdrypvqq4fe26q",
-        "abstract:version-control": "juno1ejsvsctqx69ge6yhfvd29ua48m0xm5chnxfvrnn8ds0ddvfurykq68jswp"
+        "abstract:version-control": "juno1ejsvsctqx69ge6yhfvd29ua48m0xm5chnxfvrnn8ds0ddvfurykq68jswp",
+        "crates.io:cw1-general": "juno173t554xcew25f8g87gp6clrgea5337aqz4maqlyf2lt7fvc55rrqqdnqn3"
+      }
+    }
+  },
+  "kujira": {
+    "harpoon-4": {
+      "code_ids": {
+        "4t2:autocompounder": 2419,
+        "abstract:account-factory": 2315,
+        "abstract:ans-host": 2313,
+        "abstract:manager": 2317,
+        "abstract:module-factory": 2316,
+        "abstract:proxy": 2318,
+        "abstract:version-control": 2314
+      },
+      "default": {
+        "4t2:autocompounder": "kujira13v4pe2gxdp5h4k57dz86ee2wturlmdsxpc6fdjky2z7z73sdfhyqr3wqgv",
+        "abstract:account-factory": "kujira1rlehpu6498uzj6yn23yaqr9tuqdjkfr65r7qjsg00y86ssfxayzs2rj9k5",
+        "abstract:ans-host": "kujira1glu0wrtg7hj2735tqava4yvqkshw3elg03qlp9dhp2f36w84ywfq9k4w8w",
+        "abstract:manager": "kujira1xz2gd3x0nvkv738dn0efzday76gr6t9q2dnjjt06qtxt0uwwu5gs8cmws7",
+        "abstract:module-factory": "kujira1x9fjglm0uckwduw9mnju4z557zpt9gkzul9cenl5dapjyqs6zmks5zvz6k",
+        "abstract:proxy": "kujira1ek7rh4gzpf5fhkve5jdqwpupl88059wkrz6rxame7r6l2l2f6t9qdl7wxa",
+        "abstract:version-control": "kujira1m4ndfxzjgldcgl3rgczuj9e8t5d0jqc7hzytt25e78xzcffpxlzslxtwm4"
       }
     }
   },
@@ -82,7 +106,7 @@
     },
     "pion-1": {
       "code_ids": {
-        "4t2:autocompounder": 1177,
+        "4t2:autocompounder": 1495,
         "4t2:fee-collector": 1400,
         "abstract:account-factory": 1286,
         "abstract:ans-host": 1284,
@@ -92,11 +116,13 @@
         "abstract:version-control": 1285
       },
       "default": {
+        "4t2:autocompounder": "neutron1yg5n98qq2pm8ms4f37fx8k8uvtzmmaum352va6yd85rk8fgtfzjse48ern",
         "abstract:account-factory": "neutron1nw4waa8lsjfq5a3x96h0ekscqfy0dn6fez7yy597ph3r8weurqsq49udpm",
         "abstract:ans-host": "neutron1fcmwjrfjw9z306m8cy5d9j2c50xxxtjdgnyzq4yjdht95cm8mj0q3pj8rm",
-        "abstract:manager": "neutron1gze9yud8mmlvpecpptvhw7j3njf2gwtyhswj7q9jl50q9gyx7wuqfuarq4",
+        "abstract:cw-staking": "neutron14wtwr3s9veaxz4fjdccc8x0x3atw0yecsnhwsajm6q9x2eyce6cqq0y2f5",
+        "abstract:manager": "neutron1z30ngun68gn69v608net79tg4avkvl8pe7ew7vf3y5emumw6ahzqtr0l2k",
         "abstract:module-factory": "neutron1aujd27w8q7v2yvprh5m8xlz47e6czl069snehwudtgk3g3qu8huqrsvvgs",
-        "abstract:proxy": "neutron1gdutu5mptq8geettvlt2pz9teq5c5p7sv3lsfgnh6cklhw0knrhquu54h7",
+        "abstract:proxy": "neutron1avf6xaxcf28yr43laqnkud8m8zxfd9zz5r4z50c58z9fw7yllegsg5554g",
         "abstract:version-control": "neutron1fetr8pjntvzl7pzkvyg4d3lz9qyjta6tmfc3pw6hj2nafatguyhqrqt79f"
       }
     }
@@ -159,27 +185,6 @@
         "abstract:module-factory": "terra103w4wwq3mvma62h74muycqp3dzlk5g0a37ze569rzlv7pghd86ps5jdxg2",
         "abstract:proxy": "terra19wanxdg87e7hwesuk2cr8xvpf4j097ql6q4twfkk4t83vwwqynfsw6eug8",
         "abstract:version-control": "terra17kwvwlmlcvf6cj0yjj4a5ff9u9vtd95jcl5zg0reznm0n3xt2l6qpmymqp"
-      }
-    }
-  },
-  "kujira": {
-    "harpoon-4": {
-      "code_ids": {
-        "abstract:account-factory": 2315,
-        "abstract:ans-host": 2313,
-        "abstract:manager": 2317,
-        "abstract:module-factory": 2316,
-        "abstract:proxy": 2318,
-        "abstract:version-control": 2314,
-        "4t2:autocompounder": 2389
-      },
-      "default": {
-        "abstract:account-factory": "kujira1rlehpu6498uzj6yn23yaqr9tuqdjkfr65r7qjsg00y86ssfxayzs2rj9k5",
-        "abstract:ans-host": "kujira1glu0wrtg7hj2735tqava4yvqkshw3elg03qlp9dhp2f36w84ywfq9k4w8w",
-        "abstract:manager": "kujira179yhwynmfdwufwagecxs4xnwheccnz567545yxtl70jsmrwlyhpsk0fw3r",
-        "abstract:module-factory": "kujira1x9fjglm0uckwduw9mnju4z557zpt9gkzul9cenl5dapjyqs6zmks5zvz6k",
-        "abstract:proxy": "kujira1d920d2n733vngw3sc7vth7p2lwyrt4ksj70amm3fqcl375n4fj9s8pzt96",
-        "abstract:version-control": "kujira1m4ndfxzjgldcgl3rgczuj9e8t5d0jqc7hzytt25e78xzcffpxlzslxtwm4"
       }
     }
   }

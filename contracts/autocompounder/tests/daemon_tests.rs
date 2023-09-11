@@ -72,7 +72,7 @@ pub fn denom_query_msgs() {
 
     // remove the denom from the supply_of_coin string
     let supply_of_coin = supply_of_coin.replace("ukuji", "");
-    assert_that!(supply_of_coin).is_equal_to(supply.amount.to_string());
+    assert_that!(supply_of_coin).is_equal_to(supply.amount);
 
     // query token factory params
     let response =
@@ -135,11 +135,7 @@ fn tokenfactory_create_mint_burn() {
 
     let tx_response = rt.block_on(simulate_any_msg(
         &wallet,
-        vec![
-            create_denom_msg.clone(),
-            any_mint_msg.clone(),
-            any_burn_msg.clone(),
-        ],
+        vec![create_denom_msg, any_mint_msg, any_burn_msg],
         timeout_height,
     ));
 

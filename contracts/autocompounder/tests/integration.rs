@@ -218,7 +218,7 @@ fn deposit_cw20_asset() -> AResult {
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
     let user1 = Addr::unchecked(common::USER1);
     let mock = Mock::new(&owner);
-    let vault = crate::create_vault(mock.clone(), RAW_TOKEN, RAW_2_TOKEN, true)?;
+    let vault = crate::create_vault(mock, RAW_TOKEN, RAW_2_TOKEN, true)?;
     let WynDex {
         raw_token,
         raw_2_token,
@@ -263,7 +263,7 @@ fn deposit_cw20_asset() -> AResult {
     vault.auto_compounder.deposit(
         vec![
             AnsAsset::new(raw_asset.clone(), amount),
-            AnsAsset::new(raw2_asset.clone(), amount),
+            AnsAsset::new(raw2_asset, amount),
         ],
         None,
         None,
@@ -300,11 +300,10 @@ fn deposit_cw20_asset() -> AResult {
     assert_that!(new_position).is_greater_than(position);
 
     let redeem_amount = Uint128::from(4000u128 * 10u128.pow(DECIMAL_OFFSET));
-    vault.vault_token.call_as(&owner).increase_allowance(
-        redeem_amount,
-        _ac_addres.clone(),
-        None,
-    )?;
+    vault
+        .vault_token
+        .call_as(&owner)
+        .increase_allowance(redeem_amount, _ac_addres, None)?;
     vault.auto_compounder.redeem(redeem_amount, None)?;
 
     // check that the vault token decreased
@@ -444,7 +443,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     assert_that!(generator_staked_balance.stake.u128()).is_equal_to(6000u128);
 
     let redeem_amount = Uint128::from(60000u128);
-    vault_token.increase_allowance(redeem_amount, auto_compounder_addr.clone(), None)?;
+    vault_token.increase_allowance(redeem_amount, auto_compounder_addr, None)?;
     vault.auto_compounder.redeem(redeem_amount, None)?;
 
     vault.auto_compounder.batch_unbond(None, None)?;
@@ -530,8 +529,8 @@ fn deposit_with_recipient() -> AResult {
         .auto_compounder
         .deposit(
             vec![
-                AnsAsset::new(eur_asset.clone(), 10000u128),
-                AnsAsset::new(usd_asset.clone(), 10000u128),
+                AnsAsset::new(eur_asset, 10000u128),
+                AnsAsset::new(usd_asset, 10000u128),
             ],
             None,
             Some(vault.account.proxy.address()?),
@@ -778,7 +777,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     vault.auto_compounder.set_sender(&user1);
     vault_token.set_sender(&user1);
     let redeem_amount = vault_token_balance_user1;
-    vault_token.increase_allowance(redeem_amount, auto_compounder_addr.clone(), None)?;
+    vault_token.increase_allowance(redeem_amount, auto_compounder_addr, None)?;
     vault.auto_compounder.redeem(redeem_amount, None)?;
 
     let pending_claims = vault.auto_compounder.pending_claims(user1.clone())?.into();
@@ -906,7 +905,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
 
     // Redeem vault tokens and create pending claim of user tokens to see if the user actually received more of EUR and USD then they deposited
     let redeem_amount = vault_token_balance.balance;
-    vault_token.increase_allowance(redeem_amount, auto_compounder_addr.clone(), None)?;
+    vault_token.increase_allowance(redeem_amount, auto_compounder_addr, None)?;
     vault.auto_compounder.redeem(redeem_amount, None)?;
 
     // Unbond tokens & clear pending claims
@@ -1547,7 +1546,7 @@ fn vault_token_inflation_attack_original() -> AResult {
     mock.wait_blocks(1)?;
     vault.auto_compounder.batch_unbond(None, None)?;
 
-    let claim: Vec<Claim> = vault.auto_compounder.claims(attacker.clone())?;
+    let claim: Vec<Claim> = vault.auto_compounder.claims(attacker)?;
     assert_that!(claim.first().unwrap().amount_of_lp_tokens_to_unbond.u128())
         .is_less_than_or_equal_to(attacker_donation);
     // attackers donation is higher than the amount it retreives from the attack!

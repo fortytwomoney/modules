@@ -68,6 +68,8 @@ deploy network +args='':
   just wasm-contract autocompounder
   just deploy-contract autocompounder {{network}}
 
+migrate-vault network account-id +args='':
+  cargo +nightly run --bin migrate_vault -- --network-id {{network}} --account-id {{account-id}} {{args}}
 
 create-fee-collector network fee_asset commission_addr +args='':
   cargo +nightly run --bin init_fee_collector -- --network-id {{network}} --fee-asset {{fee_asset}} --commission-addr {{commission_addr}} {{args}}

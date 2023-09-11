@@ -1,4 +1,6 @@
+use autocompounder::interface::AutocompounderApp;
 use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
+use autocompounder::msg::AutocompounderExecuteMsgFns;
 use cw_orch::daemon::DaemonBuilder;
 use cw_orch::deploy::Deploy;
 use cw_orch::environment::{CwEnv, TxResponse};
@@ -9,7 +11,6 @@ use std::sync::Arc;
 
 use abstract_core::{
     account_factory, adapter, app,
-    manager::ExecuteMsgFns,
     objects::module::ModuleInfo,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
     registry::{ANS_HOST, MANAGER, PROXY},
@@ -19,7 +20,7 @@ use abstract_cw_staking::CW_STAKING;
 use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
 
 use clap::Parser;
-use cosmwasm_std::{Addr, Decimal, Empty};
+use cosmwasm_std::{coin, Addr, Decimal, Empty};
 use cw_orch::daemon::networks::parse_network;
 
 use autocompounder::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER};
@@ -74,7 +75,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         "pisco-1" => ("astroport", "terra2>luna", Some(83)),
         "phoenix-1" => ("astroport", "terra2>luna", Some(69)),
         "osmo-test-5" => ("osmosis5", "osmosis5>osmo", Some(1)),
-        "harpoon-1" => ("kujira", "kujira>kujira", None),
+        "harpoon-4" => ("kujira", "kujira>kuji", None),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
 
@@ -100,7 +101,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         if balance < TOKEN_FACTORY_CREATION_FEE {
             panic!("Not enough ukuji to pay for token factory creation fee");
         }
-        panic!("There is no way to provide the ac instantiation with funds at the moment");
     }
 
     let abstr = Abstract::load_from(chain.clone())?;
@@ -113,7 +113,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     } else {
         create_vault_account(
             &abstr.account_factory,
-            chain,
+            chain.clone(),
             GovernanceDetails::Monarchy {
                 monarch: sender.to_string(),
             },
@@ -136,16 +136,14 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     }
 
     // First uninstall autocompounder if found
-    if account.manager.is_module_installed(AUTOCOMPOUNDER)? {
-        account
-            .manager
-            .uninstall_module(AUTOCOMPOUNDER.to_string())?;
-    }
+    // if account.manager.is_module_installed(AUTOCOMPOUNDER)? {
+    //     account
+    //         .manager
+    //         .uninstall_module(AUTOCOMPOUNDER.to_string())?;
+    // }
 
     // Install both modules
-    let new_module_version = ModuleVersion::from(MODULE_VERSION);
-
-    // account.manager.install_module(CW_STAKING, &Empty {})?;
+    let new_module_version = ModuleVersion::Version(args.ac_version.unwrap_or(MODULE_VERSION.to_string()));
 
     account.manager.install_module_version(
         AUTOCOMPOUNDER,
@@ -205,6 +203,12 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         ),
     )?;
 
+    if cw20_code_id.is_none() {
+        let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
+        autocompounder.set_address(&autocompounder_address);
+        autocompounder.create_denom(&[coin(100_000_000, "ukuji")])?;
+    }
+
     Ok(())
 }
 
@@ -223,8 +227,9 @@ struct Arguments {
     /// Network to deploy on
     #[arg(short, long)]
     network_id: String,
-    // #[arg(short, long)]
-    // dex: String,
+    /// Autocompounder version to deploy. None means latest
+    #[arg(long)]
+    ac_version: Option<String>,
 }
 
 fn main() {

@@ -1,17 +1,20 @@
 use crate::contract::INSTANTIATE_REPLY_ID;
 
 use crate::kujira_tx::encode_query_supply_of;
+
 use crate::kujira_tx::tokenfactory_burn_msg;
 use crate::kujira_tx::tokenfactory_create_denom_msg;
 use crate::kujira_tx::tokenfactory_mint_msg;
 use crate::msg::Config;
 use crate::state::DECIMAL_OFFSET;
 
+use crate::state::VAULT_TOKEN_SYMBOL;
 use crate::{
     contract::{AutocompounderApp, AutocompounderResult},
     error::AutocompounderError,
 };
 use abstract_core::objects::AnsAsset;
+use abstract_core::objects::PoolMetadata;
 use abstract_cw_staking::{msg::*, CW_STAKING};
 use abstract_dex_adapter::api::Dex;
 use abstract_sdk::AdapterInterface;
@@ -54,14 +57,13 @@ pub fn query_supply_with_stargate(deps: Deps, denom: &str) -> AutocompounderResu
 /// create a SubMsg to instantiate the Vault token with either the tokenfactory(kujira) or a cw20.
 pub fn create_vault_token_submsg(
     minter: String,
-    name: String,
-    symbol: String,
+    subdenom: String,
     code_id: Option<u64>,
 ) -> Result<SubMsg, StdError> {
     if let Some(code_id) = code_id {
         let msg = TokenInstantiateMsg {
-            name,
-            symbol,
+            name: subdenom,
+            symbol: VAULT_TOKEN_SYMBOL.to_string(),
             decimals: 6,
             initial_balances: vec![],
             mint: Some(MinterResponse { minter, cap: None }),
@@ -81,7 +83,7 @@ pub fn create_vault_token_submsg(
             reply_on: ReplyOn::Success,
         })
     } else {
-        let cosmos_msg = tokenfactory_create_denom_msg(minter, symbol)?;
+        let cosmos_msg = tokenfactory_create_denom_msg(minter, subdenom)?;
         let sub_msg = SubMsg {
             msg: cosmos_msg,
             gas_limit: None,
@@ -92,6 +94,7 @@ pub fn create_vault_token_submsg(
         Ok(sub_msg)
     }
 }
+// factory/cosmos2contract/V-4T2/wyndex:eur,usd:constant_product
 
 /// parses the instantiate reply to get the contract address of the vault token or None if kujira. for kujira the denom is already set in instantiate.
 pub fn parse_instantiate_reply_cw20(
@@ -229,6 +232,14 @@ pub fn stake_lp_tokens(
             },
         },
     )
+}
+
+pub fn create_subdenom_from_pool_assets(pool_data: &PoolMetadata) -> String {
+    let mut full_denom = format!("VT_4T2/{}", pool_data)
+        .replace(',', "_")
+        .replace('>', "-");
+    full_denom.truncate(50);
+    full_denom
 }
 
 /// Convert vault tokens to lp assets
@@ -455,11 +466,10 @@ pub mod helpers_tests {
     #[test]
     fn test_create_lp_token_submsg_with_code_id() {
         let minter = "minter".to_string();
-        let name = "name".to_string();
-        let symbol = "symbol".to_string();
+        let subdenom = "subdenom".to_string();
         let code_id = Some(1u64);
-        let result =
-            create_vault_token_submsg(minter.clone(), name.clone(), symbol.clone(), code_id);
+
+        let result = create_vault_token_submsg(minter, subdenom, code_id);
         assert_that!(result).is_ok();
 
         let submsg = result.unwrap();
@@ -470,9 +480,8 @@ pub mod helpers_tests {
     #[test]
     fn test_create_lp_token_submsg_without_code_id() {
         let minter = "minter".to_string();
-        let name = "name".to_string();
-        let symbol = "symbol".to_string();
-        let result = create_vault_token_submsg(minter.clone(), name.clone(), symbol.clone(), None);
+
+        let result = create_vault_token_submsg(minter, "subdenom".to_string(), None);
         assert!(result.is_ok());
 
         let submsg = result.unwrap();
@@ -591,13 +600,41 @@ pub mod helpers_tests {
             amount: Uint128::zero(),
             name: AssetEntry::new("token"),
         };
-        let msgs = transfer_to_msgs(
-            &AUTOCOMPOUNDER_APP,
-            deps.as_ref(),
-            asset.clone(),
-            recipient.clone(),
-        )
-        .unwrap();
+        let msgs = transfer_to_msgs(&AUTOCOMPOUNDER_APP, deps.as_ref(), asset, recipient).unwrap();
         assert_eq!(msgs.len(), 0);
+    }
+
+    mod denom {
+        use super::*;
+        use abstract_core::objects::PoolMetadata;
+
+        fn eur_usd_pool() -> PoolMetadata {
+            PoolMetadata::new(
+                "wyndex",
+                abstract_core::objects::PoolType::ConstantProduct,
+                vec![AssetEntry::new("juno/eur"), AssetEntry::new("juno/usd")],
+            )
+        }
+        fn eur_usd_pool_long() -> PoolMetadata {
+            PoolMetadata::new(
+                "wyndex",
+                abstract_core::objects::PoolType::ConstantProduct,
+                vec![
+                    AssetEntry::new("neutron/eur"),
+                    AssetEntry::new("neutron/usd"),
+                ],
+            )
+        }
+
+        #[test]
+        fn create_denom_from_pool() {
+            let pool = eur_usd_pool();
+            let denom = create_subdenom_from_pool_assets(&pool);
+            assert_eq!(denom, "VT_4T2/wyndex:juno/eur_juno/usd:constant_product");
+
+            let long_pool = eur_usd_pool_long();
+            let denom = create_subdenom_from_pool_assets(&long_pool);
+            assert_eq!(denom, "VT_4T2/wyndex:neutron/eur_neutron/usd:constant_pro");
+        }
     }
 }

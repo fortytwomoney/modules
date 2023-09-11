@@ -244,7 +244,7 @@ mod test {
                 .save(deps.as_mut().storage, user.clone(), expected_claims)
                 .unwrap();
 
-            let claims = query_claims(deps.as_ref(), user.clone()).unwrap();
+            let claims = query_claims(deps.as_ref(), user).unwrap();
             assert_eq!(claims.len(), 2);
             assert_that!(claims).is_equal_to(expected_claims)
         }
@@ -313,7 +313,7 @@ mod test {
             assert_that!(claims[1].1).is_equal_to(&user2_claims.clone());
 
             // Test with pagination and start_after
-            let claims = query_all_claims(deps.as_ref(), Some(user1.clone()), Some(2)).unwrap();
+            let claims = query_all_claims(deps.as_ref(), Some(user1), Some(2)).unwrap();
             assert_eq!(claims.len(), 2);
             assert_eq!(claims[0].0, user2);
             assert_that!(claims[0].1).is_equal_to(user2_claims);

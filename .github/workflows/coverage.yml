@@ -8,11 +8,26 @@ jobs:
       image: xd009642/tarpaulin
       options: --security-opt seccomp=unconfined
     steps:
+      # Removes unneccesary space according to https://github.com/orgs/community/discussions/25678#discussioncomment-5242449
+      - name: Clear cache
+        run: rm -rf /opt/hostedtoolcache 
       - name: Checkout repository
         uses: actions/checkout@v3
       - uses: webfactory/ssh-agent@v0.7.0
         with:
           ssh-private-key: ${{ secrets.ABSTRACT_SSH_PRIVATE_KEY }}
+      - name: Disable debuginfo generation
+        # Disable full debug symbol generation to speed up CI build and keep memory down
+        # "1" means line tables only, which is useful for panic tracebacks.
+        shell: bash
+        run: echo "RUSTFLAGS=-C debuginfo=1" >> $GITHUB_ENV
+      - name: Disable incremental compilation
+      # Disable incremental compilation to save diskspace (the CI doesn't recompile modified files)
+      # https://github.com/apache/arrow-datafusion/issues/6676
+        shell: bash
+        # run: |
+        #   echo 'rustflags = ["-C", "incremental=no"]' >> $GITHUB_WORKSPACE/contracts/Cargo.toml
+        run: echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
       - name: Fix git ownership
         run: |
           git config --global --add safe.directory /__w/contracts/contracts
