@@ -43,6 +43,11 @@ pub fn migrate_handler(
             Ok(Response::default()
                 .add_attribute("migration", format!("v0.7.- -> ${}", CURRENT_VERSION)))
         }
+        "0.8.0" => {
+            VAULT_TOKEN_IS_INITIALIZED.save(deps.storage, &true)?;
+            Ok(Response::default()
+                .add_attribute("migration", format!("v0.7.- -> ${}", CURRENT_VERSION)))
+        }
         _ => Err(crate::error::AutocompounderError::Std(
             StdError::generic_err("version migration not supported"),
         )),

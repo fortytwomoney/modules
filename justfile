@@ -55,6 +55,12 @@ wasm-contract module +args='':
 # Wasm all the contracts in the repository for the given chain
 wasm chain_name:
   just wasm-contract autocompounder --features export --no-default-features
+  cp target/wasm32-unknown-unknown/release/autocompounder.wasm artifacts 
+
+wasm-ac:
+  just wasm-contract autocompounder --features export --no-default-features
+  cp target/wasm32-unknown-unknown/release/autocompounder.wasm artifacts 
+
 
 # Deploy a module to the chain
 # ??? deploy-module module +args='': (wasm-module module)

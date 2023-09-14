@@ -143,7 +143,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     // }
 
     // Install both modules
-    let new_module_version = ModuleVersion::Version(args.ac_version.unwrap_or(MODULE_VERSION.to_string()));
+    let new_module_version =
+        ModuleVersion::Version(args.ac_version.unwrap_or(MODULE_VERSION.to_string()));
 
     account.manager.install_module_version(
         AUTOCOMPOUNDER,
