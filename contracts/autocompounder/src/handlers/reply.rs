@@ -20,7 +20,7 @@ use abstract_dex_adapter::api::DexInterface;
 use abstract_dex_adapter::msg::OfferAsset;
 use abstract_sdk::Execution;
 use abstract_sdk::{
-    core::objects::{AnsAsset, PoolMetadata},
+    core::objects::AnsAsset,
     features::AbstractResponse,
     features::{AbstractNameService, AccountIdentification},
     AbstractSdkResult, Resolve, TransferInterface,
@@ -92,7 +92,7 @@ pub fn lp_provision_reply(
         deps.as_ref(),
         &app,
         config.pool_data.dex.clone(),
-        AnsEntryConvertor::new(lp_token.clone()).asset_entry(),
+        config.lp_asset_entry(),
         config.unbonding_period,
     )?;
 
@@ -324,9 +324,7 @@ pub fn compound_lp_provision_reply(
     let ans_host = app.ans_host(deps.as_ref())?;
     let proxy = app.proxy_address(deps.as_ref())?;
 
-    let lp_token =
-        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token())
-            .asset_entry();
+    let lp_token = config.lp_asset_entry();
 
     // query balance of lp tokens
     let lp_balance = lp_token
@@ -350,14 +348,13 @@ pub fn compound_lp_provision_reply(
 fn query_rewards(
     deps: Deps,
     app: &AutocompounderApp,
-    pool_data: PoolMetadata,
+    config: &Config,
 ) -> AbstractSdkResult<Vec<AssetInfo>> {
     // query staking module for which rewards are available
     let adapters = app.adapters(deps);
     let query = StakingQueryMsg::RewardTokens {
-        provider: pool_data.dex.clone(),
-        staking_token: AnsEntryConvertor::new(AnsEntryConvertor::new(pool_data).lp_token())
-            .asset_entry(),
+        provider: config.pool_data.dex.clone(),
+        staking_token: config.lp_asset_entry(),
     };
     let RewardTokensResponse { tokens } = adapters.query(CW_STAKING, query)?;
     Ok(tokens)
@@ -370,7 +367,7 @@ fn get_staking_rewards(
     config: &Config,
 ) -> AbstractSdkResult<Vec<AnsAsset>> {
     let ans_host = app.ans_host(deps)?;
-    let rewards = query_rewards(deps, app, config.pool_data.clone())?;
+    let rewards = query_rewards(deps, app, config)?;
     // query balance of rewards
     let rewards = rewards
         .into_iter()

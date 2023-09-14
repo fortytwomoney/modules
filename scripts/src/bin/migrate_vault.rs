@@ -1,7 +1,6 @@
 use anyhow::Ok;
 use autocompounder::interface::{AutocompounderApp, Vault};
 
-
 use cw_orch::daemon::DaemonBuilder;
 use cw_orch::deploy::Deploy;
 
@@ -10,17 +9,13 @@ use semver::Version;
 use std::env;
 use std::sync::Arc;
 
-
-
-use abstract_interface::{
-    Abstract, AppDeployer, ManagerQueryFns,
-};
+use abstract_interface::{Abstract, AppDeployer, ManagerQueryFns};
 
 use clap::Parser;
 
 use cw_orch::daemon::networks::parse_network;
 
-use autocompounder::msg::{AUTOCOMPOUNDER};
+use autocompounder::msg::AUTOCOMPOUNDER;
 
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -65,11 +60,14 @@ fn migrate_vault(args: Arguments) -> anyhow::Result<()> {
         );
 
         autocompounder.deploy(new_version).map_err(|e| {
-            println!("Error deploying. If its a version error, try do switch this part of the code to 
-            manual uploading and version registration, as that surpasses the version control. {:?}", e);
+            println!(
+                "Error deploying. If its a version error, try do switch this part of the code to 
+            manual uploading and version registration, as that surpasses the version control. {:?}",
+                e
+            );
             e
         })?;
-    
+
         // // in case the .deploy function complains about versioning, use this:
         // // WARNING: This will overwrite the currently registered code for the version if it exists
         // autocompounder.upload()?;
