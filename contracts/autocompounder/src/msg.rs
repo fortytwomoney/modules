@@ -28,7 +28,7 @@
 //! ## Migration
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
-use abstract_core::objects::LpToken;
+use abstract_core::objects::{AnsEntryConvertor, LpToken};
 use abstract_cw_staking::msg::StakingTarget;
 use abstract_dex_adapter::msg::OfferAsset;
 use abstract_sdk::core::app;
@@ -220,6 +220,10 @@ impl Config {
             dex: self.pool_data.dex.clone(),
             assets: self.pool_data.assets.clone(),
         }
+    }
+
+    pub fn lp_asset_entry(&self) -> AssetEntry {
+        AnsEntryConvertor::new(self.lp_token()).asset_entry()
     }
 }
 

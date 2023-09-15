@@ -419,8 +419,6 @@ fn deposit_lp(
         return Err(AutocompounderError::SenderIsNotLpToken {});
     };
 
-    // let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
-
     // transfer the asset to the proxy contract
     let transfer_msg = transfer_token_to_proxy(lp_token, info.sender, &app, deps.as_ref())?;
 
@@ -511,18 +509,18 @@ fn transfer_token_to_proxy(
 }
 
 fn transfer_token_to_autocompounder(
-    lp_token: Asset,
+    asset: Asset,
     sender: Addr,
     env: &Env,
 ) -> Result<Vec<CosmosMsg>, AutocompounderError> {
-    match lp_token.info.clone() {
-        AssetInfoBase::Cw20(_addr) => Ok(vec![Asset::cw20(_addr, lp_token.amount)
+    match asset.info.clone() {
+        AssetInfoBase::Cw20(addr) => Ok(vec![Asset::cw20(addr, asset.amount)
             .transfer_from_msg(sender, env.contract.address.clone())
             .map_err(|e| -> AutocompounderError { e.into() })?]),
         AssetInfoBase::Native(_denom) => Ok(vec![]),
         _ => Err(AutocompounderError::AssetError(
             cw_asset::AssetError::InvalidAssetFormat {
-                received: lp_token.to_string(),
+                received: asset.to_string(),
             },
         )),
     }
@@ -655,32 +653,25 @@ fn redeem(
     )?;
     let config = CONFIG.load(deps.storage)?;
 
-    let redeem_token = AssetBase::new(
-        config.vault_token.clone(),
-        amount_of_vault_tokens_to_be_burned,
-    );
-    let transfer_msgs = transfer_token_to_autocompounder(redeem_token, sender, &env)?;
-
     if config.unbonding_period.is_none() {
         redeem_without_bonding_period(
             deps,
             &env,
             &recipient,
+            sender,
             config,
             &app,
             amount_of_vault_tokens_to_be_burned,
         )
     } else {
-        register_pre_claim(deps, recipient.clone(), amount_of_vault_tokens_to_be_burned)?;
-
-        Ok(app.custom_tag_response(
-            Response::new().add_messages(transfer_msgs),
-            "claim_registered",
-            vec![
-                ("recipient", recipient.to_string()),
-                ("amount", amount_of_vault_tokens_to_be_burned.to_string()),
-            ],
-        ))
+        receive_and_register_claim(
+            deps,
+            &env,
+            app,
+            recipient,
+            sender,
+            amount_of_vault_tokens_to_be_burned,
+        )
     }
 }
 
@@ -689,21 +680,51 @@ fn redeem(
 /// The claim will be processed in the next batch unbonding
 fn register_pre_claim(
     deps: DepsMut,
-    sender: Addr,
+    for_address: Addr,
     amount_of_vault_tokens_to_be_burned: Uint128,
 ) -> Result<(), AutocompounderError> {
     // if bonding period is set, we need to register the user's pending claim, that will be processed in the next batch unbonding
-    if let Some(pending_claim) = PENDING_CLAIMS.may_load(deps.storage, sender.clone())? {
+    if let Some(pending_claim) = PENDING_CLAIMS.may_load(deps.storage, for_address.clone())? {
         let new_pending_claim = pending_claim
             .checked_add(amount_of_vault_tokens_to_be_burned)
             .unwrap();
-        PENDING_CLAIMS.save(deps.storage, sender, &new_pending_claim)?;
+        PENDING_CLAIMS.save(deps.storage, for_address, &new_pending_claim)?;
     // if not, we just store a new claim
     } else {
-        PENDING_CLAIMS.save(deps.storage, sender, &amount_of_vault_tokens_to_be_burned)?;
+        PENDING_CLAIMS.save(
+            deps.storage,
+            for_address,
+            &amount_of_vault_tokens_to_be_burned,
+        )?;
     }
 
     Ok(())
+}
+
+fn receive_and_register_claim(
+    deps: DepsMut,
+    env: &Env,
+    app: AutocompounderApp,
+    recipient: Addr,
+    sender: Addr,
+    amount_of_vault_tokens_to_be_burned: Uint128,
+) -> AutocompounderResult {
+    let config = CONFIG.load(deps.as_ref().storage)?;
+
+    // transfer vault tokens to the autocompounder contract
+    let vault_token = AssetBase::new(config.vault_token, amount_of_vault_tokens_to_be_burned);
+    let transfer_msgs = transfer_token_to_autocompounder(vault_token, sender, env)?;
+
+    register_pre_claim(deps, recipient.clone(), amount_of_vault_tokens_to_be_burned)?;
+
+    Ok(app.custom_tag_response(
+        Response::new().add_messages(transfer_msgs),
+        "claim_registered",
+        vec![
+            ("recipient", recipient.to_string()),
+            ("amount", amount_of_vault_tokens_to_be_burned.to_string()),
+        ],
+    ))
 }
 
 /// Redeems the vault tokens without a bonding period.
@@ -711,15 +732,22 @@ fn register_pre_claim(
 fn redeem_without_bonding_period(
     deps: DepsMut,
     env: &Env,
-    sender: &Addr,
+    recipient: &Addr,
+    sender: Addr,
     config: Config,
     app: &AutocompounderApp,
     amount_of_vault_tokens_to_be_burned: Uint128,
 ) -> Result<Response, AutocompounderError> {
     let fee_config = FEE_CONFIG.load(deps.storage)?;
 
+    let vault_token_asset = AssetBase::new(
+        config.vault_token.clone(),
+        amount_of_vault_tokens_to_be_burned,
+    );
+    let transfer_msgs = transfer_token_to_autocompounder(vault_token_asset, sender, env)?;
+
     // save the user address and the assets owned by the contract to the cache for later use in reply
-    CACHED_USER_ADDR.save(deps.storage, sender)?;
+    CACHED_USER_ADDR.save(deps.storage, recipient)?;
     let owned_assets = app.bank(deps.as_ref()).balances(&config.pool_data.assets)?;
     owned_assets.into_iter().try_for_each(|asset| {
         CACHED_ASSETS
@@ -730,14 +758,14 @@ fn redeem_without_bonding_period(
 
     // 1) get the total supply of Vault token
     let total_supply_vault = vault_token_total_supply(deps.as_ref(), &config)?;
-    let lp_token = AnsEntryConvertor::new(config.pool_data.clone()).lp_token();
+    let lp_asset_entry = config.lp_asset_entry();
 
     // 2) get total staked lp token
     let total_lp_tokens_staked_in_vault = query_stake(
         deps.as_ref(),
         app,
         config.pool_data.dex.clone(),
-        AnsEntryConvertor::new(lp_token).asset_entry(),
+        lp_asset_entry.clone(),
         None,
     )?;
 
@@ -756,8 +784,7 @@ fn redeem_without_bonding_period(
         deps.as_ref(),
         app,
         config.pool_data.dex.clone(),
-        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token())
-            .asset_entry(),
+        lp_asset_entry.clone(),
         lp_tokens_withdraw_amount,
         None,
     );
@@ -768,14 +795,15 @@ fn redeem_without_bonding_period(
     )?;
 
     // 3) withdraw lp tokens
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
-    let withdraw_msg: CosmosMsg = dex.withdraw_liquidity(
-        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data).lp_token()).asset_entry(),
-        lp_tokens_withdraw_amount,
-    )?;
+    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
+    let withdraw_msg: CosmosMsg =
+        dex.withdraw_liquidity(lp_asset_entry, lp_tokens_withdraw_amount)?;
     let sub_msg = SubMsg::reply_on_success(withdraw_msg, LP_WITHDRAWAL_REPLY_ID);
 
+    // TODO: Check all the lp_token() calls and make sure they are everywhere.
+
     let response = Response::new()
+        .add_messages(transfer_msgs)
         .add_message(unstake_msg)
         .add_message(burn_msg)
         .add_submessage(sub_msg);
@@ -803,7 +831,7 @@ fn compound(deps: DepsMut, app: AutocompounderApp) -> AutocompounderResult {
         deps.as_ref(),
         &app,
         config.pool_data.dex.clone(),
-        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data).lp_token()).asset_entry(),
+        config.lp_asset_entry(),
     );
     let claim_submsg = SubMsg {
         id: LP_COMPOUND_REPLY_ID,
@@ -878,16 +906,13 @@ pub fn withdraw_claims(
         deps.as_ref(),
         &app,
         config.pool_data.dex.clone(),
-        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data.clone()).lp_token())
-            .asset_entry(),
+        config.lp_asset_entry(),
     );
 
     // 3) withdraw lp tokens
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
-    let withdraw_msg: CosmosMsg = dex.withdraw_liquidity(
-        AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data).lp_token()).asset_entry(),
-        lp_tokens_to_withdraw,
-    )?;
+    let withdraw_msg: CosmosMsg =
+        dex.withdraw_liquidity(config.lp_asset_entry(), lp_tokens_to_withdraw)?;
     let sub_msg = SubMsg::reply_on_success(withdraw_msg, LP_WITHDRAWAL_REPLY_ID);
 
     let response = Response::new()
@@ -1102,72 +1127,6 @@ mod test {
         msg: impl Into<ExecuteMsg>,
     ) -> Result<Response, AutocompounderError> {
         execute_as(deps, TEST_MANAGER, msg, &[])
-    }
-
-    #[test]
-    fn test_redeem_without_bonding_period() -> anyhow::Result<()> {
-        let mut deps = app_init(false, true);
-        let config = min_cooldown_config(None, false);
-        let sender = Addr::unchecked("sender");
-        let amount = Uint128::new(100);
-
-        let err = CACHED_ASSETS.load(&deps.storage, "native:eur".to_string());
-        assert_that!(err).is_err();
-
-        // 1. set up the balances(1000eur, 1000usd) of the proxy contract in the bank
-        deps.querier.update_balance(
-            TEST_PROXY,
-            vec![
-                Coin {
-                    denom: "eur".to_string(),
-                    amount: Uint128::new(1000),
-                },
-                Coin {
-                    denom: "usd".to_string(),
-                    amount: Uint128::new(1000),
-                },
-            ],
-        );
-
-        let response = redeem_without_bonding_period(
-            deps.as_mut(),
-            &mock_env(),
-            &sender,
-            config.clone(),
-            &AUTOCOMPOUNDER_APP,
-            amount,
-        )?;
-
-        // The sender addr should be cached
-        assert_that!(CACHED_USER_ADDR.load(&deps.storage)?).is_equal_to(sender);
-
-        // The contract should not own assets at this point and should have stored them correctly
-        let cached_assets: Vec<(String, Uint128)> = CACHED_ASSETS
-            .range(&deps.storage, None, None, Order::Ascending)
-            .map(|x| x.unwrap())
-            .map(|(k, v)| (k, v))
-            .collect();
-        assert_that!(cached_assets).has_length(2);
-        assert_that!(cached_assets[0]).is_equal_to(("native:eur".to_string(), 1000u128.into()));
-        assert_that!(cached_assets[1]).is_equal_to(("native:usd".to_string(), 1000u128.into()));
-
-        // The contract should have sent the correct messages
-        assert_that!(response.messages).has_length(3);
-        assert_that!(response.messages[0].msg).is_equal_to(unstake_lp_tokens(
-            deps.as_ref(),
-            &AUTOCOMPOUNDER_APP,
-            config.pool_data.dex,
-            AssetEntry::new("wyndex/eur,usd"),
-            10u128.into(),
-            None,
-        ));
-
-        let abstract_attributes = response.events[0].attributes.clone();
-        assert_that!(abstract_attributes[2])
-            .is_equal_to(Attribute::new("vault_token_burn_amount", "100"));
-        assert_that!(abstract_attributes[3])
-            .is_equal_to(Attribute::new("lp_token_withdraw_amount", "10"));
-        Ok(())
     }
 
     mod deposit_helpers {
@@ -1660,12 +1619,12 @@ mod test {
                 sender_addr.clone(),
                 amount_of_vault_tokens_to_be_burned,
             );
-            assert!(res.is_ok());
+            assert_that!(res).is_ok();
 
             let pending_claim = PENDING_CLAIMS
                 .load(deps.as_ref().storage, sender_addr.clone())
                 .unwrap();
-            assert_eq!(pending_claim, amount_of_vault_tokens_to_be_burned);
+            assert_that!(pending_claim).is_equal_to(amount_of_vault_tokens_to_be_burned);
 
             // Test case when there is a pending claim for the sender
             let amount_of_vault_tokens_to_be_burned_2 = Uint128::new(200);
@@ -1674,15 +1633,110 @@ mod test {
                 sender_addr.clone(),
                 amount_of_vault_tokens_to_be_burned_2,
             );
-            assert!(res.is_ok());
+            assert_that!(res).is_ok();
 
             let pending_claim = PENDING_CLAIMS
                 .load(deps.as_ref().storage, sender_addr)
                 .unwrap();
-            assert_eq!(
-                pending_claim,
-                amount_of_vault_tokens_to_be_burned + amount_of_vault_tokens_to_be_burned_2
+            assert_that!(pending_claim).is_equal_to(
+                amount_of_vault_tokens_to_be_burned + amount_of_vault_tokens_to_be_burned_2,
             );
+        }
+
+        #[test]
+        fn receive_and_register() -> anyhow::Result<()> {
+            let mut deps = app_init(true, true);
+            let config = min_cooldown_config(Some(Duration::Height(1)), false);
+            CONFIG.save(deps.as_mut().storage, &config)?;
+            let env = &mock_env();
+            let sender = Addr::unchecked("sender");
+            let amount = Uint128::new(100);
+            let lp_asset_base = AssetBase::new(config.vault_token, amount);
+
+            let res = receive_and_register_claim(
+                deps.as_mut(),
+                env,
+                AUTOCOMPOUNDER_APP,
+                sender.clone(),
+                sender.clone(),
+                amount,
+            )?;
+            assert_that!(res.messages).has_length(1);
+            assert_that!(res.messages[0].msg).is_equal_to(
+                transfer_token_to_autocompounder(lp_asset_base, sender, env)?
+                    .get(0)
+                    .unwrap(),
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn without_bonding_period() -> anyhow::Result<()> {
+            let mut deps = app_init(false, true);
+            let config = min_cooldown_config(None, false);
+            let env = &mock_env();
+            let sender = Addr::unchecked("sender");
+            let amount = Uint128::new(100);
+
+            let err = CACHED_ASSETS.load(&deps.storage, "native:eur".to_string());
+            assert_that!(err).is_err();
+
+            // 1. set up the balances(1000eur, 1000usd) of the proxy contract in the bank
+            deps.querier.update_balance(
+                TEST_PROXY,
+                vec![
+                    Coin {
+                        denom: "eur".to_string(),
+                        amount: Uint128::new(1000),
+                    },
+                    Coin {
+                        denom: "usd".to_string(),
+                        amount: Uint128::new(1000),
+                    },
+                ],
+            );
+
+            let response = redeem_without_bonding_period(
+                deps.as_mut(),
+                env,
+                &sender,
+                sender.clone(),
+                config.clone(),
+                &AUTOCOMPOUNDER_APP,
+                amount,
+            )?;
+
+            // The sender addr should be cached
+            assert_that!(CACHED_USER_ADDR.load(&deps.storage)?).is_equal_to(sender);
+
+            // The contract should not own assets at this point and should have stored them correctly
+            let cached_assets: Vec<(String, Uint128)> = CACHED_ASSETS
+                .range(&deps.storage, None, None, Order::Ascending)
+                .map(|x| x.unwrap())
+                .map(|(k, v)| (k, v))
+                .collect();
+            assert_that!(cached_assets).has_length(2);
+            assert_that!(cached_assets[0]).is_equal_to(("native:eur".to_string(), 1000u128.into()));
+            assert_that!(cached_assets[1]).is_equal_to(("native:usd".to_string(), 1000u128.into()));
+
+            // The contract should have sent the correct messages
+            assert_that!(response.messages).has_length(4);
+            assert_that!(response.messages[1].msg).is_equal_to(unstake_lp_tokens(
+                deps.as_ref(),
+                &AUTOCOMPOUNDER_APP,
+                config.pool_data.dex,
+                AssetEntry::new("wyndex/eur,usd"),
+                10u128.into(),
+                None,
+            ));
+
+            let abstract_attributes = response.events[0].attributes.clone();
+            assert_that!(abstract_attributes[2])
+                .is_equal_to(Attribute::new("vault_token_burn_amount", "100"));
+            assert_that!(abstract_attributes[3])
+                .is_equal_to(Attribute::new("lp_token_withdraw_amount", "10"));
+            Ok(())
         }
     }
 
