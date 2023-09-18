@@ -27,4 +27,5 @@ clap = { workspace = true }
 speculoos = { workspace = true }
 autocompounder = { workspace = true, features = ["interface"] }
 fee-collector = { workspace = true, features = ["interface"] }
-cw1-general = { path="../../cw-plus-skip/contracts/cw1-general", features = ["interface"] }
+# cw1-general = { path="../../cw-plus-skip/contracts/cw1-general", features = ["interface"] }
+cw1-general = { git="https://github.com/MbBrainz/cw-plus.git", features = ["interface"], rev="44431592ddad1ccfff654bcab8f0c8818518521c"}

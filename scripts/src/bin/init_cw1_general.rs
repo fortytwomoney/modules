@@ -1,4 +1,5 @@
 use cw1_general::msg::InstantiateMsg as Cw1InstantiateMsg;
+use cw_orch::daemon::{NetworkInfo, ChainInfo, ChainKind};
 use cw_orch::deploy::Deploy;
 use cw_orch::environment::{CwEnv, TxResponse};
 use cw_orch::prelude::*;
@@ -9,8 +10,11 @@ use cw1_general::contract::Cw1General;
 use cw1_general::contract::CONTRACT_NAME;
 use cw_orch::prelude::{networks::parse_network, DaemonBuilder};
 
+
 fn init_cw1(args: Arguments) -> anyhow::Result<()> {
     let network = parse_network(&args.network_id);
+    
+    println!("{:?}",network.grpc_urls);
     let rt = Arc::new(tokio::runtime::Runtime::new()?);
     let chain = DaemonBuilder::default()
         .handle(rt.handle())
@@ -18,8 +22,8 @@ fn init_cw1(args: Arguments) -> anyhow::Result<()> {
         .build()?;
 
     let cw1 = Cw1General::new(CONTRACT_NAME, chain.clone());
-    cw1.code_id()?;
     cw1.upload()?;
+    cw1.code_id()?;
     cw1.instantiate(&Cw1InstantiateMsg {}, None, None)?;
 
 
@@ -48,6 +52,4 @@ fn main() {
 struct Arguments {
     #[arg(short, long)]
     network_id: String,
-    // #[arg(short, long)]
-    // dex: String,
 }
