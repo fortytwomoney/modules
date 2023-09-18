@@ -28,7 +28,8 @@
         "abstract:manager": 3282,
         "abstract:module-factory": 3281,
         "abstract:proxy": 3283,
-        "abstract:version-control": 3279
+        "abstract:version-control": 3279,
+        "crates.io:cw1-general": 3620
       },
       "default": {
         "abstract:account-factory": "juno127lt5wer3tnrhnf9wt3rg57ccmjj7uterur4yrcjxk88c9f8rv6q6nteat",
@@ -36,7 +37,8 @@
         "abstract:manager": "juno1vsn5p7hs8cdsjx7rpeffed7ve8wht6zs4t07z7c63e6x5hyddaqs46u98r",
         "abstract:module-factory": "juno1kw6k35hg20f36a02djaeyf0xuyheqnrqqqyehvjguz3gldqn0aeqcw6fwk",
         "abstract:proxy": "juno1e3c7jx40rjvv4hthmg4ya7m7ls7d3smpnn256qyltk28qzn76mts96ymv2",
-        "abstract:version-control": "juno1m3uhprdpcg2dw04tyjf3dp5xu79ah0n6r9k46656tz27fzzqhnxsr5vnqu"
+        "abstract:version-control": "juno1m3uhprdpcg2dw04tyjf3dp5xu79ah0n6r9k46656tz27fzzqhnxsr5vnqu",
+        "crates.io:cw1-general": "juno12gxq3rcmuyept84nf2up37xhmy8pcyaxlhvwn6q6ha3vqnaydczs8hfz74"
       }
     },
     "uni-6": {
@@ -93,7 +95,8 @@
         "abstract:manager": 141,
         "abstract:module-factory": 140,
         "abstract:proxy": 142,
-        "abstract:version-control": 138
+        "abstract:version-control": 138,
+        "crates.io:cw1-general": 245
       },
       "default": {
         "abstract:account-factory": "neutron1z727rvjswmuz3l6efwps69ehcvlcf964mnn639x89dteyjlgme8qwamzhq",
@@ -101,7 +104,8 @@
         "abstract:manager": "neutron1fatv992lapl0xkx8u4krfjh5krwqeq2h2u8x5k34s3sd0yczr7qssndn9t",
         "abstract:module-factory": "neutron1pvdcfyz8n55vcendhn8zmhdw66uukzcfv4u7th8cdml43ny9th9sa5gqls",
         "abstract:proxy": "neutron13fcn423wlqpsf8lu3rx0vxn79e6k3h6cyncefl9hdlrl427f2u7sk8w4kw",
-        "abstract:version-control": "neutron1us95yk9jp6ahl6jlv5mvk3g5ydykh37pzd27axmj0hzfw0catgcqcuv2fp"
+        "abstract:version-control": "neutron1us95yk9jp6ahl6jlv5mvk3g5ydykh37pzd27axmj0hzfw0catgcqcuv2fp",
+        "crates.io:cw1-general": "neutron1duj63yhtf75faqmyf3n4w52w8cth22wcuw25qeeql5lxr8nl9ytqze7d7l"
       }
     },
     "pion-1": {
@@ -166,6 +170,16 @@
       "abstract:version-control": "terra13ld3ulvcv5pfmas9v2gdlp5l5wdapaksvkfvxf5ttfysaq6msyvq4h847j"
     }
   },
+  "sei": {
+    "pacific-1": {
+      "code_ids": {
+        "crates.io:cw1-general": 334
+      },
+      "default": {
+        "crates.io:cw1-general": "sei1qm429ntylz242ntuuxv7ek9rzkgs8e8ptac62zqccv980rj805ssl9mggp"
+      }
+    }
+  },
   "terra2": {
     "phoenix-1": {
       "code_ids": {
@@ -176,7 +190,8 @@
         "abstract:manager": 1675,
         "abstract:module-factory": 1674,
         "abstract:proxy": 1676,
-        "abstract:version-control": 1672
+        "abstract:version-control": 1672,
+        "crates.io:cw1-general": 1820
       },
       "default": {
         "abstract:account-factory": "terra1unvwl7hg3yymkhqgplxy2ddl57797h0uzehu7r5gjm2t32m9a5qqsrsujk",
@@ -184,7 +199,8 @@
         "abstract:manager": "terra1q5260qjg5q759jl4cudsugwgftt2qkzvm8axn8cxuajf2wj8f92suwpt66",
         "abstract:module-factory": "terra103w4wwq3mvma62h74muycqp3dzlk5g0a37ze569rzlv7pghd86ps5jdxg2",
         "abstract:proxy": "terra19wanxdg87e7hwesuk2cr8xvpf4j097ql6q4twfkk4t83vwwqynfsw6eug8",
-        "abstract:version-control": "terra17kwvwlmlcvf6cj0yjj4a5ff9u9vtd95jcl5zg0reznm0n3xt2l6qpmymqp"
+        "abstract:version-control": "terra17kwvwlmlcvf6cj0yjj4a5ff9u9vtd95jcl5zg0reznm0n3xt2l6qpmymqp",
+        "crates.io:cw1-general": "terra1gd0dtsan5c5vza38cdj508s8kcmd8283r3d93wvhz9fxjfrrhvjq4g0ke6"
       }
     }
   }
