@@ -10,7 +10,7 @@ use abstract_interface::{
     Abstract, AbstractAccount, AbstractInterfaceError, AccountDetails, ManagerQueryFns, VCExecFns,
 };
 use abstract_sdk::core::adapter::InstantiateMsg;
-use abstract_testing::prelude::{EUR, USD};
+use abstract_testing::prelude::{EUR, USD, TEST_VERSION_CONTROL};
 use cw_orch::prelude::*;
 
 use cosmwasm_std::{coin, Decimal};
@@ -96,7 +96,7 @@ fn create_fee_collector(
     allowed_assets: Vec<AssetEntry>,
 ) -> Result<App<Mock>, AbstractInterfaceError> {
     // Deploy abstract
-    let abstract_ = Abstract::deploy_on(mock.clone(), Empty {})?;
+    let abstract_ = Abstract::deploy_on(mock.clone(), "".to_string())?;
 
     // create first Account
     abstract_.account_factory.create_default_account(
@@ -105,20 +105,24 @@ fn create_fee_collector(
         },
     )?;
 
-    abstract_.account_factory.create_new_account(
+    let account = abstract_.account_factory.create_new_account(
         AccountDetails {
+            namespace: Some(TEST_NAMESPACE.to_string()),
             description: None,
             link: None,
+            base_asset: None,
             name: "Vault Account".to_string(),
+            install_modules: vec![]
         },
         GovernanceDetails::Monarchy {
             monarch: mock.sender.to_string(),
         },
+        None,
     )?;
 
     abstract_
         .version_control
-        .claim_namespace(1, TEST_NAMESPACE.to_string())?;
+        .claim_namespace(account.id()?, TEST_NAMESPACE.to_string())?;
 
     // Deploy mock dex
     let wyndex = WynDex::store_on(mock.clone()).unwrap();
@@ -147,6 +151,7 @@ fn create_fee_collector(
             },
             base: abstract_core::app::BaseInstantiateMsg {
                 ans_host_address: abstract_.ans_host.addr_str()?,
+                version_control_address: TEST_VERSION_CONTROL.to_string(),
             },
         },
         None,

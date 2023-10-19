@@ -477,15 +477,12 @@ mod test {
 
             // 4. check the response messages and attributes
             // check the expected messages
-            let transfer_msg = AUTOCOMPOUNDER_APP.bank(deps.as_ref()).transfer(
+            let expected_messages = AUTOCOMPOUNDER_APP.bank(deps.as_ref()).transfer(
                 vec![eur_ans_asset.clone(), usd_ans_asset.clone()],
                 &user_addr,
-            )?;
-            let expected_resp_msgs = AUTOCOMPOUNDER_APP
-                .executor(deps.as_ref())
-                .execute(vec![transfer_msg])?;
+            )?.messages();
             assert_that!(response.messages).has_length(1);
-            assert_that!(msg.to_owned()).is_equal_to(expected_resp_msgs);
+            assert_that!(msg.to_owned()).is_equal_to(expected_messages[0].to_owned());
 
             // check the expected attributes
             let abstract_attributes = response.events[0].attributes.clone();

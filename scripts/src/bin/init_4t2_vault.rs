@@ -1,3 +1,5 @@
+use abstract_core::module_factory::ModuleInstallConfig;
+use abstract_core::objects::{AccountId, AssetEntry};
 use autocompounder::interface::AutocompounderApp;
 use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
 use autocompounder::msg::AutocompounderExecuteMsgFns;
@@ -17,10 +19,10 @@ use abstract_core::{
     ABSTRACT_EVENT_TYPE,
 };
 use abstract_cw_staking::CW_STAKING;
-use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy};
+use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy, AccountDetails};
 
 use clap::Parser;
-use cosmwasm_std::{coin, Addr, Decimal, Empty};
+use cosmwasm_std::{coin, Addr, Decimal, Empty, to_binary};
 use cw_orch::daemon::networks::parse_network;
 
 use autocompounder::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER};
@@ -36,32 +38,27 @@ fn create_vault_account<Chain: CwEnv>(
     chain: Chain,
     governance_details: GovernanceDetails<String>,
     assets: Vec<String>,
-) -> Result<AbstractAccount<Chain>, CwOrchError>
+    modules: Vec<ModuleInstallConfig>,
+    coins: Option<&[Coin]>,
+) -> Result<AbstractAccount<Chain>, abstract_interface::AbstractInterfaceError>
 where
     TxResponse<Chain>: IndexResponse,
 {
-    let result = factory.execute(
-        &account_factory::ExecuteMsg::CreateAccount {
-            governance: governance_details,
+    let result = factory.create_new_account(
+        AccountDetails {
+        // &account_factory::ExecuteMsg::CreateAccount {
+            base_asset: None,
+            namespace: Some("4t2".to_string()),
+            install_modules: modules,
             description: None,
             link: None,
             name: format!("4t2 Vault ({})", assets.join("|").replace('>', ":")),
         },
-        None,
+        governance_details,
+        coins,
     )?;
 
-    let manager_address = &result.event_attr_value(ABSTRACT_EVENT_TYPE, "manager_address")?;
-    chain
-        .state()
-        .set_address(MANAGER, &Addr::unchecked(manager_address));
-    let proxy_address = &result.event_attr_value(ABSTRACT_EVENT_TYPE, "proxy_address")?;
-    chain
-        .state()
-        .set_address(PROXY, &Addr::unchecked(proxy_address));
-    Ok(AbstractAccount {
-        manager: Manager::new(MANAGER, chain.clone()),
-        proxy: Proxy::new(PROXY, chain),
-    })
+    Ok(result)
 }
 
 fn init_vault(args: Arguments) -> anyhow::Result<()> {
@@ -91,7 +88,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         .build()?;
     let sender = chain.sender();
 
-    if cw20_code_id.is_none() {
+    let instantiation_funds = if cw20_code_id.is_none() {
         let bank = Bank::new(chain.channel());
         let balance: u128 = rt
             .block_on(bank.balance(&sender, Some("ukuji".to_string())))
@@ -101,124 +98,80 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         if balance < TOKEN_FACTORY_CREATION_FEE {
             panic!("Not enough ukuji to pay for token factory creation fee");
         }
-    }
+        Some(vec![coin(TOKEN_FACTORY_CREATION_FEE, "ukuji")])
+    } else {
+        None
+    };
 
     let abstr = Abstract::load_from(chain.clone())?;
 
     let mut pair_assets = vec![args.paired_asset, args.other_asset];
     pair_assets.sort();
 
-    let account = if let Some(account_id) = args.account_id {
-        AbstractAccount::new(&abstr, Some(account_id))
-    } else {
-        create_vault_account(
-            &abstr.account_factory,
-            chain.clone(),
-            GovernanceDetails::Monarchy {
-                monarch: sender.to_string(),
-            },
-            pair_assets.clone(),
-        )?
-    };
-
-    // Install abstract dex
-    if !account.manager.is_module_installed("abstract:dex")? {
-        account
-            .manager
-            .install_module("abstract:dex", &Empty {}, None)?;
-    }
-
-    // install the staking module
-    if !account.manager.is_module_installed(CW_STAKING)? {
-        account
-            .manager
-            .install_module(CW_STAKING, &Empty {}, None)?;
-    }
-
-    // First uninstall autocompounder if found
-    // if account.manager.is_module_installed(AUTOCOMPOUNDER)? {
-    //     account
-    //         .manager
-    //         .uninstall_module(AUTOCOMPOUNDER.to_string())?;
-    // }
-
-    // Install both modules
     let new_module_version =
         ModuleVersion::Version(args.ac_version.unwrap_or(MODULE_VERSION.to_string()));
-
-    account.manager.install_module_version(
-        AUTOCOMPOUNDER,
-        new_module_version,
-        &app::InstantiateMsg {
-            base: app::BaseInstantiateMsg {
-                ans_host_address: abstr
+    
+    let autocompounder_instantiate_msg =Some(
+        to_binary(
+            &app::InstantiateMsg {
+                base: app::BaseInstantiateMsg {
+                    ans_host_address: abstr
                     .version_control
                     .module(ModuleInfo::from_id_latest(ANS_HOST)?)?
                     .reference
                     .unwrap_addr()?
                     .to_string(),
-            },
-            module: AutocompounderInstantiateMsg {
-                performance_fees: Decimal::new(100u128.into()),
-                deposit_fees: Decimal::new(0u128.into()),
-                withdrawal_fees: Decimal::new(0u128.into()),
-                /// address that recieves the fee commissions
-                commission_addr: sender.to_string(),
-                /// cw20 code id
-                code_id: cw20_code_id,
-                /// Name of the target dex
-                dex: dex.into(),
-                /// Assets in the pool
-                pool_assets: pair_assets.into_iter().map(Into::into).collect(),
-                preferred_bonding_period: BondingPeriodSelector::Shortest,
-                max_swap_spread: Some(Decimal::percent(10)),
-            },
+                    version_control_address: abstr.version_control.address()?.to_string(),
+                },
+                module: AutocompounderInstantiateMsg {
+                    performance_fees: Decimal::new(100u128.into()),
+                    deposit_fees: Decimal::new(0u128.into()),
+                    withdrawal_fees: Decimal::new(0u128.into()),
+                    /// address that recieves the fee commissions
+                    commission_addr: sender.to_string(),
+                    /// cw20 code id
+                    code_id: cw20_code_id,
+                    /// Name of the target dex
+                    dex: dex.into(),
+                    /// Assets in the pool
+                    pool_assets: pair_assets.clone().into_iter().map(Into::into).collect(),
+                    preferred_bonding_period: BondingPeriodSelector::Shortest,
+                    max_swap_spread: Some(Decimal::percent(10)),
+                },
+            }
+        )?
+    );
+
+    let result = abstr.account_factory.create_new_account(
+        AccountDetails {
+        // &account_factory::ExecuteMsg::CreateAccount {
+            base_asset: None,
+            namespace: Some("4t2".to_string()),
+            description: None,
+            link: None,
+            name: format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
+            install_modules: vec![
+                // installs both abstract dex and staking in the instantiation of the account
+                ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:dex")?, None),
+                ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:staking")?, None),
+                ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?, autocompounder_instantiate_msg)
+            ],
         },
-        None,
+        GovernanceDetails::Monarchy { monarch: sender.to_string() },
+        instantiation_funds.as_deref(),
     )?;
 
-    // Register the autocompounder as a trader on the cw-staking and the dex
-    let autocompounder_address = account
-        .manager
-        .module_info(AUTOCOMPOUNDER)?
-        .ok_or(anyhow::anyhow!("patato juice"))?
-        .address;
-
-    account.manager.execute_on_module(
-        CW_STAKING,
-        adapter::ExecuteMsg::<Empty, Empty>::Base(
-            adapter::BaseExecuteMsg::UpdateAuthorizedAddresses {
-                to_add: vec![autocompounder_address.to_string()],
-                to_remove: vec![],
-            },
-        ),
-    )?;
-
-    account.manager.execute_on_module(
-        "abstract:dex",
-        adapter::ExecuteMsg::<Empty, Empty>::Base(
-            adapter::BaseExecuteMsg::UpdateAuthorizedAddresses {
-                to_add: vec![autocompounder_address.to_string()],
-                to_remove: vec![],
-            },
-        ),
-    )?;
-
-    if cw20_code_id.is_none() {
-        let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
-        autocompounder.set_address(&autocompounder_address);
-        autocompounder.create_denom(&[coin(100_000_000, "ukuji")])?;
-    }
+    info!("Created account: {:?}", result.id()?);
 
     Ok(())
-}
+    }
 
 #[derive(Parser, Default, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Arguments {
     /// Optionally provide an Account Id to turn into a vault
     #[arg(short, long)]
-    account_id: Option<u32>,
+    account_id: Option<String>,
     /// Paired asset in the pool
     #[arg(short, long)]
     paired_asset: String,
