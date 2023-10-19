@@ -1,3 +1,4 @@
+use abstract_core::objects::AccountId;
 use anyhow::Ok;
 use autocompounder::interface::{AutocompounderApp, Vault};
 
@@ -28,8 +29,9 @@ fn migrate_vault(args: Arguments) -> anyhow::Result<()> {
         .build()?;
 
     let abstr = Abstract::load_from(chain.clone())?;
+    let account_id = AccountId::local(args.account_id);
 
-    let mut vault = Vault::new(&abstr, Some(args.account_id))?;
+    let mut vault = Vault::new(&abstr, Some(account_id))?;
 
     let versions = vault
         .account

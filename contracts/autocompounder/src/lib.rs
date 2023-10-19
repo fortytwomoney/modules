@@ -14,7 +14,7 @@ pub mod kujira_tx;
 mod test_common {
     use crate::{msg::BondingPeriodSelector, state::VAULT_TOKEN_IS_INITIALIZED};
     use abstract_cw_staking::msg::{
-        StakeResponse, StakingInfoResponse, StakingQueryMsg, StakingTarget,
+        StakeResponse, StakingInfoResponse, StakingInfo,StakingQueryMsg, StakingTarget,
     };
     use abstract_dex_adapter::msg::DexQueryMsg;
     use abstract_sdk::base::InstantiateEndpoint;
@@ -26,7 +26,7 @@ mod test_common {
     };
     use abstract_testing::{
         addresses::{TEST_MANAGER, TEST_MODULE_FACTORY, TEST_PROXY},
-        prelude::{AbstractMockQuerierBuilder, TEST_ANS_HOST, TEST_DEX},
+        prelude::{AbstractMockQuerierBuilder, TEST_ANS_HOST, TEST_DEX, TEST_VERSION_CONTROL, TEST_ACCOUNT_ID},
         MockDeps, MockQuerierBuilder,
     };
     pub use cosmwasm_std::testing::*;
@@ -46,17 +46,18 @@ mod test_common {
     // Because that query is performed when the App is instantiated to get the manager's address and set it as the Admin
     pub fn app_base_mock_querier() -> MockQuerierBuilder {
         let abstract_env =
-            AbstractMockQuerierBuilder::default().account(TEST_MANAGER, TEST_PROXY, 0);
+            AbstractMockQuerierBuilder::default().account(TEST_MANAGER, TEST_PROXY, TEST_ACCOUNT_ID);
         abstract_env
             .builder()
             .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_binary(msg).unwrap() {
                 abstract_core::module_factory::QueryMsg::Context {} => {
                     let resp = ContextResponse {
-                        account_base: Some(AccountBase {
+                        account_base: AccountBase {
                             manager: Addr::unchecked(TEST_MANAGER),
                             proxy: Addr::unchecked(TEST_PROXY),
-                        }),
-                        module: None,
+                        },
+                        modules: vec![],
+                        modules_to_register:vec![],
                     };
                     Ok(to_binary(&resp).unwrap())
                 }
@@ -66,26 +67,26 @@ mod test_common {
                 match from_binary(msg).unwrap() {
                     abstract_cw_staking::msg::QueryMsg::Module(StakingQueryMsg::Info {
                         provider: _,
-                        staking_token: _,
+                        staking_tokens: _,
                     }) => {
                         let resp = StakingInfoResponse {
-                            staking_target: StakingTarget::Contract(Addr::unchecked(
-                                "staking_addr",
-                            )),
+                            infos: vec![StakingInfo { staking_target:   StakingTarget::Contract(Addr::unchecked(
+                                    "staking_addr",
+                                )) ,
                             staking_token: AssetInfo::cw20(Addr::unchecked("usd_eur_lp")),
                             unbonding_periods: None,
                             max_claims: None,
-                        };
+                        }]};
                         Ok(to_binary(&resp).unwrap())
                     }
                     abstract_cw_staking::msg::QueryMsg::Module(StakingQueryMsg::Staked {
                         provider: _,
-                        staking_token: _,
+                        stakes: _,
                         staker_address: _,
                         unbonding_period: _,
                     }) => {
                         let resp = StakeResponse {
-                            amount: Uint128::new(100),
+                            amounts: vec![Uint128::new(100)],
                         };
                         Ok(to_binary(&resp).unwrap())
                     }
@@ -159,17 +160,18 @@ mod test_common {
     // same as app_base_mock_querier but there is unbonding period for tokens
     pub fn app_base_mock_querier_with_unbonding_period() -> MockQuerierBuilder {
         let abstract_env =
-            AbstractMockQuerierBuilder::default().account(TEST_MANAGER, TEST_PROXY, 0);
+            AbstractMockQuerierBuilder::default().account(TEST_MANAGER, TEST_PROXY, TEST_ACCOUNT_ID);
         abstract_env
             .builder()
             .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_binary(msg).unwrap() {
                 abstract_core::module_factory::QueryMsg::Context {} => {
                     let resp = ContextResponse {
-                        account_base: Some(AccountBase {
+                        account_base: AccountBase {
                             manager: Addr::unchecked(TEST_MANAGER),
                             proxy: Addr::unchecked(TEST_PROXY),
-                        }),
-                        module: None,
+                        },
+                        modules_to_register: vec![],
+                        modules: vec![],
                     };
                     Ok(to_binary(&resp).unwrap())
                 }
@@ -179,18 +181,22 @@ mod test_common {
                 match from_binary(msg).unwrap() {
                     abstract_cw_staking::msg::QueryMsg::Module(StakingQueryMsg::Info {
                         provider: _,
-                        staking_token: _,
+                        staking_tokens: _,
                     }) => {
                         let resp = StakingInfoResponse {
-                            staking_target: StakingTarget::Contract(Addr::unchecked(
-                                "staking_addr",
-                            )),
-                            staking_token: AssetInfo::cw20(Addr::unchecked("usd_eur_lp")),
-                            unbonding_periods: Some(vec![
-                                Duration::Time(3600),
-                                Duration::Time(7200),
-                            ]),
-                            max_claims: None,
+                            infos: vec![ 
+                                StakingInfo {
+                                    staking_target: StakingTarget::Contract(Addr::unchecked(
+                                        "staking_addr",
+                                    )),
+                                    staking_token: AssetInfo::cw20(Addr::unchecked("usd_eur_lp")),
+                                    unbonding_periods: Some(vec![
+                                        Duration::Time(3600),
+                                        Duration::Time(7200),
+                                    ]),
+                                    max_claims: None,
+                                }
+                            ],
                         };
                         Ok(to_binary(&resp).unwrap())
                     }
@@ -281,6 +287,7 @@ mod test_common {
                     },
                     base: abstract_core::app::BaseInstantiateMsg {
                         ans_host_address: TEST_ANS_HOST.to_string(),
+                        version_control_address: TEST_VERSION_CONTROL.to_string(),
                     },
                 },
             )

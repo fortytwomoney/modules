@@ -6,12 +6,12 @@ use cw20_base::contract::AbstractCw20Base;
 use cw_orch::environment::CwEnv;
 use wyndex_bundle::WynDex;
 
-pub struct Vault<Chain: CwEnv> {
-    pub account: AbstractAccount<Chain>,
-    pub auto_compounder: AutocompounderApp<Chain>,
-    pub vault_token: AbstractCw20Base<Chain>,
-    pub staking: CwStakingAdapter<Chain>,
-    pub dex: DexAdapter<Chain>,
-    pub wyndex: WynDex,
-    pub abstract_core: Abstract<Chain>,
+    pub struct Vault<Chain: CwEnv> {
+        pub account: AbstractAccount<Chain>,
+        pub auto_compounder: AutocompounderApp<Chain>,
+        pub vault_token: AbstractCw20Base<Chain>,
+        pub staking: CwStakingAdapter<Chain>,
+        pub dex: DexAdapter<Chain>,
+        pub wyndex: WynDex,
+        pub abstract_core: Abstract<Chain>,
 }

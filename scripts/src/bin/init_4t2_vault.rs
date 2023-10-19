@@ -64,17 +64,21 @@ where
 fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
-    let (dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
-        "uni-6" => ("wyndex", "juno>junox", Some(4012)),
-        "juno-1" => ("wyndex", "juno>juno", Some(1)),
-        "pion-1" => ("astroport", "neutron>astro", Some(188)),
-        "neutron-1" => ("astroport", "neutron>astro", Some(180)),
-        "pisco-1" => ("astroport", "terra2>luna", Some(83)),
-        "phoenix-1" => ("astroport", "terra2>luna", Some(69)),
-        "osmo-test-5" => ("osmosis5", "osmosis5>osmo", Some(1)),
-        "harpoon-4" => ("kujira", "kujira>kuji", None),
+    let (main_account_id ,dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
+        "uni-6" => (2, "wyndex", "juno>junox", Some(4012)),
+        "juno-1" => (0, "wyndex", "juno>juno", Some(1)),
+        "pion-1" => (0, "astroport", "neutron>astro", Some(188)),
+        "neutron-1" => (0, "astroport", "neutron>astro", Some(180)),
+        "pisco-1" => (0, "astroport", "terra2>luna", Some(83)),
+        "phoenix-1" => (0, "astroport", "terra2>luna", Some(69)),
+        "osmo-test-5" => (0, "osmosis5", "osmosis5>osmo", Some(1)),
+        "harpoon-4" => (0, "kujira", "kujira>kuji", None),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
+
+    if main_account_id == 0 {
+        panic!("Account id for main account should be specified first ");
+    }
 
     info!("Using dex: {} and base: {}", dex, base_pair_asset);
 
@@ -87,6 +91,9 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         .chain(network)
         .build()?;
     let sender = chain.sender();
+
+    let abstr = Abstract::load_from(chain.clone())?;
+    let main_account = AbstractAccount::new(&abstr, Some(AccountId::local(main_account_id)));
 
     let instantiation_funds = if cw20_code_id.is_none() {
         let bank = Bank::new(chain.channel());
@@ -103,13 +110,12 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         None
     };
 
-    let abstr = Abstract::load_from(chain.clone())?;
 
     let mut pair_assets = vec![args.paired_asset, args.other_asset];
     pair_assets.sort();
 
-    let new_module_version =
-        ModuleVersion::Version(args.ac_version.unwrap_or(MODULE_VERSION.to_string()));
+    // let new_module_version =
+        // ModuleVersion::Version(args.ac_version.unwrap_or(MODULE_VERSION.to_string()));
     
     let autocompounder_instantiate_msg =Some(
         to_binary(
@@ -157,7 +163,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                 ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?, autocompounder_instantiate_msg)
             ],
         },
-        GovernanceDetails::Monarchy { monarch: sender.to_string() },
+        GovernanceDetails::SubAccount { manager: main_account.manager.addr_str()?, proxy: main_account.proxy.addr_str()? },
         instantiation_funds.as_deref(),
     )?;
 
@@ -169,9 +175,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 #[derive(Parser, Default, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Arguments {
-    /// Optionally provide an Account Id to turn into a vault
-    #[arg(short, long)]
-    account_id: Option<String>,
     /// Paired asset in the pool
     #[arg(short, long)]
     paired_asset: String,

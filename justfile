@@ -20,9 +20,6 @@ lintfix:
 create-vault network paired other_asset +args='':
   cargo +nightly run --bin init_4t2_vault -- --network-id {{network}} --paired-asset {{paired}} --other-asset {{other_asset}} {{args}}
 
-create-vault-acc network paired other_asset account +args='':
-  cargo +nightly run --bin init_4t2_vault -- --network-id {{network}} --paired-asset {{paired}} --other-asset {{other_asset}} --account-id {{account}} {{args}}
-
 deposit-vault network vault-id:
   cargo +nightly run --bin test_compound -- --network-id {{network}} --vault-id {{vault-id}}
 
