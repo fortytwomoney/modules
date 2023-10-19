@@ -177,56 +177,9 @@ dependencies = [
  "cw-controllers 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cw-orch 0.16.4",
  "cw-utils",
- "cw20 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
- "cw20-base 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw20 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
+ "cw20-base 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "abstract-cw2"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc7a217f327ad35c2024c129bacb99d45dcd546fd9ab34086fbe4ec2fe412ed3"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-storage-plus 1.1.0",
- "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "abstract-cw20"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8473ba5011ac16e67dc67e3ec3d05c1f0d681dd8f6c82334d21f6a4a8d4ce8b"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-orch 0.13.4",
- "cw-utils",
- "schemars",
- "serde",
-]
-
-[[package]]
-name = "abstract-cw20-base"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02ad6c7110e8a8f034dce38231bb92f6f4746d587573e74f381c0484d8bcdfa8"
-dependencies = [
- "abstract-cw2",
- "abstract-cw20",
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-orch 0.13.4",
- "cw-storage-plus 1.1.0",
- "cw-utils",
- "schemars",
- "semver",
  "serde",
  "thiserror",
 ]
@@ -252,8 +205,8 @@ dependencies = [
  "cw-orch 0.16.4",
  "cw-storage-plus 1.1.0",
  "cw20 0.10.3",
- "cw20 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
- "cw20-base 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw20 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
+ "cw20-base 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "schemars",
  "serde",
  "thiserror",
@@ -703,9 +656,6 @@ dependencies = [
  "abstract-app",
  "abstract-core",
  "abstract-cw-staking",
- "abstract-cw2",
- "abstract-cw20",
- "abstract-cw20-base",
  "abstract-dex-adapter",
  "abstract-interface",
  "abstract-sdk",
@@ -721,8 +671,12 @@ dependencies = [
  "cw-controllers 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cw-multi-test",
  "cw-orch 0.16.4",
+ "cw-plus-interface",
  "cw-storage-plus 1.1.0",
  "cw-utils",
+ "cw2 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
+ "cw20 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
+ "cw20-base 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "dotenv",
  "env_logger",
  "kujira",
@@ -1330,7 +1284,7 @@ dependencies = [
 [[package]]
 name = "cw-controllers"
 version = "1.1.1"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1588,15 +1542,15 @@ dependencies = [
 [[package]]
 name = "cw-plus-interface"
 version = "0.1.0"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-std",
  "cw-orch 0.16.4",
  "cw1 1.1.1",
  "cw1-subkeys",
  "cw1-whitelist",
- "cw20-base 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
- "cw20-ics20 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw20-base 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
+ "cw20-ics20 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "cw3-fixed-multisig",
  "cw3-flex-multisig",
  "cw4-group",
@@ -1686,7 +1640,7 @@ dependencies = [
 [[package]]
 name = "cw1"
 version = "1.1.1"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1712,7 +1666,7 @@ dependencies = [
 [[package]]
 name = "cw1-subkeys"
 version = "1.1.1"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1720,7 +1674,7 @@ dependencies = [
  "cw-utils",
  "cw1 1.1.1",
  "cw1-whitelist",
- "cw2 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw2 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "schemars",
  "semver",
  "serde",
@@ -1730,14 +1684,14 @@ dependencies = [
 [[package]]
 name = "cw1-whitelist"
 version = "1.1.1"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus 1.1.0",
  "cw-utils",
  "cw1 1.1.1",
- "cw2 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw2 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "schemars",
  "serde",
  "thiserror",
@@ -1797,7 +1751,7 @@ dependencies = [
 [[package]]
 name = "cw2"
 version = "1.1.1"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1835,7 +1789,7 @@ dependencies = [
 [[package]]
 name = "cw20"
 version = "1.1.1"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1882,15 +1836,15 @@ dependencies = [
 [[package]]
 name = "cw20-base"
 version = "1.1.1"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-orch 0.16.4",
  "cw-storage-plus 1.1.0",
  "cw-utils",
- "cw2 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
- "cw20 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw2 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
+ "cw20 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "schemars",
  "semver",
  "serde",
@@ -1919,15 +1873,15 @@ dependencies = [
 [[package]]
 name = "cw20-ics20"
 version = "1.1.1"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
- "cw-controllers 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw-controllers 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "cw-storage-plus 1.1.0",
  "cw-utils",
- "cw2 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
- "cw20 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw2 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
+ "cw20 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "schemars",
  "semver",
  "serde",
@@ -1937,12 +1891,12 @@ dependencies = [
 [[package]]
 name = "cw3"
 version = "1.1.1"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-utils",
- "cw20 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw20 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "schemars",
  "serde",
  "thiserror",
@@ -1951,13 +1905,13 @@ dependencies = [
 [[package]]
 name = "cw3-fixed-multisig"
 version = "1.1.1"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus 1.1.0",
  "cw-utils",
- "cw2 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw2 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "cw3",
  "schemars",
  "serde",
@@ -1967,14 +1921,14 @@ dependencies = [
 [[package]]
 name = "cw3-flex-multisig"
 version = "1.1.1"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus 1.1.0",
  "cw-utils",
- "cw2 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
- "cw20 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw2 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
+ "cw20 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "cw3",
  "cw3-fixed-multisig",
  "cw4",
@@ -1986,7 +1940,7 @@ dependencies = [
 [[package]]
 name = "cw4"
 version = "1.1.1"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1998,14 +1952,14 @@ dependencies = [
 [[package]]
 name = "cw4-group"
 version = "1.1.1"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
- "cw-controllers 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw-controllers 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "cw-storage-plus 1.1.0",
  "cw-utils",
- "cw2 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw2 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "cw4",
  "schemars",
  "serde",
@@ -2015,15 +1969,15 @@ dependencies = [
 [[package]]
 name = "cw4-stake"
 version = "1.1.1"
-source = "git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
+source = "git+https://github.com/abstractsdk/cw-plus?rev=258fb95#258fb955b4978af25e0942061909801c04e0f3ce"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
- "cw-controllers 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw-controllers 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "cw-storage-plus 1.1.0",
  "cw-utils",
- "cw2 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
- "cw20 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw2 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
+ "cw20 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "cw4",
  "schemars",
  "serde",
@@ -2388,9 +2342,6 @@ dependencies = [
  "abstract-app",
  "abstract-core",
  "abstract-cw-staking",
- "abstract-cw2",
- "abstract-cw20",
- "abstract-cw20-base",
  "abstract-dex-adapter",
  "abstract-interface",
  "abstract-sdk",
@@ -2404,6 +2355,9 @@ dependencies = [
  "cw-orch 0.16.4",
  "cw-storage-plus 1.1.0",
  "cw-utils",
+ "cw2 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
+ "cw20 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
+ "cw20-base 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "dotenv",
  "env_logger",
  "fee-collector",
@@ -2507,7 +2461,6 @@ dependencies = [
 name = "forty-two"
 version = "0.9.0"
 dependencies = [
- "abstract-cw20",
  "abstract-dex-adapter",
  "abstract-sdk",
  "cosmwasm-schema",
@@ -2516,6 +2469,7 @@ dependencies = [
  "cw-orch 0.16.4",
  "cw-storage-plus 1.1.0",
  "cw-utils",
+ "cw20 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "schemars",
  "serde",
 ]
@@ -4183,8 +4137,6 @@ version = "0.9.0"
 dependencies = [
  "abstract-core",
  "abstract-cw-staking",
- "abstract-cw20",
- "abstract-cw20-base",
  "abstract-interface",
  "anyhow",
  "autocompounder",
@@ -4193,6 +4145,8 @@ dependencies = [
  "cw-asset",
  "cw-orch 0.16.4",
  "cw1-general",
+ "cw20 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
+ "cw20-base 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "dotenv",
  "env_logger",
  "fee-collector",
@@ -5511,8 +5465,8 @@ dependencies = [
  "cw-controllers 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cw-orch 0.16.4",
  "cw-plus-interface",
- "cw20 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
- "cw20-base 1.1.1 (git+https://github.com/AbstractSDK/cw-plus.git?rev=258fb95)",
+ "cw20 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
+ "cw20-base 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "wyndex 1.1.2",
  "wyndex-factory",
  "wyndex-multi-hop",

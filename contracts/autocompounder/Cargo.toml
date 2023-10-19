@@ -82,6 +82,7 @@ abstract-core = { workspace = true }
 cw-orch = { workspace = true, features = ["daemon"] }
 cosmrs = "0.14.0"
 
+cw-plus-interface = { workspace = true }
 cw-multi-test = { workspace = true }
 anyhow = { workspace = true }
 rstest = { workspace = true }
