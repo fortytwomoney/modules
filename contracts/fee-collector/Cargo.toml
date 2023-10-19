@@ -39,7 +39,7 @@ cw-asset = { workspace = true }
 cw-controllers = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-storage-plus = { workspace = true }
-thiserror = {workspace = true }
+thiserror = { workspace = true }
 protobuf = { version = "2", features = ["with-bytes"] }
 cw-utils = { workspace = true }
 cw2 = { workspace = true }
@@ -48,37 +48,31 @@ cw20-base = { workspace = true, features = ["library"] }
 schemars = "0.8"
 serde = { workspace = true }
 
-abstract-core = { workspace=true }
-abstract-app = { workspace=true }
-abstract-sdk = { workspace=true }
+abstract-core = { workspace = true }
+abstract-app = { workspace = true }
+abstract-sdk = { workspace = true }
 # TODO: once stable, this should be updated to the stable release
-cw-orch = { workspace=true, optional = true }
+cw-orch = { workspace = true, optional = true }
 
-abstract-interface = { workspace=true, optional = true }
-abstract-dex-adapter = { workspace=true, default-features = false }
+abstract-interface = { workspace = true, optional = true }
+abstract-dex-adapter = { workspace = true, default-features = false }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-wyndex-bundle = { workspace=true }
-cw-orch = { workspace=true, features = ["daemon"] }
+wyndex-bundle = { workspace = true }
+cw-orch = { workspace = true, features = ["daemon"] }
 fee-collector = { path = ".", features = [
   "interface",
 ], package = "fee-collector" }
 speculoos = "0.11.0"
-abstract-interface = { workspace=true, features = ["daemon"] }
-abstract-testing = { workspace=true }
+abstract-interface = { workspace = true, features = ["daemon"] }
+abstract-testing = { workspace = true }
 semver = "1.0"
 tokio = { version = "1.4", features = ["full"] }
 dotenv = "0.15.0"
 env_logger = "0.10.0"
 clap = { version = "4.0.32", features = ["derive"] }
-abstract-sdk = { workspace=true, features = ["test-utils"] }
+abstract-sdk = { workspace = true, features = ["test-utils"] }
 
-abstract-dex-adapter = { workspace=true, features = [
-  "juno",
-  "interface",
-] }
-abstract-cw-staking = { workspace=true, features = [
-  "juno",
-  "interface",
-] }
+abstract-dex-adapter = { workspace = true, features = ["juno", "interface"] }
+abstract-cw-staking = { workspace = true, features = ["juno", "interface"] }
