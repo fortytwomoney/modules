@@ -34,11 +34,11 @@ abstract-interface =    { version = "0.19.2" }
 abstract-testing =      { version = "0.19.2" }
 
 ## Abstract API
-abstract-dex-adapter =  { git = "https://github.com/AbstractSDK/abstract.git",branch="release-0.19", default-features = false }
-abstract-cw-staking =   { git = "https://github.com/AbstractSDK/abstract.git", branch="release-0.19", default-features = false }
+abstract-dex-adapter =  { git = "https://github.com/AbstractSDK/abstract.git",tag="v0.19.2", default-features = false }
+abstract-cw-staking =   { git = "https://github.com/AbstractSDK/abstract.git", tag="v0.19.2", default-features = false }
 
 # Dev Abstract dependencies
-wyndex-bundle =         { git = "https://github.com/AbstractSDK/abstract.git",  branch="release-0.19" }
+wyndex-bundle =         { git = "https://github.com/AbstractSDK/abstract.git",  tag="v0.19.2" }
 autocompounder = { path = "contracts/autocompounder" }
 fee-collector = { path = "contracts/fee-collector" }
 

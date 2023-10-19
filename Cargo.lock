@@ -97,7 +97,7 @@ dependencies = [
 [[package]]
 name = "abstract-astroport-adapter"
 version = "2.10.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=release-0.19#2e9365950bdd2bb11bdf40a2202aa289e215c153"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.19.2#0f6b34d919c0b5cdec60c3a50e99357afaf92c95"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -159,7 +159,7 @@ dependencies = [
 [[package]]
 name = "abstract-cw-staking"
 version = "0.19.2"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=release-0.19#2e9365950bdd2bb11bdf40a2202aa289e215c153"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.19.2#0f6b34d919c0b5cdec60c3a50e99357afaf92c95"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -234,7 +234,7 @@ dependencies = [
 [[package]]
 name = "abstract-dex-adapter"
 version = "0.19.2"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=release-0.19#2e9365950bdd2bb11bdf40a2202aa289e215c153"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.19.2#0f6b34d919c0b5cdec60c3a50e99357afaf92c95"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -327,7 +327,7 @@ dependencies = [
 [[package]]
 name = "abstract-kujira-adapter"
 version = "0.2.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=release-0.19#2e9365950bdd2bb11bdf40a2202aa289e215c153"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.19.2#0f6b34d919c0b5cdec60c3a50e99357afaf92c95"
 dependencies = [
  "abstract-core",
  "abstract-dex-standard",
@@ -395,7 +395,7 @@ dependencies = [
 [[package]]
 name = "abstract-osmosis-adapter"
 version = "0.15.2"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=release-0.19#2e9365950bdd2bb11bdf40a2202aa289e215c153"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.19.2#0f6b34d919c0b5cdec60c3a50e99357afaf92c95"
 dependencies = [
  "abstract-core",
  "abstract-dex-standard",
@@ -517,7 +517,7 @@ dependencies = [
 [[package]]
 name = "abstract-wyndex-adapter"
 version = "2.1.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=release-0.19#2e9365950bdd2bb11bdf40a2202aa289e215c153"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.19.2#0f6b34d919c0b5cdec60c3a50e99357afaf92c95"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -2086,6 +2086,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "deranged"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f32d04922c60427da6f9fef14d042d9edddef64cb9d4ce0d64d0685fbeb1fd3"
+dependencies = [
+ "powerfmt",
+]
+
+[[package]]
 name = "derivative"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3639,6 +3648,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4503fa043bf02cee09a9582e9554b4c6403b2ef55e4612e96561d294419429f8"
 
 [[package]]
+name = "powerfmt"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4781,10 +4796,12 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.20"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd0cbfecb4d19b5ea75bb31ad904eb5b9fa13f21079c3b92017ebdf4999a5890"
+checksum = "c4a34ab300f2dee6e562c10a046fc05e358b29f9bf92277f30c3c8d82275f6f5"
 dependencies = [
+ "deranged",
+ "powerfmt",
  "serde",
  "time-core",
  "time-macros",
@@ -4792,15 +4809,15 @@ dependencies = [
 
 [[package]]
 name = "time-core"
-version = "0.1.0"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e153e1f1acaef8acc537e68b44906d2db6436e2b35ac2c6b42640fff91f00fd"
+checksum = "ef927ca75afb808a4d64dd374f00a2adf8d0fcff8e7b184af886c3c87ec4a3f3"
 
 [[package]]
 name = "time-macros"
-version = "0.2.8"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd80a657e71da814b8e5d60d3374fc6d35045062245d80224748ae522dd76f36"
+checksum = "4ad70d68dba9e1f8aceda7aa6711965dfec1cac869f311a51bd08b3a2ccbce20"
 dependencies = [
  "time-core",
 ]
@@ -5466,7 +5483,7 @@ dependencies = [
 [[package]]
 name = "wyndex"
 version = "2.1.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=release-0.19#2e9365950bdd2bb11bdf40a2202aa289e215c153"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.19.2#0f6b34d919c0b5cdec60c3a50e99357afaf92c95"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -5482,7 +5499,7 @@ dependencies = [
 [[package]]
 name = "wyndex-bundle"
 version = "0.19.2"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=release-0.19#2e9365950bdd2bb11bdf40a2202aa289e215c153"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.19.2#0f6b34d919c0b5cdec60c3a50e99357afaf92c95"
 dependencies = [
  "abstract-core",
  "abstract-cw-multi-test",
@@ -5571,7 +5588,7 @@ dependencies = [
 [[package]]
 name = "wyndex-stake"
 version = "2.1.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=release-0.19#2e9365950bdd2bb11bdf40a2202aa289e215c153"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.19.2#0f6b34d919c0b5cdec60c3a50e99357afaf92c95"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
