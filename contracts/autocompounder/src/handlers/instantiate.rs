@@ -7,6 +7,7 @@ use crate::state::{
     Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_IS_INITIALIZED, VAULT_TOKEN_SYMBOL,
 };
 use abstract_core::objects::AnsEntryConvertor;
+use abstract_cw_staking::msg::StakingInfo;
 use abstract_cw_staking::{
     msg::{StakingInfoResponse, StakingQueryMsg},
     CW_STAKING,
@@ -158,12 +159,12 @@ pub fn query_staking_info(
     app: &AutocompounderApp,
     lp_token_name: AssetEntry,
     dex: String,
-) -> StdResult<StakingInfoResponse> {
+) -> StdResult<StakingInfo> {
     let adapters = app.adapters(deps);
 
     let query = StakingQueryMsg::Info {
         provider: dex.clone(),
-        staking_token: lp_token_name.clone(),
+        staking_tokens: vec![lp_token_name.clone()],
     };
 
     let res: StakingInfoResponse = adapters.query(CW_STAKING, query.clone()).map_err(|e| {
@@ -171,12 +172,19 @@ pub fn query_staking_info(
             "Error querying staking info for {lp_token_name} on {dex}: {e}...{query:?}"
         ))
     })?;
-    Ok(res)
+    let staking_info = res.infos.first().ok_or(
+        StdError::generic_err(format!(
+            "No staking info found for {lp_token_name} on {dex}",
+            lp_token_name = lp_token_name,
+            dex = dex
+        )),)?;
+    
+    Ok(staking_info.clone())
 }
 
 /// Retrieves the unbonding period and minimum unbonding cooldown based on the staking info and preferred bonding period.
 pub fn get_unbonding_period_and_min_unbonding_cooldown(
-    staking_info: StakingInfoResponse,
+    staking_info: StakingInfo,
     preferred_bonding_period: BondingPeriodSelector,
 ) -> Result<(Option<Duration>, Option<Duration>), AutocompounderError> {
     if let (max_claims, Some(mut unbonding_periods)) =
@@ -263,7 +271,7 @@ mod test {
     use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_base_mock_querier};
     use abstract_sdk::base::InstantiateEndpoint;
     use abstract_sdk::core as abstract_core;
-    use abstract_testing::prelude::{TEST_ANS_HOST, TEST_MODULE_FACTORY};
+    use abstract_testing::prelude::{TEST_ANS_HOST, TEST_MODULE_FACTORY, TEST_VERSION_CONTROL};
     const ASTROPORT: &str = "astroport";
     const COMMISSION_RECEIVER: &str = "commission_receiver";
     use crate::test_common::app_init;
@@ -329,6 +337,7 @@ mod test {
                     max_swap_spread: None,
                 },
                 base: abstract_core::app::BaseInstantiateMsg {
+                    version_control_address: TEST_VERSION_CONTROL.to_string(),
                     ans_host_address: TEST_ANS_HOST.to_string(),
                 },
             },

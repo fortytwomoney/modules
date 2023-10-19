@@ -32,7 +32,7 @@ use abstract_sdk::{
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use cosmwasm_std::{
     Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response,
-    StdResult, SubMsg, Uint128,
+    StdResult, SubMsg, Uint128, StdError,
 };
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetBase, AssetInfo, AssetInfoBase, AssetList};
@@ -499,7 +499,7 @@ fn transfer_token_to_proxy(
         AssetInfoBase::Cw20(_addr) => Asset::cw20(_addr, lp_token.amount)
             .transfer_from_msg(sender, app.proxy_address(deps)?)
             .map_err(|e| e.into()),
-        AssetInfoBase::Native(_denom) => Ok(app.bank(deps).deposit(vec![lp_token])?.swap_remove(0)),
+        AssetInfoBase::Native(_denom) => Ok(app.bank(deps).deposit(vec![lp_token])?.into_iter().next().ok_or(AutocompounderError::Std(StdError::generic_err("no message")))?),
         _ => Err(AutocompounderError::AssetError(
             cw_asset::AssetError::InvalidAssetFormat {
                 received: lp_token.to_string(),
@@ -1041,8 +1041,8 @@ fn claim_lp_rewards(
             StakingExecuteMsg {
                 provider,
                 action: StakingAction::ClaimRewards {
-                    asset: lp_token_name,
-                },
+                    assets: vec![lp_token_name],
+        },
             },
         )
         .unwrap()
@@ -1063,7 +1063,7 @@ fn claim_unbonded_tokens(
             StakingExecuteMsg {
                 provider,
                 action: StakingAction::Claim {
-                    asset: lp_token_name,
+                    assets: vec![lp_token_name],
                 },
             },
         )
@@ -1087,7 +1087,7 @@ fn unstake_lp_tokens(
             StakingExecuteMsg {
                 provider,
                 action: StakingAction::Unstake {
-                    asset: AnsAsset::new(lp_token_name, amount),
+                    assets: vec![AnsAsset::new(lp_token_name, amount)],
                     unbonding_period,
                 },
             },

@@ -1,4 +1,5 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult};
+use crate::error::AutocompounderError;
 use crate::state::{
     Claim, Config, FeeConfig, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
@@ -145,13 +146,15 @@ pub fn query_total_lp_position(
 
     let query = StakingQueryMsg::Staked {
         provider: config.pool_data.dex.clone(),
-        staking_token: AnsEntryConvertor::new(AnsEntryConvertor::new(config.pool_data).lp_token())
-            .asset_entry(),
+        stakes: vec![config.lp_asset_entry()],
         staker_address: app.proxy_address(deps)?.to_string(),
         unbonding_period: config.unbonding_period,
     };
     let res: abstract_cw_staking::msg::StakeResponse = adapters.query(CW_STAKING, query)?;
-    Ok(res.amount)
+    let amount = res.amounts.get(0).ok_or(AutocompounderError::Std(cosmwasm_std::StdError::generic_err(
+        "No amount found"
+    )))?;
+    Ok(amount.clone())
 }
 
 pub fn query_balance(deps: Deps, address: Addr) -> AutocompounderResult<Uint128> {

@@ -354,10 +354,13 @@ fn query_rewards(
     let adapters = app.adapters(deps);
     let query = StakingQueryMsg::RewardTokens {
         provider: config.pool_data.dex.clone(),
-        staking_token: config.lp_asset_entry(),
+        staking_tokens: vec![config.lp_asset_entry()],
     };
     let RewardTokensResponse { tokens } = adapters.query(CW_STAKING, query)?;
-    Ok(tokens)
+    let first_tokens = tokens
+        .first().unwrap();
+
+    Ok(first_tokens.clone())
 }
 
 /// queries available staking rewards assets and the corresponding balances

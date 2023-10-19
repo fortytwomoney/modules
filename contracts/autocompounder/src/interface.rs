@@ -1,6 +1,7 @@
 use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING};
 use abstract_interface::{Abstract, ManagerQueryFns};
 use abstract_interface::{AbstractAccount, AppDeployer};
+use abstract_core::{manager::ManagerModuleInfo, objects::AccountId};
 use abstract_sdk::core::app;
 use abstract_sdk::core::app::BaseExecuteMsg;
 use cw_orch::{interface, prelude::*};
@@ -69,9 +70,9 @@ pub struct Vault<Chain: CwEnv> {
 }
 
 impl<Chain: CwEnv> Vault<Chain> {
-    pub fn new(abstract_: &Abstract<Chain>, account_id: Option<u32>) -> anyhow::Result<Self> {
+    pub fn new(abstract_: &Abstract<Chain>, account_id: Option<AccountId>) -> anyhow::Result<Self> {
         let chain = abstract_.ans_host.get_chain();
-        let account = AbstractAccount::new(abstract_, account_id);
+        let account = AbstractAccount::new(abstract_, account_id.clone());
         let staking = CwStakingAdapter::new(CW_STAKING, chain.clone());
         let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
 

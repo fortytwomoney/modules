@@ -205,13 +205,18 @@ pub fn query_stake(
     let adapters = app.adapters(deps);
 
     let query = StakingQueryMsg::Staked {
-        staking_token: lp_token_name,
+        stakes: vec![lp_token_name],
         staker_address: app.proxy_address(deps)?.to_string(),
         provider: dex,
         unbonding_period,
     };
     let res: StakeResponse = adapters.query(CW_STAKING, query)?;
-    Ok(res.amount)
+    let amount = res.amounts.first()
+        .ok_or(AutocompounderError::Std(StdError::generic_err(
+            "No staked assets found",
+        )))?;
+
+    Ok(amount.clone())
 }
 
 pub fn stake_lp_tokens(
@@ -227,7 +232,7 @@ pub fn stake_lp_tokens(
         StakingExecuteMsg {
             provider,
             action: StakingAction::Stake {
-                asset,
+                assets: vec![asset],
                 unbonding_period,
             },
         },
@@ -304,9 +309,7 @@ pub fn transfer_to_msgs(
     if asset.amount.is_zero() {
         Ok(vec![])
     } else {
-        Ok(vec![app.executor(deps).execute(vec![app
-            .bank(deps)
-            .transfer(vec![asset], &recipient)?])?])
+        Ok(app.bank(deps).transfer(vec![asset], &recipient)?.messages())
     }
 }
 
