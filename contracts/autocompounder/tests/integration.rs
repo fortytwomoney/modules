@@ -2,6 +2,7 @@ mod common;
 
 use abstract_core::objects::gov_type::GovernanceDetails;
 use abstract_interface::{AbstractInterfaceError, AccountDetails};
+use abstract_testing::prelude::TEST_ACCOUNT_ID;
 use autocompounder::error::AutocompounderError;
 use cw_plus_interface::cw20_base::Cw20Base;
 use cw_asset::{AssetInfo, AssetInfoBase};
@@ -99,15 +100,20 @@ pub fn create_vault(
             description: None,
             link: None,
             name: "Vault Account".to_string(),
+            namespace: Some(TEST_NAMESPACE.to_string()),
+            base_asset: None,
+            install_modules: vec![],
+
         },
         GovernanceDetails::Monarchy {
             monarch: mock.sender.to_string(),
         },
+        None
     )?;
 
-    abstract_
-        .version_control
-        .claim_namespace(1, TEST_NAMESPACE.to_string())?;
+    // abstract_
+    //     .version_control
+    //     .claim_namespace(TEST_ACCOUNT_ID, )?;
 
     // Deploy mock dex
     let wyndex = WynDex::store_on(mock.clone()).unwrap();
@@ -161,6 +167,7 @@ pub fn create_vault(
             },
             base: abstract_core::app::BaseInstantiateMsg {
                 ans_host_address: abstract_.ans_host.addr_str()?,
+                version_control_address:abstract_.version_control.addr_str()?,
             },
         },
         None,

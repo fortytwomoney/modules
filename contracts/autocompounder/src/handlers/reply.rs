@@ -477,13 +477,14 @@ mod test {
 
             // 4. check the response messages and attributes
             // check the expected messages
-            let expected_messages = AUTOCOMPOUNDER_APP.bank(deps.as_ref()).transfer(
+            let transfer_msgs = AUTOCOMPOUNDER_APP.bank(deps.as_ref()).transfer(
                 vec![eur_ans_asset.clone(), usd_ans_asset.clone()],
-                &user_addr,
-            )?.messages();
-            assert_that!(response.messages).has_length(1);
-            assert_that!(msg.to_owned()).is_equal_to(expected_messages[0].to_owned());
+                &user_addr,)?;
+            let expected_messages = AUTOCOMPOUNDER_APP.executor(deps.as_ref()).execute(vec![transfer_msgs])?;
 
+            assert_that!(response.messages).has_length(1);
+            assert_that!(msg.to_owned()).is_equal_to(CosmosMsg::from(expected_messages));
+            
             // check the expected attributes
             let abstract_attributes = response.events[0].attributes.clone();
             // first 2 are from custom_tag_response, second 2 are the transfered assets

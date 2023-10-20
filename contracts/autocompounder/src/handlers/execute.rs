@@ -1329,7 +1329,7 @@ mod test {
 
             let config = CONFIG.load(deps.as_ref().storage)?;
             assert_that!(config.vault_token).is_equal_to(AssetInfo::Native(
-                "factory/cosmos2contract/VT_4T2/wyndex:eur_usd:constant_product".to_string(),
+                "factory/cosmos2contract/VT_4T2/wyndex/eur_usd:constant_product".to_string(),
             ));
 
             Ok(())

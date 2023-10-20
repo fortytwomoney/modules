@@ -633,11 +633,11 @@ pub mod helpers_tests {
         fn create_denom_from_pool() {
             let pool = eur_usd_pool();
             let denom = create_subdenom_from_pool_assets(&pool);
-            assert_eq!(denom, "VT_4T2/wyndex:juno/eur_juno/usd:constant_product");
+            assert_eq!(denom, "VT_4T2/wyndex/juno/eur_juno/usd:constant_product");
 
             let long_pool = eur_usd_pool_long();
             let denom = create_subdenom_from_pool_assets(&long_pool);
-            assert_eq!(denom, "VT_4T2/wyndex:neutron/eur_neutron/usd:constant_pro");
+            assert_eq!(denom, "VT_4T2/wyndex/neutron/eur_neutron/usd:constant_pro");
         }
     }
 }
