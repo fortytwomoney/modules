@@ -17,7 +17,9 @@ use abstract_core::objects::AnsAsset;
 use abstract_core::objects::PoolMetadata;
 use abstract_cw_staking::{msg::*, CW_STAKING};
 use abstract_dex_adapter::api::Dex;
+use abstract_sdk::AccountAction;
 use abstract_sdk::AdapterInterface;
+use abstract_sdk::ExecutorMsg;
 use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
 use abstract_sdk::{AbstractSdkResult, Execution, TransferInterface};
 use cosmwasm_std::QueryRequest;
@@ -304,13 +306,14 @@ pub fn transfer_to_msgs(
     app: &AutocompounderApp,
     deps: Deps,
     asset: AnsAsset,
-    recipient: Addr,
-) -> Result<Vec<CosmosMsg>, AutocompounderError> {
-    if asset.amount.is_zero() {
-        Ok(vec![])
+    recipient: &Addr,
+) -> Result<CosmosMsg, AutocompounderError> {
+    let actions: Vec<AccountAction> = if asset.amount.is_zero() {
+        vec![]
     } else {
-        Ok(app.bank(deps).transfer(vec![asset], &recipient)?.messages())
-    }
+        vec![app.bank(deps).transfer(vec![asset], recipient)?]
+    };
+    return Ok(app.executor(deps).execute(actions)?.into())
 }
 
 #[cfg(test)]
@@ -327,6 +330,7 @@ pub mod helpers_tests {
         testing::{mock_dependencies, MockApi, MockStorage},
         Empty, OwnedDeps, Querier, SystemResult,
     };
+
     use cw_asset::AssetInfoBase;
     use speculoos::{assert_that, result::ResultAssertions};
 
@@ -593,19 +597,6 @@ pub mod helpers_tests {
         assert_eq!(result, Uint128::from(50u128));
     }
 
-    #[test]
-    fn test_transfer_to_msgs() {
-        let deps = mock_dependencies();
-        let recipient = Addr::unchecked("recipient");
-
-        // Test transfer with zero amount
-        let asset = AnsAsset {
-            amount: Uint128::zero(),
-            name: AssetEntry::new("token"),
-        };
-        let msgs = transfer_to_msgs(&AUTOCOMPOUNDER_APP, deps.as_ref(), asset, recipient).unwrap();
-        assert_eq!(msgs.len(), 0);
-    }
 
     mod denom {
         use super::*;

@@ -484,7 +484,7 @@ mod test {
 
             assert_that!(response.messages).has_length(1);
             assert_that!(msg.to_owned()).is_equal_to(CosmosMsg::from(expected_messages));
-            
+
             // check the expected attributes
             let abstract_attributes = response.events[0].attributes.clone();
             // first 2 are from custom_tag_response, second 2 are the transfered assets

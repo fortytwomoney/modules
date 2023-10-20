@@ -431,13 +431,14 @@ fn deposit_lp(
     )?;
 
     let (lp_asset, fee_asset) = deduct_fee(lp_asset, fee_config.deposit);
-    let fee_msgs = transfer_to_msgs(
+    let fee_msg = transfer_to_msgs(
         &app,
         deps.as_ref(),
         fee_asset,
-        fee_config.fee_collector_addr,
+        &fee_config.fee_collector_addr,
     )?;
 
+    
     let current_vault_supply = vault_token_total_supply(deps.as_ref(), &config)?;
     let mint_amount = convert_to_shares(lp_asset.amount, staked_lp, current_vault_supply);
     if mint_amount.is_zero() {
@@ -459,9 +460,10 @@ fn deposit_lp(
     )?;
 
     let res = Response::new()
-        .add_message(transfer_msg)
-        .add_messages(vec![mint_msg, stake_msg])
-        .add_messages(fee_msgs);
+    .add_message(transfer_msg)
+    .add_messages(vec![mint_msg, stake_msg])
+    .add_message(fee_msg);
+        
 
     Ok(app.custom_tag_response(
         res,
