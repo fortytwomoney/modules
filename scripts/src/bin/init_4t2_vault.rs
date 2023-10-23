@@ -14,15 +14,20 @@ use std::sync::Arc;
 use abstract_core::{
     account_factory, adapter, app,
     objects::module::ModuleInfo,
+    manager::ExecuteMsg,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
     registry::{ANS_HOST, MANAGER, PROXY},
     ABSTRACT_EVENT_TYPE,
 };
 use abstract_cw_staking::CW_STAKING;
-use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy, AccountDetails, ManagerExecFns, ManagerQueryFns};
+use abstract_interface::{
+    Abstract, AbstractAccount, AccountDetails, AccountFactory, Manager, ManagerExecFns,
+    ManagerQueryFns, Proxy,
+
+};
 
 use clap::Parser;
-use cosmwasm_std::{coin, Addr, Decimal, Empty, to_binary};
+use cosmwasm_std::{coin, to_binary, Addr, Decimal, Empty};
 use cw_orch::daemon::networks::parse_network;
 
 use autocompounder::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER};
@@ -37,7 +42,7 @@ fn description(asset_string: String) -> String {
     return format!(
         "Within the vault, users {} LP tokens are strategically placed into an Astroport farm, generating the platform governance token as rewards. These earned tokens are intelligently exchanged to acquire additional underlying assets, further boosting the volume of the same liquidity tokens. The newly acquired axlUSDC/ASTRO LP tokens are promptly integrated back into the farm, primed for upcoming earning events. The transaction costs associated with these processes are distributed among the users of the vault, creating a collective and efficient approach.",
         asset_string
-    )
+    );
 }
 
 fn create_vault_account<Chain: CwEnv>(
@@ -53,7 +58,7 @@ where
 {
     let result = factory.create_new_account(
         AccountDetails {
-        // &account_factory::ExecuteMsg::CreateAccount {
+            // &account_factory::ExecuteMsg::CreateAccount {
             base_asset: None,
             namespace: Some("4t2".to_string()),
             install_modules: modules,
@@ -71,21 +76,17 @@ where
 fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
-    let (main_account_id ,dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
-        "uni-6" => (0, "wyndex", "juno>junox", Some(4012)),
-        "juno-1" => (0, "wyndex", "juno>juno", Some(1)),
-        "pion-1" => (0, "astroport", "neutron>astro", Some(188)),
-        "neutron-1" => (0, "astroport", "neutron>astro", Some(180)),
-        "pisco-1" => (0, "astroport", "terra2>luna", Some(83)),
-        "phoenix-1" => (0, "astroport", "terra2>luna", Some(69)),
-        "osmo-test-5" => (2, "osmosis5", "osmosis5>osmo", Some(1)),
-        "harpoon-4" => (0, "kujira", "kujira>kuji", None),
+    let (main_account_id, dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
+        "uni-6" => (None, "wyndex", "juno>junox", Some(4012)),
+        "juno-1" => (None, "wyndex", "juno>juno", Some(1)),
+        "pion-1" => (None, "astroport", "neutron>astro", Some(188)),
+        "neutron-1" => (None, "astroport", "neutron>astro", Some(180)),
+        "pisco-1" => (None, "astroport", "terra2>luna", Some(83)),
+        "phoenix-1" => (None, "astroport", "terra2>luna", Some(69)),
+        "osmo-test-5" => (Some(2), "osmosis5", "osmosis5>osmo", Some(1)),
+        "harpoon-4" => (Some(2), "kujira", "kujira>kuji", None),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
-
-    if main_account_id == 0 {
-        panic!("Account id for main account should be specified first ");
-    }
 
     info!("Using dex: {} and base: {}", dex, base_pair_asset);
 
@@ -100,7 +101,24 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let sender = chain.sender();
 
     let abstr = Abstract::load_from(chain.clone())?;
-    let main_account = AbstractAccount::new(&abstr, Some(AccountId::local(main_account_id)));
+    let main_account = if let Some(account_id) = main_account_id {
+        AbstractAccount::new(&abstr, Some(AccountId::local(account_id)))
+    } else {
+        abstr.account_factory.create_new_account(
+            AccountDetails {
+                name: "fortytwo manager".to_string(),
+                description: Some("manager of 4t2 smartcontracts".to_string()),
+                link: None,
+                namespace: Some("4t2".to_string()),
+                base_asset: None,
+                install_modules: vec![],
+            },
+            GovernanceDetails::Monarchy {
+                monarch: sender.to_string(),
+            },
+            None,
+        )?
+    };
 
     let instantiation_funds = if cw20_code_id.is_none() {
         let bank = Bank::new(chain.channel());
@@ -117,84 +135,100 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         None
     };
 
-
     let mut pair_assets = vec![args.paired_asset, args.other_asset];
     pair_assets.sort();
 
     // let new_module_version =
-        // ModuleVersion::Version(args.ac_version.unwrap_or(MODULE_VERSION.to_string()));
-    
-    let autocompounder_instantiate_msg =Some(
-        to_binary(
-            &app::InstantiateMsg {
-                base: app::BaseInstantiateMsg {
-                    ans_host_address: abstr
-                    .version_control
-                    .module(ModuleInfo::from_id_latest(ANS_HOST)?)?
-                    .reference
-                    .unwrap_addr()?
-                    .to_string(),
-                    version_control_address: abstr.version_control.address()?.to_string(),
-                },
-                module: AutocompounderInstantiateMsg {
-                    performance_fees: Decimal::new(100u128.into()),
-                    deposit_fees: Decimal::new(0u128.into()),
-                    withdrawal_fees: Decimal::new(0u128.into()),
-                    /// address that recieves the fee commissions
-                    commission_addr: sender.to_string(),
-                    /// cw20 code id
-                    code_id: cw20_code_id,
-                    /// Name of the target dex
-                    dex: dex.into(),
-                    /// Assets in the pool
-                    pool_assets: pair_assets.clone().into_iter().map(Into::into).collect(),
-                    preferred_bonding_period: BondingPeriodSelector::Shortest,
-                    max_swap_spread: Some(Decimal::percent(10)),
-                },
-            }
-        )?
+    // ModuleVersion::Version(args.ac_version.unwrap_or(MODULE_VERSION.to_string()));
+
+    let autocompounder_instantiate_msg = Some(to_binary(&app::InstantiateMsg {
+        base: app::BaseInstantiateMsg {
+            ans_host_address: abstr
+                .version_control
+                .module(ModuleInfo::from_id_latest(ANS_HOST)?)?
+                .reference
+                .unwrap_addr()?
+                .to_string(),
+            version_control_address: abstr.version_control.address()?.to_string(),
+        },
+        module: AutocompounderInstantiateMsg {
+            performance_fees: Decimal::new(100u128.into()),
+            deposit_fees: Decimal::new(0u128.into()),
+            withdrawal_fees: Decimal::new(0u128.into()),
+            /// address that recieves the fee commissions
+            commission_addr: sender.to_string(),
+            /// cw20 code id
+            code_id: cw20_code_id,
+            /// Name of the target dex
+            dex: dex.into(),
+            /// Assets in the pool
+            pool_assets: pair_assets.clone().into_iter().map(Into::into).collect(),
+            preferred_bonding_period: BondingPeriodSelector::Shortest,
+            max_swap_spread: Some(Decimal::percent(10)),
+        },
+    })?);
+
+    // let result = main_account.manager.create_sub_account(
+    //     vec![
+    //         // installs both abstract dex and staking in the instantiation of the account
+    //         ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:dex")?, None),
+    //         ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:staking")?, None),
+    //         ModuleInstallConfig::new(
+    //             ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?,
+    //             autocompounder_instantiate_msg,
+    //         ),
+    //     ],
+    //     format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
+    //     None,
+    //     Some(description(pair_assets.join("|").replace('>', ":"))),
+    //     Some("https://app.fortytwo.money".to_string()),
+    //     None,
+    // );
+
+    // info!(
+    //     "Instantiated AC addr: {}",
+    //     result.instantiated_contract_address()?.to_string()
+    // );
+
+    let manager_create_sub_account_msg = ExecuteMsg::CreateSubAccount {
+        base_asset: None,
+        namespace: Some("4t2".to_string()),
+        description: None,
+        link: None,
+        name: format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
+        install_modules: vec![
+            // installs both abstract dex and staking in the instantiation of the account
+            ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:dex")?, None),
+            ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:staking")?, None),
+            ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?, autocompounder_instantiate_msg)
+        ],
+    };
+
+    let result = main_account.manager.execute(&manager_create_sub_account_msg, instantiation_funds.as_deref())?;
+    info!(
+        "Instantiated AC addr: {}",
+        result.instantiated_contract_address()?.to_string()
     );
 
-
-    let result = main_account.manager.create_sub_account(
-        vec![
-                // installs both abstract dex and staking in the instantiation of the account
-                ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:dex")?, None),
-                ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:staking")?, None),
-                ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?, autocompounder_instantiate_msg)
-            ],
-        format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")), 
-        None, 
-        Some(description(pair_assets.join("|").replace('>', ":"))), 
-        Some("https://app.fortytwo.money".to_string()),
-        None
-    )?;
-
-    info!("Instantiated AC addr: {}", result.instantiated_contract_address()?.to_string());
-
+    
     // let result = abstr.account_factory.create_new_account(
     //     AccountDetails {
     //     // &account_factory::ExecuteMsg::CreateAccount {
-    //         base_asset: None,
-    //         namespace: Some("4t2".to_string()),
-    //         description: None,
-    //         link: None,
-    //         name: format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
-    //         install_modules: vec![
-    //             // installs both abstract dex and staking in the instantiation of the account
-    //             ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:dex")?, None),
-    //             ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:staking")?, None),
-    //             ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?, autocompounder_instantiate_msg)
-    //         ],
-    //     },
     //     GovernanceDetails::SubAccount { manager: main_account.manager.addr_str()?, proxy: main_account.proxy.addr_str()? },
     //     instantiation_funds.as_deref(),
     // )?;
 
-    info!("Created account: {:?}", main_account.manager.sub_account_ids(None, None)?.sub_accounts.last());
+    info!(
+        "Created account: {:?}",
+        main_account
+            .manager
+            .sub_account_ids(None, None)?
+            .sub_accounts
+            .last()
+    );
 
     Ok(())
-    }
+}
 
 #[derive(Parser, Default, Debug)]
 #[command(author, version, about, long_about = None)]
