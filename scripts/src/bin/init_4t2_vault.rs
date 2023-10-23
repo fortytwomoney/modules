@@ -19,7 +19,7 @@ use abstract_core::{
     ABSTRACT_EVENT_TYPE,
 };
 use abstract_cw_staking::CW_STAKING;
-use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy, AccountDetails};
+use abstract_interface::{Abstract, AbstractAccount, AccountFactory, Manager, Proxy, AccountDetails, ManagerExecFns, ManagerQueryFns};
 
 use clap::Parser;
 use cosmwasm_std::{coin, Addr, Decimal, Empty, to_binary};
@@ -32,6 +32,13 @@ use log::info;
 // We can then deploy a test Account that uses that new app
 
 const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+fn description(asset_string: String) -> String {
+    return format!(
+        "Within the vault, users {} LP tokens are strategically placed into an Astroport farm, generating the platform governance token as rewards. These earned tokens are intelligently exchanged to acquire additional underlying assets, further boosting the volume of the same liquidity tokens. The newly acquired axlUSDC/ASTRO LP tokens are promptly integrated back into the farm, primed for upcoming earning events. The transaction costs associated with these processes are distributed among the users of the vault, creating a collective and efficient approach.",
+        asset_string
+    )
+}
 
 fn create_vault_account<Chain: CwEnv>(
     factory: &AccountFactory<Chain>,
@@ -65,13 +72,13 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
     let (main_account_id ,dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
-        "uni-6" => (2, "wyndex", "juno>junox", Some(4012)),
+        "uni-6" => (0, "wyndex", "juno>junox", Some(4012)),
         "juno-1" => (0, "wyndex", "juno>juno", Some(1)),
         "pion-1" => (0, "astroport", "neutron>astro", Some(188)),
         "neutron-1" => (0, "astroport", "neutron>astro", Some(180)),
         "pisco-1" => (0, "astroport", "terra2>luna", Some(83)),
         "phoenix-1" => (0, "astroport", "terra2>luna", Some(69)),
-        "osmo-test-5" => (0, "osmosis5", "osmosis5>osmo", Some(1)),
+        "osmo-test-5" => (2, "osmosis5", "osmosis5>osmo", Some(1)),
         "harpoon-4" => (0, "kujira", "kujira>kuji", None),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
@@ -148,26 +155,43 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         )?
     );
 
-    let result = abstr.account_factory.create_new_account(
-        AccountDetails {
-        // &account_factory::ExecuteMsg::CreateAccount {
-            base_asset: None,
-            namespace: Some("4t2".to_string()),
-            description: None,
-            link: None,
-            name: format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
-            install_modules: vec![
+
+    let result = main_account.manager.create_sub_account(
+        vec![
                 // installs both abstract dex and staking in the instantiation of the account
                 ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:dex")?, None),
                 ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:staking")?, None),
                 ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?, autocompounder_instantiate_msg)
             ],
-        },
-        GovernanceDetails::SubAccount { manager: main_account.manager.addr_str()?, proxy: main_account.proxy.addr_str()? },
-        instantiation_funds.as_deref(),
+        format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")), 
+        None, 
+        Some(description(pair_assets.join("|").replace('>', ":"))), 
+        Some("https://app.fortytwo.money".to_string()),
+        None
     )?;
 
-    info!("Created account: {:?}", result.id()?);
+    info!("Instantiated AC addr: {}", result.instantiated_contract_address()?.to_string());
+
+    // let result = abstr.account_factory.create_new_account(
+    //     AccountDetails {
+    //     // &account_factory::ExecuteMsg::CreateAccount {
+    //         base_asset: None,
+    //         namespace: Some("4t2".to_string()),
+    //         description: None,
+    //         link: None,
+    //         name: format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
+    //         install_modules: vec![
+    //             // installs both abstract dex and staking in the instantiation of the account
+    //             ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:dex")?, None),
+    //             ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:staking")?, None),
+    //             ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?, autocompounder_instantiate_msg)
+    //         ],
+    //     },
+    //     GovernanceDetails::SubAccount { manager: main_account.manager.addr_str()?, proxy: main_account.proxy.addr_str()? },
+    //     instantiation_funds.as_deref(),
+    // )?;
+
+    info!("Created account: {:?}", main_account.manager.sub_account_ids(None, None)?.sub_accounts.last());
 
     Ok(())
     }

@@ -141,15 +141,8 @@ pub fn instantiate_handler(
         code_id, // if code_id is none, submsg will be like normal msg: no reply (for now).
     )?;
 
-    // quick fix to not mint denom if code_id is none. We cant mint denom without funds.
-    let sub_msgs = if code_id.is_some() {
-        vec![sub_msg]
-    } else {
-        vec![]
-    };
-
     Ok(Response::new()
-        .add_submessages(sub_msgs)
+        .add_submessage(sub_msg)
         .add_attribute("action", "instantiate")
         .add_attribute("contract", AUTOCOMPOUNDER))
 }
@@ -159,7 +152,7 @@ pub fn query_staking_info(
     app: &AutocompounderApp,
     lp_token_name: AssetEntry,
     dex: String,
-) -> StdResult<StakingInfo> {
+) -> AutocompounderResult<StakingInfo> {
     let adapters = app.adapters(deps);
 
     let query = StakingQueryMsg::Info {

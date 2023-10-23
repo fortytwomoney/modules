@@ -45,13 +45,13 @@ pub fn encode_msg_create_denom(sender: &str, denom: &str) -> Vec<u8> {
 pub fn tokenfactory_create_denom_msg(
     minter: String,
     subdenom: String,
-) -> Result<CosmosMsg, StdError> {
+) -> CosmosMsg {
     let msg = encode_msg_create_denom(&minter, &subdenom);
     let cosmos_msg = CosmosMsg::Stargate {
         type_url: MSG_CREATE_DENOM_TYPE_URL.to_string(),
         value: msg.into(),
     };
-    Ok(cosmos_msg)
+    cosmos_msg
 }
 
 /// // MsgMint is the sdk.Msg type for allowing an admin account to mint

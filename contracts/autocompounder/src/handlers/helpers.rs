@@ -61,7 +61,7 @@ pub fn create_vault_token_submsg(
     minter: String,
     subdenom: String,
     code_id: Option<u64>,
-) -> Result<SubMsg, StdError> {
+) -> Result<SubMsg, AutocompounderError> {
     if let Some(code_id) = code_id {
         let msg = TokenInstantiateMsg {
             name: subdenom,
@@ -85,7 +85,7 @@ pub fn create_vault_token_submsg(
             reply_on: ReplyOn::Success,
         })
     } else {
-        let cosmos_msg = tokenfactory_create_denom_msg(minter, subdenom)?;
+        let cosmos_msg = tokenfactory_create_denom_msg(minter, subdenom);
         let sub_msg = SubMsg {
             msg: cosmos_msg,
             gas_limit: None,
