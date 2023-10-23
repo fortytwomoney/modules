@@ -139,6 +139,7 @@ pub fn instantiate_handler(
         env.contract.address.to_string(),
         subdenom,
         code_id, // if code_id is none, submsg will be like normal msg: no reply (for now).
+        config.pool_data.dex
     )?;
 
     Ok(Response::new()

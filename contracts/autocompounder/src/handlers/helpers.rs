@@ -61,6 +61,7 @@ pub fn create_vault_token_submsg(
     minter: String,
     subdenom: String,
     code_id: Option<u64>,
+    dex: String,
 ) -> Result<SubMsg, AutocompounderError> {
     if let Some(code_id) = code_id {
         let msg = TokenInstantiateMsg {
@@ -85,7 +86,7 @@ pub fn create_vault_token_submsg(
             reply_on: ReplyOn::Success,
         })
     } else {
-        let cosmos_msg = tokenfactory_create_denom_msg(minter, subdenom);
+        let cosmos_msg = tokenfactory_create_denom_msg(minter, subdenom, dex);
         let sub_msg = SubMsg {
             msg: cosmos_msg,
             gas_limit: None,
@@ -115,10 +116,11 @@ pub fn mint_vault_tokens_msg(
     minter: &Addr,
     recipient: Addr,
     amount: Uint128,
+    dex: String,
 ) -> Result<CosmosMsg, AutocompounderError> {
     match config.vault_token.clone() {
         AssetInfo::Native(denom) => {
-            tokenfactory_mint_msg(minter, denom, amount, recipient.as_str()).map_err(|e| e.into())
+            tokenfactory_mint_msg(minter, denom, amount, recipient.as_str(), dex).map_err(|e| e.into())
         }
         AssetInfo::Cw20(token_addr) => {
             let mint_msg = wasm_execute(
@@ -143,10 +145,11 @@ pub fn burn_vault_tokens_msg(
     config: &Config,
     minter: &Addr,
     amount: Uint128,
+    dex: String,
 ) -> AutocompounderResult<CosmosMsg> {
     match config.vault_token.clone() {
         AssetInfo::Native(denom) => {
-            tokenfactory_burn_msg(minter, denom, amount).map_err(|e| e.into())
+            tokenfactory_burn_msg(minter, denom, amount, dex).map_err(|e| e.into())
         }
         AssetInfo::Cw20(token_addr) => {
             let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
@@ -476,7 +479,7 @@ pub mod helpers_tests {
         let subdenom = "subdenom".to_string();
         let code_id = Some(1u64);
 
-        let result = create_vault_token_submsg(minter, subdenom, code_id);
+        let result = create_vault_token_submsg(minter, subdenom, code_id, "kujira".to_string());
         assert_that!(result).is_ok();
 
         let submsg = result.unwrap();
@@ -488,7 +491,7 @@ pub mod helpers_tests {
     fn test_create_lp_token_submsg_without_code_id() {
         let minter = "minter".to_string();
 
-        let result = create_vault_token_submsg(minter, "subdenom".to_string(), None);
+        let result = create_vault_token_submsg(minter, "subdenom".to_string(), None, "kujira".to_string());
         assert!(result.is_ok());
 
         let submsg = result.unwrap();
@@ -501,10 +504,11 @@ pub mod helpers_tests {
         let minter = &Addr::unchecked("minter");
         let recipient = Addr::unchecked("recipient");
         let amount = Uint128::from(100u128);
+        let dex = "kujira".to_string();
 
         // native token
         let config = min_cooldown_config(Some(Duration::Time(1)), true);
-        let result = mint_vault_tokens_msg(&config, minter, recipient.clone(), amount);
+        let result = mint_vault_tokens_msg(&config, minter, recipient.clone(), amount, dex.clone());
         assert_that!(result.is_ok());
         let msg = result.unwrap();
 
@@ -516,7 +520,7 @@ pub mod helpers_tests {
 
         // cw20 token
         let config = min_cooldown_config(Some(Duration::Time(1)), false);
-        let result = mint_vault_tokens_msg(&config, minter, recipient, amount);
+        let result = mint_vault_tokens_msg(&config, minter, recipient, amount, dex);
         assert_that!(result).is_ok();
         let msg = result.unwrap();
         let CosmosMsg::Wasm(WasmMsg::Execute {
@@ -535,9 +539,10 @@ pub mod helpers_tests {
         let minter = &Addr::unchecked("minter");
         let amount = Uint128::from(100u128);
 
+        let dex = "kujira".to_string();
         // native token
         let config = min_cooldown_config(Some(Duration::Time(1)), true);
-        let result = burn_vault_tokens_msg(&config, minter, amount);
+        let result = burn_vault_tokens_msg(&config, minter, amount, dex.clone());
         assert_that!(result.is_ok());
         let msg = result.unwrap();
         let CosmosMsg::Stargate { type_url, value: _ } = msg else {
@@ -548,7 +553,7 @@ pub mod helpers_tests {
 
         // cw20 token
         let config = min_cooldown_config(Some(Duration::Time(1)), false);
-        let result = burn_vault_tokens_msg(&config, minter, amount);
+        let result = burn_vault_tokens_msg(&config, minter, amount, dex);
         assert_that!(result).is_ok();
 
         let msg = result.unwrap();

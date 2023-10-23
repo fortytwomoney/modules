@@ -121,7 +121,7 @@ fn create_denom(
 
     let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
     let denom = format_tokenfactory_denom(&contract_address, &subdenom);
-    let msg = create_vault_token_submsg(contract_address, subdenom, None)?;
+    let msg = create_vault_token_submsg(contract_address, subdenom, None, config.pool_data.dex)?;
 
     CONFIG.update(deps.storage, |mut config| -> StdResult<Config> {
         config.vault_token = AssetInfo::Native(denom.clone());
@@ -450,6 +450,7 @@ fn deposit_lp(
         &env.contract.address,
         recipient.clone(),
         mint_amount,
+        config.pool_data.dex.clone()
     )?;
     let stake_msg = stake_lp_tokens(
         deps.as_ref(),
@@ -599,7 +600,7 @@ pub fn batch_unbond(
     );
 
     let burn_msg =
-        burn_vault_tokens_msg(&config, &env.contract.address, total_vault_tokens_to_burn)?;
+        burn_vault_tokens_msg(&config, &env.contract.address, total_vault_tokens_to_burn, config.pool_data.dex.clone())?;
 
     let response = Response::new().add_messages(vec![unstake_msg, burn_msg]);
     Ok(app.custom_tag_response(
@@ -794,6 +795,7 @@ fn redeem_without_bonding_period(
         &config,
         &env.contract.address,
         amount_of_vault_tokens_to_be_burned,
+        config.pool_data.dex.clone(),
     )?;
 
     // 3) withdraw lp tokens
@@ -1251,7 +1253,7 @@ mod test {
     }
 
     mod create_denom {
-        use crate::kujira_tx::MSG_CREATE_DENOM_TYPE_URL;
+        use crate::kujira_tx::msg_create_denom_type_url;
         use cosmwasm_std::StdError;
 
         use super::*;
@@ -1320,7 +1322,7 @@ mod test {
                         value: _,
                     } = &r.messages[0].msg
                     {
-                        url == MSG_CREATE_DENOM_TYPE_URL
+                        *url == msg_create_denom_type_url("wyndex".to_string())
                     } else {
                         false
                     }

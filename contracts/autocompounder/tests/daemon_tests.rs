@@ -1,7 +1,7 @@
 use autocompounder::kujira_tx::{
     encode_msg_burn, encode_msg_create_denom, encode_msg_mint, encode_query_supply_of,
-    format_tokenfactory_denom, DENOM_PARAMS_PATH, MSG_BURN_TYPE_URL, MSG_CREATE_DENOM_TYPE_URL,
-    MSG_MINT_TYPE_URL, SUPPLY_OF_PATH,
+    format_tokenfactory_denom, 
+    SUPPLY_OF_PATH, msg_mint_type_url, msg_create_denom_type_url, msg_burn_type_url, denom_params_path,
 };
 use cosmrs::{
     rpc::{Client, HttpClient},
@@ -40,6 +40,7 @@ pub fn denom_query_msgs() {
 
     // We can now use the daemon to interact with the chain. For example, we can query the total supply of a token.
     let denom = "ukuji";
+    let chain = "kujira".to_string();
 
     println!("{:?}", daemon.sender());
 
@@ -76,7 +77,7 @@ pub fn denom_query_msgs() {
 
     // query token factory params
     let response =
-        rt.block_on(client.abci_query(Some(DENOM_PARAMS_PATH.to_string()), vec![], None, true));
+        rt.block_on(client.abci_query(Some(denom_params_path(chain.clone())), vec![], None, true));
 
     println!("tokenfactory params response: {:?}", response);
     let result: String = response
@@ -102,6 +103,7 @@ fn tokenfactory_create_mint_burn() {
         .build()
         .unwrap();
 
+    let chain = "kujira".to_string();
     let block_height = daemon.block_info().unwrap().height as u32;
     let timeout_height = Height::from(block_height + 20u32);
     let wallet = daemon.wallet();
@@ -112,11 +114,11 @@ fn tokenfactory_create_mint_burn() {
 
     // let msg = tokenfactory_create_denom_msg(daemon.sender().to_string(), "4T2TEST1".to_string()).unwrap()
     let create_denom_msg = Any {
-        type_url: MSG_CREATE_DENOM_TYPE_URL.to_string(),
+        type_url: msg_create_denom_type_url(chain.clone()),
         value: encode_msg_create_denom(daemon.sender().as_str(), new_subdenom),
     };
     let any_mint_msg = Any {
-        type_url: MSG_MINT_TYPE_URL.to_string(),
+        type_url: msg_mint_type_url(chain.clone()),
         value: encode_msg_mint(
             daemon.sender().as_str(),
             &factory_denom,
@@ -125,7 +127,7 @@ fn tokenfactory_create_mint_burn() {
         ),
     };
     let any_burn_msg = Any {
-        type_url: MSG_BURN_TYPE_URL.to_string(),
+        type_url: msg_burn_type_url(chain.clone()),
         value: encode_msg_burn(
             daemon.sender().as_str(),
             &factory_denom,

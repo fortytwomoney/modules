@@ -11,12 +11,29 @@ use cosmwasm_std::{
 };
 use serde::{Deserialize, Serialize};
 
-pub const MSG_CREATE_DENOM_TYPE_URL: &str = "/kujira.denom.MsgCreateDenom";
-pub const MSG_MINT_TYPE_URL: &str = "/kujira.denom.MsgMint";
-pub const MSG_BURN_TYPE_URL: &str = "/kujira.denom.MsgBurn";
+// pub const MSG_CREATE_DENOM_TYPE_URL: &str = "/kujira.denom.MsgCreateDenom";
+// pub const MSG_MINT_TYPE_URL: &str = "/kujira.denom.MsgMint";
+// pub const MSG_BURN_TYPE_URL: &str = "/kujira.denom.MsgBurn";
 
-pub const DENOM_PARAMS_PATH: &str = "/kujira.denom.Query/Params";
+// pub const DENOM_PARAMS_PATH: &str = "/kujira.denom.Query/Params";
 pub const SUPPLY_OF_PATH: &str = "/cosmos.bank.v1beta1.Query/SupplyOf";
+
+/// create as functions with kujira replaced as variable
+pub fn msg_create_denom_type_url(chain: String) ->  String {
+    format!("/{}.denom.MsgCreateDenom", chain)
+}
+
+pub fn msg_mint_type_url(chain: String) ->  String {
+    format!("/{}.denom.MsgMint", chain)
+}
+
+pub fn msg_burn_type_url(chain: String) ->  String {
+    format!("/{}.denom.MsgBurn", chain)
+}
+
+pub fn denom_params_path(chain: String) ->  String {
+    format!("/{}.denom.Query/Params", chain)
+}
 
 pub const TOKEN_FACTORY_CREATION_FEE: u128 = 100_000_000u128;
 
@@ -45,10 +62,11 @@ pub fn encode_msg_create_denom(sender: &str, denom: &str) -> Vec<u8> {
 pub fn tokenfactory_create_denom_msg(
     minter: String,
     subdenom: String,
+    chain: String, 
 ) -> CosmosMsg {
     let msg = encode_msg_create_denom(&minter, &subdenom);
     let cosmos_msg = CosmosMsg::Stargate {
-        type_url: MSG_CREATE_DENOM_TYPE_URL.to_string(),
+        type_url: msg_create_denom_type_url(chain),
         value: msg.into(),
     };
     cosmos_msg
@@ -82,10 +100,11 @@ pub fn tokenfactory_mint_msg(
     denom: String,
     amount: Uint128,
     recipient: &str,
+    chain: String,
 ) -> Result<CosmosMsg, StdError> {
     let proto_msg = encode_msg_mint(minter.as_str(), denom.as_str(), amount, recipient);
     let msg = CosmosMsg::Stargate {
-        type_url: MSG_MINT_TYPE_URL.to_string(),
+        type_url: msg_mint_type_url(chain),
         value: to_binary(&proto_msg)?,
     };
     Ok(msg)
@@ -116,10 +135,11 @@ pub fn tokenfactory_burn_msg(
     minter: &Addr,
     denom: String,
     amount: Uint128,
+    chain: String,
 ) -> Result<CosmosMsg, StdError> {
     let proto_msg = encode_msg_burn(minter.as_str(), &denom, amount);
     let msg = CosmosMsg::Stargate {
-        type_url: MSG_BURN_TYPE_URL.to_string(),
+        type_url: msg_burn_type_url(chain),
         value: to_binary(&proto_msg)?,
     };
     Ok(msg)
@@ -164,18 +184,18 @@ pub struct Params {
 
 ///
 ///
-pub fn tokenfactory_params_query_request() -> Result<QueryRequest<Empty>, StdError> {
+pub fn tokenfactory_params_query_request(chain: String) -> Result<QueryRequest<Empty>, StdError> {
     let proto_msg = encode_query_params();
     let q_request = QueryRequest::Stargate {
-        path: DENOM_PARAMS_PATH.to_string(),
+        path: denom_params_path(chain),
         data: to_binary(&proto_msg)?,
     };
 
     Ok(q_request)
 }
 
-pub fn query_tokenfactory_params(deps: Deps) -> Result<Params, StdError> {
-    let q_request = tokenfactory_params_query_request()?;
+pub fn query_tokenfactory_params(deps: Deps, chain: String) -> Result<Params, StdError> {
+    let q_request = tokenfactory_params_query_request(chain)?;
     let response = deps.querier.query(&q_request)?;
     let params_response: Params = from_binary(&response)?;
     Ok(params_response)

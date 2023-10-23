@@ -105,7 +105,7 @@ pub fn lp_provision_reply(
 
     // Mint vault tokens to the user
     let mint_msg =
-        mint_vault_tokens_msg(&config, &env.contract.address, user_address, mint_amount)?;
+        mint_vault_tokens_msg(&config, &env.contract.address, user_address, mint_amount, config.pool_data.dex.clone())?;
 
     // Stake the LP tokens
     let stake_msg = stake_lp_tokens(
