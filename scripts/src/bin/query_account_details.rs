@@ -1,3 +1,4 @@
+use abstract_core::ans_host::QueryMsgFns;
 use abstract_core::module_factory::ModuleInstallConfig;
 use abstract_core::objects::{AccountId, AssetEntry};
 use autocompounder::interface::AutocompounderApp;
@@ -104,6 +105,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let main_account = if let Some(account_id) = main_account_id {
         AbstractAccount::new(&abstr, Some(AccountId::local(account_id)))
     } else {
+        panic!("Not implemented yet");
         abstr.account_factory.create_new_account(
             AccountDetails {
                 name: "fortytwo manager".to_string(),
@@ -120,103 +122,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         )?
     };
 
-    let instantiation_funds = if cw20_code_id.is_none() {
-        let bank = Bank::new(chain.channel());
-        let balance: u128 = rt
-            .block_on(bank.balance(&sender, Some("ukuji".to_string())))
-            .unwrap()[0]
-            .amount
-            .parse()?;
-        if balance < TOKEN_FACTORY_CREATION_FEE {
-            panic!("Not enough ukuji to pay for token factory creation fee");
-        }
-        Some(vec![coin(TOKEN_FACTORY_CREATION_FEE, "ukuji")])
-    } else {
-        None
-    };
 
-    let mut pair_assets = vec![args.paired_asset, args.other_asset];
-    pair_assets.sort();
-
-    // let new_module_version =
-    // ModuleVersion::Version(args.ac_version.unwrap_or(MODULE_VERSION.to_string()));
-
-    let autocompounder_instantiate_msg = Some(to_binary(&app::InstantiateMsg {
-        base: app::BaseInstantiateMsg {
-            ans_host_address: abstr
-                .version_control
-                .module(ModuleInfo::from_id_latest(ANS_HOST)?)?
-                .reference
-                .unwrap_addr()?
-                .to_string(),
-            version_control_address: abstr.version_control.address()?.to_string(),
-        },
-        module: AutocompounderInstantiateMsg {
-            performance_fees: Decimal::new(100u128.into()),
-            deposit_fees: Decimal::new(0u128.into()),
-            withdrawal_fees: Decimal::new(0u128.into()),
-            /// address that recieves the fee commissions
-            commission_addr: sender.to_string(),
-            /// cw20 code id
-            code_id: cw20_code_id,
-            /// Name of the target dex
-            dex: dex.into(),
-            /// Assets in the pool
-            pool_assets: pair_assets.clone().into_iter().map(Into::into).collect(),
-            preferred_bonding_period: BondingPeriodSelector::Shortest,
-            max_swap_spread: Some(Decimal::percent(10)),
-        },
-    })?);
-
-    // let result = main_account.manager.create_sub_account(
-    //     vec![
-    //         // installs both abstract dex and staking in the instantiation of the account
-    //         ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:dex")?, None),
-    //         ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:staking")?, None),
-    //         ModuleInstallConfig::new(
-    //             ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?,
-    //             autocompounder_instantiate_msg,
-    //         ),
-    //     ],
-    //     format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
-    //     None,
-    //     Some(description(pair_assets.join("|").replace('>', ":"))),
-    //     Some("https://app.fortytwo.money".to_string()),
-    //     None,
-    // );
-
-    // info!(
-    //     "Instantiated AC addr: {}",
-    //     result.instantiated_contract_address()?.to_string()
-    // );
-
-    let manager_create_sub_account_msg = ExecuteMsg::CreateSubAccount {
-        base_asset: None,
-        namespace: None,
-        description: None,
-        link: None,
-        name: format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
-        install_modules: vec![
-            // installs both abstract dex and staking in the instantiation of the account
-            ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:dex")?, None),
-            ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:cw-staking")?, None),
-            ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?, autocompounder_instantiate_msg)
-        ],
-    };
-
-    let result = main_account.manager.execute(&manager_create_sub_account_msg, instantiation_funds.as_deref())?;
-    // info!(
-    //     "Instantiated AC addr: {}",
-    //     result.instantiated_contract_address()?.to_string()
-    // );
-
-    
-    // let result = abstr.account_factory.create_new_account(
-    //     AccountDetails {
-    //     // &account_factory::ExecuteMsg::CreateAccount {
-    //     GovernanceDetails::SubAccount { manager: main_account.manager.addr_str()?, proxy: main_account.proxy.addr_str()? },
-    //     instantiation_funds.as_deref(),
-    // )?;
 
     info!(
         "Created account: {:?}",
@@ -227,24 +133,21 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             .last()
     );
 
+    let asset_list = abstr.ans_host.asset_info_list(None, None, None)?;
+
+
+    info!("Asset list: {:?}", asset_list);
+
     Ok(())
 }
 
 #[derive(Parser, Default, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Arguments {
-    /// Paired asset in the pool
-    #[arg(short, long)]
-    paired_asset: String,
-    /// Asset1 in the pool
-    #[arg(short, long)]
-    other_asset: String,
     /// Network to deploy on
     #[arg(short, long)]
     network_id: String,
-    /// Autocompounder version to deploy. None means latest
-    #[arg(long)]
-    ac_version: Option<String>,
+
 }
 
 fn main() {
