@@ -37,6 +37,10 @@ abstract-testing = { version = "0.19.2" }
 abstract-dex-adapter = { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.19.2", default-features = false }
 abstract-cw-staking = { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.19.2", default-features = false }
 
+astroport = { version = "3.6.1" }
+kujira = { version = "0.8.2"}
+osmosis-std = { version = "=0.19.2"}
+
 # Dev Abstract dependencies
 wyndex-bundle = { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.19.2" }
 autocompounder = { path = "contracts/autocompounder" }
