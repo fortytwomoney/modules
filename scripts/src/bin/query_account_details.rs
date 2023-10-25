@@ -135,7 +135,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     let asset_list = abstr.ans_host.asset_info_list(None, None, None)?;
 
-
     info!("Asset list: {:?}", asset_list);
 
     Ok(())
