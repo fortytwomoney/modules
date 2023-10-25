@@ -20,6 +20,7 @@ use abstract_core::{
     ABSTRACT_EVENT_TYPE,
 };
 use abstract_cw_staking::CW_STAKING;
+use abstract_dex_adapter::EXCHANGE;
 use abstract_interface::{
     Abstract, AbstractAccount, AccountDetails, AccountFactory, Manager, ManagerExecFns,
     ManagerQueryFns, Proxy,
@@ -198,17 +199,17 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         name: format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
         install_modules: vec![
             // installs both abstract dex and staking in the instantiation of the account
-            ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:dex")?, None),
-            ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:cw-staking")?, None),
+            ModuleInstallConfig::new(ModuleInfo::from_id_latest(EXCHANGE)?, None),
+            ModuleInstallConfig::new(ModuleInfo::from_id_latest(CW_STAKING)?, None),
             ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?, autocompounder_instantiate_msg)
         ],
     };
 
     let result = main_account.manager.execute(&manager_create_sub_account_msg, instantiation_funds.as_deref())?;
-    // info!(
-    //     "Instantiated AC addr: {}",
-    //     result.instantiated_contract_address()?.to_string()
-    // );
+    info!(
+        "Instantiated AC addr: {}",
+        result.instantiated_contract_address()?.to_string()
+    );
 
     
     // let result = abstr.account_factory.create_new_account(

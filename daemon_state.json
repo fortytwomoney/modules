@@ -67,22 +67,28 @@
   "kujira": {
     "harpoon-4": {
       "code_ids": {
-        "4t2:autocompounder": 2419,
-        "abstract:account-factory": 2315,
-        "abstract:ans-host": 2313,
-        "abstract:manager": 2317,
-        "abstract:module-factory": 2316,
-        "abstract:proxy": 2318,
-        "abstract:version-control": 2314
+        "abstract:account-factory": 2470,
+        "abstract:ans-host": 2468,
+        "abstract:cw-staking": 2474,
+        "abstract:dca": 2477,
+        "abstract:dex": 2475,
+        "abstract:etf": 2476,
+        "abstract:manager": 2472,
+        "abstract:module-factory": 2471,
+        "abstract:proxy": 2473,
+        "abstract:version-control": 2469,
+        "4t2:autocompounder": 2419
       },
       "default": {
         "4t2:autocompounder": "kujira13v4pe2gxdp5h4k57dz86ee2wturlmdsxpc6fdjky2z7z73sdfhyqr3wqgv",
-        "abstract:account-factory": "kujira1rlehpu6498uzj6yn23yaqr9tuqdjkfr65r7qjsg00y86ssfxayzs2rj9k5",
-        "abstract:ans-host": "kujira1glu0wrtg7hj2735tqava4yvqkshw3elg03qlp9dhp2f36w84ywfq9k4w8w",
-        "abstract:manager": "kujira1xz2gd3x0nvkv738dn0efzday76gr6t9q2dnjjt06qtxt0uwwu5gs8cmws7",
-        "abstract:module-factory": "kujira1x9fjglm0uckwduw9mnju4z557zpt9gkzul9cenl5dapjyqs6zmks5zvz6k",
-        "abstract:proxy": "kujira1ek7rh4gzpf5fhkve5jdqwpupl88059wkrz6rxame7r6l2l2f6t9qdl7wxa",
-        "abstract:version-control": "kujira1m4ndfxzjgldcgl3rgczuj9e8t5d0jqc7hzytt25e78xzcffpxlzslxtwm4"
+        "abstract:account-factory": "kujira1yyk4vy08rl9gzcseugvj5cznue609a59z90mqy37kktu42dkdjcstvtamq",
+        "abstract:ans-host": "kujira1lh5rjqpxzped0m03755dhksgdt43gqxqa5ua583hvcuwz57gc80qlvdmcy",
+        "abstract:cw-staking": "kujira1w5hemku24gsj8x47hu5apg8q4533646yg3pyjkhgk9ddl22q3zyqjqdh82",
+        "abstract:dex": "kujira19pjk0nnjz3zmlqved9x2lt5hkgutmes0a6uj6fqtfge23dw42fusgmguse",
+        "abstract:manager": "kujira15pycld6cw6wuzl5ny349uvuv95ulehwgdqm43xt3s7vwj86nqr6sc7wlkq",
+        "abstract:module-factory": "kujira1e0ut55qwzq2pdq0a2gsr6vua38u436dqpxnpxqa5nhxna3smlu6qddmla8",
+        "abstract:proxy": "kujira1q060eew952esm98300k09nmp83g06rrwymzwkgq67ky6x302wnyqqu3hpa",
+        "abstract:version-control": "kujira1yapmxjmj9fpaqa6vmkq2mlang4jqa8fymzj34erzfkwu90gevl2q66lmnu"
       }
     }
   },

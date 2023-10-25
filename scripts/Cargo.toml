@@ -21,6 +21,7 @@ dotenv = { workspace = true }
 env_logger = { workspace = true }
 semver = { workspace = true }
 abstract-cw-staking = { workspace = true }
+abstract-dex-adapter ={ workspace = true }
 abstract-core = { workspace = true }
 tokio = { workspace = true }
 clap = { workspace = true }
