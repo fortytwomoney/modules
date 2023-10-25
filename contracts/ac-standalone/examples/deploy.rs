@@ -1,4 +1,4 @@
-use abstract_interface::{AppDeployer, Abstract};
+use abstract_interface::{Abstract, AppDeployer};
 use cw_orch::daemon::ChainInfo;
 
 use autocompounder::interface::AutocompounderApp;

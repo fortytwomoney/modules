@@ -122,7 +122,7 @@ pub fn instantiate_handler(
         env.contract.address.to_string(),
         subdenom,
         code_id, // if code_id is none, submsg will be like normal msg: no reply (for now).
-        config.pool_data.dex
+        config.pool_data.dex,
     )?;
 
     Ok(Response::new()
@@ -149,13 +149,12 @@ pub fn query_staking_info(
             "Error querying staking info for {lp_token_name} on {dex}: {e}...{query:?}"
         ))
     })?;
-    let staking_info = res.infos.first().ok_or(
-        StdError::generic_err(format!(
-            "No staking info found for {lp_token_name} on {dex}",
-            lp_token_name = lp_token_name,
-            dex = dex
-        )),)?;
-    
+    let staking_info = res.infos.first().ok_or(StdError::generic_err(format!(
+        "No staking info found for {lp_token_name} on {dex}",
+        lp_token_name = lp_token_name,
+        dex = dex
+    )))?;
+
     Ok(staking_info.clone())
 }
 

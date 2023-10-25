@@ -2,9 +2,7 @@ use super::helpers::{
     convert_to_shares, mint_vault_tokens_msg, parse_instantiate_reply_cw20, query_stake,
     stake_lp_tokens, swap_rewards_with_reply, vault_token_total_supply,
 };
-use crate::contract::{
-    AutocompounderResult, CP_PROVISION_REPLY_ID, SWAPPED_REPLY_ID,
-};
+use crate::contract::{AutocompounderResult, CP_PROVISION_REPLY_ID, SWAPPED_REPLY_ID};
 use crate::error::AutocompounderError;
 
 use crate::state::{
@@ -17,11 +15,7 @@ use cosmwasm_std::{
 use cw_asset::{Asset, AssetInfo};
 
 /// Handle a reply for the [`INSTANTIATE_REPLY_ID`] reply.
-pub fn instantiate_reply(
-    deps: DepsMut,
-    _env: Env,
-    reply: Reply,
-) -> AutocompounderResult {
+pub fn instantiate_reply(deps: DepsMut, _env: Env, reply: Reply) -> AutocompounderResult {
     // Logic to execute on example reply
     let vault_token = if let Some(vault_token) = parse_instantiate_reply_cw20(reply)? {
         // @improvement: ideally we'd also parse the Reply in case of native token, however i dont know how currently. so we store if beforehand.
@@ -47,11 +41,7 @@ pub fn instantiate_reply(
     ))
 }
 
-pub fn lp_provision_reply(
-    deps: DepsMut,
-    env: Env,
-    _reply: Reply,
-) -> AutocompounderResult {
+pub fn lp_provision_reply(deps: DepsMut, env: Env, _reply: Reply) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
@@ -87,8 +77,13 @@ pub fn lp_provision_reply(
     }
 
     // Mint vault tokens to the user
-    let mint_msg =
-        mint_vault_tokens_msg(&config, &env.contract.address, user_address, mint_amount, config.pool_data.dex.clone())?;
+    let mint_msg = mint_vault_tokens_msg(
+        &config,
+        &env.contract.address,
+        user_address,
+        mint_amount,
+        config.pool_data.dex.clone(),
+    )?;
 
     // Stake the LP tokens
     let stake_msg = stake_lp_tokens(
@@ -106,11 +101,7 @@ pub fn lp_provision_reply(
     ))
 }
 
-pub fn lp_withdrawal_reply(
-    deps: DepsMut,
-    _env: Env,
-    _reply: Reply,
-) -> AutocompounderResult {
+pub fn lp_withdrawal_reply(deps: DepsMut, _env: Env, _reply: Reply) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     CACHED_USER_ADDR.remove(deps.storage);
@@ -153,11 +144,7 @@ fn cached_asset_balance_differences(
     Ok(funds)
 }
 
-pub fn lp_compound_reply(
-    deps: DepsMut,
-    _env: Env,
-    _reply: Reply,
-) -> AutocompounderResult {
+pub fn lp_compound_reply(deps: DepsMut, _env: Env, _reply: Reply) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
 
     let fee_config = FEE_CONFIG.load(deps.storage)?;
@@ -263,11 +250,7 @@ fn deduct_fees_from_rewards(rewards: &mut [AnsAsset], performance_fee: Decimal) 
 ///
 /// This function is triggered after the last swap message of the lp_compound_reply
 /// and assumes the contract has no other rewards than the ones in the pool assets
-pub fn swapped_reply(
-    deps: DepsMut,
-    _env: Env,
-    _reply: Reply,
-) -> AutocompounderResult {
+pub fn swapped_reply(deps: DepsMut, _env: Env, _reply: Reply) -> AutocompounderResult {
     let ans_host = app.ans_host(deps.as_ref())?;
     let config = CONFIG.load(deps.storage)?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex);
@@ -322,10 +305,7 @@ pub fn compound_lp_provision_reply(
     Ok(app.tag_response(response, "compound_lp_provision_reply"))
 }
 
-fn query_rewards(
-    deps: Deps,
-    config: &Config,
-) -> AbstractSdkResult<Vec<AssetInfo>> {
+fn query_rewards(deps: Deps, config: &Config) -> AbstractSdkResult<Vec<AssetInfo>> {
     // query staking module for which rewards are available
     let adapters = app.adapters(deps);
     let query = StakingQueryMsg::RewardTokens {
@@ -333,17 +313,13 @@ fn query_rewards(
         staking_tokens: vec![config.lp_asset_entry()],
     };
     let RewardTokensResponse { tokens } = adapters.query(CW_STAKING, query)?;
-    let first_tokens = tokens
-        .first().unwrap();
+    let first_tokens = tokens.first().unwrap();
 
     Ok(first_tokens.clone())
 }
 
 /// queries available staking rewards assets and the corresponding balances
-fn get_staking_rewards(
-    deps: Deps,
-    config: &Config,
-) -> AbstractSdkResult<Vec<AnsAsset>> {
+fn get_staking_rewards(deps: Deps, config: &Config) -> AbstractSdkResult<Vec<AnsAsset>> {
     let ans_host = app.ans_host(deps)?;
     let rewards = query_rewards(deps, app, config)?;
     // query balance of rewards
@@ -454,8 +430,11 @@ mod test {
             // check the expected messages
             let transfer_msgs = AUTOCOMPOUNDER_APP.bank(deps.as_ref()).transfer(
                 vec![eur_ans_asset.clone(), usd_ans_asset.clone()],
-                &user_addr,)?;
-            let expected_messages = AUTOCOMPOUNDER_APP.executor(deps.as_ref()).execute(vec![transfer_msgs])?;
+                &user_addr,
+            )?;
+            let expected_messages = AUTOCOMPOUNDER_APP
+                .executor(deps.as_ref())
+                .execute(vec![transfer_msgs])?;
 
             assert_that!(response.messages).has_length(1);
             assert_that!(msg.to_owned()).is_equal_to(CosmosMsg::from(expected_messages));

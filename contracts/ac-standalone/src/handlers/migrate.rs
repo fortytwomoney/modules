@@ -1,4 +1,4 @@
-use crate::contract::{AutocompounderResult,CONTRACT_VERSION}; 
+use crate::contract::{AutocompounderResult, CONTRACT_VERSION};
 use crate::error::AutocompounderError;
 use crate::msg::AutocompounderMigrateMsg;
 use crate::state::{Claim, Config, CLAIMS, CONFIG, PENDING_CLAIMS, VAULT_TOKEN_IS_INITIALIZED};

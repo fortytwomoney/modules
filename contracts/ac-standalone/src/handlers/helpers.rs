@@ -112,7 +112,8 @@ pub fn mint_vault_tokens_msg(
 ) -> Result<CosmosMsg, AutocompounderError> {
     match config.vault_token.clone() {
         AssetInfo::Native(denom) => {
-            tokenfactory_mint_msg(minter, denom, amount, recipient.as_str(), dex).map_err(|e| e.into())
+            tokenfactory_mint_msg(minter, denom, amount, recipient.as_str(), dex)
+                .map_err(|e| e.into())
         }
         AssetInfo::Cw20(token_addr) => {
             let mint_msg = wasm_execute(
@@ -207,7 +208,9 @@ pub fn query_stake(
         unbonding_period,
     };
     let res: StakeResponse = adapters.query(CW_STAKING, query)?;
-    let amount = res.amounts.first()
+    let amount = res
+        .amounts
+        .first()
         .ok_or(AutocompounderError::Std(StdError::generic_err(
             "No staked assets found",
         )))?;
@@ -306,7 +309,7 @@ pub fn transfer_to_msgs(
     } else {
         vec![app.bank(deps).transfer(vec![asset], recipient)?]
     };
-    return Ok(app.executor(deps).execute(actions)?.into())
+    return Ok(app.executor(deps).execute(actions)?.into());
 }
 
 #[cfg(test)]
@@ -481,7 +484,8 @@ pub mod helpers_tests {
     fn test_create_lp_token_submsg_without_code_id() {
         let minter = "minter".to_string();
 
-        let result = create_vault_token_submsg(minter, "subdenom".to_string(), None, "kujira".to_string());
+        let result =
+            create_vault_token_submsg(minter, "subdenom".to_string(), None, "kujira".to_string());
         assert!(result.is_ok());
 
         let submsg = result.unwrap();
@@ -591,7 +595,6 @@ pub mod helpers_tests {
         let result = convert_to_shares(assets, total_assets, total_supply);
         assert_eq!(result, Uint128::from(50u128));
     }
-
 
     mod denom {
         use super::*;

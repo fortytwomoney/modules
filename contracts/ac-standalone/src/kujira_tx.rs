@@ -19,19 +19,19 @@ use serde::{Deserialize, Serialize};
 pub const SUPPLY_OF_PATH: &str = "/cosmos.bank.v1beta1.Query/SupplyOf";
 
 /// create as functions with kujira replaced as variable
-pub fn msg_create_denom_type_url(chain: String) ->  String {
+pub fn msg_create_denom_type_url(chain: String) -> String {
     format!("/{}.denom.MsgCreateDenom", chain)
 }
 
-pub fn msg_mint_type_url(chain: String) ->  String {
+pub fn msg_mint_type_url(chain: String) -> String {
     format!("/{}.denom.MsgMint", chain)
 }
 
-pub fn msg_burn_type_url(chain: String) ->  String {
+pub fn msg_burn_type_url(chain: String) -> String {
     format!("/{}.denom.MsgBurn", chain)
 }
 
-pub fn denom_params_path(chain: String) ->  String {
+pub fn denom_params_path(chain: String) -> String {
     format!("/{}.denom.Query/Params", chain)
 }
 
@@ -59,11 +59,7 @@ pub fn encode_msg_create_denom(sender: &str, denom: &str) -> Vec<u8> {
         .into_vec()
 }
 
-pub fn tokenfactory_create_denom_msg(
-    minter: String,
-    subdenom: String,
-    chain: String, 
-) -> CosmosMsg {
+pub fn tokenfactory_create_denom_msg(minter: String, subdenom: String, chain: String) -> CosmosMsg {
     let msg = encode_msg_create_denom(&minter, &subdenom);
     let cosmos_msg = CosmosMsg::Stargate {
         type_url: msg_create_denom_type_url(chain),

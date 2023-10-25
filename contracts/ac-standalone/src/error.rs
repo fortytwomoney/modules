@@ -1,12 +1,10 @@
 use cosmwasm_std::StdError;
 use thiserror::Error;
 
-
 use cosmwasm_std::{OverflowError, Uint128};
 use cw_asset::AssetError;
 use cw_controllers::AdminError;
 use cw_utils::Expiration;
-
 
 #[derive(Error, Debug, PartialEq)]
 pub enum AutocompounderError {

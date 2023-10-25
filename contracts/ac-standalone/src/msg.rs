@@ -28,12 +28,13 @@
 //! ## Migration
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
-
 use cosmwasm_schema::QueryResponses;
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{AssetInfo, AssetInfoBase};
 use cw_utils::{Duration, Expiration};
+
+use crate::api::dex_interface::DexConfiguration;
 
 pub const AUTOCOMPOUNDER: &str = "4t2:autocompounder";
 
@@ -82,13 +83,13 @@ pub enum AutocompounderExecuteMsg {
     /// Join vault by depositing one or more funds. Requires approval for cw20 tokens
     #[cfg_attr(feature = "interface", payable)]
     Deposit {
-        funds: Vec<OfferAsset>,
+        funds: Vec<cw_asset::Asset>,
         recipient: Option<Addr>,
         max_spread: Option<Decimal>,
     },
     /// Deposit LP tokens. Requires approval for cw20 tokens
     DepositLp {
-        lp_token: OfferAsset,
+        lp_token: cw_asset::Asset,
         recipient: Option<Addr>,
     },
     Redeem {
@@ -108,8 +109,6 @@ pub enum AutocompounderExecuteMsg {
     UpdateStakingConfig {
         preferred_bonding_period: BondingPeriodSelector,
     },
-    #[cfg_attr(feature = "interface", payable)]
-    CreateDenom {},
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -169,12 +168,6 @@ pub enum AutocompounderQueryMsg {
     Balance { address: Addr },
 }
 
-// #[cosmwasm_schema::cw_serde]
-// pub enum Cw20HookMsg {
-//     /// Withdraws a given amount from the vault.
-//     // Redeem {},
-// }
-
 /// Vault fee structure
 #[cosmwasm_schema::cw_serde]
 pub struct FeeConfig {
@@ -187,6 +180,7 @@ pub struct FeeConfig {
 
 #[cosmwasm_schema::cw_serde]
 pub struct Config {
+    pub dex_config: DexConfiguration,
     /// Address of the staking contract
     pub staking_target: StakingTarget,
     /// Pool address (number or Address)
@@ -209,23 +203,21 @@ pub struct Config {
     pub max_swap_spread: Decimal,
 }
 
+pub enum StakingTarget {
+    Contract(Addr),
+    Id(u64)
+}
+
+#[cosmwasm_schema::cw_serde]
+pub struct LiquidityPoolConfig {
+    staking_target: StakingTarget,
+}
+
 enum LiquidityPool {
     Contract(Addr),
     Id(u64),
 }
 
-impl Config {
-    pub fn lp_token(&self) -> LpToken {
-        LpToken {
-            dex: self.pool_data.dex.clone(),
-            assets: self.pool_data.assets.clone(),
-        }
-    }
-
-    pub fn lp_asset_entry(&self) -> AssetEntry {
-        AnsEntryConvertor::new(self.lp_token()).asset_entry()
-    }
-}
 
 #[cosmwasm_schema::cw_serde]
 pub enum BondingPeriodSelector {

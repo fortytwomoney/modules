@@ -21,7 +21,7 @@ crate-type = ["cdylib", "rlib"]
 [features]
 backtraces = ["cosmwasm-std/backtraces"]
 export = []
-default = ["export"]
+default = ["export", "astroport"]
 interface = [
   "export",
   "dep:abstract-interface",
@@ -30,7 +30,9 @@ interface = [
   "cw20/interface",
   "cw20-base/interface",
 ]
-kujira = []
+kujira = [ "dep:kujira"]
+astroport = ["dep:astroport"]
+osmosis = ["dep:osmosis-std"]
 
 [dependencies]
 cosmwasm-std = { workspace = true, features = ["stargate"] }
@@ -46,8 +48,10 @@ cw20-base = { workspace = true, features = ["library"] }
 schemars = "0.8"
 serde = { workspace = true }
 thiserror = { workspace = true }
-kujira = { version = "0.8.2" }
 
+astroport = { version = "3.6.1", optional = true }
+kujira = { version = "0.8.2", optional = true}
+osmosis-std = { version = "=0.19.2", optional = true }
 
 abstract-interface = { workspace = true, optional = true }
 cw-orch = { workspace = true, optional = true }

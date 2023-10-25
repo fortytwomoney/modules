@@ -6,11 +6,8 @@ use super::helpers::{
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
-
-
 use crate::contract::{
-    AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
-    LP_WITHDRAWAL_REPLY_ID,
+    AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
 use crate::kujira_tx::format_tokenfactory_denom;
@@ -21,7 +18,7 @@ use crate::state::{
 };
 use cosmwasm_std::{
     Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response,
-    StdResult, SubMsg, Uint128, StdError,
+    StdError, StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetBase, AssetInfo, AssetInfoBase, AssetList};
@@ -69,7 +66,7 @@ pub fn execute_handler(
         AutocompounderExecuteMsg::BatchUnbond { start_after, limit } => {
             batch_unbond(deps, env, start_after, limit)
         }
-        AutocompounderExecuteMsg::Compound {} => compound(deps ),
+        AutocompounderExecuteMsg::Compound {} => compound(deps),
         AutocompounderExecuteMsg::UpdateStakingConfig {
             preferred_bonding_period,
         } => update_staking_config(deps, info, preferred_bonding_period),
@@ -95,11 +92,7 @@ pub fn pre_execute_check(
     }
 }
 
-pub fn create_denom(
-    deps: DepsMut,
-    info: MessageInfo,
-    env: &Env,
-) -> AutocompounderResult {
+pub fn create_denom(deps: DepsMut, info: MessageInfo, env: &Env) -> AutocompounderResult {
     app.admin.assert_admin(deps.as_ref(), &info.sender)?;
 
     let config = CONFIG.load(deps.storage)?;
@@ -371,10 +364,7 @@ fn unwrap_recipient_is_allowed(
     }
 }
 
-fn forbidden_deposit_addresses(
-    deps: Deps,
-    env: &Env,
-) -> Result<Vec<Addr>, AutocompounderError> {
+fn forbidden_deposit_addresses(deps: Deps, env: &Env) -> Result<Vec<Addr>, AutocompounderError> {
     Ok(vec![app.proxy_address(deps)?, env.contract.address.clone()])
 }
 
@@ -419,7 +409,6 @@ pub fn deposit_lp(
         &fee_config.fee_collector_addr,
     )?;
 
-    
     let current_vault_supply = vault_token_total_supply(deps.as_ref(), &config)?;
     let mint_amount = convert_to_shares(lp_asset.amount, staked_lp, current_vault_supply);
     if mint_amount.is_zero() {
@@ -431,7 +420,7 @@ pub fn deposit_lp(
         &env.contract.address,
         recipient.clone(),
         mint_amount,
-        config.pool_data.dex.clone()
+        config.pool_data.dex.clone(),
     )?;
     let stake_msg = stake_lp_tokens(
         deps.as_ref(),
@@ -442,10 +431,9 @@ pub fn deposit_lp(
     )?;
 
     let res = Response::new()
-    .add_message(transfer_msg)
-    .add_messages(vec![mint_msg, stake_msg])
-    .add_message(fee_msg);
-        
+        .add_message(transfer_msg)
+        .add_messages(vec![mint_msg, stake_msg])
+        .add_message(fee_msg);
 
     Ok(app.custom_tag_response(
         res,
@@ -482,7 +470,14 @@ fn transfer_token_to_proxy(
         AssetInfoBase::Cw20(_addr) => Asset::cw20(_addr, lp_token.amount)
             .transfer_from_msg(sender, app.proxy_address(deps)?)
             .map_err(|e| e.into()),
-        AssetInfoBase::Native(_denom) => Ok(app.bank(deps).deposit(vec![lp_token])?.into_iter().next().ok_or(AutocompounderError::Std(StdError::generic_err("no message")))?),
+        AssetInfoBase::Native(_denom) => Ok(app
+            .bank(deps)
+            .deposit(vec![lp_token])?
+            .into_iter()
+            .next()
+            .ok_or(AutocompounderError::Std(StdError::generic_err(
+                "no message",
+            )))?),
         _ => Err(AutocompounderError::AssetError(
             cw_asset::AssetError::InvalidAssetFormat {
                 received: lp_token.to_string(),
@@ -578,8 +573,12 @@ pub fn batch_unbond(
         config.unbonding_period,
     );
 
-    let burn_msg =
-        burn_vault_tokens_msg(&config, &env.contract.address, total_vault_tokens_to_burn, config.pool_data.dex.clone())?;
+    let burn_msg = burn_vault_tokens_msg(
+        &config,
+        &env.contract.address,
+        total_vault_tokens_to_burn,
+        config.pool_data.dex.clone(),
+    )?;
 
     let response = Response::new().add_messages(vec![unstake_msg, burn_msg]);
     Ok(app.custom_tag_response(
@@ -825,11 +824,7 @@ pub fn compound(deps: DepsMut) -> AutocompounderResult {
 }
 
 /// withdraw all matured claims for a user
-pub fn withdraw_claims(
-    deps: DepsMut,
-    env: Env,
-    sender: Addr,
-) -> AutocompounderResult {
+pub fn withdraw_claims(deps: DepsMut, env: Env, sender: Addr) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let pool_assets = config.pool_data.assets.clone();
     if config.unbonding_period.is_none() {
@@ -999,11 +994,7 @@ fn check_unbonding_cooldown(
 }
 
 /// Creates the message to claim the rewards from the staking api
-fn claim_lp_rewards(
-    deps: Deps,
-    provider: String,
-    lp_token_name: AssetEntry,
-) -> CosmosMsg {
+fn claim_lp_rewards(deps: Deps, provider: String, lp_token_name: AssetEntry) -> CosmosMsg {
     let adapters = app.adapters(deps);
 
     adapters
@@ -1013,18 +1004,14 @@ fn claim_lp_rewards(
                 provider,
                 action: StakingAction::ClaimRewards {
                     assets: vec![lp_token_name],
-        },
+                },
             },
         )
         .unwrap()
 }
 
 /// Creates the message to claim the unbonded tokens from the staking api
-fn claim_unbonded_tokens(
-    deps: Deps,
-    provider: String,
-    lp_token_name: AssetEntry,
-) -> CosmosMsg {
+fn claim_unbonded_tokens(deps: Deps, provider: String, lp_token_name: AssetEntry) -> CosmosMsg {
     let adapters = app.adapters(deps);
 
     adapters

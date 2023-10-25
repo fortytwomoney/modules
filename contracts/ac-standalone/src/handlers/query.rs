@@ -1,5 +1,4 @@
 use crate::contract::AutocompounderResult;
-use crate::error::AutocompounderError;
 use crate::state::{
     Claim, Config, FeeConfig, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
@@ -18,7 +17,7 @@ const MAX_PAGE_SIZE: u8 = 20;
 /// Handle queries sent to this app.
 pub fn query_handler(
     deps: Deps,
-    _env: Env,
+    env: Env,
     msg: AutocompounderQueryMsg,
 ) -> AutocompounderResult<Binary> {
     match msg {
@@ -38,14 +37,14 @@ pub fn query_handler(
             Ok(to_binary(&query_latest_unbonding(deps)?)?)
         }
         AutocompounderQueryMsg::TotalLpPosition {} => {
-            Ok(to_binary(&query_total_lp_position(deps)?)?)
+            Ok(to_binary(&query_total_lp_position(deps, env)?)?)
         }
         AutocompounderQueryMsg::Balance { address } => {
             Ok(to_binary(&query_balance(deps, address)?)?)
         }
         AutocompounderQueryMsg::TotalSupply {} => Ok(to_binary(&query_total_supply(deps)?)?),
         AutocompounderQueryMsg::AssetsPerShares { shares } => {
-            Ok(to_binary(&query_assets_per_shares(deps, shares)?)?)
+            Ok(to_binary(&query_assets_per_shares(deps, env, shares)?)?)
         }
     }
 }
@@ -130,25 +129,13 @@ pub fn query_latest_unbonding(deps: Deps) -> AutocompounderResult<Expiration> {
     Ok(latest_unbonding)
 }
 
-pub fn query_total_lp_position(
-    deps: Deps,
-) -> AutocompounderResult<Uint128> {
+pub fn query_total_lp_position(deps: Deps, env: Env) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
-    let adapters = app.adapters(deps);
+    let dex = crate::api::create_dex_from_config(config.dex_config);
 
     // query staking api for total lp tokens
-
-    let query = StakingQueryMsg::Staked {
-        provider: config.pool_data.dex.clone(),
-        stakes: vec![config.lp_asset_entry()],
-        staker_address: app.proxy_address(deps)?.to_string(),
-        unbonding_period: config.unbonding_period,
-    };
-    let res: abstract_cw_staking::msg::StakeResponse = adapters.query(CW_STAKING, query)?;
-    let amount = res.amounts.get(0).ok_or(AutocompounderError::Std(cosmwasm_std::StdError::generic_err(
-        "No amount found"
-    )))?;
-    Ok(amount.clone())
+    let res = dex.query_staked(&deps.querier, env.contract.address.to_string())?;
+    Ok(res)
 }
 
 pub fn query_balance(deps: Deps, address: Addr) -> AutocompounderResult<Uint128> {
@@ -163,6 +150,7 @@ pub fn query_total_supply(deps: Deps) -> AutocompounderResult<Uint128> {
 
 pub fn query_assets_per_shares(
     deps: Deps,
+    env: Env,
     shares: Option<Uint128>,
 ) -> AutocompounderResult<Uint128> {
     let shares = if let Some(shares) = shares {
@@ -171,7 +159,7 @@ pub fn query_assets_per_shares(
         Uint128::one()
     };
 
-    let total_lp_position = query_total_lp_position(app, deps)?;
+    let total_lp_position = query_total_lp_position(deps, env)?;
     let total_supply = query_total_supply(deps)?;
     let assets = convert_to_assets(shares, total_lp_position, total_supply);
 
