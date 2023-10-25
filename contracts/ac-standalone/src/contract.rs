@@ -2,12 +2,16 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
+use cosmwasm_std::Reply;
+use reply::{compound_lp_provision_reply, instantiate_reply, lp_compound_reply, lp_provision_reply,lp_withdrawal_reply};
+
+use crate::handlers::reply;
 
 use crate::error::AutocompounderError;
 use crate::handlers::execute::{
     pre_execute_check, update_fee_config, deposit, batch_unbond, withdraw_claims, update_staking_config, deposit_lp, redeem, compound, create_denom};
 use crate::handlers::{instantiate_handler, query_handler};
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, AutocompounderExecuteMsg, AutocompounderQueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, AutocompounderExecuteMsg, AutocompounderQueryMsg};
 
 // version info for migration info
 pub const CONTRACT_NAME: &str = "crates.io:cw1-general";
@@ -95,46 +99,33 @@ pub fn query(deps: Deps, env: Env, msg: AutocompounderQueryMsg) -> StdResult<Bin
     query_handler(deps, env, msg)
 }
 
-#[cfg(not(feature = "library"), entry_point)]
-#[cfg(feature = "interface", cw_orch::interface_entry_point)]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> AutocompounderResult<Response> {
-    use crate::handlers::reply;
-
     match msg.id {
         INSTANTIATE_REPLY_ID => {
-            let instantiate_reply: InstantiateReply = from_binary(&msg.result)?;
-            Ok(instantiate_reply_handler(deps, env, instantiate_reply))
-        }
+            instantiate_reply(deps, env, msg)
+        },
         LP_PROVISION_REPLY_ID => {
-            let reply: LpProvisionRiiirerrwer4eply = from_binary(&msg.result)?;
-            Ok(lp_provision_reply(deps, env, lp_provision_reply))
-        }
+            lp_provision_reply(deps, env, msg)
+        },
         LP_COMPOUND_REPLY_ID => {
-            let lp_compound_reply: LpCompoundReply = from_binary(&msg.result)?;
-            Ok(lp_compound_reply_handler(deps, env, lp_compound_reply))
-        }
+            compound_lp_provision_reply(deps, env, msg)
+        },
         SWAPPED_REPLY_ID => {
-            let swapped_reply: SwappedReply = from_binary(&msg.result)?;
-            Ok(swapped_reply_handler(deps, env, swapped_reply))
-        }
+            lp_compound_reply(deps, env, msg)
+        },
         CP_PROVISION_REPLY_ID => {
-            let cp_provision_reply: CpProvisionReply = from_binary(&msg.result)?;
-            Ok(cp_provision_reply_handler(deps, env, cp_provision_reply))
-        }
+            lp_compound_reply(deps, env, msg)
+        },
         LP_WITHDRAWAL_REPLY_ID => {
-            let lp_withdrawal_reply: LpWithdrawalReply = from_binary(&msg.result)?;
-            Ok(lp_withdrawal_reply_handler(deps, env, lp_withdrawal_reply))
-        }
+            lp_withdrawal_reply(deps, env, msg)
+        },
         FEE_SWAPPED_REPLY => {
-            let fee_swapped_reply: FeeSwappedReply = from_binary(&msg.result)?;
-            Ok(fee_swapped_reply_handler(deps, env, fee_swapped_reply))
-        }
+            lp_compound_reply(deps, env, msg)
+        },
         LP_FEE_WITHDRAWAL_REPLY_ID => {
-            let lp_fee_withdrawal_reply: LpFeeWithdrawalReply = from_binary(&msg.result)?;
-            Ok(lp_fee_withdrawal_reply_handler(deps, env, lp_fee_withdrawal_reply))
-        }
-        _ => Err(AutocompounderError::UnknownReplyId {
-            reply_id: msg.id,
-        }),
+            lp_withdrawal_reply(deps, env, msg)
+        },
+        _ => Err(AutocompounderError::Std(cosmwasm_std::StdError::GenericErr { msg: format!( "ReplyId {} not found", msg.id) })),
     }
 }
