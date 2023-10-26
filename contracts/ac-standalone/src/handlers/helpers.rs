@@ -1,3 +1,4 @@
+use crate::api::dex_interface::BoxedDex;
 use crate::contract::INSTANTIATE_REPLY_ID;
 
 use crate::kujira_tx::encode_query_supply_of;
@@ -10,7 +11,7 @@ use crate::state::DECIMAL_OFFSET;
 
 use crate::state::VAULT_TOKEN_SYMBOL;
 use crate::{
-    contract::{AutocompounderApp, AutocompounderResult},
+    contract::{AutocompounderResult},
     error::AutocompounderError,
 };
 
@@ -191,32 +192,6 @@ pub fn vault_token_balance(
 // ------------------------------------------------------------
 // Other helper functions
 // ------------------------------------------------------------
-
-/// queries staking module for the number of staked assets of the app
-pub fn query_stake(
-    deps: Deps,
-    dex: String,
-    lp_token_name: AssetEntry,
-    unbonding_period: Option<Duration>,
-) -> AutocompounderResult<Uint128> {
-    let adapters = app.adapters(deps);
-
-    let query = StakingQueryMsg::Staked {
-        stakes: vec![lp_token_name],
-        staker_address: app.proxy_address(deps)?.to_string(),
-        provider: dex,
-        unbonding_period,
-    };
-    let res: StakeResponse = adapters.query(CW_STAKING, query)?;
-    let amount = res
-        .amounts
-        .first()
-        .ok_or(AutocompounderError::Std(StdError::generic_err(
-            "No staked assets found",
-        )))?;
-
-    Ok(amount.clone())
-}
 
 pub fn stake_lp_tokens(
     deps: Deps,

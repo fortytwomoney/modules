@@ -182,10 +182,6 @@ pub struct FeeConfig {
 pub struct Config {
     pub dex_config: DexConfiguration,
     /// Address of the staking contract
-    pub staking_target: StakingTarget,
-    /// Pool address (number or Address)
-    pub Liquidity_pool: LiquidityPool,
-    /// dexname
     pub dex: String,
     /// Resolved pool assets
     pub pool_assets: Vec<AssetInfo>,

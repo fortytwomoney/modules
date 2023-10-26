@@ -6,6 +6,7 @@ use super::helpers::{
 };
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
+use crate::api::create_dex_from_config;
 use crate::contract::{
     AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID, LP_WITHDRAWAL_REPLY_ID,
 };
@@ -364,42 +365,32 @@ fn unwrap_recipient_is_allowed(
     }
 }
 
-fn forbidden_deposit_addresses(deps: Deps, env: &Env) -> Result<Vec<Addr>, AutocompounderError> {
-    Ok(vec![app.proxy_address(deps)?, env.contract.address.clone()])
+fn forbidden_deposit_addresses(env: &Env) -> Result<Vec<Addr>, AutocompounderError> {
+    Ok(vec![env.contract.address.clone()])
 }
 
 pub fn deposit_lp(
     deps: DepsMut,
     info: MessageInfo,
     env: Env,
-    lp_asset: AnsAsset,
     recipient: Option<Addr>,
 ) -> AutocompounderResult {
+
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
-    let ans = app.name_service(deps.as_ref());
-    let lp_token = ans.query(&lp_asset)?;
-    let lp_asset_entry = lp_asset.name.clone();
+
+    let dex = config.dex_config.dex();
+
     let recipient = unwrap_recipient_is_allowed(
         recipient,
         &info.sender,
-        forbidden_deposit_addresses(deps.as_ref(), &env, &app)?,
+        forbidden_deposit_addresses(&env)?,
     )?;
 
-    if lp_token.info != config.liquidity_token {
-        return Err(AutocompounderError::SenderIsNotLpToken {});
-    };
+    // transfer the asset to the proxy contract # TODO: pull this into the dexInterface so sdk coins return vec![] and cw20s return the transfer msg
+    let transfer_msg = transfer_token_to_vault(config.dex_config, info.sender,  deps.as_ref())?;
 
-    // transfer the asset to the proxy contract
-    let transfer_msg = transfer_token_to_proxy(lp_token, info.sender, &app, deps.as_ref())?;
-
-    let staked_lp = query_stake(
-        deps.as_ref(),
-        &app,
-        config.pool_data.dex.clone(),
-        lp_asset_entry,
-        config.unbonding_period,
-    )?;
+    let staked_lp = dex.query_staked(&deps.querier, env.contract.address.to_string())?;
 
     let (lp_asset, fee_asset) = deduct_fee(lp_asset, fee_config.deposit);
     let fee_msg = transfer_to_msgs(
@@ -461,23 +452,16 @@ fn deduct_fee(lp_asset: AnsAsset, fee: Decimal) -> (AnsAsset, AnsAsset) {
 
 /// Transfer lp token to the proxy contract whether it is a cw20 or native token. Returns CosmosMsg
 /// For cw20 tokens, it will call transfer_from and it needs a allowance to be set, otherwhise the execution will error.
-fn transfer_token_to_proxy(
+fn transfer_token_to_vault(
+    vault_address: Addr,
     lp_token: Asset,
     sender: Addr,
-    deps: Deps,
-) -> Result<CosmosMsg, AutocompounderError> {
+) -> Result<Vec<CosmosMsg>, AutocompounderError> {
     match lp_token.info.clone() {
         AssetInfoBase::Cw20(_addr) => Asset::cw20(_addr, lp_token.amount)
-            .transfer_from_msg(sender, app.proxy_address(deps)?)
+            .transfer_from_msg(sender, vault_address)
             .map_err(|e| e.into()),
-        AssetInfoBase::Native(_denom) => Ok(app
-            .bank(deps)
-            .deposit(vec![lp_token])?
-            .into_iter()
-            .next()
-            .ok_or(AutocompounderError::Std(StdError::generic_err(
-                "no message",
-            )))?),
+        AssetInfoBase::Native(_denom) => Ok(vec![ ]),
         _ => Err(AutocompounderError::AssetError(
             cw_asset::AssetError::InvalidAssetFormat {
                 received: lp_token.to_string(),
@@ -714,6 +698,8 @@ fn redeem_without_bonding_period(
     amount_of_vault_tokens_to_be_burned: Uint128,
 ) -> Result<Response, AutocompounderError> {
     let fee_config = FEE_CONFIG.load(deps.storage)?;
+    let config = CONFIG.load(deps.storage)?;
+    let dex = config.dex_config.dex();
 
     let vault_token_asset = AssetBase::new(
         config.vault_token.clone(),
@@ -736,14 +722,9 @@ fn redeem_without_bonding_period(
     let lp_asset_entry = config.lp_asset_entry();
 
     // 2) get total staked lp token
-    let total_lp_tokens_staked_in_vault = query_stake(
-        deps.as_ref(),
-        app,
-        config.pool_data.dex.clone(),
-        lp_asset_entry.clone(),
-        None,
-    )?;
 
+    let total_lp_tokens_staked_in_vault = dex.query_staked(&deps.querier, env.contract.address.to_string())?;
+   
     let lp_tokens_withdraw_amount = convert_to_assets(
         amount_of_vault_tokens_to_be_burned,
         total_lp_tokens_staked_in_vault,
@@ -922,12 +903,8 @@ fn calculate_withdrawals(
     let vault_tokens_total_supply = vault_token_total_supply(deps, config)?;
 
     // 2) get total staked lp token
-    let total_lp_tokens_staked_in_vault = query_stake(
-        deps,
-        config.pool_data.dex.clone(),
-        lp_token,
-        config.unbonding_period,
-    )?;
+    let dex = config.dex_config.dex();
+    let total_lp_tokens_staked_in_vault = dex.query_staked(&deps.querier, env.contract.address)?;
 
     let mut updated_claims: Vec<(Addr, Vec<Claim>)> = vec![];
     for pending_claim in pending_claims {

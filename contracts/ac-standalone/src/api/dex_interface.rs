@@ -1,7 +1,7 @@
 /// This file should start of simple and have only one integration done. Dont start with all at once.
 use cosmwasm_std::{Addr, CosmosMsg, Decimal, Uint128, QuerierWrapper};
 
-use super::dex_error::DexError;
+use super::{dex_error::DexError, dexes::astroport::AstroportAMM};
 pub type DexQueryResult<T> = Result<T, DexError>;
 pub type DexResult = Result<Vec<CosmosMsg>, DexError>;
 
@@ -44,6 +44,26 @@ pub enum DexConfiguration {
     Osmosis(OsmosisConfiguration),
     Astroport(AstroportConfiguration),
     Kujira(KujiraConfiguration),
+}
+
+
+pub fn create_dex_from_config(config: DexConfiguration) -> BoxedDex {
+    match config {
+        DexConfiguration::Astroport(astroport_config) => Box::new(AstroportAMM::from(astroport_config)),
+        DexConfiguration::Osmosis(osmosis_config) => panic!("Osmosis not supported yet"),
+        DexConfiguration::Kujira(kujira_config) => panic!("Kujira not supported yet"), 
+    }
+}
+impl DexConfiguration {
+    pub fn dex(&self) -> BoxedDex {
+        create_dex_from_config(self.clone())
+    }
+}
+
+impl From<DexConfiguration> for BoxedDex {
+    fn from(config: DexConfiguration) -> Self {
+        create_dex_from_config(config)
+    }
 }
 
 #[cosmwasm_schema::cw_serde]
