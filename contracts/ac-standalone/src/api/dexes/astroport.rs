@@ -110,13 +110,11 @@ impl DexInterface for AstroportAMM {
     fn provide_liquidity(
         &self,
         env: Env,
-        asset_a: cw_asset::Asset,
-        asset_b: cw_asset::Asset,
+        offer_assets: cw_asset::AssetList,
         belief_price: Option<cosmwasm_std::Decimal>,
         max_spread: Option<cosmwasm_std::Decimal>,
     ) -> DexResult {
         let mut msgs = vec![];
-        let mut offer_assets = [asset_a, asset_b];
 
         self.equally_split_liquidity(env, &mut offer_assets, &mut msgs)?;
 
@@ -157,14 +155,14 @@ impl DexInterface for AstroportAMM {
         
     }
 
-    fn stake(&self, token: cw_asset::Asset, bonding_period: Option<u64>) -> DexResult {
+    fn stake(&self, amount: Uint128) -> DexResult {
         let cw20_msg = to_binary(&Cw20HookMsg::Deposit {})?;
 
         let msg: CosmosMsg = wasm_execute(
             self.lp_token_address.to_string(),
             &cw20::Cw20ExecuteMsg::Send {
                 contract: self.generator_address.to_string(),
-                amount: token.amount,
+                amount,
                 msg: cw20_msg.clone(),
             },
             vec![],
@@ -185,12 +183,12 @@ impl DexInterface for AstroportAMM {
         Ok(msg)
     }
 
-    fn unstake(&self, token: cw_asset::Asset) -> DexResult {
+    fn unstake(&self, amount: Uint128) -> DexResult {
         let msg: CosmosMsg = wasm_execute(
             self.generator_address.to_string(),
             &GeneratorExecuteMsg::Withdraw {
                 lp_token: self.lp_token_address.to_string(),
-                amount: token.amount,
+                amount,
             },
             vec![],
         )?
@@ -198,7 +196,7 @@ impl DexInterface for AstroportAMM {
         Ok(msg)
     }
 
-    fn claim(&self, token: cw_asset::AssetInfo) -> DexResult {
+    fn claim(&self) -> DexResult {
         Ok([])
     }
 
@@ -239,7 +237,7 @@ impl DexInterface for AstroportAMM {
         Ok(())
     }
 
-    fn query_rewards(&self, querier: &QuerierWrapper) -> DexQueryResult<Vec<cw_asset::Asset>> {
+    fn query_rewards(&self, querier: &QuerierWrapper) -> DexQueryResult<Vec<cw_asset::AssetInfo>> {
         let reward_info: RewardInfoResponse = querier
             .query_wasm_smart(
                 self.generator_address.clone(),
@@ -400,7 +398,6 @@ mod tests {
             .provide_liquidity(
                     Asset::new(AssetInfo::native(USDC), amount_usdc),
                     Asset::new(AssetInfo::native(LUNA), amount_luna),
-                    None,
                     Some(max_spread()),
             )
             .unwrap();
@@ -442,7 +439,6 @@ mod tests {
             .provide_liquidity(
                     Asset::new(AssetInfo::native(USDC), amount_usdc),
                     Asset::new(AssetInfo::native(LUNA), amount_luna),
-                    None,
                 Some(max_spread()),
             )?;
 

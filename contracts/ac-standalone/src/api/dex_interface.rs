@@ -1,5 +1,6 @@
 /// This file should start of simple and have only one integration done. Dont start with all at once.
-use cosmwasm_std::{Addr, CosmosMsg, Decimal, Uint128, QuerierWrapper};
+use cosmwasm_std::{Addr, CosmosMsg, Decimal, Uint128, QuerierWrapper, Env};
+use cw_asset::{AssetList, AssetInfo};
 
 use super::{dex_error::DexError, dexes::astroport::AstroportAMM};
 pub type DexQueryResult<T> = Result<T, DexError>;
@@ -78,6 +79,7 @@ struct AstroportConfiguration {
     staking_contract_address: String,
     pair_address: String,
     generator_address: String,
+    pub pool_assets: Vec<AssetInfo>,
     asset_info_a: cw_asset::AssetInfo,
     asset_info_b: cw_asset::AssetInfo,
 }
@@ -88,9 +90,10 @@ struct KujiraConfiguration {
 }
 
 
+
 /// The generic interface that all DEXes should implement.
 pub trait DexInterface {
-    /// Executes a swap operation.
+    /// Executes a kswap operation.
     ///
     /// Parameters might include the source token, target token, amount, etc.
     /// Returns a result indicating success or providing error details.
@@ -108,8 +111,7 @@ pub trait DexInterface {
     /// Returns a result indicating success or providing error details.
     fn provide_liquidity(
         &self,
-        token_a: cw_asset::Asset,
-        token_b: cw_asset::Asset,
+        assets: AssetList,
         belief_price: Option<Decimal>,
         max_spread: Option<Decimal>,
     ) -> DexResult;
@@ -127,26 +129,26 @@ pub trait DexInterface {
     ///
     /// Parameters might include the token type and amount.
     /// Returns a result indicating success or providing error details.
-    fn stake(&self, token: cw_asset::Asset, bonding_period: Option<u64>) -> DexResult;
+fn stake(&self, amount: Uint128) -> DexResult;
 
     /// Claims rewards from the DEX.
     ///
-    /// Returns a result indicating success or providing error details.
+/// Returns a result indicating success or providing error details.
     fn claim_rewards(&self) -> DexResult;
 
     /// Unstakes tokens from the DEX.
     ///
     /// Parameters might include the token type and amount.
     /// Returns a result indicating success or providing error details.
-    fn unstake(&self, token: cw_asset::Asset) -> DexResult;
+    fn unstake(&self, amount: Uint128) -> DexResult;
 
     /// Initiates a withdrawal (redeem) from the DEX.
     ///
     /// Parameters might include the token type and amount.
     /// Returns a result indicating success or providing error details.
-    fn claim(&self, token: cw_asset::AssetInfo,) -> DexResult;
+    fn claim(&self) -> DexResult;
 
-    fn query_info(&self, querier: &QuerierWrapper) -> DexQueryResult<()>;
+    fn query_info(querier: &QuerierWrapper) -> DexQueryResult<()>;
 
     /// queries the staked amount of a given address
     fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> DexQueryResult<Uint128>;
@@ -155,11 +157,19 @@ pub trait DexInterface {
     fn query_unbonding(&self, querier: &QuerierWrapper, staker: Addr) -> DexQueryResult<Uint128>;
 
     /// queries the current rewards of the current asset
-    fn query_rewards(&self, querier: &QuerierWrapper,) -> DexQueryResult<cw_asset::Asset>;
+    fn query_rewards(&self, querier: &QuerierWrapper,) -> DexQueryResult<Vec<cw_asset::AssetInfo>>;
+
+    /// query the current balance of the lp token
+    fn query_lp_balance(&self, querier: &QuerierWrapper, staker: Addr) -> DexQueryResult<Uint128>;
+    /// query the current balances of the pool assets
+    fn query_pool_balances(&self, querier: &QuerierWrapper, owner: Addr) -> DexQueryResult<Vec<cw_asset::Asset>>;
 
 }
 
 pub type BoxedDex = Box<dyn DexInterface>;
+
+
+
 // impl DexInterface for AnyDex {
 //     fn from_configuration(configuration: DexConfiguration) -> Box<dyn DexInterface> {
 //         // ... implementation

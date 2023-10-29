@@ -1,3 +1,4 @@
+use crate::api::dex_interface::DexInterface;
 use crate::contract::AutocompounderResult;
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
@@ -16,7 +17,7 @@ use super::helpers::{create_subdenom_from_pool_assets, create_vault_token_submsg
 pub fn instantiate_handler(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: AutocompounderInstantiateMsg,
 ) -> AutocompounderResult {
     let AutocompounderInstantiateMsg {
@@ -25,10 +26,14 @@ pub fn instantiate_handler(
         withdrawal_fees,
         commission_addr,
         code_id,
-        dex,
-        mut pool_assets,
+        dex: dex_name,
+        pool_assets,
+        pool_asset_names,
         preferred_bonding_period,
         max_swap_spread,
+        dex_config,
+        max_claims,
+        liquidity_token,
     } = msg;
 
     check_fee(performance_fees)?;
@@ -40,44 +45,15 @@ pub fn instantiate_handler(
     }
 
     pool_assets.sort();
-
+    
     // verify that pool assets are valid
-    let _resolved_assets = validate_pool_assets(&pool_assets)?;
-
-    let lp_token = LpToken {
-        dex: dex.clone(),
-        assets: pool_assets.clone(),
-    };
-    let lp_token_info = ans.query(&lp_token)?;
-
-    let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
-
-    // get staking info
-    let staking_info = query_staking_info(
-        deps.as_ref(),
-        &app,
-        AnsEntryConvertor::new(lp_token).asset_entry(),
-        dex.clone(),
-    )?;
+    // TODO: This one needs to be figures out still!
     let (unbonding_period, min_unbonding_cooldown) =
         get_unbonding_period_and_min_unbonding_cooldown(
-            staking_info.clone(),
+            max_claims, 
             preferred_bonding_period,
+            vec![].into(),
         )?;
-
-    let pairing = DexAssetPairing::new(
-        pool_assets_slice[0].clone(),
-        pool_assets_slice[1].clone(),
-        &dex,
-    );
-    let mut pool_references = ans.query(&pairing)?;
-    let pool_reference: PoolReference = pool_references.swap_remove(0);
-    // get the pool data
-    let mut pool_data = ans.query(&pool_reference.unique_id)?;
-
-    pool_data.assets.sort();
-
-    let resolved_pool_assets = ans.query(&pool_data.assets)?;
 
     // default max swap spread
     let max_swap_spread =
@@ -95,13 +71,15 @@ pub fn instantiate_handler(
 
     let config: Config = Config {
         vault_token,
-        staking_target: staking_info.staking_target,
-        liquidity_token: lp_token_info,
-        pool_assets: resolved_pool_assets,
-        Liquidity_pool: pool_reference.pool_address,
+        liquidity_token,
+        pool_assets,
         unbonding_period,
         min_unbonding_cooldown,
         max_swap_spread,
+        dex_name,
+        dex_config,
+        pool_asset_names,
+        admin: info.sender,
     };
 
     CONFIG.save(deps.storage, &config)?;
@@ -122,7 +100,7 @@ pub fn instantiate_handler(
         env.contract.address.to_string(),
         subdenom,
         code_id, // if code_id is none, submsg will be like normal msg: no reply (for now).
-        config.pool_data.dex,
+        config.dex_name,
     )?;
 
     Ok(Response::new()
@@ -131,40 +109,18 @@ pub fn instantiate_handler(
         .add_attribute("contract", AUTOCOMPOUNDER))
 }
 
-pub fn query_staking_info(
-    deps: Deps,
-    app: &AutocompounderApp,
-    lp_token_name: AssetEntry,
-    dex: String,
-) -> AutocompounderResult<StakingInfo> {
-    let adapters = app.adapters(deps);
-
-    let query = StakingQueryMsg::Info {
-        provider: dex.clone(),
-        staking_tokens: vec![lp_token_name.clone()],
-    };
-
-    let res: StakingInfoResponse = adapters.query(CW_STAKING, query.clone()).map_err(|e| {
-        StdError::generic_err(format!(
-            "Error querying staking info for {lp_token_name} on {dex}: {e}...{query:?}"
-        ))
-    })?;
-    let staking_info = res.infos.first().ok_or(StdError::generic_err(format!(
-        "No staking info found for {lp_token_name} on {dex}",
-        lp_token_name = lp_token_name,
-        dex = dex
-    )))?;
-
-    Ok(staking_info.clone())
+fn validate_pool_assets(pool_assets: &[AssetInfo]) -> AutocompounderResult<()> {
+    todo!()
 }
 
 /// Retrieves the unbonding period and minimum unbonding cooldown based on the staking info and preferred bonding period.
 pub fn get_unbonding_period_and_min_unbonding_cooldown(
-    staking_info: StakingInfo,
+    max_claims: Option<u32>,
     preferred_bonding_period: BondingPeriodSelector,
+    unbonding_periods: &[Duration]
 ) -> Result<(Option<Duration>, Option<Duration>), AutocompounderError> {
     if let (max_claims, Some(mut unbonding_periods)) =
-        (staking_info.max_claims, staking_info.unbonding_periods)
+        (max_claims, unbonding_periods)
     {
         if !all_durations_are_height(&unbonding_periods)
             && !all_durations_are_time(&unbonding_periods)
@@ -311,6 +267,10 @@ mod test {
                     withdrawal_fees: Decimal::percent(3),
                     preferred_bonding_period: BondingPeriodSelector::Shortest,
                     max_swap_spread: None,
+                    pool_asset_names: todo!(),
+                    max_claims: todo!(),
+                    dex_config: todo!(),
+                    liquidity_token: todo!(),
                 },
                 base: abstract_core::app::BaseInstantiateMsg {
                     version_control_address: TEST_VERSION_CONTROL.to_string(),

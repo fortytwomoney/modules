@@ -64,10 +64,18 @@ pub struct AutocompounderInstantiateMsg {
     pub dex: String,
     /// Assets in the pool
     pub pool_assets: Vec<cw_asset::Asset>,
+    /// pool asset names
+    pub pool_asset_names: Vec<String>,
     /// Bonding period selector
     pub preferred_bonding_period: BondingPeriodSelector,
     /// max swap spread
     pub max_swap_spread: Option<Decimal>,
+    /// max claims
+    pub max_claims: Option<u32>,
+    /// dex configuration
+    pub dex_config: DexConfiguration,
+    /// liquidity token
+    pub liquidity_token: AssetInfo,
 }
 
 #[cosmwasm_schema::cw_serde]
@@ -182,7 +190,7 @@ pub struct FeeConfig {
 pub struct Config {
     pub dex_config: DexConfiguration,
     /// Address of the staking contract
-    pub dex: String,
+    pub dex_name: String,
     /// Resolved pool assets
     pub pool_assets: Vec<AssetInfo>,
     /// pool asset names
@@ -197,6 +205,8 @@ pub struct Config {
     pub min_unbonding_cooldown: Option<Duration>,
     /// maximum compound spread
     pub max_swap_spread: Decimal,
+    /// admin
+    pub admin: Addr,
 }
 
 pub enum StakingTarget {

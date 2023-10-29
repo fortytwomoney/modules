@@ -14,10 +14,3 @@ pub const ASTROPORT: &str = "astroport";
 pub const KUJIRA: &str = "kujira";
 pub const OSMOSIS: &str = "osmosis";
 
-pub fn create_dex_from_config(config: DexConfiguration) -> BoxedDex {
-    match config {
-        DexConfiguration::Astroport(astroport_config) => Box::new(AstroportAMM::from(astroport_config)),
-        DexConfiguration::Osmosis(osmosis_config) => panic!("Osmosis not supported yet"),
-        DexConfiguration::Kujira(kujira_config) => panic!("Kujira not supported yet"), 
-    }
-}

@@ -1,4 +1,5 @@
 use crate::api::dex_interface::BoxedDex;
+use crate::api::dex_interface::DexInterface;
 use crate::contract::INSTANTIATE_REPLY_ID;
 
 use crate::kujira_tx::encode_query_supply_of;
@@ -10,15 +11,13 @@ use crate::msg::Config;
 use crate::state::DECIMAL_OFFSET;
 
 use crate::state::VAULT_TOKEN_SYMBOL;
-use crate::{
-    contract::{AutocompounderResult},
-    error::AutocompounderError,
-};
+use crate::{contract::AutocompounderResult, error::AutocompounderError};
 
 use cosmwasm_std::QueryRequest;
 
 use cosmwasm_std::Coin;
 use cosmwasm_std::Reply;
+use cosmwasm_std::Response;
 use cosmwasm_std::SupplyResponse;
 
 use cosmwasm_std::{
@@ -29,8 +28,10 @@ use cw20::MinterResponse;
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw20_base::msg::ExecuteMsg::Mint;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
+use cw_asset::Asset;
 use cw_asset::AssetError;
 use cw_asset::AssetInfo;
+use cw_asset::AssetList;
 use cw_utils::Duration;
 
 use cw_utils::parse_reply_instantiate_data;
@@ -189,30 +190,7 @@ pub fn vault_token_balance(
         .map_err(AutocompounderError::AssetError)
 }
 
-// ------------------------------------------------------------
-// Other helper functions
-// ------------------------------------------------------------
-
-pub fn stake_lp_tokens(
-    deps: Deps,
-    provider: String,
-    asset: AnsAsset,
-    unbonding_period: Option<Duration>,
-) -> AbstractSdkResult<CosmosMsg> {
-    let adapters = app.adapters(deps);
-    adapters.request(
-        CW_STAKING,
-        StakingExecuteMsg {
-            provider,
-            action: StakingAction::Stake {
-                assets: vec![asset],
-                unbonding_period,
-            },
-        },
-    )
-}
-
-pub fn create_subdenom_from_pool_assets(pool_data: &PoolMetadata) -> String {
+pub fn create_subdenom_from_pool_assets(pool_data: &Config) -> String {
     let mut full_denom = format!("VT_4T2/{}", pool_data)
         .replace(',', "_")
         .replace('>', "-");
@@ -246,45 +224,42 @@ pub fn check_fee(fee: Decimal) -> Result<(), AutocompounderError> {
 
 /// swaps all rewards that are not in the target assets and add a reply id to the latest swapmsg
 pub fn swap_rewards_with_reply(
-    rewards: Vec<AnsAsset>,
-    target_assets: Vec<AssetEntry>,
-    dex: &Dex<AutocompounderApp>,
+    rewards: AssetList,
+    target_assets: Vec<AssetInfo>,
+    dex: BoxedDex,
     reply_id: u64,
     max_spread: Decimal,
 ) -> Result<(Vec<CosmosMsg>, SubMsg), AutocompounderError> {
     let mut swap_msgs: Vec<CosmosMsg> = vec![];
-    rewards
-        .iter()
-        .try_for_each(|reward: &AnsAsset| -> AbstractSdkResult<_> {
-            if !target_assets.contains(&reward.name) {
-                // 3.2) swap to asset in pool
-                let swap_msg = dex.swap(
-                    reward.clone(),
-                    target_assets.get(0).unwrap().clone(),
-                    Some(max_spread),
-                    None,
-                )?;
-                swap_msgs.push(swap_msg);
-            }
-            Ok(())
-        })?;
+    rewards.iter().try_for_each(|reward: &Asset| -> Result<_> {
+        if !target_assets.contains(&reward.info) {
+            // 3.2) swap to asset in pool
+            /// TODO: THis one will be much harder to implement correctly
+            let swap_msg = dex.swap(
+                reward.clone(),
+                target_assets.get(0).unwrap().clone(),
+                Some(max_spread),
+                None,
+            )?;
+            swap_msgs.push(swap_msg);
+        }
+        Ok(())
+    })?;
     let swap_msg = swap_msgs.pop().unwrap();
     let submsg = SubMsg::reply_on_success(swap_msg, reply_id);
     Ok((swap_msgs, submsg))
 }
 
 pub fn transfer_to_msgs(
-    app: &AutocompounderApp,
     deps: Deps,
-    asset: AnsAsset,
+    asset: Asset,
     recipient: &Addr,
-) -> Result<CosmosMsg, AutocompounderError> {
-    let actions: Vec<AccountAction> = if asset.amount.is_zero() {
+) -> Result<Vec<CosmosMsg>, AutocompounderError> {
+    return Ok(if asset.amount.is_zero() {
         vec![]
     } else {
-        vec![app.bank(deps).transfer(vec![asset], recipient)?]
-    };
-    return Ok(app.executor(deps).execute(actions)?.into());
+        vec![asset.transfer_msg(recipient)?]
+    });
 }
 
 #[cfg(test)]
@@ -375,15 +350,6 @@ pub mod helpers_tests {
         let assets = vec![AssetEntry::new("eur"), AssetEntry::new("usd")];
 
         Config {
-            staking_target: abstract_cw_staking::msg::StakingTarget::Contract(Addr::unchecked(
-                "staking_addr",
-            )),
-            Liquidity_pool: PoolAddressBase::Contract(Addr::unchecked("pool_address")),
-            pool_data: PoolMetadata::new(
-                "wyndex",
-                abstract_core::objects::PoolType::ConstantProduct,
-                assets,
-            ),
             pool_assets: vec![],
             liquidity_token: AssetInfoBase::Cw20(Addr::unchecked("eur_usd_lp")),
             vault_token: if vt_is_native {
@@ -394,6 +360,10 @@ pub mod helpers_tests {
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown,
             max_swap_spread: Decimal::percent(50),
+            dex_config: todo!(),
+            dex_name: todo!(),
+            pool_asset_names: todo!(),
+            admin: todo!(),
         }
     }
 

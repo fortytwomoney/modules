@@ -1,6 +1,6 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::Reply;
+use cosmwasm_std::{Reply, Attribute};
 use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
 use reply::{
@@ -16,7 +16,7 @@ use crate::handlers::execute::{
     update_fee_config, update_staking_config, withdraw_claims,
 };
 use crate::handlers::{instantiate_handler, query_handler};
-use crate::msg::{AutocompounderExecuteMsg, AutocompounderQueryMsg, ExecuteMsg, InstantiateMsg};
+use crate::msg::{AutocompounderExecuteMsg, AutocompounderQueryMsg, ExecuteMsg, InstantiateMsg, AUTOCOMPOUNDER};
 
 // version info for migration info
 pub const CONTRACT_NAME: &str = "crates.io:cw1-general";
@@ -32,6 +32,18 @@ pub const FEE_SWAPPED_REPLY: u64 = 6u64;
 pub const LP_FEE_WITHDRAWAL_REPLY_ID: u64 = 7u64;
 
 pub type AutocompounderResult<T = Response> = Result<T, AutocompounderError>;
+
+pub fn autocompounder_response(action: str, attributes: Vec<(&str, &str)>) -> Response {
+    Ok(Response::new()
+        .add_attributes(
+            vec![
+                ("contract", AUTOCOMPOUNDER)
+                ("action", action),
+            ]
+        )
+        .add_attributes(attributes)
+    )
+}
 
 #[cfg(feature = "interface")]
 use cw_orch::interface_entry_point;
@@ -78,11 +90,11 @@ pub fn execute(
             funds,
             recipient,
             max_spread,
-        } => deposit(deps, info, env, funds, recipient, max_spread),
+        } => deposit(deps, info, env, recipient, max_spread),
         AutocompounderExecuteMsg::DepositLp {
             lp_token,
             recipient: receiver,
-        } => deposit_lp(deps, info, env, lp_token, receiver),
+        } => deposit_lp(deps, info, env, receiver),
         AutocompounderExecuteMsg::Redeem { amount, recipient } => {
             redeem(deps, env, info.sender, amount, recipient)
         }
