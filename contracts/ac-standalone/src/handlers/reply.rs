@@ -1,9 +1,8 @@
 use super::helpers::{
-    convert_to_shares, mint_vault_tokens_msg, parse_instantiate_reply_cw20, 
-    stake_lp_tokens, swap_rewards_with_reply, vault_token_total_supply,
+    convert_to_shares, mint_vault_tokens_msg, parse_instantiate_reply_cw20, swap_rewards_with_reply, vault_token_total_supply,
 };
 use crate::api::dex_interface::{create_dex_from_config, BoxedDex};
-use crate::contract::{AutocompounderResult, CP_PROVISION_REPLY_ID, SWAPPED_REPLY_ID, autocompounder_response};
+use crate::contract::{AutocompounderResult, CP_PROVISION_REPLY_ID, SWAPPED_REPLY_ID};
 use crate::error::AutocompounderError;
 
 use crate::state::{
@@ -14,7 +13,7 @@ use astroport::querier;
 use cosmwasm_std::{
     CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdResult, SubMsg, Uint128, Addr,
 };
-use cw_asset::{Asset, AssetInfo, AssetList};
+use cw_asset::{Asset, AssetInfo, AssetList, AssetError};
 
 /// Handle a reply for the [`INSTANTIATE_REPLY_ID`] reply.
 pub fn instantiate_reply(deps: DepsMut, _env: Env, reply: Reply) -> AutocompounderResult {
@@ -50,13 +49,13 @@ pub fn lp_provision_reply(deps: DepsMut, env: Env, _reply: Reply) -> Autocompoun
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     CACHED_USER_ADDR.remove(deps.storage);
-    let dex = config.dex_config.dex();
+    let dex = config.dex_config.dex(&env, &deps.querier);
 
     // get the total supply of Vault token
-    let current_vault_supply = vault_token_total_supply(deps.as_ref(), &config)?;
+    let current_vault_supply = vault_token_total_supply(deps.as_ref(), &config.vault_token)?;
 
-    let staked_lp = dex.query_staked(&deps.querier, env.contract.address)?;
-    let received_lp = dex.query_lp_balance(&deps.querier, env.contract.address)?;
+    let staked_lp = dex.query_staked()?;
+    let received_lp = dex.query_lp_balance()?;
     let user_allocated_lp = received_lp.checked_sub(received_lp * fee_config.deposit)?;
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
@@ -72,17 +71,19 @@ pub fn lp_provision_reply(deps: DepsMut, env: Env, _reply: Reply) -> Autocompoun
         &env.contract.address,
         user_address,
         mint_amount,
-        config.dex_name,
+        config.dex_name.clone(),
     )?;
 
     // Stake the LP tokens
     let stake_msgs = dex.stake(received_lp)?;
 
     Ok(
-        autocompounder_response("lp_provision_reply", 
-        vec![
-            ("minted", mint_amount),
-            ("staked", user_allocated_lp),
+        Response::new()
+        .add_attributes(
+            vec![
+            ("action", "lp_provision_reply"),
+            ("minted", &mint_amount.to_string()),
+            ("staked", &user_allocated_lp.to_string()),
         ]
     )
     .add_message(mint_msg)
@@ -94,17 +95,20 @@ pub fn lp_withdrawal_reply(deps: DepsMut, env: Env, _reply: Reply) -> Autocompou
     let config = CONFIG.load(deps.storage)?;
     let user_address = CACHED_USER_ADDR.load(deps.storage)?;
     CACHED_USER_ADDR.remove(deps.storage);
-    let dex = config.dex_config.dex();
+    let dex = config.dex_config.dex(&env, &deps.querier);
 
-    let owned_assets = dex.query_pool_balances(&deps.querier, env.contract.address)?;
-    let funds =
+    let owned_assets = dex.query_pool_balances(env.contract.address.clone())?;
+    let funds=
         cached_asset_balance_differences(owned_assets, &deps.as_ref())?;
 
-    let transfer_msgs = AssetList::from(funds.clone()).transfer_msgs(user_address);
+    let transfer_msgs = funds.transfer_msgs(user_address)?;
 
     CACHED_ASSETS.clear(deps.storage);
 
-    Ok(autocompounder_response("lp_withdrawal_reply", 
+    Ok(Response::new()
+        .add_messages(transfer_msgs)
+                .add_attribute("action","lp_withdrawal_reply")
+        .add_attributes(
         funds
             .into_iter()
             .map(|asset| ("recieved", asset.to_string())),
@@ -115,7 +119,7 @@ pub fn lp_withdrawal_reply(deps: DepsMut, env: Env, _reply: Reply) -> Autocompou
 fn cached_asset_balance_differences(
     owned_assets: Vec<Asset>,
     deps: &Deps,
-) -> Result<Vec<Asset>, AutocompounderError> {
+) -> Result<AssetList, AutocompounderError> {
     let funds = owned_assets
         .into_iter()
         .enumerate()
@@ -126,20 +130,22 @@ fn cached_asset_balance_differences(
         })
         .collect::<StdResult<Vec<Asset>>>()
         .map_err(AutocompounderError::Std)?;
-    Ok(funds)
+    Ok(funds.into())
 }
 
-pub fn lp_compound_reply(deps: DepsMut, _env: Env, _reply: Reply) -> AutocompounderResult {
+pub fn lp_compound_reply(deps: DepsMut, env: Env, _reply: Reply) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
 
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let mut messages = vec![];
     let mut submessages = vec![];
     // claim rewards (this happened in the execution before this reply)
-    let dex = config.dex_config.dex();
+    let dex = config.dex_config.dex(&env, &deps.querier);
 
     // query the rewards and filters out zero rewards
-    let mut rewards = dex.query_rewards(&deps.querier)?;
+    let reward_infos= dex.query_rewards()?;
+    let mut rewards = get_staking_rewards(deps.as_ref(), &env, reward_infos)?;
+
 
     if rewards.is_empty() {
         return Err(AutocompounderError::NoRewards {});
@@ -151,7 +157,7 @@ pub fn lp_compound_reply(deps: DepsMut, _env: Env, _reply: Reply) -> Autocompoun
     // check if asset is not in pool assets
     
     
-    if rewards.iter().all(|f| config.pool_assets.contains(f)) {
+    if rewards.iter().all(|f| config.pool_assets.contains(&f.info)) {
         // if all assets are in the pool, we can just provide liquidity
         // These assets are all the pool assets with the amount of the rewards
         let assets = config.pool_assets
@@ -160,7 +166,7 @@ pub fn lp_compound_reply(deps: DepsMut, _env: Env, _reply: Reply) -> Autocompoun
                 // Get the amount of the reward or return 0
                 let amount = rewards
                     .iter()
-                    .find(|reward| reward.name == *pool_asset)
+                    .find(|reward| reward.info == *pool_asset)
                     .map(|reward| reward.amount)
                     .unwrap_or(Uint128::zero());
                 Asset::new(pool_asset.clone(), amount)
@@ -168,8 +174,7 @@ pub fn lp_compound_reply(deps: DepsMut, _env: Env, _reply: Reply) -> Autocompoun
             .collect::<Vec<Asset>>();
 
         // provide liquidity
-        // TODO properly implement this 
-        let lp_msg: CosmosMsg = dex.provide_liquidity(assets, None,Some(Decimal::percent(50)))?;
+        let lp_msg: CosmosMsg = dex.provide_liquidity(assets, Some(Decimal::percent(50)))?.first().unwrap().to_owned();
 
         submessages.push(SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID));
 
@@ -179,9 +184,9 @@ pub fn lp_compound_reply(deps: DepsMut, _env: Env, _reply: Reply) -> Autocompoun
 
     } else {
         let (swap_msgs, submsg) = swap_rewards_with_reply(
-            rewards,
+            rewards.into(),
             config.pool_assets,
-            &dex,
+            dex,
             SWAPPED_REPLY_ID,
             config.max_swap_spread,
         )?;
@@ -225,30 +230,30 @@ fn deduct_fees_from_rewards(rewards: &mut [Asset], performance_fee: Decimal) -> 
             Asset::new(reward.info.clone(), fee)
         })
         .filter(|fee| fee.amount > Uint128::zero())
-        .collect::<AssetList>();
-    fees
+        .collect::<Vec<Asset>>();
+
+    fees.into()
 }
 
 /// Queries the balances of pool assets and provides liquidity to the pool
 ///
 /// This function is triggered after the last swap message of the lp_compound_reply
 /// and assumes the contract has no other rewards than the ones in the pool assets
-pub fn swapped_reply(deps: DepsMut, _env: Env, _reply: Reply) -> AutocompounderResult {
+pub fn swapped_reply(deps: DepsMut, env: &Env, _reply: Reply) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
-    let dex = config.dex_config.dex();
+    let dex = config.dex_config.dex(&env, &deps.querier);
 
     // query balance of pool tokens
     let rewards = config
         .pool_assets
         .iter()
-        .map(|entry| -> Result<Asset> {
-            let balance = entry.query_balance(&deps.querier, _env.contract.address)?;
+        .map(|entry| -> Result<Asset,AssetError> {
+            let balance = entry.query_balance(&deps.querier, env.contract.address.clone())?;
             Ok(Asset::new(entry.clone(), balance))
         })
-        .collect::<Result<Vec<Asset>>>()?;
+        .collect::<Result<Vec<Asset>, AssetError>>()?;
 
-    // provide liquidity # TODO properly implement this
-    let lp_msg: CosmosMsg = dex.provide_liquidity(rewards, None, Some(Decimal::percent(10)))?;
+    let lp_msg: CosmosMsg = dex.provide_liquidity(rewards, Some(Decimal::percent(10)))?.first().unwrap().to_owned();
 
     let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
@@ -261,34 +266,32 @@ pub fn swapped_reply(deps: DepsMut, _env: Env, _reply: Reply) -> AutocompounderR
 
 pub fn compound_lp_provision_reply(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     _reply: Reply,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
-    let dex= config.dex_config.dex();
+    let dex= config.dex_config.dex(&env, &deps.querier);
 
     // query balance of lp tokens
-    let lp_balance = dex.query_lp_balance(&deps.querier, _env.contract.address)?;
+    let lp_balance = dex.query_lp_balance()?;
 
     // stake lp tokens
-    let stake_msg = dex.stake(lp_balance)?;
+    let stake_msgs = dex.stake(lp_balance)?;
 
     Ok(Response::new()
-    .add_message(stake_msg)
+    .add_messages(stake_msgs)
     .add_attribute("action", "compound_lp_provision_reply")
 )
 }
 
 /// queries available staking rewards assets and the corresponding balances
-fn get_staking_rewards(deps: Deps, config: &Config, staker: Addr) -> AutocompounderResult<Vec<Asset>> {
-    let dex = config.dex_config.dex();
-    let rewards = dex.query_rewards(&deps.querier)?;
+fn get_staking_rewards(deps: Deps, env: &Env, rewards: Vec<AssetInfo>) -> AutocompounderResult<Vec<Asset>> {
     // query balance of rewards
     let rewards = rewards
         .into_iter()
         .map(|tkn: AssetInfo| -> AutocompounderResult<Asset> {
             //  get the number of LP tokens minted in this transaction
-            let balance = tkn.query_balance(&deps.querier, staker)?;
+            let balance = tkn.query_balance(&deps.querier, env.contract.address.clone())?;
             Ok(Asset::new(tkn, balance))
         })
         .collect::<AutocompounderResult<Vec<Asset>>>()?;
@@ -476,7 +479,7 @@ mod test {
             });
 
             let result =
-                cached_asset_balance_differences(owned_assets, &deps.as_ref(), &pool_assets);
+                cached_asset_balance_differences(owned_assets, &deps.as_ref());
 
             assert_that!(&result).is_ok().is_equal_to(vec![
                 AnsAsset::new("asset1".to_string(), 0u128),
@@ -489,7 +492,7 @@ mod test {
         fn cached_asset_balance_differences_some_less() -> anyhow::Result<()> {
             let owned_assets = vec![asset1(50u128), asset2()];
             let mut deps = mock_dependencies();
-            let pool_assets = vec![AssetEntry::new("asset1"), AssetEntry::new("asset2")];
+            let pool_assets = vec![AssetInfo::native("asset1"), AssetInfo::native("asset2")];
 
             // Mock the CACHED_ASSETS load
             CACHED_ASSETS.save(
@@ -504,7 +507,7 @@ mod test {
             )?;
 
             let result =
-                cached_asset_balance_differences(owned_assets, &deps.as_ref(), &pool_assets);
+                cached_asset_balance_differences(owned_assets, &deps.as_ref());
 
             assert_that!(&result).is_err();
             Ok(())
@@ -517,7 +520,7 @@ mod test {
             let pool_assets = vec![];
 
             let result =
-                cached_asset_balance_differences(owned_assets, &deps.as_ref(), &pool_assets);
+                cached_asset_balance_differences(owned_assets, &deps.as_ref());
 
             assert_that!(&result).is_ok().is_empty();
         }

@@ -131,10 +131,10 @@ pub fn query_latest_unbonding(deps: Deps) -> AutocompounderResult<Expiration> {
 
 pub fn query_total_lp_position(deps: Deps, env: Env) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
-    let dex = crate::api::create_dex_from_config(config.dex_config);
+    let dex = config.dex_config.dex(&env, &deps.querier);
 
     // query staking api for total lp tokens
-    let res = dex.query_staked(&deps.querier, env.contract.address.to_string())?;
+    let res = dex.query_staked()?;
     Ok(res)
 }
 
@@ -145,7 +145,7 @@ pub fn query_balance(deps: Deps, address: Addr) -> AutocompounderResult<Uint128>
 
 pub fn query_total_supply(deps: Deps) -> AutocompounderResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
-    vault_token_total_supply(deps, &config)
+    vault_token_total_supply(deps, &config.vault_token)
 }
 
 pub fn query_assets_per_shares(
@@ -169,6 +169,7 @@ pub fn query_assets_per_shares(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::api::dex_interface::testing::create_astro_setup;
 
     use crate::test_common::app_init;
     use abstract_core::objects::pool_id::PoolAddressBase;
@@ -177,29 +178,14 @@ mod test {
     use cosmwasm_std::Addr;
     use cosmwasm_std::Decimal;
 
+    use cw_asset::AssetInfo;
     use cw_utils::{Duration, Expiration};
     use speculoos::assert_that;
 
-    fn default_config() -> Config {
-        let assets = vec![AssetEntry::new("juno>juno")];
+    
 
-        Config {
-            staking_target: abstract_cw_staking::msg::StakingTarget::Contract(Addr::unchecked(
-                "staking_contract",
-            )),
-            Liquidity_pool: PoolAddressBase::Contract(Addr::unchecked("pool_address")),
-            pool_data: PoolMetadata::new(
-                "wyndex",
-                abstract_core::objects::PoolType::ConstantProduct,
-                assets,
-            ),
-            pool_assets: vec![],
-            liquidity_token: cw_asset::AssetInfoBase::Cw20(Addr::unchecked("liquidity_token")),
-            vault_token: cw_asset::AssetInfoBase::Cw20(Addr::unchecked("vault_token")),
-            unbonding_period: Some(Duration::Time(100)),
-            min_unbonding_cooldown: Some(Duration::Time(10)),
-            max_swap_spread: Decimal::percent(50),
-        }
+    fn default_config() -> Config {
+        create_astro_setup()
     }
 
     mod claims {

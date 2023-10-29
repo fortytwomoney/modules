@@ -7,5 +7,4 @@ mod api;
 mod handlers;
 pub use crate::error::AutocompounderError;
 
-pub mod response;
 pub mod state;

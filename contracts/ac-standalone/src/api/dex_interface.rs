@@ -1,8 +1,9 @@
+use astroport::pair::SimulationResponse;
 /// This file should start of simple and have only one integration done. Dont start with all at once.
 use cosmwasm_std::{Addr, CosmosMsg, Decimal, Uint128, QuerierWrapper, Env};
-use cw_asset::{AssetList, AssetInfo};
+use cw_asset::{AssetList, AssetInfo, Asset};
 
-use super::{dex_error::DexError, dexes::astroport::AstroportAMM};
+use super::{dex_error::DexError, dexes::astroport::{AstroportAMM, AstroportConfiguration}};
 pub type DexQueryResult<T> = Result<T, DexError>;
 pub type DexResult = Result<Vec<CosmosMsg>, DexError>;
 
@@ -48,44 +49,30 @@ pub enum DexConfiguration {
 }
 
 
-pub fn create_dex_from_config(config: DexConfiguration) -> BoxedDex {
+pub fn create_dex_from_config<'a>(config: DexConfiguration, env: &'a Env, querier: &'a QuerierWrapper) -> BoxedDex<'a> {
     match config {
-        DexConfiguration::Astroport(astroport_config) => Box::new(AstroportAMM::from(astroport_config)),
+        DexConfiguration::Astroport(astroport_config) => Box::new(AstroportAMM::new( env, querier, astroport_config)),
         DexConfiguration::Osmosis(osmosis_config) => panic!("Osmosis not supported yet"),
         DexConfiguration::Kujira(kujira_config) => panic!("Kujira not supported yet"), 
     }
 }
-impl DexConfiguration {
-    pub fn dex(&self) -> BoxedDex {
-        create_dex_from_config(self.clone())
+impl <'a>DexConfiguration {
+    pub fn dex(&'a self, env: &'a Env, querier: &'a QuerierWrapper) -> BoxedDex<'a> {
+        create_dex_from_config(self.clone(), env,querier)
     }
 }
 
-impl From<DexConfiguration> for BoxedDex {
-    fn from(config: DexConfiguration) -> Self {
-        create_dex_from_config(config)
-    }
-}
 
 #[cosmwasm_schema::cw_serde]
-struct OsmosisConfiguration {
+pub struct OsmosisConfiguration {
     OsmosisPoolId: u64,
     // ... Osmosis-specific fields
 }
 
-#[cosmwasm_schema::cw_serde]
-struct AstroportConfiguration {
-    lp_token_address: String,
-    staking_contract_address: String,
-    pair_address: String,
-    generator_address: String,
-    pub pool_assets: Vec<AssetInfo>,
-    asset_info_a: cw_asset::AssetInfo,
-    asset_info_b: cw_asset::AssetInfo,
-}
+
 
 #[cosmwasm_schema::cw_serde]
-struct KujiraConfiguration {
+pub struct KujiraConfiguration {
     staking_contract_address: String,
 }
 
@@ -111,8 +98,7 @@ pub trait DexInterface {
     /// Returns a result indicating success or providing error details.
     fn provide_liquidity(
         &self,
-        assets: AssetList,
-        belief_price: Option<Decimal>,
+        assets: Vec<Asset>,
         max_spread: Option<Decimal>,
     ) -> DexResult;
 
@@ -133,7 +119,7 @@ fn stake(&self, amount: Uint128) -> DexResult;
 
     /// Claims rewards from the DEX.
     ///
-/// Returns a result indicating success or providing error details.
+    /// Returns a result indicating success or providing error details.
     fn claim_rewards(&self) -> DexResult;
 
     /// Unstakes tokens from the DEX.
@@ -148,25 +134,31 @@ fn stake(&self, amount: Uint128) -> DexResult;
     /// Returns a result indicating success or providing error details.
     fn claim(&self) -> DexResult;
 
-    fn query_info(querier: &QuerierWrapper) -> DexQueryResult<()>;
+    // fn query_info(querier: &QuerierWrapper) -> DexQueryResult<()>;
+    fn simulate_swap(
+        &self,
+        source_token: cw_asset::Asset,
+        target_token: cw_asset::AssetInfo,
+        belief_price: Option<Decimal>,
+    ) -> DexQueryResult<SimulationResponse>;
 
     /// queries the staked amount of a given address
-    fn query_staked(&self, querier: &QuerierWrapper, staker: Addr) -> DexQueryResult<Uint128>;
+    fn query_staked(&self) -> DexQueryResult<Uint128>;
 
     /// queries the current unbonding of the current asset
-    fn query_unbonding(&self, querier: &QuerierWrapper, staker: Addr) -> DexQueryResult<Uint128>;
+    fn query_unbonding(&self) -> DexQueryResult<Uint128>;
 
     /// queries the current rewards of the current asset
-    fn query_rewards(&self, querier: &QuerierWrapper,) -> DexQueryResult<Vec<cw_asset::AssetInfo>>;
+    fn query_rewards(&self) -> DexQueryResult<Vec<cw_asset::AssetInfo>>;
 
     /// query the current balance of the lp token
-    fn query_lp_balance(&self, querier: &QuerierWrapper, staker: Addr) -> DexQueryResult<Uint128>;
+    fn query_lp_balance(&self) -> DexQueryResult<Uint128>;
     /// query the current balances of the pool assets
-    fn query_pool_balances(&self, querier: &QuerierWrapper, owner: Addr) -> DexQueryResult<Vec<cw_asset::Asset>>;
+    fn query_pool_balances(&self, owner: Addr) -> DexQueryResult<Vec<cw_asset::Asset>>;
 
 }
 
-pub type BoxedDex = Box<dyn DexInterface>;
+pub type BoxedDex<'a> = Box<dyn DexInterface + 'a>;
 
 
 
@@ -176,3 +168,11 @@ pub type BoxedDex = Box<dyn DexInterface>;
 //     }
 //     // ... other methods
 // }
+
+#[cfg(test)]
+pub mod testing {
+    use super::*;
+
+    pub use crate::api::dexes::astroport::tests::create_astro_setup;
+
+}

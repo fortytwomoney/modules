@@ -6,6 +6,8 @@ use cw_asset::AssetError;
 use cw_controllers::AdminError;
 use cw_utils::Expiration;
 
+use crate::api::dex_error::DexError;
+
 #[derive(Error, Debug, PartialEq)]
 pub enum AutocompounderError {
     #[error("{0}")]
@@ -19,6 +21,9 @@ pub enum AutocompounderError {
 
     #[error("{0}")]
     OverflowError(#[from] OverflowError),
+
+    #[error("{0}")]
+    DexError(#[from] DexError),
 
     #[error("The configured max count has an error, {}", msg)]
     MaxCountError { msg: String },

@@ -29,10 +29,10 @@ pub fn instantiate_handler(
         dex: dex_name,
         pool_assets,
         pool_asset_names,
-        preferred_bonding_period,
         max_swap_spread,
         dex_config,
         max_claims,
+        unbonding_period,
         liquidity_token,
     } = msg;
 
@@ -44,16 +44,10 @@ pub fn instantiate_handler(
         return Err(AutocompounderError::PoolWithMoreThanTwoAssets {});
     }
 
-    pool_assets.sort();
     
     // verify that pool assets are valid
     // TODO: This one needs to be figures out still!
-    let (unbonding_period, min_unbonding_cooldown) =
-        get_unbonding_period_and_min_unbonding_cooldown(
-            max_claims, 
-            preferred_bonding_period,
-            vec![].into(),
-        )?;
+    let min_unbonding_cooldown = compute_min_unbonding_cooldown(max_claims, unbonding_period)?;
 
     // default max swap spread
     let max_swap_spread =
@@ -95,7 +89,7 @@ pub fn instantiate_handler(
     FEE_CONFIG.save(deps.storage, &fee_config)?;
 
     // create LP token SubMsg
-    let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
+    let subdenom = create_subdenom_from_pool_assets(&config);
     let sub_msg = create_vault_token_submsg(
         env.contract.address.to_string(),
         subdenom,
@@ -113,54 +107,54 @@ fn validate_pool_assets(pool_assets: &[AssetInfo]) -> AutocompounderResult<()> {
     todo!()
 }
 
-/// Retrieves the unbonding period and minimum unbonding cooldown based on the staking info and preferred bonding period.
-pub fn get_unbonding_period_and_min_unbonding_cooldown(
-    max_claims: Option<u32>,
-    preferred_bonding_period: BondingPeriodSelector,
-    unbonding_periods: &[Duration]
-) -> Result<(Option<Duration>, Option<Duration>), AutocompounderError> {
-    if let (max_claims, Some(mut unbonding_periods)) =
-        (max_claims, unbonding_periods)
-    {
-        if !all_durations_are_height(&unbonding_periods)
-            && !all_durations_are_time(&unbonding_periods)
-        {
-            return Err(AutocompounderError::Std(StdError::generic_err(
-                "Unbonding periods are not all heights or all times",
-            )));
-        }
+// /// Retrieves the unbonding period and minimum unbonding cooldown based on the staking info and preferred bonding period.
+// pub fn get_unbonding_period_and_min_unbonding_cooldown(
+//     max_claims: Option<u32>,
+//     preferred_bonding_period: BondingPeriodSelector,
+//     unbonding_periods: Option<&[Duration]>
+// ) -> Result<(Option<Duration>, Option<Duration>), AutocompounderError> {
+//     if let (max_claims, Some(mut unbonding_periods)) =
+//         (max_claims, unbonding_periods)
+//     {
+//         if !all_durations_are_height(&unbonding_periods)
+//             && !all_durations_are_time(&unbonding_periods)
+//         {
+//             return Err(AutocompounderError::Std(StdError::generic_err(
+//                 "Unbonding periods are not all heights or all times",
+//             )));
+//         }
 
-        sort_unbonding_periods(&mut unbonding_periods);
+//         sort_unbonding_periods(&mut unbonding_periods);
 
-        let unbonding_duration = match preferred_bonding_period {
-            BondingPeriodSelector::Shortest => *unbonding_periods.first().unwrap(),
-            BondingPeriodSelector::Longest => *unbonding_periods.last().unwrap(),
-            BondingPeriodSelector::Custom(duration) => {
-                // check if the duration is in the unbonding periods
-                if unbonding_periods.contains(&duration) {
-                    duration
-                } else {
-                    return Err(AutocompounderError::Std(StdError::generic_err(
-                        "Custom bonding period is not in the dex's unbonding periods",
-                    )));
-                }
-            }
-        };
+//         let unbonding_duration = match preferred_bonding_period {
+//             BondingPeriodSelector::Shortest => *unbonding_periods.first().unwrap(),
+//             BondingPeriodSelector::Longest => *unbonding_periods.last().unwrap(),
+//             BondingPeriodSelector::Custom(duration) => {
+//                 // check if the duration is in the unbonding periods
+//                 if unbonding_periods.contains(&duration) {
+//                     duration
+//                 } else {
+//                     return Err(AutocompounderError::Std(StdError::generic_err(
+//                         "Custom bonding period is not in the dex's unbonding periods",
+//                     )));
+//                 }
+//             }
+//         };
 
-        let min_unbonding_cooldown =
-            compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
-        Ok((Some(unbonding_duration), min_unbonding_cooldown))
-    } else {
-        Ok((None, None))
-    }
-}
+//         let min_unbonding_cooldown =
+//             compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
+//         Ok((Some(unbonding_duration), min_unbonding_cooldown))
+//     } else {
+//         Ok((None, None))
+//     }
+// }
 
 /// computes the minimum cooldown period based on the max claims and unbonding duration.
 fn compute_min_unbonding_cooldown(
     max_claims: Option<u32>,
-    unbonding_duration: Duration,
+    unbonding_duration: Option<Duration>,
 ) -> Result<Option<Duration>, AutocompounderError> {
-    if max_claims.is_none() {
+    if max_claims.is_none() || unbonding_duration.is_none() {
         return Ok(None);
     } else if max_claims == Some(0) {
         return Err(AutocompounderError::Std(StdError::generic_err(
@@ -168,7 +162,8 @@ fn compute_min_unbonding_cooldown(
         )));
     }
 
-    let min_unbonding_cooldown = max_claims.map(|max| match &unbonding_duration {
+
+    let min_unbonding_cooldown = max_claims.map(|max| match &unbonding_duration.unwrap() {
         Duration::Height(block) => Duration::Height(block.saturating_div(max.into())),
         Duration::Time(secs) => Duration::Time(secs.saturating_div(max.into())),
     });
@@ -200,13 +195,8 @@ fn all_durations_are_time(unbonding_periods: &[Duration]) -> bool {
 
 #[cfg(test)]
 mod test {
-    use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_base_mock_querier};
-    use abstract_sdk::base::InstantiateEndpoint;
-    use abstract_sdk::core as abstract_core;
-    use abstract_testing::prelude::{TEST_ANS_HOST, TEST_MODULE_FACTORY, TEST_VERSION_CONTROL};
     const ASTROPORT: &str = "astroport";
     const COMMISSION_RECEIVER: &str = "commission_receiver";
-    use crate::test_common::app_init;
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_env, mock_info},
         Addr, Decimal,
@@ -265,8 +255,8 @@ mod test {
                     performance_fees: Decimal::percent(3),
                     pool_assets: vec!["eur".into(), "usd".into(), "juno".into()],
                     withdrawal_fees: Decimal::percent(3),
-                    preferred_bonding_period: BondingPeriodSelector::Shortest,
                     max_swap_spread: None,
+                    unbonding_period: None,
                     pool_asset_names: todo!(),
                     max_claims: todo!(),
                     dex_config: todo!(),
@@ -392,7 +382,7 @@ mod test {
         fn test_compute_min_unbonding_cooldown_height() -> AResult {
             let max_claims = Some(2);
             let unbonding_duration = Duration::Height(10);
-            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
+            let result = compute_min_unbonding_cooldown(max_claims, Some(unbonding_duration))?;
             assert_eq!(result, Some(Duration::Height(5)));
             Ok(())
         }
@@ -401,7 +391,7 @@ mod test {
         fn test_compute_min_unbonding_cooldown_time() -> AResult {
             let max_claims = Some(2);
             let unbonding_duration = Duration::Time(10);
-            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
+            let result = compute_min_unbonding_cooldown(max_claims, Some(unbonding_duration))?;
             assert_eq!(result, Some(Duration::Time(5)));
             Ok(())
         }
@@ -410,7 +400,7 @@ mod test {
         fn test_compute_min_unbonding_cooldown_no_max_claims() -> AResult {
             let max_claims = None;
             let unbonding_duration = Duration::Height(10);
-            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
+            let result = compute_min_unbonding_cooldown(max_claims, Some(unbonding_duration))?;
             assert_eq!(result, None);
             Ok(())
         }
@@ -419,7 +409,7 @@ mod test {
         fn test_compute_min_unbonding_cooldown_zero_max_claims() -> AResult {
             let max_claims = Some(0);
             let unbonding_duration = Duration::Height(10);
-            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration);
+            let result = compute_min_unbonding_cooldown(max_claims, Some(unbonding_duration));
             assert_that!(result)
                 .is_err()
                 .matches(|e| matches!(e, AutocompounderError::Std(_)));

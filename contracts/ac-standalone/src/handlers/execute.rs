@@ -1,18 +1,14 @@
 use super::convert_to_shares;
 use super::helpers::{
     burn_vault_tokens_msg, check_fee, convert_to_assets, create_subdenom_from_pool_assets,
-    create_vault_token_submsg, mint_vault_tokens_msg, stake_lp_tokens, transfer_to_msgs,
-    vault_token_total_supply,
+    create_vault_token_submsg,transfer_to_msgs,
+    vault_token_total_supply, autocompounder_response,
 };
-use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown };
-
-use crate::api::dex_interface::create_dex_from_config;
 use crate::contract::{
-    autocompounder_response, AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
+    AutocompounderResult, LP_COMPOUND_REPLY_ID, LP_PROVISION_REPLY_ID,
     LP_WITHDRAWAL_REPLY_ID,
 };
 use crate::error::AutocompounderError;
-use crate::kujira_tx::format_tokenfactory_denom;
 use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector};
 use crate::state::{
     Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
@@ -20,7 +16,7 @@ use crate::state::{
 };
 use cosmwasm_std::{
     Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response,
-    StdError, StdResult, SubMsg, Uint128,
+    StdError, StdResult, SubMsg, Uint128, Attribute,
 };
 use cw20::{Cw20Contract, Cw20ReceiveMsg};
 use cw_asset::{Asset, AssetBase, AssetError, AssetInfo, AssetInfoBase, AssetList};
@@ -35,8 +31,6 @@ pub fn execute_handler(
     info: MessageInfo,
     msg: AutocompounderExecuteMsg,
 ) -> AutocompounderResult {
-    // if the msg is not of variant 'CreateDenom' then check if the vault token is initialized
-    pre_execute_check(&msg, deps.as_ref())?;
 
     match msg {
         AutocompounderExecuteMsg::UpdateFeeConfig {
@@ -68,100 +62,15 @@ pub fn execute_handler(
         AutocompounderExecuteMsg::BatchUnbond { start_after, limit } => {
             batch_unbond(deps, env, start_after, limit)
         }
-        AutocompounderExecuteMsg::Compound {} => compound(deps),
-        AutocompounderExecuteMsg::UpdateStakingConfig {
-            preferred_bonding_period,
-        } => update_staking_config(deps, info, preferred_bonding_period),
-        AutocompounderExecuteMsg::CreateDenom {} => create_denom(deps, info, &env),
-    }
-}
-
-pub fn pre_execute_check(
-    msg: &AutocompounderExecuteMsg,
-    deps: Deps,
-) -> Result<(), AutocompounderError> {
-    let is_instantiated = VAULT_TOKEN_IS_INITIALIZED.load(deps.storage)?;
-    if let AutocompounderExecuteMsg::CreateDenom {} = *msg {
-        if is_instantiated {
-            return Err(AutocompounderError::VaultTokenAlreadyInitialized {});
-        }
-        Ok(())
-    } else {
-        if !is_instantiated {
-            return Err(AutocompounderError::VaultTokenNotInitialized {});
-        }
-        Ok(())
+        AutocompounderExecuteMsg::Compound {} => compound(deps, env),
     }
 }
 
 fn check_admin(config: &Config, info: &MessageInfo) -> Result<(), AutocompounderError> {
     if config.admin != info.sender {
-        return Err(AutocompounderError::Unauthorized {});
+        return Err(AutocompounderError::Admin(cw_controllers::AdminError::NotAdmin {  }) );
     }
     Ok(())
-}
-
-pub fn create_denom(deps: DepsMut, info: MessageInfo, env: &Env) -> AutocompounderResult {
-    let config = CONFIG.load(deps.storage)?;
-    check_admin(&config, &info)?;
-
-    let contract_address = env.contract.address.to_string();
-
-    let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
-    let denom = format_tokenfactory_denom(&contract_address, &subdenom);
-    let msg = create_vault_token_submsg(contract_address, subdenom, None, config.pool_data.dex)?;
-
-    CONFIG.update(deps.storage, |mut config| -> StdResult<Config> {
-        config.vault_token = AssetInfo::Native(denom.clone());
-        Ok(config)
-    })?;
-
-    VAULT_TOKEN_IS_INITIALIZED.save(deps.storage, &true)?;
-
-    Ok(
-        autocompounder_response("create_denom", vec![("denom", denom.as_str())])
-            .add_submessage(msg),
-    )
-}
-
-pub fn update_staking_config(
-    deps: DepsMut,
-    info: MessageInfo,
-    preferred_bonding_period: BondingPeriodSelector,
-) -> AutocompounderResult {
-    // TODO: I dont think this is needed anymore
-    todo!();
-
-    // let mut config = CONFIG.load(deps.storage)?;
-    // check_admin(&config, &info)?;
-
-    // let lp_token = config.lp_token();
-
-    // // get staking info
-    // let staking_info = query_staking_info(
-    //     deps.as_ref(),
-    //     &app,
-    //     AnsEntryConvertor::new(lp_token.clone()).asset_entry(),
-    //     lp_token.dex,
-    // )?;
-    // let (unbonding_period, min_unbonding_cooldown) =
-    //     get_unbonding_period_and_min_unbonding_cooldown(staking_info, preferred_bonding_period)?;
-
-    // config.unbonding_period = unbonding_period;
-    // config.min_unbonding_cooldown = min_unbonding_cooldown;
-
-    // CONFIG.save(deps.storage, &config)?;
-
-    // Ok(app.custom_tag_response(
-    //     Response::new(),
-    //     "update_config_with_staking_contract_data",
-    //     vec![(
-    //         "unbonding_period",
-    //         config
-    //             .unbonding_period
-    //             .map_or("none".to_string(), |f| format!("{:?}", f)),
-    //     )],
-    // ))
 }
 
 /// Update the application configuration.
@@ -173,7 +82,7 @@ pub fn update_fee_config(
     deposit: Option<Decimal>,
     fee_collector_addr: Option<String>,
 ) -> AutocompounderResult {
-    check_admin(&CONFIG.load(&deps.storage)?, &info)?;
+    check_admin(&CONFIG.load(deps.storage)?, &info)?;
 
     let mut config = FEE_CONFIG.load(deps.storage)?;
     let mut updates = vec![];
@@ -207,7 +116,7 @@ pub fn update_fee_config(
 
     FEE_CONFIG.save(deps.storage, &config)?;
 
-    Ok(autocompounder_response("update_fee_config", vec![updates]))
+    Ok(autocompounder_response("update_fee_config", updates))
 }
 
 // This is the function that is called when the user wants to pool AND stake their funds
@@ -220,7 +129,7 @@ pub fn deposit(
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
-    let dex = config.dex_config.dex();
+    let dex = config.dex_config.dex(&env, &deps.querier);
 
     let _lptoken = config.liquidity_token.clone();
 
@@ -228,16 +137,16 @@ pub fn deposit(
     let mut submessages = vec![];
 
     // check if sent coins are only correct coins
-    check_info_funds_correct(&info, config.pool_assets)?;
+    check_info_funds_correct(&info, config.pool_assets.clone())?;
 
     // get all the allowance for cw20 tokens if in config
-    let (assets, transfer_cw20_msgs) =
-        get_funds_and_cw20_msgs(deps, env, &info.sender, config.pool_assets, info.funds)?;
+    let (mut assets, transfer_cw20_msgs) =
+        get_funds_and_cw20_msgs(deps.as_ref(), &env, &info.sender.to_string(), config.pool_assets, info.funds)?;
     messages.extend(transfer_cw20_msgs);
 
     // deduct deposit fee
     if !fee_config.deposit.is_zero() {
-        let fees: AssetList = deduct_deposit_fees(&mut assets, &fee_config);
+        let fees: AssetList = deduct_deposit_fees(&mut assets, &fee_config).into();
 
         // 3) Send fees to the feecollector
         if !fees.is_empty() {
@@ -246,9 +155,8 @@ pub fn deposit(
     }
 
     let provide_liquidity_msg = dex
-        .provide_liquidity(assets, None, max_spread)?
-        .first()
-        .unwrap();
+        .provide_liquidity(assets, max_spread)?
+        .first().unwrap().to_owned();
 
     let sub_msg = SubMsg {
         id: LP_PROVISION_REPLY_ID,
@@ -272,39 +180,41 @@ pub fn deposit(
 
 fn get_funds_and_cw20_msgs(
     deps: Deps,
-    env: Env,
+    env: &Env,
     sender: &str,
     pool_assets: Vec<AssetInfoBase<Addr>>,
     funds: Vec<Coin>,
 ) -> AutocompounderResult<(Vec<Asset>, Vec<CosmosMsg>)> {
     // iterate over pool assets and query allowance if cw20 then generate msgs with allowance amount
-    let msgs = vec![];
-    let assets = pool_assets
-        .iter()
-        .map(|asset| match asset {
-            AssetInfoBase::Cw20(addr) => {
-                let contract = Cw20Contract(addr.clone());
-                let allowance = contract.allowance(&deps.querier, sender, env.contract.address)?;
-                let asset = Asset::new(asset.clone(), allowance);
-                let transfer_msg = asset
-                    .transfer_from_msg(sender, env.contract.address)
-                    .unwrap();
-                msgs.append(transfer_msg);
-                asset
-            }
-            AssetInfoBase::Native(denom) => {
-                let amount = funds
-                    .iter()
-                    .find(|coin| coin.denom == denom)
-                    .unwrap()
-                    .amount;
-                Asset::new(asset.clone(), amount)
-            }
-            _ => AssetError::InvalidAssetType {
-                ty: asset.to_string(),
-            },
+    let mut msgs = vec![];
+    let assets: Vec<Asset> = pool_assets
+        .into_iter()
+        .map(|asset| -> Result<Asset, AssetError> {
+            match asset {
+                    AssetInfoBase::Cw20(addr) => {
+                        let contract = Cw20Contract(addr.clone());
+                        let allowance = contract.allowance(&deps.querier, sender, env.contract.address.to_string())?.allowance;
+                        let asset = Asset::cw20(addr, allowance);
+                        let transfer_msg = asset
+                            .transfer_from_msg(sender, env.contract.address.clone())?;
+                        msgs.push(transfer_msg);
+
+                        Ok(asset)
+                    }
+                    AssetInfoBase::Native(denom) => {
+                        let amount = funds
+                            .iter()
+                            .find(|coin| coin.denom == denom)
+                            .unwrap()
+                            .amount;
+                        Ok(Asset::native(denom, amount))
+                    }
+                    _ => Err(AssetError::InvalidAssetFormat {
+                        received: asset.to_string(),
+                    })
+                }
         })
-        .collect::<Result<Vec<Asset>, AutocompounderError>>()?;
+        .collect::<Result<Vec<Asset>, AssetError>>()?;
 
     Ok((assets, msgs))
     // .map(|asset| asset.transfer_from_msg(sender, env.contract.address))?
@@ -314,8 +224,8 @@ fn get_funds_and_cw20_msgs(
 /// Add the other asset if there is only one asset. This is needed for the lp provision to work.
 fn add_asset_if_single_fund(funds: &mut Vec<Asset>, config: &Config) {
     if funds.len() == 1 {
-        config.pool_data.assets.iter().for_each(|asset| {
-            if !funds[0].name.eq(asset) {
+        config.pool_assets.iter().for_each(|asset| {
+            if !funds[0].info.eq(asset) {
                 funds.push(Asset::new(asset.clone(), 0u128))
             }
         });
@@ -389,10 +299,10 @@ pub fn deposit_lp(
     let config = CONFIG.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
 
-    let dex = config.dex_config.dex();
+    let dex = config.dex_config.dex(&env, &deps.querier);
 
-    // let recipient =
-    //     unwrap_recipient_is_allowed(recipient, &info.sender, forbidden_deposit_addresses(&env)?)?;
+    let recipient =
+        unwrap_recipient_is_allowed(recipient, &info.sender, forbidden_deposit_addresses(&env)?)?;
 
     // // transfer the asset to the proxy contract # TODO: pull this into the dexInterface so sdk coins return vec![] and cw20s return the transfer msg
     // let transfer_msg = transfer_token_to_vault(config.dex_config, info.sender, deps.as_ref())?;
@@ -433,11 +343,9 @@ pub fn deposit_lp(
     //     .add_messages(vec![mint_msg, stake_msg])
     //     .add_message(fee_msg);
 
-    // Ok(app.custom_tag_response(
-    //     res,
-    //     "deposit-lp",
-    //     vec![("recipient", recipient.to_string())],
-    // ))
+    Ok(autocompounder_response("deposit-lp", 
+    vec![("recipient", recipient.to_string())],
+    ))
 }
 
 /// Deducts a specified fee from a given LP asset.
@@ -445,7 +353,7 @@ pub fn deposit_lp(
 /// If the fee is zero, it returns the original LP asset and a fee asset with zero amount.
 /// Otherwise, it calculates the fee amount, deducts it from the LP asset, and assigns it to the fee asset.
 fn deduct_fee(lp_asset: Asset, fee: Decimal) -> (Asset, Asset) {
-    let mut fee_asset = Asset::new(lp_asset.name.clone(), Uint128::zero());
+    let mut fee_asset = Asset::new(lp_asset.info.clone(), Uint128::zero());
     let mut lp_asset = lp_asset;
     if fee.is_zero() {
         (lp_asset, fee_asset)
@@ -465,9 +373,10 @@ fn transfer_token_to_vault(
     sender: Addr,
 ) -> Result<Vec<CosmosMsg>, AutocompounderError> {
     match lp_token.info.clone() {
-        AssetInfoBase::Cw20(_addr) => Asset::cw20(_addr, lp_token.amount)
-            .transfer_from_msg(sender, vault_address)
-            .map_err(|e| e.into()),
+        AssetInfoBase::Cw20(_addr) => Ok(vec![
+            Asset::cw20(_addr, lp_token.amount)
+            .transfer_from_msg(sender, vault_address)?
+            ]),
         AssetInfoBase::Native(_denom) => Ok(vec![]),
         _ => Err(AutocompounderError::AssetError(
             cw_asset::AssetError::InvalidAssetFormat {
@@ -553,7 +462,8 @@ pub fn batch_unbond(
             CLAIMS.save(deps.storage, addr, &claims)
         })?;
 
-    let unstake_msgs = config.dex_config.dex().unstake(total_lp_amount_to_unbond)?;
+    let unstake_msgs = config.dex_config.dex(&env, &deps.querier)
+        .unstake(total_lp_amount_to_unbond)?;
 
     let burn_msg = burn_vault_tokens_msg(
         &config,
@@ -703,7 +613,7 @@ fn redeem_without_bonding_period(
 ) -> Result<Response, AutocompounderError> {
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let config = CONFIG.load(deps.storage)?;
-    let dex = config.dex_config.dex();
+    let dex = config.dex_config.dex(env, &deps.querier);
 
     let vault_token_asset = AssetBase::new(
         config.vault_token.clone(),
@@ -713,7 +623,7 @@ fn redeem_without_bonding_period(
 
     // save the user address and the assets owned by the contract to the cache for later use in reply
     CACHED_USER_ADDR.save(deps.storage, recipient)?;
-    config.pool_assets.into_iter().try_for_each(|asset_info| {
+    config.pool_assets.iter().try_for_each(|asset_info| {
         let amount = asset_info.query_balance(&deps.querier, env.contract.address.clone())?;
         CACHED_ASSETS
             // CACHED_ASSETS are saved with the key being cwasset::asset:AssetInfo.to_string()
@@ -722,10 +632,10 @@ fn redeem_without_bonding_period(
     })?;
 
     // 1) get the total supply of Vault token
-    let total_supply_vault = vault_token_total_supply(deps.as_ref(), &config)?;
+    let total_supply_vault = vault_token_total_supply(deps.as_ref(), &config.vault_token)?;
 
     let total_lp_tokens_staked_in_vault =
-        dex.query_staked(&deps.querier, env.contract.address.to_string())?;
+        dex.query_staked()?;
 
     let lp_tokens_withdraw_amount = convert_to_assets(
         amount_of_vault_tokens_to_be_burned,
@@ -751,7 +661,7 @@ fn redeem_without_bonding_period(
     let withdraw_msg = dex
         .withdraw_liquidity(lp_tokens_withdraw_amount)?
         .first()
-        .unwrap();
+        .unwrap().to_owned();
     let sub_msg = SubMsg::reply_on_success(withdraw_msg, LP_WITHDRAWAL_REPLY_ID);
 
     // TODO: Check all the lp_token() calls and make sure they are everywhere.
@@ -760,11 +670,11 @@ fn redeem_without_bonding_period(
         vec![
             (
                 "vault_token_burn_amount",
-                &amount_of_vault_tokens_to_be_burned.to_string().as_str(),
+                &amount_of_vault_tokens_to_be_burned.to_string()
             ),
             (
                 "lp_token_withdraw_amount",
-                &lp_tokens_withdraw_amount.to_string().as_str(),
+                &lp_tokens_withdraw_amount.to_string()
             ),
         ],
     )
@@ -774,11 +684,11 @@ fn redeem_without_bonding_period(
     .add_submessage(sub_msg))
 }
 
-pub fn compound(deps: DepsMut) -> AutocompounderResult {
+pub fn compound(deps: DepsMut, env: Env) -> AutocompounderResult {
     let config = CONFIG.load(deps.storage)?;
 
     // 1) Claim rewards from staking contract
-    let claim_msg = config.dex_config.dex().claim_rewards()?.first().unwrap();
+    let claim_msg = config.dex_config.dex(&env, &deps.querier).claim_rewards()?.first().unwrap().to_owned();
     let claim_submsg = SubMsg {
         id: LP_COMPOUND_REPLY_ID,
         msg: claim_msg,
@@ -791,8 +701,9 @@ pub fn compound(deps: DepsMut) -> AutocompounderResult {
     // 3) Swap rewards to token in pool
     // 4) Provide liquidity to pool
 
+    let attributes: Vec<Attribute> = vec![];
     Ok(
-        autocompounder_response("compound", vec![])
+        autocompounder_response("compound", attributes)
             .add_submessage(claim_submsg)
     )
 }
@@ -811,7 +722,7 @@ pub fn withdraw_claims(deps: DepsMut, env: Env, sender: Addr) -> AutocompounderR
         .into_iter()
         .enumerate()
         .for_each(|(_i, asset)| {
-            let amount = asset.query_balance(&deps.querier, env.contract.address).unwrap();
+            let amount = asset.query_balance(&deps.querier, env.contract.address.clone()).unwrap();
             CACHED_ASSETS
                 .save(deps.storage, asset.to_string(), &amount)
                 .unwrap();
@@ -845,11 +756,11 @@ pub fn withdraw_claims(deps: DepsMut, env: Env, sender: Addr) -> AutocompounderR
         });
 
     // 3.1) claim all matured claims from staking contract
-    let dex = config.dex_config.dex();
+    let dex = config.dex_config.dex(&env, &deps.querier);
     let claim_msgs =  dex.claim()?;
 
-    let withdraw_msg: CosmosMsg =
-        dex.withdraw_liquidity(lp_tokens_to_withdraw)?;
+    let withdraw_msg =
+        dex.withdraw_liquidity(lp_tokens_to_withdraw)?.first().unwrap().to_owned();
     let sub_msg = SubMsg::reply_on_success(withdraw_msg, LP_WITHDRAWAL_REPLY_ID);
 
     Ok(
@@ -881,11 +792,11 @@ fn calculate_withdrawals(
     let mut total_vault_tokens_to_burn = Uint128::from(0u128);
 
     // 1) get the total supply of Vault token
-    let vault_tokens_total_supply = vault_token_total_supply(deps, config)?;
+    let vault_tokens_total_supply = vault_token_total_supply(deps, &config.vault_token)?;
 
     // 2) get total staked lp token
-    let dex = config.dex_config.dex();
-    let total_lp_tokens_staked_in_vault = dex.query_staked(&deps.querier, env.contract.address)?;
+    let dex = config.dex_config.dex(env, &deps.querier);
+    let total_lp_tokens_staked_in_vault = dex.query_staked()?;
 
     let mut updated_claims: Vec<(Addr, Vec<Claim>)> = vec![];
     for pending_claim in pending_claims {

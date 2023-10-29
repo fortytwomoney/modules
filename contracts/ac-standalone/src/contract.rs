@@ -8,13 +8,9 @@ use reply::{
     lp_withdrawal_reply,
 };
 
-use crate::handlers::reply;
+use crate::handlers::{reply, execute_handler};
 
 use crate::error::AutocompounderError;
-use crate::handlers::execute::{
-    batch_unbond, compound, create_denom, deposit, deposit_lp, pre_execute_check, redeem,
-    update_fee_config, update_staking_config, withdraw_claims,
-};
 use crate::handlers::{instantiate_handler, query_handler};
 use crate::msg::{AutocompounderExecuteMsg, AutocompounderQueryMsg, ExecuteMsg, InstantiateMsg, AUTOCOMPOUNDER};
 
@@ -31,19 +27,7 @@ pub const LP_WITHDRAWAL_REPLY_ID: u64 = 5u64;
 pub const FEE_SWAPPED_REPLY: u64 = 6u64;
 pub const LP_FEE_WITHDRAWAL_REPLY_ID: u64 = 7u64;
 
-pub type AutocompounderResult<T = Response> = Result<T, AutocompounderError>;
-
-pub fn autocompounder_response(action: str, attributes: Vec<(&str, &str)>) -> Response {
-    Ok(Response::new()
-        .add_attributes(
-            vec![
-                ("contract", AUTOCOMPOUNDER)
-                ("action", action),
-            ]
-        )
-        .add_attributes(attributes)
-    )
-}
+pub type AutocompounderResult<T = Response, E = AutocompounderError> = Result<T, E>;
 
 #[cfg(feature = "interface")]
 use cw_orch::interface_entry_point;
@@ -55,11 +39,10 @@ pub fn instantiate(
     env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response> {
+) -> Result<Response, AutocompounderError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    Ok(instantiate_handler(deps, env, info, msg))
-    // Ok(Response::default())
+    instantiate_handler(deps, env, info, msg)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -70,54 +53,17 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, AutocompounderError> {
-    pre_execute_check(&msg, deps.as_ref())?;
-
-    match msg {
-        AutocompounderExecuteMsg::UpdateFeeConfig {
-            performance,
-            withdrawal,
-            deposit,
-            fee_collector_addr,
-        } => update_fee_config(
-            deps,
-            info,
-            performance,
-            withdrawal,
-            deposit,
-            fee_collector_addr,
-        ),
-        AutocompounderExecuteMsg::Deposit {
-            funds,
-            recipient,
-            max_spread,
-        } => deposit(deps, info, env, recipient, max_spread),
-        AutocompounderExecuteMsg::DepositLp {
-            lp_token,
-            recipient: receiver,
-        } => deposit_lp(deps, info, env, receiver),
-        AutocompounderExecuteMsg::Redeem { amount, recipient } => {
-            redeem(deps, env, info.sender, amount, recipient)
-        }
-        AutocompounderExecuteMsg::Withdraw {} => withdraw_claims(deps, env, info.sender),
-        AutocompounderExecuteMsg::BatchUnbond { start_after, limit } => {
-            batch_unbond(deps, env, start_after, limit)
-        }
-        AutocompounderExecuteMsg::Compound {} => compound(deps),
-        AutocompounderExecuteMsg::UpdateStakingConfig {
-            preferred_bonding_period,
-        } => update_staking_config(deps, info, preferred_bonding_period),
-        AutocompounderExecuteMsg::CreateDenom {} => create_denom(deps, info, &env),
-    }
+    execute_handler(deps, env, info, msg)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 #[cfg_attr(feature = "interface", cw_orch::interface_entry_point)] // cw-orch automatic
-pub fn query(deps: Deps, env: Env, msg: AutocompounderQueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: AutocompounderQueryMsg) -> AutocompounderResult<Binary> {
     query_handler(deps, env, msg)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> AutocompounderResult<Response> {
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> AutocompounderResult {
     match msg.id {
         INSTANTIATE_REPLY_ID => instantiate_reply(deps, env, msg),
         LP_PROVISION_REPLY_ID => lp_provision_reply(deps, env, msg),
@@ -134,3 +80,4 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> AutocompounderResult<Respon
         )),
     }
 }
+

@@ -1,5 +1,6 @@
-use cosmwasm_std::{Env, Addr, StdResult, CosmosMsg, Coin, WasmMsg, to_binary};
-use cw_asset::AssetList;
+use cosmwasm_std::{Env, Addr, StdResult, CosmosMsg, Coin, WasmMsg, to_binary, QueryRequest, WasmQuery};
+use cw_asset::{AssetList, AssetError};
+use serde::Serialize;
 
 
 
@@ -11,10 +12,10 @@ use cw_asset::AssetList;
 /// for increasing allowance and the native tokens.
 pub fn increase_allowance_msgs(
     env: &Env,
-    assets: &AssetList,
+     assets: AssetList,
     recipient: Addr,
-) -> StdResult<(Vec<CosmosMsg>, Vec<Coin>)> {
-    let (funds, cw20s) = separate_natives_and_cw20s(assets);
+) -> Result<(Vec<CosmosMsg>, Vec<Coin>), AssetError> {
+    let (funds, cw20s) = separate_natives_and_cw20s(&assets)?;
     let msgs: Vec<CosmosMsg> = cw20s
         .into_iter()
         .map(|x| {
@@ -33,7 +34,7 @@ pub fn increase_allowance_msgs(
 }
 
 /// Converts an `AssetList` into a `Vec<Coin>` and a `Vec<Cw20Coin>`.
-pub fn separate_natives_and_cw20s(assets: &AssetList) -> (Vec<Coin>, Vec<cw20::Cw20Coin>) {
+pub fn separate_natives_and_cw20s(assets: &AssetList) -> Result<(Vec<Coin>, Vec<cw20::Cw20Coin>), AssetError> {
     let mut coins = vec![];
     let mut cw20s = vec![];
 
@@ -51,7 +52,7 @@ pub fn separate_natives_and_cw20s(assets: &AssetList) -> (Vec<Coin>, Vec<cw20::C
                     amount: asset.amount,
                 });
             }
-            _ => cw_asset::AssetError::InvalidAssetType { ty: asset.info },
+            _ => return Err(AssetError::InvalidAssetType { ty: asset.to_string() }), 
         }
     }
 
@@ -59,5 +60,16 @@ pub fn separate_natives_and_cw20s(assets: &AssetList) -> (Vec<Coin>, Vec<cw20::C
     // CosmWasm coins when converting into SDK coins.
     coins.sort_by(|a, b| a.denom.cmp(&b.denom));
 
-    (coins, cw20s)
+    Ok((coins, cw20s))
+}
+
+pub fn wasm_smart_query<C>(
+    contract_addr: impl Into<String>,
+    msg: &impl Serialize,
+) -> StdResult<QueryRequest<C>> {
+    let query_msg = to_binary(msg)?;
+    Ok(QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: contract_addr.into(),
+        msg: query_msg,
+    }))
 }

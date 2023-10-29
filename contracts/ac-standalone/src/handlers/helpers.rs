@@ -7,12 +7,14 @@ use crate::kujira_tx::encode_query_supply_of;
 use crate::kujira_tx::tokenfactory_burn_msg;
 use crate::kujira_tx::tokenfactory_create_denom_msg;
 use crate::kujira_tx::tokenfactory_mint_msg;
+use crate::msg::AUTOCOMPOUNDER;
 use crate::msg::Config;
 use crate::state::DECIMAL_OFFSET;
 
 use crate::state::VAULT_TOKEN_SYMBOL;
 use crate::{contract::AutocompounderResult, error::AutocompounderError};
 
+use cosmwasm_std::Attribute;
 use cosmwasm_std::QueryRequest;
 
 use cosmwasm_std::Coin;
@@ -32,10 +34,19 @@ use cw_asset::Asset;
 use cw_asset::AssetError;
 use cw_asset::AssetInfo;
 use cw_asset::AssetList;
-use cw_utils::Duration;
 
 use cw_utils::parse_reply_instantiate_data;
 
+pub fn autocompounder_response<S: Into<Attribute>>(action: &str, attributes: Vec<S>) -> Response {
+    Response::new()
+        .add_attributes(
+            vec![
+                ("contract", AUTOCOMPOUNDER),
+                ("action", action),
+            ]
+        )
+        .add_attributes(attributes)
+}
 // ------------------------------------------------------------
 // Helper functions for vault tokens
 // ------------------------------------------------------------
@@ -157,8 +168,8 @@ pub fn burn_vault_tokens_msg(
 }
 
 /// query the total supply of the vault token
-pub fn vault_token_total_supply(deps: Deps, config: &Config) -> AutocompounderResult<Uint128> {
-    match config.vault_token.clone() {
+pub fn vault_token_total_supply(deps: Deps, vault_token: &AssetInfo) -> AutocompounderResult<Uint128> {
+    match vault_token.clone() {
         AssetInfo::Native(denom) => {
             let supply = query_supply_with_stargate(deps, &denom)?;
             Ok(supply.amount)
@@ -191,9 +202,7 @@ pub fn vault_token_balance(
 }
 
 pub fn create_subdenom_from_pool_assets(pool_data: &Config) -> String {
-    let mut full_denom = format!("VT_4T2/{}", pool_data)
-        .replace(',', "_")
-        .replace('>', "-");
+    let mut full_denom = format!("VT_4T2/{}", pool_data.pool_asset_names.join(","));
     full_denom.truncate(50);
     full_denom
 }
@@ -231,7 +240,7 @@ pub fn swap_rewards_with_reply(
     max_spread: Decimal,
 ) -> Result<(Vec<CosmosMsg>, SubMsg), AutocompounderError> {
     let mut swap_msgs: Vec<CosmosMsg> = vec![];
-    rewards.iter().try_for_each(|reward: &Asset| -> Result<_> {
+    rewards.into_iter().try_for_each(|reward| -> Result<_, AutocompounderError> {
         if !target_assets.contains(&reward.info) {
             // 3.2) swap to asset in pool
             /// TODO: THis one will be much harder to implement correctly
@@ -241,7 +250,7 @@ pub fn swap_rewards_with_reply(
                 Some(max_spread),
                 None,
             )?;
-            swap_msgs.push(swap_msg);
+            swap_msgs.extend(swap_msg);
         }
         Ok(())
     })?;
@@ -264,13 +273,9 @@ pub fn transfer_to_msgs(
 
 #[cfg(test)]
 pub mod helpers_tests {
-    use crate::{
-        contract::AUTOCOMPOUNDER_APP, kujira_tx::format_tokenfactory_denom,
-        test_common::app_base_mock_querier,
-    };
+    use crate::kujira_tx::format_tokenfactory_denom;
 
     use super::*;
-    use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
     use cosmwasm_std::{
         from_binary, from_slice,
         testing::{mock_dependencies, MockApi, MockStorage},

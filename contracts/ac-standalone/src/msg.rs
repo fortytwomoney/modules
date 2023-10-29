@@ -62,14 +62,14 @@ pub struct AutocompounderInstantiateMsg {
     pub code_id: Option<u64>,
     /// Name of the target dex
     pub dex: String,
-    /// Assets in the pool
-    pub pool_assets: Vec<cw_asset::Asset>,
+    /// Assets in the pool. Has to be sorted according to the dex order
+    pub pool_assets: Vec<cw_asset::AssetInfo>,
     /// pool asset names
     pub pool_asset_names: Vec<String>,
-    /// Bonding period selector
-    pub preferred_bonding_period: BondingPeriodSelector,
     /// max swap spread
     pub max_swap_spread: Option<Decimal>,
+    /// UnBonding period 
+    pub unbonding_period: Option<Duration>,
     /// max claims
     pub max_claims: Option<u32>,
     /// dex configuration
@@ -112,10 +112,6 @@ pub enum AutocompounderExecuteMsg {
     BatchUnbond {
         start_after: Option<String>,
         limit: Option<u32>,
-    },
-    // Updates min_unbonding_cooldown and unbonding_period in the config with the latest staking contract data
-    UpdateStakingConfig {
-        preferred_bonding_period: BondingPeriodSelector,
     },
 }
 
@@ -212,11 +208,6 @@ pub struct Config {
 pub enum StakingTarget {
     Contract(Addr),
     Id(u64)
-}
-
-#[cosmwasm_schema::cw_serde]
-pub struct LiquidityPoolConfig {
-    staking_target: StakingTarget,
 }
 
 enum LiquidityPool {
