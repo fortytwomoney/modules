@@ -4137,6 +4137,7 @@ version = "0.9.0"
 dependencies = [
  "abstract-core",
  "abstract-cw-staking",
+ "abstract-dex-adapter",
  "abstract-interface",
  "anyhow",
  "autocompounder",

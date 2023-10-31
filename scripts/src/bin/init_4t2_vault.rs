@@ -1,4 +1,5 @@
 use abstract_core::module_factory::ModuleInstallConfig;
+use abstract_core::objects::namespace::Namespace;
 use abstract_core::objects::{AccountId, AssetEntry};
 use autocompounder::interface::AutocompounderApp;
 use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
@@ -13,8 +14,8 @@ use std::sync::Arc;
 
 use abstract_core::{
     account_factory, adapter, app,
-    objects::module::ModuleInfo,
     manager::ExecuteMsg,
+    objects::module::ModuleInfo,
     objects::{gov_type::GovernanceDetails, module::ModuleVersion},
     registry::{ANS_HOST, MANAGER, PROXY},
     ABSTRACT_EVENT_TYPE,
@@ -23,15 +24,17 @@ use abstract_cw_staking::CW_STAKING;
 use abstract_dex_adapter::EXCHANGE;
 use abstract_interface::{
     Abstract, AbstractAccount, AccountDetails, AccountFactory, Manager, ManagerExecFns,
-    ManagerQueryFns, Proxy,
-
+    ManagerQueryFns, Proxy, VCExecFns,
 };
 
 use clap::Parser;
 use cosmwasm_std::{coin, to_binary, Addr, Decimal, Empty};
 use cw_orch::daemon::networks::parse_network;
 
-use autocompounder::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, AUTOCOMPOUNDER};
+use autocompounder::interface::Vault;
+use autocompounder::msg::{
+    AutocompounderInstantiateMsg, AutocompounderQueryMsgFns, BondingPeriodSelector, AUTOCOMPOUNDER,
+};
 use log::info;
 
 // To deploy the app we need to get the memory and then register it
@@ -121,7 +124,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         )?
     };
 
-    let instantiation_funds = if cw20_code_id.is_none() {
+    let instantiation_funds: Option<Vec<Coin>> = if cw20_code_id.is_none() {
         let bank = Bank::new(chain.channel());
         let balance: u128 = rt
             .block_on(bank.balance(&sender, Some("ukuji".to_string())))
@@ -132,9 +135,23 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             panic!("Not enough ukuji to pay for token factory creation fee");
         }
         Some(vec![coin(TOKEN_FACTORY_CREATION_FEE, "ukuji")])
+        // None
     } else {
         None
     };
+
+    // let update = abstr.version_control.update_module_configuration(
+    //     AUTOCOMPOUNDER.to_string(),
+    //     Namespace::new("4t2")?,
+    //     abstract_core::version_control::UpdateModule::Versioned {
+    //         version: MODULE_VERSION.to_string(),
+    //         metadata: None,
+    //         monetization: None,
+    //         instantiation_funds: instantiation_funds.clone(),
+    //     },
+    // )?;
+
+    // info!("Updated module: {:?}", update);
 
     let mut pair_assets = vec![args.paired_asset, args.other_asset];
     pair_assets.sort();
@@ -142,7 +159,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     // let new_module_version =
     // ModuleVersion::Version(args.ac_version.unwrap_or(MODULE_VERSION.to_string()));
 
-    let autocompounder_instantiate_msg = Some(to_binary(&app::InstantiateMsg {
+    let autocompounder_instantiate_msg = &app::InstantiateMsg {
         base: app::BaseInstantiateMsg {
             ans_host_address: abstr
                 .version_control
@@ -167,29 +184,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             preferred_bonding_period: BondingPeriodSelector::Shortest,
             max_swap_spread: Some(Decimal::percent(10)),
         },
-    })?);
-
-    // let result = main_account.manager.create_sub_account(
-    //     vec![
-    //         // installs both abstract dex and staking in the instantiation of the account
-    //         ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:dex")?, None),
-    //         ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:staking")?, None),
-    //         ModuleInstallConfig::new(
-    //             ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?,
-    //             autocompounder_instantiate_msg,
-    //         ),
-    //     ],
-    //     format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
-    //     None,
-    //     Some(description(pair_assets.join("|").replace('>', ":"))),
-    //     Some("https://app.fortytwo.money".to_string()),
-    //     None,
-    // );
-
-    // info!(
-    //     "Instantiated AC addr: {}",
-    //     result.instantiated_contract_address()?.to_string()
-    // );
+    };
 
     let manager_create_sub_account_msg = ExecuteMsg::CreateSubAccount {
         base_asset: None,
@@ -201,17 +196,48 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             // installs both abstract dex and staking in the instantiation of the account
             ModuleInstallConfig::new(ModuleInfo::from_id_latest(EXCHANGE)?, None),
             ModuleInstallConfig::new(ModuleInfo::from_id_latest(CW_STAKING)?, None),
-            ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?, autocompounder_instantiate_msg)
+            // ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?, autocompounder_instantiate_msg)
         ],
     };
 
-    let result = main_account.manager.execute(&manager_create_sub_account_msg, instantiation_funds.as_deref())?;
+    let result = main_account.manager.execute(
+        &manager_create_sub_account_msg,
+        instantiation_funds.as_deref(),
+    )?;
     info!(
         "Instantiated AC addr: {}",
         result.instantiated_contract_address()?.to_string()
     );
 
-    
+    let new_vault_account_id = main_account
+        .manager
+        .sub_account_ids(None, None)?
+        .sub_accounts
+        .last()
+        .unwrap()
+        .to_owned();
+
+    let new_account =
+        AbstractAccount::new(&abstr, Some(AccountId::local(new_vault_account_id.clone())));
+    new_account.install_module(
+        format!("4t2:{}",AUTOCOMPOUNDER).as_str(),
+        &autocompounder_instantiate_msg,
+        instantiation_funds.as_deref(),
+    )?;
+
+    let new_vault = Vault::new(&abstr, Some(AccountId::local(new_vault_account_id)))?;
+    let installed_modules = new_account.manager.module_infos(None, None)?;
+    let vault_config = new_vault.autocompounder.config()?;
+
+    info!(
+        "
+    Vault created with account id: {} 
+    modules: {:?}\n
+    config: §{:?}\n
+    ",
+        new_vault_account_id, installed_modules, vault_config
+    );
+
     // let result = abstr.account_factory.create_new_account(
     //     AccountDetails {
     //     // &account_factory::ExecuteMsg::CreateAccount {
