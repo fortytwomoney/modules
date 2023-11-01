@@ -98,4 +98,7 @@ pub enum AutocompounderError {
 
     #[error("Vault token is already initialized")]
     VaultTokenAlreadyInitialized {},
+
+    #[error("Reward cannot be swapped: {0}")]
+    RewardCannotBeSwapped(AbstractError),
 }

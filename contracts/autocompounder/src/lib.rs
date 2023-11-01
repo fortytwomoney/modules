@@ -6,6 +6,8 @@ pub mod msg;
 pub mod response;
 pub mod state;
 
+pub use crate::handlers::swap_rewards;
+
 #[cfg(feature = "interface")]
 pub mod interface;
 pub mod kujira_tx;
@@ -13,6 +15,7 @@ pub mod kujira_tx;
 #[cfg(test)]
 mod test_common {
     use crate::{msg::BondingPeriodSelector, state::VAULT_TOKEN_IS_INITIALIZED};
+
     use abstract_cw_staking::msg::{
         StakeResponse, StakingInfo, StakingInfoResponse, StakingQueryMsg, StakingTarget,
     };
@@ -33,7 +36,7 @@ mod test_common {
         MockDeps, MockQuerierBuilder,
     };
     pub use cosmwasm_std::testing::*;
-    use cosmwasm_std::{from_binary, to_binary, Addr, Decimal, Uint128};
+    use cosmwasm_std::{from_binary, to_binary, Addr, Decimal, StdError, Uint128};
     use cw_asset::AssetInfo;
     use cw_utils::Duration;
     pub use speculoos::prelude::*;
@@ -101,6 +104,17 @@ mod test_common {
                     _ => panic!("unexpected message"),
                 }
             })
+            .with_smart_handler(TEST_DEX, |msg| match from_binary(msg).unwrap() {
+                abstract_dex_adapter::msg::QueryMsg::Module(DexQueryMsg::SimulateSwap {
+                    offer_asset: _,
+                    ask_asset: _,
+                    dex: _,
+                }) => {
+                    let resp = "hello darkness my old friend";
+                    Ok(to_binary(&resp).unwrap())
+                }
+                _ => panic!("unexpected message"),
+            })
             .with_smart_handler(TEST_VAULT_TOKEN, |msg| match from_binary(msg).unwrap() {
                 cw20::Cw20QueryMsg::Balance { address: _ } => {
                     Ok(to_binary(&cw20::BalanceResponse {
@@ -125,6 +139,33 @@ mod test_common {
                 }
                 "\0\tcontracts\0\twyndexstaking/wyndex/eur,usd" => {
                     Ok(to_binary(&Addr::unchecked("staking_addr")).unwrap())
+                }
+                "\0\u{8}pool_ids\0\u{3}eur\0\u{4}wyndwyndex" => {
+                    Err(StdError::generic_err("").to_string())
+                }
+                "\0\u{8}pool_ids\0\u{3}eur\0\u{3}xrpwyndex" => {
+                    Err(StdError::generic_err("").to_string())
+                }
+                "\0\u{8}pool_ids\0\u{4}juno\0\u{3}xrpwyndex" => {
+                    Err(StdError::generic_err("").to_string())
+                }
+                "\0\u{8}pool_ids\0\u{3}eur\0\u{4}junowyndex" => {
+                    Ok(to_binary(&vec![PoolReference {
+                        unique_id: 0.into(),
+                        pool_address: abstract_core::objects::pool_id::PoolAddressBase::Contract(
+                            Addr::unchecked(TEST_POOL_ADDR),
+                        ),
+                    }])
+                    .unwrap())
+                }
+                "\0\u{8}pool_ids\0\u{4}juno\0\u{4}wyndwyndex" => {
+                    Ok(to_binary(&vec![PoolReference {
+                        unique_id: 0.into(),
+                        pool_address: abstract_core::objects::pool_id::PoolAddressBase::Contract(
+                            Addr::unchecked(TEST_POOL_ADDR),
+                        ),
+                    }])
+                    .unwrap())
                 }
                 "\0\u{8}pool_ids\0\u{3}eur\0\u{3}usdwyndex" => {
                     Ok(to_binary(&vec![PoolReference {

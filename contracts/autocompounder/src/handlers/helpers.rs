@@ -6,17 +6,20 @@ use crate::kujira_tx::tokenfactory_burn_msg;
 use crate::kujira_tx::tokenfactory_create_denom_msg;
 use crate::kujira_tx::tokenfactory_mint_msg;
 use crate::msg::Config;
+use crate::state::CONFIG;
 use crate::state::DECIMAL_OFFSET;
 
 use crate::state::VAULT_TOKEN_SYMBOL;
 use crate::{
-    contract::{AutocompounderApp, AutocompounderResult},
-    error::AutocompounderError,
+    contract::AutocompounderApp, contract::AutocompounderResult, error::AutocompounderError,
 };
 use abstract_core::objects::AnsAsset;
+use abstract_core::objects::DexAssetPairing;
 use abstract_core::objects::PoolMetadata;
 use abstract_cw_staking::{msg::*, CW_STAKING};
-use abstract_dex_adapter::api::Dex;
+use abstract_dex_adapter::DexInterface;
+use abstract_sdk::feature_objects::AnsHost;
+use abstract_sdk::features::AbstractNameService;
 use abstract_sdk::AccountAction;
 use abstract_sdk::AdapterInterface;
 use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
@@ -279,32 +282,84 @@ pub fn check_fee(fee: Decimal) -> Result<(), AutocompounderError> {
 }
 
 /// swaps all rewards that are not in the target assets and add a reply id to the latest swapmsg
-pub fn swap_rewards_with_reply(
+pub fn swap_rewards(
+    app: &AutocompounderApp,
+    deps: Deps,
     rewards: Vec<AnsAsset>,
-    target_assets: Vec<AssetEntry>,
-    dex: &Dex<AutocompounderApp>,
+) -> Result<Vec<CosmosMsg>, AutocompounderError> {
+    let config = CONFIG.load(deps.storage)?;
+    let dex_name = config.pool_data.dex;
+    let max_spread = config.max_swap_spread;
+    let target_assets = config.pool_data.assets;
+
+    let dex = app.dex(deps, dex_name.clone());
+    let ans_host = app.ans_host(deps)?;
+
+    let mut swap_msgs = Vec::new();
+    for reward in &rewards {
+        if !target_assets
+            .iter()
+            .any(|target_asset| &reward.name == target_asset)
+        {
+            let target_asset = match_reward_asset_with_pool_asset(
+                reward,
+                &target_assets,
+                &dex_name,
+                &ans_host,
+                deps,
+            )?;
+
+            let swap_msg = dex.swap(reward.clone(), target_asset, Some(max_spread), None)?;
+            swap_msgs.push(swap_msg);
+        }
+    }
+    Ok(swap_msgs)
+}
+
+fn match_reward_asset_with_pool_asset(
+    reward: &AnsAsset,
+    target_assets: &[AssetEntry],
+    dex_name: &str,
+    ans_host: &AnsHost,
+    deps: Deps<'_>,
+) -> AutocompounderResult<AssetEntry> {
+    match check_pair_exists(reward, target_assets[0].clone(), dex_name, ans_host, deps) {
+        Ok(()) => Ok(target_assets[0].clone()),
+        Err(_) => {
+            check_pair_exists(reward, target_assets[1].clone(), dex_name, ans_host, deps)?;
+            Ok(target_assets[1].clone())
+        }
+    }
+}
+
+fn check_pair_exists(
+    reward: &AnsAsset,
+    asset: AssetEntry,
+    dex_name: &str,
+    ans_host: &AnsHost,
+    deps: Deps<'_>,
+) -> Result<(), AutocompounderError> {
+    let mut assets: [&AssetEntry; 2] = [&reward.name, &asset];
+    assets.sort();
+    let asset_pairing = DexAssetPairing::new(assets[0].clone(), assets[1].clone(), dex_name);
+
+    ans_host
+        .query_asset_pairing(&deps.querier, &asset_pairing)
+        .map_err(AutocompounderError::RewardCannotBeSwapped)
+        .map(|_| ())
+}
+
+pub fn get_last_msgs_with_reply(
+    swap_msgs: &mut Vec<CosmosMsg>,
     reply_id: u64,
-    max_spread: Decimal,
-) -> Result<(Vec<CosmosMsg>, SubMsg), AutocompounderError> {
-    let mut swap_msgs: Vec<CosmosMsg> = vec![];
-    rewards
-        .iter()
-        .try_for_each(|reward: &AnsAsset| -> AbstractSdkResult<_> {
-            if !target_assets.contains(&reward.name) {
-                // 3.2) swap to asset in pool
-                let swap_msg = dex.swap(
-                    reward.clone(),
-                    target_assets.get(0).unwrap().clone(),
-                    Some(max_spread),
-                    None,
-                )?;
-                swap_msgs.push(swap_msg);
-            }
-            Ok(())
-        })?;
-    let swap_msg = swap_msgs.pop().unwrap();
+) -> Result<SubMsg, AutocompounderError> {
+    let swap_msg = swap_msgs
+        .pop()
+        .ok_or(AutocompounderError::Std(StdError::GenericErr {
+            msg: "No swap msgs".to_string(),
+        }))?;
     let submsg = SubMsg::reply_on_success(swap_msg, reply_id);
-    Ok((swap_msgs, submsg))
+    Ok(submsg)
 }
 
 pub fn transfer_to_msgs(
@@ -323,10 +378,15 @@ pub fn transfer_to_msgs(
 
 #[cfg(test)]
 pub mod helpers_tests {
-    use crate::{kujira_tx::format_tokenfactory_denom, test_common::app_base_mock_querier};
+    use crate::{
+        contract::AUTOCOMPOUNDER_APP,
+        kujira_tx::format_tokenfactory_denom,
+        test_common::{app_base_mock_querier, app_init},
+    };
 
     use super::*;
     use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
+    use abstract_testing::prelude::{EUR, USD};
     use cosmwasm_std::{
         from_binary, from_slice,
         testing::{mock_dependencies, MockApi, MockStorage},
@@ -335,6 +395,7 @@ pub mod helpers_tests {
 
     use cw_asset::AssetInfoBase;
     use speculoos::{assert_that, result::ResultAssertions};
+    use wyndex_bundle::WYND_TOKEN;
 
     type AResult = anyhow::Result<()>;
 
@@ -634,5 +695,99 @@ pub mod helpers_tests {
             let denom = create_subdenom_from_pool_assets(&long_pool);
             assert_eq!(denom, "VT_4T2/wyndex/neutron/eur_neutron/usd:constant_pro");
         }
+    }
+
+    #[test]
+    fn check_nonexisting_pair_errors() {
+        let deps = app_init(false, false);
+        let ans_host = AUTOCOMPOUNDER_APP.ans_host(deps.as_ref()).unwrap();
+        let dex_name = "wyndex".to_string();
+
+        let result = check_pair_exists(
+            &AnsAsset::new(WYND_TOKEN, 1u128),
+            AssetEntry::new(EUR),
+            &dex_name,
+            &ans_host,
+            deps.as_ref(),
+        );
+        assert_that!(result)
+            .is_err()
+            .matches(|e| matches!(e, AutocompounderError::RewardCannotBeSwapped(_)));
+    }
+
+    #[test]
+    fn check_existing_pair_ok() {
+        let deps = app_init(false, false);
+        let ans_host = AUTOCOMPOUNDER_APP.ans_host(deps.as_ref()).unwrap();
+        let dex_name = "wyndex".to_string();
+
+        // normal order
+        let result = check_pair_exists(
+            &AnsAsset::new(EUR, 1u128),
+            AssetEntry::new(USD),
+            &dex_name,
+            &ans_host,
+            deps.as_ref(),
+        );
+        assert_that!(result).is_ok();
+
+        // reverse order
+        let result = check_pair_exists(
+            &AnsAsset::new(USD, 1u128),
+            AssetEntry::new(EUR),
+            &dex_name,
+            &ans_host,
+            deps.as_ref(),
+        );
+
+        assert_that!(result).is_ok();
+    }
+
+    #[test]
+    fn test_match_reward_asset_with_pool_asset() {
+        let deps = app_init(false, false);
+        let ans_host = AUTOCOMPOUNDER_APP.ans_host(deps.as_ref()).unwrap();
+        let dex_name = "wyndex".to_string();
+
+        // Set up mock objects
+        let target_assets = [AssetEntry::new("eur"), AssetEntry::new("juno")];
+
+        // Test case 1: reward matches first target asset (eur-usd pool exists)
+        let reward = AnsAsset::new("usd", 1u128);
+        let result = match_reward_asset_with_pool_asset(
+            &reward,
+            &target_assets.to_vec(),
+            &dex_name,
+            &ans_host,
+            deps.as_ref(),
+        );
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), target_assets[0].clone());
+
+        // Test case 2: reward matches second target asset
+        // (eur-wynd pool does not exist, but the wynd_juno pool exists
+        let reward = AnsAsset::new("wynd", 1u128);
+        let result = match_reward_asset_with_pool_asset(
+            &reward,
+            &target_assets.to_vec(),
+            &dex_name,
+            &ans_host,
+            deps.as_ref(),
+        );
+        assert!(result.is_ok());
+        assert_that!(result.unwrap()).is_equal_to(target_assets[1].clone());
+
+        // Test case 3: reward matches neither target asset
+        let reward = AnsAsset::new("xrp", 1u128);
+        let result = match_reward_asset_with_pool_asset(
+            &reward,
+            &target_assets.to_vec(),
+            &dex_name,
+            &ans_host,
+            deps.as_ref(),
+        );
+        assert_that!(result)
+            .is_err()
+            .matches(|e| matches!(e, AutocompounderError::RewardCannotBeSwapped(_)));
     }
 }
