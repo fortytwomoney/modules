@@ -20,19 +20,28 @@ pub const SUPPLY_OF_PATH: &str = "/cosmos.bank.v1beta1.Query/SupplyOf";
 
 /// create as functions with kujira replaced as variable
 pub fn msg_create_denom_type_url(chain: String) ->  String {
-    format!("/{}.denom.MsgCreateDenom", chain)
+    tokenfactory_prefix_for(chain) + "MsgCreateDenom"
+    // format!("/{}.denom.MsgCreateDenom", chain)
 }
 
 pub fn msg_mint_type_url(chain: String) ->  String {
-    format!("/{}.denom.MsgMint", chain)
+    tokenfactory_prefix_for(chain) + "MsgMint"
 }
 
 pub fn msg_burn_type_url(chain: String) ->  String {
-    format!("/{}.denom.MsgBurn", chain)
+    tokenfactory_prefix_for(chain) + "MsgBurn"
+}
+
+pub fn tokenfactory_prefix_for(chain: String)-> String{
+    match chain {
+        chain if chain == "kujira" => "/kujira.denom.".to_string(),
+        chain if chain == "osmosis" => "/osmosis.tokenfactory.v1beta1.".to_string(),
+        _ => panic!("chain not supported"),
+    }
 }
 
 pub fn denom_params_path(chain: String) ->  String {
-    format!("/{}.denom.Query/Params", chain)
+    tokenfactory_prefix_for(chain) + "Query/Params"
 }
 
 pub const TOKEN_FACTORY_CREATION_FEE: u128 = 100_000_000u128;

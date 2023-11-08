@@ -11,36 +11,43 @@ use cosmrs::{
 use cw_orch::{
     daemon::{DaemonError, TxBuilder, Wallet},
     prelude::{
-        networks,
+        networks::{self, parse_network},
         queriers::{Bank, DaemonQuerier, Node},
         Daemon, TxHandler,
     },
 };
 
 use speculoos::{assert_that, result::ResultAssertions};
+use test_case::test_case;
 use tokio::runtime::Runtime;
 const LOCAL_MNEMONIC: &str = "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius";
 
-#[test]
-pub fn denom_query_msgs() {
+
+#[test_case("harpoon-4", "kujira"; "testing for kujira testnet")]
+#[test_case("osmo-test-5", "osmosis"; "testing for osmosis testnet")]
+pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
     // There are two types of daemon, sync and async. Sync daemons can be used is generic code. Async daemons can be used
     // in async code (e.g. tokio), which enables multi-threaded and non-blocking code.
 
+    
     // We start by creating a runtime, which is required for a sync daemon.
     let rt = Runtime::new().unwrap();
 
+    let network = parse_network(chain_id);
+    let denom = network.gas_denom;
     // We can now create a daemon. This daemon will be used to interact with the chain.
     let daemon = Daemon::builder()
         // set the network to use
-        .chain(networks::kujira::HARPOON_4)
+        .chain(network)
+        // .chain(networks::kujira::HARPOON_4)
         .handle(rt.handle())
         .mnemonic(LOCAL_MNEMONIC)
         .build()
         .unwrap();
 
     // We can now use the daemon to interact with the chain. For example, we can query the total supply of a token.
-    let denom = "ukuji";
-    let chain = "kujira".to_string();
+    // let denom = "ukuji";
+    // let chain = "kujira".to_string();
 
     println!("{:?}", daemon.sender());
 
@@ -49,7 +56,7 @@ pub fn denom_query_msgs() {
     println!("Daemon Bank supply: {:?}", supply);
 
     let data = encode_query_supply_of(denom);
-    let client = HttpClient::new("https://kujira-testnet-rpc.polkachu.com").unwrap();
+    let client = HttpClient::new(format!("https://osmosis-testnet-rpc.polkachu.com").to_string().as_str()).unwrap();
 
     // Querying
     let response =
@@ -72,12 +79,12 @@ pub fn denom_query_msgs() {
         .collect();
 
     // remove the denom from the supply_of_coin string
-    let supply_of_coin = supply_of_coin.replace("ukuji", "");
+    let supply_of_coin = supply_of_coin.replace(denom, "");
     assert_that!(supply_of_coin).is_equal_to(supply.amount);
 
     // query token factory params
     let response =
-        rt.block_on(client.abci_query(Some(denom_params_path(chain.clone())), vec![], None, true));
+        rt.block_on(client.abci_query(Some(denom_params_path(chain_name.to_string() )), vec![], None, true));
 
     println!("tokenfactory params response: {:?}", response);
     let result: String = response
@@ -89,21 +96,26 @@ pub fn denom_query_msgs() {
     println!("decoded response value: {:?}", result);
 }
 
-#[test]
-fn tokenfactory_create_mint_burn() {
+#[test_case("harpoon-4", "kujira"; "testing for kujira testnet")]
+#[test_case("osmo-test-5", "osmosis"; "testing for osmosis testnet")]
+fn tokenfactory_create_mint_burn(chain_id: &str, chain_name: &str) {
     // We start by creating a runtime, which is required for a sync daemon.
     let rt = Runtime::new().unwrap();
 
+
+    let network = parse_network(chain_id);
+    let denom = network.gas_denom;
     // We can now create a daemon. This daemon will be used to interact with the chain.
     let daemon = Daemon::builder()
         // set the network to use
-        .chain(networks::kujira::HARPOON_4)
+        .chain(network)
+        // .chain(networks::kujira::HARPOON_4)
         .handle(rt.handle())
         .mnemonic(LOCAL_MNEMONIC)
         .build()
         .unwrap();
 
-    let chain = "kujira".to_string();
+    let chain_name = "osmosis".to_string();
     let block_height = daemon.block_info().unwrap().height as u32;
     let timeout_height = Height::from(block_height + 20u32);
     let wallet = daemon.wallet();
@@ -114,11 +126,11 @@ fn tokenfactory_create_mint_burn() {
 
     // let msg = tokenfactory_create_denom_msg(daemon.sender().to_string(), "4T2TEST1".to_string()).unwrap()
     let create_denom_msg = Any {
-        type_url: msg_create_denom_type_url(chain.clone()),
+        type_url: msg_create_denom_type_url(chain_name.clone()),
         value: encode_msg_create_denom(daemon.sender().as_str(), new_subdenom),
     };
     let any_mint_msg = Any {
-        type_url: msg_mint_type_url(chain.clone()),
+        type_url: msg_mint_type_url(chain_name.clone()),
         value: encode_msg_mint(
             daemon.sender().as_str(),
             &factory_denom,
@@ -127,7 +139,7 @@ fn tokenfactory_create_mint_burn() {
         ),
     };
     let any_burn_msg = Any {
-        type_url: msg_burn_type_url(chain.clone()),
+        type_url: msg_burn_type_url(chain_name.clone()),
         value: encode_msg_burn(
             daemon.sender().as_str(),
             &factory_denom,
@@ -143,12 +155,12 @@ fn tokenfactory_create_mint_burn() {
 
     let response = assert_that!(tx_response).is_ok().subject;
     dbg!(
-        "simulated creation, mint, and burn of denom {:} succesful.
+        format!("simulated creation, mint, and burn of denom {:} succesful.
         gas response: {:?}
         factory_denom: {:}",
         new_subdenom,
         response,
-        factory_denom
+        factory_denom)
     );
 }
 

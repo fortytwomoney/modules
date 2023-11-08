@@ -80,15 +80,16 @@ where
 fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
-    let (main_account_id, dex, base_pair_asset, cw20_code_id) = match args.network_id.as_str() {
-        "uni-6" => (None, "wyndex", "juno>junox", Some(4012)),
-        "juno-1" => (None, "wyndex", "juno>juno", Some(1)),
-        "pion-1" => (None, "astroport", "neutron>astro", Some(188)),
-        "neutron-1" => (None, "astroport", "neutron>astro", Some(180)),
-        "pisco-1" => (None, "astroport", "terra2>luna", Some(83)),
-        "phoenix-1" => (None, "astroport", "terra2>luna", Some(69)),
-        "osmo-test-5" => (Some(2), "osmosis5", "osmosis5>osmo", Some(1)),
-        "harpoon-4" => (Some(2), "kujira", "kujira>kuji", None),
+    let (main_account_id, dex, base_pair_asset, cw20_code_id,
+    token_creation_fee) = match args.network_id.as_str() {
+        "uni-6" => (None, "wyndex", "juno>junox", Some(4012), None),
+        "juno-1" => (None, "wyndex", "juno>juno", Some(1), None),
+        "pion-1" => (None, "astroport", "neutron>astro", Some(188), None),
+        "neutron-1" => (None, "astroport", "neutron>astro", Some(180), None),
+        "pisco-1" => (None, "astroport", "terra2>luna", Some(83), None),
+        "phoenix-1" => (None, "astroport", "terra2>luna", Some(69), None),
+        "osmo-test-5" => (Some(2), "osmosis5", "osmosis5>osmo", None, None),
+        "harpoon-4" => (Some(2), "kujira", "kujira>kuji", None, Some(TOKEN_FACTORY_CREATION_FEE)),
         _ => panic!("Unknown network id: {}", args.network_id),
     };
 
@@ -124,18 +125,17 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         )?
     };
 
-    let instantiation_funds: Option<Vec<Coin>> = if cw20_code_id.is_none() {
+    let instantiation_funds: Option<Vec<Coin>> = if let Some(creation_fee) = token_creation_fee {
         let bank = Bank::new(chain.channel());
         let balance: u128 = rt
             .block_on(bank.balance(&sender, Some("ukuji".to_string())))
             .unwrap()[0]
             .amount
             .parse()?;
-        if balance < TOKEN_FACTORY_CREATION_FEE {
+        if balance < creation_fee {
             panic!("Not enough ukuji to pay for token factory creation fee");
         }
-        Some(vec![coin(TOKEN_FACTORY_CREATION_FEE, "ukuji")])
-        // None
+        Some(vec![coin(creation_fee, "ukuji")])
     } else {
         None
     };

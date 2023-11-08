@@ -352,6 +352,12 @@
                     "string",
                     "null"
                   ]
+                },
+                "version_control_address": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 }
               },
               "additionalProperties": false

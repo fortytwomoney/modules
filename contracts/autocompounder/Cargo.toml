@@ -81,7 +81,7 @@ abstract-testing = { workspace = true }
 abstract-core = { workspace = true }
 cw-orch = { workspace = true, features = ["daemon"] }
 cosmrs = "0.14.0"
-
+test-case = "3.2.1"
 cw-plus-interface = { workspace = true }
 cw-multi-test = { workspace = true }
 anyhow = { workspace = true }

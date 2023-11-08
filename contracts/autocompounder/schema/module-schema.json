@@ -1,6 +1,6 @@
 {
   "contract_name": "module-schema",
-  "contract_version": "0.18.0",
+  "contract_version": "0.19.2",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1251,6 +1251,7 @@
           "description": "Possible staking targets to support staking on cosmwasm contract or cosmos Lockup module",
           "oneOf": [
             {
+              "description": "Address of the staking contract (Cosmwasm)",
               "type": "object",
               "required": [
                 "contract"
@@ -1263,6 +1264,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Pool id of the staking contract (Osmosis)",
               "type": "object",
               "required": [
                 "id"
