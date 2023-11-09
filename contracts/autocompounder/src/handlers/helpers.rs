@@ -86,7 +86,7 @@ pub fn create_vault_token_submsg(
             reply_on: ReplyOn::Success,
         })
     } else {
-        let cosmos_msg = tokenfactory_create_denom_msg(minter, subdenom, dex);
+        let cosmos_msg = tokenfactory_create_denom_msg(minter, subdenom, dex.as_str());
         let sub_msg = SubMsg {
             msg: cosmos_msg,
             gas_limit: None,
@@ -120,7 +120,7 @@ pub fn mint_vault_tokens_msg(
 ) -> Result<CosmosMsg, AutocompounderError> {
     match config.vault_token.clone() {
         AssetInfo::Native(denom) => {
-            tokenfactory_mint_msg(minter, denom, amount, recipient.as_str(), dex).map_err(|e| e.into())
+            tokenfactory_mint_msg(minter, denom, amount, recipient.as_str(), dex.as_str()).map_err(|e| e.into())
         }
         AssetInfo::Cw20(token_addr) => {
             let mint_msg = wasm_execute(
@@ -149,7 +149,7 @@ pub fn burn_vault_tokens_msg(
 ) -> AutocompounderResult<CosmosMsg> {
     match config.vault_token.clone() {
         AssetInfo::Native(denom) => {
-            tokenfactory_burn_msg(minter, denom, amount, dex).map_err(|e| e.into())
+            tokenfactory_burn_msg(minter, denom, amount, dex.as_str()).map_err(|e| e.into())
         }
         AssetInfo::Cw20(token_addr) => {
             let msg = cw20_base::msg::ExecuteMsg::Burn { amount };

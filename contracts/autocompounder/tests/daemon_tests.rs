@@ -56,7 +56,7 @@ pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
     println!("Daemon Bank supply: {:?}", supply);
 
     let data = encode_query_supply_of(denom);
-    let client = HttpClient::new(format!("https://osmosis-testnet-rpc.polkachu.com").to_string().as_str()).unwrap();
+    let client = HttpClient::new(format!("https://{chain_name}-testnet-rpc.polkachu.com").to_string().as_str()).unwrap();
 
     // Querying
     let response =
@@ -84,7 +84,7 @@ pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
 
     // query token factory params
     let response =
-        rt.block_on(client.abci_query(Some(denom_params_path(chain_name.to_string() )), vec![], None, true));
+        rt.block_on(client.abci_query(Some(denom_params_path(chain_name )), vec![], None, true));
 
     println!("tokenfactory params response: {:?}", response);
     let result: String = response
@@ -98,7 +98,7 @@ pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
 
 #[test_case("harpoon-4", "kujira"; "testing for kujira testnet")]
 #[test_case("osmo-test-5", "osmosis"; "testing for osmosis testnet")]
-fn tokenfactory_create_mint_burn(chain_id: &str, chain_name: &str) {
+fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
     // We start by creating a runtime, which is required for a sync daemon.
     let rt = Runtime::new().unwrap();
 
@@ -115,7 +115,6 @@ fn tokenfactory_create_mint_burn(chain_id: &str, chain_name: &str) {
         .build()
         .unwrap();
 
-    let chain_name = "osmosis".to_string();
     let block_height = daemon.block_info().unwrap().height as u32;
     let timeout_height = Height::from(block_height + 20u32);
     let wallet = daemon.wallet();
@@ -126,8 +125,8 @@ fn tokenfactory_create_mint_burn(chain_id: &str, chain_name: &str) {
 
     // let msg = tokenfactory_create_denom_msg(daemon.sender().to_string(), "4T2TEST1".to_string()).unwrap()
     let create_denom_msg = Any {
-        type_url: msg_create_denom_type_url(chain_name.clone()),
-        value: encode_msg_create_denom(daemon.sender().as_str(), new_subdenom),
+        type_url: msg_create_denom_type_url(chain_name),
+        value: encode_msg_create_denom(daemon.sender().as_str(), new_subdenom, chain_name),
     };
     let any_mint_msg = Any {
         type_url: msg_mint_type_url(chain_name.clone()),

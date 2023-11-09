@@ -1322,7 +1322,7 @@ mod test {
                         value: _,
                     } = &r.messages[0].msg
                     {
-                        *url == msg_create_denom_type_url("wyndex".to_string())
+                        *url == msg_create_denom_type_url("wyndex")
                     } else {
                         false
                     }

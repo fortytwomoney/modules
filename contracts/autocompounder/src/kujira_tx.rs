@@ -11,28 +11,22 @@ use cosmwasm_std::{
 };
 use serde::{Deserialize, Serialize};
 
-// pub const MSG_CREATE_DENOM_TYPE_URL: &str = "/kujira.denom.MsgCreateDenom";
-// pub const MSG_MINT_TYPE_URL: &str = "/kujira.denom.MsgMint";
-// pub const MSG_BURN_TYPE_URL: &str = "/kujira.denom.MsgBurn";
-
-// pub const DENOM_PARAMS_PATH: &str = "/kujira.denom.Query/Params";
 pub const SUPPLY_OF_PATH: &str = "/cosmos.bank.v1beta1.Query/SupplyOf";
 
 /// create as functions with kujira replaced as variable
-pub fn msg_create_denom_type_url(chain: String) ->  String {
+pub fn msg_create_denom_type_url(chain: &str) ->  String {
     tokenfactory_prefix_for(chain) + "MsgCreateDenom"
-    // format!("/{}.denom.MsgCreateDenom", chain)
 }
 
-pub fn msg_mint_type_url(chain: String) ->  String {
+pub fn msg_mint_type_url(chain: &str) ->  String {
     tokenfactory_prefix_for(chain) + "MsgMint"
 }
 
-pub fn msg_burn_type_url(chain: String) ->  String {
+pub fn msg_burn_type_url(chain: &str) ->  String {
     tokenfactory_prefix_for(chain) + "MsgBurn"
 }
 
-pub fn tokenfactory_prefix_for(chain: String)-> String{
+pub fn tokenfactory_prefix_for(chain: &str)-> String{
     match chain {
         chain if chain == "kujira" => "/kujira.denom.".to_string(),
         chain if chain == "osmosis" => "/osmosis.tokenfactory.v1beta1.".to_string(),
@@ -40,7 +34,7 @@ pub fn tokenfactory_prefix_for(chain: String)-> String{
     }
 }
 
-pub fn denom_params_path(chain: String) ->  String {
+pub fn denom_params_path(chain: &str) ->  String {
     tokenfactory_prefix_for(chain) + "Query/Params"
 }
 
@@ -60,20 +54,20 @@ pub const TOKEN_FACTORY_CREATION_FEE: u128 = 100_000_000u128;
 ///   string nonce = 2 [ (gogoproto.moretags) = "yaml:\"nonce\"" ]; // unique nonce. Mapped by kujira to be the CreateSubDenom(?)
 /// }
 /// ```
-pub fn encode_msg_create_denom(sender: &str, denom: &str) -> Vec<u8> {
+pub fn encode_msg_create_denom(sender: &str, denom: &str, chain: &str) -> Vec<u8> {
+        Anybuf::new()
+            .append_string(1, sender)
+            .append_string(2, denom)
+            .into_vec()
     // like from their docs: https://docs.kujira.app/developers/smart-contracts/token-factory#creation
-    Anybuf::new()
-        .append_string(1, sender)
-        .append_string(2, denom)
-        .into_vec()
 }
 
 pub fn tokenfactory_create_denom_msg(
     minter: String,
     subdenom: String,
-    chain: String, 
+    chain: &str, 
 ) -> CosmosMsg {
-    let msg = encode_msg_create_denom(&minter, &subdenom);
+    let msg = encode_msg_create_denom(&minter, &subdenom, chain);
     let cosmos_msg = CosmosMsg::Stargate {
         type_url: msg_create_denom_type_url(chain),
         value: msg.into(),
@@ -109,7 +103,7 @@ pub fn tokenfactory_mint_msg(
     denom: String,
     amount: Uint128,
     recipient: &str,
-    chain: String,
+    chain: &str,
 ) -> Result<CosmosMsg, StdError> {
     let proto_msg = encode_msg_mint(minter.as_str(), denom.as_str(), amount, recipient);
     let msg = CosmosMsg::Stargate {
@@ -144,7 +138,7 @@ pub fn tokenfactory_burn_msg(
     minter: &Addr,
     denom: String,
     amount: Uint128,
-    chain: String,
+    chain: &str,
 ) -> Result<CosmosMsg, StdError> {
     let proto_msg = encode_msg_burn(minter.as_str(), &denom, amount);
     let msg = CosmosMsg::Stargate {
@@ -193,7 +187,7 @@ pub struct Params {
 
 ///
 ///
-pub fn tokenfactory_params_query_request(chain: String) -> Result<QueryRequest<Empty>, StdError> {
+pub fn tokenfactory_params_query_request(chain: &str) -> Result<QueryRequest<Empty>, StdError> {
     let proto_msg = encode_query_params();
     let q_request = QueryRequest::Stargate {
         path: denom_params_path(chain),
@@ -203,7 +197,7 @@ pub fn tokenfactory_params_query_request(chain: String) -> Result<QueryRequest<E
     Ok(q_request)
 }
 
-pub fn query_tokenfactory_params(deps: Deps, chain: String) -> Result<Params, StdError> {
+pub fn query_tokenfactory_params(deps: Deps, chain: &str) -> Result<Params, StdError> {
     let q_request = tokenfactory_params_query_request(chain)?;
     let response = deps.querier.query(&q_request)?;
     let params_response: Params = from_binary(&response)?;
