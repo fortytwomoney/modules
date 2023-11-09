@@ -1,7 +1,7 @@
+use abstract_core::objects::AccountId;
 use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING};
 use abstract_interface::{Abstract, ManagerQueryFns};
 use abstract_interface::{AbstractAccount, AppDeployer};
-use abstract_core::{manager::ManagerModuleInfo, objects::AccountId};
 use abstract_sdk::core::app;
 use abstract_sdk::core::app::BaseExecuteMsg;
 use cw_orch::{interface, prelude::*};

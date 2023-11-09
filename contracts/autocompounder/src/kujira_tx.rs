@@ -14,27 +14,27 @@ use serde::{Deserialize, Serialize};
 pub const SUPPLY_OF_PATH: &str = "/cosmos.bank.v1beta1.Query/SupplyOf";
 
 /// create as functions with kujira replaced as variable
-pub fn msg_create_denom_type_url(chain: &str) ->  String {
+pub fn msg_create_denom_type_url(chain: &str) -> String {
     tokenfactory_prefix_for(chain) + "MsgCreateDenom"
 }
 
-pub fn msg_mint_type_url(chain: &str) ->  String {
+pub fn msg_mint_type_url(chain: &str) -> String {
     tokenfactory_prefix_for(chain) + "MsgMint"
 }
 
-pub fn msg_burn_type_url(chain: &str) ->  String {
+pub fn msg_burn_type_url(chain: &str) -> String {
     tokenfactory_prefix_for(chain) + "MsgBurn"
 }
 
-pub fn tokenfactory_prefix_for(chain: &str)-> String{
+pub fn tokenfactory_prefix_for(chain: &str) -> String {
     match chain {
-        chain if chain == "kujira" => "/kujira.denom.".to_string(),
-        chain if chain == "osmosis" => "/osmosis.tokenfactory.v1beta1.".to_string(),
+        "kujira" => "/kujira.denom.".to_string(),
+        "osmosis" => "/osmosis.tokenfactory.v1beta1.".to_string(),
         _ => panic!("chain not supported"),
     }
 }
 
-pub fn denom_params_path(chain: &str) ->  String {
+pub fn denom_params_path(chain: &str) -> String {
     tokenfactory_prefix_for(chain) + "Query/Params"
 }
 
@@ -54,25 +54,20 @@ pub const TOKEN_FACTORY_CREATION_FEE: u128 = 100_000_000u128;
 ///   string nonce = 2 [ (gogoproto.moretags) = "yaml:\"nonce\"" ]; // unique nonce. Mapped by kujira to be the CreateSubDenom(?)
 /// }
 /// ```
-pub fn encode_msg_create_denom(sender: &str, denom: &str, chain: &str) -> Vec<u8> {
-        Anybuf::new()
-            .append_string(1, sender)
-            .append_string(2, denom)
-            .into_vec()
+pub fn encode_msg_create_denom(sender: &str, denom: &str, _chain: &str) -> Vec<u8> {
+    Anybuf::new()
+        .append_string(1, sender)
+        .append_string(2, denom)
+        .into_vec()
     // like from their docs: https://docs.kujira.app/developers/smart-contracts/token-factory#creation
 }
 
-pub fn tokenfactory_create_denom_msg(
-    minter: String,
-    subdenom: String,
-    chain: &str, 
-) -> CosmosMsg {
+pub fn tokenfactory_create_denom_msg(minter: String, subdenom: String, chain: &str) -> CosmosMsg {
     let msg = encode_msg_create_denom(&minter, &subdenom, chain);
-    let cosmos_msg = CosmosMsg::Stargate {
+    CosmosMsg::Stargate {
         type_url: msg_create_denom_type_url(chain),
         value: msg.into(),
-    };
-    cosmos_msg
+    }
 }
 
 /// // MsgMint is the sdk.Msg type for allowing an admin account to mint

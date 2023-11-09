@@ -19,7 +19,6 @@ use abstract_cw_staking::{msg::*, CW_STAKING};
 use abstract_dex_adapter::api::Dex;
 use abstract_sdk::AccountAction;
 use abstract_sdk::AdapterInterface;
-use abstract_sdk::ExecutorMsg;
 use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
 use abstract_sdk::{AbstractSdkResult, Execution, TransferInterface};
 use cosmwasm_std::QueryRequest;
@@ -120,7 +119,8 @@ pub fn mint_vault_tokens_msg(
 ) -> Result<CosmosMsg, AutocompounderError> {
     match config.vault_token.clone() {
         AssetInfo::Native(denom) => {
-            tokenfactory_mint_msg(minter, denom, amount, recipient.as_str(), dex.as_str()).map_err(|e| e.into())
+            tokenfactory_mint_msg(minter, denom, amount, recipient.as_str(), dex.as_str())
+                .map_err(|e| e.into())
         }
         AssetInfo::Cw20(token_addr) => {
             let mint_msg = wasm_execute(
@@ -216,12 +216,14 @@ pub fn query_stake(
         unbonding_period,
     };
     let res: StakeResponse = adapters.query(CW_STAKING, query)?;
-    let amount = res.amounts.first()
+    let amount = res
+        .amounts
+        .first()
         .ok_or(AutocompounderError::Std(StdError::generic_err(
             "No staked assets found",
         )))?;
 
-    Ok(amount.clone())
+    Ok(*amount)
 }
 
 pub fn stake_lp_tokens(
@@ -316,13 +318,13 @@ pub fn transfer_to_msgs(
     } else {
         vec![app.bank(deps).transfer(vec![asset], recipient)?]
     };
-    return Ok(app.executor(deps).execute(actions)?.into())
+    Ok(app.executor(deps).execute(actions)?.into())
 }
 
 #[cfg(test)]
 pub mod helpers_tests {
     use crate::{
-        contract::AUTOCOMPOUNDER_APP, kujira_tx::format_tokenfactory_denom,
+        kujira_tx::format_tokenfactory_denom,
         test_common::app_base_mock_querier,
     };
 
@@ -491,7 +493,8 @@ pub mod helpers_tests {
     fn test_create_lp_token_submsg_without_code_id() {
         let minter = "minter".to_string();
 
-        let result = create_vault_token_submsg(minter, "subdenom".to_string(), None, "kujira".to_string());
+        let result =
+            create_vault_token_submsg(minter, "subdenom".to_string(), None, "kujira".to_string());
         assert!(result.is_ok());
 
         let submsg = result.unwrap();
@@ -601,7 +604,6 @@ pub mod helpers_tests {
         let result = convert_to_shares(assets, total_assets, total_supply);
         assert_eq!(result, Uint128::from(50u128));
     }
-
 
     mod denom {
         use super::*;

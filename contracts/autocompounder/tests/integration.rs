@@ -2,16 +2,16 @@ mod common;
 
 use abstract_core::objects::gov_type::GovernanceDetails;
 use abstract_interface::{AbstractInterfaceError, AccountDetails};
-use abstract_testing::prelude::TEST_ACCOUNT_ID;
+
 use autocompounder::error::AutocompounderError;
-use cw_plus_interface::cw20_base::Cw20Base;
 use cw_asset::{AssetInfo, AssetInfoBase};
+use cw_plus_interface::cw20_base::Cw20Base;
 use std::ops::Mul;
 use std::str::FromStr;
 
 use abstract_core::adapter::BaseExecuteMsgFns;
 use abstract_core::objects::{AnsAsset, AnsEntryConvertor, AssetEntry, LpToken};
-use abstract_interface::{Abstract, ManagerQueryFns, VCExecFns};
+use abstract_interface::{Abstract, ManagerQueryFns};
 use abstract_sdk::core as abstract_core;
 
 use abstract_cw_staking::CW_STAKING;
@@ -103,12 +103,11 @@ pub fn create_vault(
             namespace: Some(TEST_NAMESPACE.to_string()),
             base_asset: None,
             install_modules: vec![],
-
         },
         GovernanceDetails::Monarchy {
             monarch: mock.sender.to_string(),
         },
-        None
+        None,
     )?;
 
     // abstract_
@@ -167,7 +166,7 @@ pub fn create_vault(
             },
             base: abstract_core::app::BaseInstantiateMsg {
                 ans_host_address: abstract_.ans_host.addr_str()?,
-                version_control_address:abstract_.version_control.addr_str()?,
+                version_control_address: abstract_.version_control.addr_str()?,
             },
         },
         None,

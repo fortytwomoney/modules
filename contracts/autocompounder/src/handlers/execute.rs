@@ -32,7 +32,7 @@ use abstract_sdk::{
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use cosmwasm_std::{
     Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response,
-    StdResult, SubMsg, Uint128, StdError,
+    StdError, StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetBase, AssetInfo, AssetInfoBase, AssetList};
@@ -438,7 +438,6 @@ fn deposit_lp(
         &fee_config.fee_collector_addr,
     )?;
 
-    
     let current_vault_supply = vault_token_total_supply(deps.as_ref(), &config)?;
     let mint_amount = convert_to_shares(lp_asset.amount, staked_lp, current_vault_supply);
     if mint_amount.is_zero() {
@@ -450,7 +449,7 @@ fn deposit_lp(
         &env.contract.address,
         recipient.clone(),
         mint_amount,
-        config.pool_data.dex.clone()
+        config.pool_data.dex.clone(),
     )?;
     let stake_msg = stake_lp_tokens(
         deps.as_ref(),
@@ -461,10 +460,9 @@ fn deposit_lp(
     )?;
 
     let res = Response::new()
-    .add_message(transfer_msg)
-    .add_messages(vec![mint_msg, stake_msg])
-    .add_message(fee_msg);
-        
+        .add_message(transfer_msg)
+        .add_messages(vec![mint_msg, stake_msg])
+        .add_message(fee_msg);
 
     Ok(app.custom_tag_response(
         res,
@@ -502,7 +500,14 @@ fn transfer_token_to_proxy(
         AssetInfoBase::Cw20(_addr) => Asset::cw20(_addr, lp_token.amount)
             .transfer_from_msg(sender, app.proxy_address(deps)?)
             .map_err(|e| e.into()),
-        AssetInfoBase::Native(_denom) => Ok(app.bank(deps).deposit(vec![lp_token])?.into_iter().next().ok_or(AutocompounderError::Std(StdError::generic_err("no message")))?),
+        AssetInfoBase::Native(_denom) => Ok(app
+            .bank(deps)
+            .deposit(vec![lp_token])?
+            .into_iter()
+            .next()
+            .ok_or(AutocompounderError::Std(StdError::generic_err(
+                "no message",
+            )))?),
         _ => Err(AutocompounderError::AssetError(
             cw_asset::AssetError::InvalidAssetFormat {
                 received: lp_token.to_string(),
@@ -599,8 +604,12 @@ pub fn batch_unbond(
         config.unbonding_period,
     );
 
-    let burn_msg =
-        burn_vault_tokens_msg(&config, &env.contract.address, total_vault_tokens_to_burn, config.pool_data.dex.clone())?;
+    let burn_msg = burn_vault_tokens_msg(
+        &config,
+        &env.contract.address,
+        total_vault_tokens_to_burn,
+        config.pool_data.dex.clone(),
+    )?;
 
     let response = Response::new().add_messages(vec![unstake_msg, burn_msg]);
     Ok(app.custom_tag_response(
@@ -1046,7 +1055,7 @@ fn claim_lp_rewards(
                 provider,
                 action: StakingAction::ClaimRewards {
                     assets: vec![lp_token_name],
-        },
+                },
             },
         )
         .unwrap()

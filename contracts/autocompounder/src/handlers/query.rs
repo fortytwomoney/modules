@@ -3,7 +3,6 @@ use crate::error::AutocompounderError;
 use crate::state::{
     Claim, Config, FeeConfig, CLAIMS, CONFIG, FEE_CONFIG, LATEST_UNBONDING, PENDING_CLAIMS,
 };
-use abstract_core::objects::AnsEntryConvertor;
 use abstract_sdk::features::AccountIdentification;
 use abstract_sdk::AdapterInterface;
 use cosmwasm_std::{to_binary, Addr, Binary, Deps, Env, Order, StdResult, Uint128};
@@ -151,10 +150,10 @@ pub fn query_total_lp_position(
         unbonding_period: config.unbonding_period,
     };
     let res: abstract_cw_staking::msg::StakeResponse = adapters.query(CW_STAKING, query)?;
-    let amount = res.amounts.get(0).ok_or(AutocompounderError::Std(cosmwasm_std::StdError::generic_err(
-        "No amount found"
-    )))?;
-    Ok(amount.clone())
+    let amount = res.amounts.get(0).ok_or(AutocompounderError::Std(
+        cosmwasm_std::StdError::generic_err("No amount found"),
+    ))?;
+    Ok(*amount)
 }
 
 pub fn query_balance(deps: Deps, address: Addr) -> AutocompounderResult<Uint128> {

@@ -1,7 +1,7 @@
 use autocompounder::kujira_tx::{
-    encode_msg_burn, encode_msg_create_denom, encode_msg_mint, encode_query_supply_of,
-    format_tokenfactory_denom, 
-    SUPPLY_OF_PATH, msg_mint_type_url, msg_create_denom_type_url, msg_burn_type_url, denom_params_path,
+    denom_params_path, encode_msg_burn, encode_msg_create_denom, encode_msg_mint,
+    encode_query_supply_of, format_tokenfactory_denom, msg_burn_type_url,
+    msg_create_denom_type_url, msg_mint_type_url, SUPPLY_OF_PATH,
 };
 use cosmrs::{
     rpc::{Client, HttpClient},
@@ -11,7 +11,7 @@ use cosmrs::{
 use cw_orch::{
     daemon::{DaemonError, TxBuilder, Wallet},
     prelude::{
-        networks::{self, parse_network},
+        networks::{parse_network},
         queriers::{Bank, DaemonQuerier, Node},
         Daemon, TxHandler,
     },
@@ -22,14 +22,12 @@ use test_case::test_case;
 use tokio::runtime::Runtime;
 const LOCAL_MNEMONIC: &str = "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius";
 
-
 #[test_case("harpoon-4", "kujira"; "testing for kujira testnet")]
 #[test_case("osmo-test-5", "osmosis"; "testing for osmosis testnet")]
 pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
     // There are two types of daemon, sync and async. Sync daemons can be used is generic code. Async daemons can be used
     // in async code (e.g. tokio), which enables multi-threaded and non-blocking code.
 
-    
     // We start by creating a runtime, which is required for a sync daemon.
     let rt = Runtime::new().unwrap();
 
@@ -56,7 +54,12 @@ pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
     println!("Daemon Bank supply: {:?}", supply);
 
     let data = encode_query_supply_of(denom);
-    let client = HttpClient::new(format!("https://{chain_name}-testnet-rpc.polkachu.com").to_string().as_str()).unwrap();
+    let client = HttpClient::new(
+        format!("https://{chain_name}-testnet-rpc.polkachu.com")
+            .to_string()
+            .as_str(),
+    )
+    .unwrap();
 
     // Querying
     let response =
@@ -84,7 +87,7 @@ pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
 
     // query token factory params
     let response =
-        rt.block_on(client.abci_query(Some(denom_params_path(chain_name )), vec![], None, true));
+        rt.block_on(client.abci_query(Some(denom_params_path(chain_name)), vec![], None, true));
 
     println!("tokenfactory params response: {:?}", response);
     let result: String = response
@@ -102,9 +105,8 @@ fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
     // We start by creating a runtime, which is required for a sync daemon.
     let rt = Runtime::new().unwrap();
 
-
     let network = parse_network(chain_id);
-    let denom = network.gas_denom;
+    let _denom = network.gas_denom;
     // We can now create a daemon. This daemon will be used to interact with the chain.
     let daemon = Daemon::builder()
         // set the network to use
@@ -129,7 +131,7 @@ fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
         value: encode_msg_create_denom(daemon.sender().as_str(), new_subdenom, chain_name),
     };
     let any_mint_msg = Any {
-        type_url: msg_mint_type_url(chain_name.clone()),
+        type_url: msg_mint_type_url(chain_name),
         value: encode_msg_mint(
             daemon.sender().as_str(),
             &factory_denom,
@@ -138,7 +140,7 @@ fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
         ),
     };
     let any_burn_msg = Any {
-        type_url: msg_burn_type_url(chain_name.clone()),
+        type_url: msg_burn_type_url(chain_name),
         value: encode_msg_burn(
             daemon.sender().as_str(),
             &factory_denom,
@@ -153,14 +155,12 @@ fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
     ));
 
     let response = assert_that!(tx_response).is_ok().subject;
-    dbg!(
-        format!("simulated creation, mint, and burn of denom {:} succesful.
+    dbg!(format!(
+        "simulated creation, mint, and burn of denom {:} succesful.
         gas response: {:?}
         factory_denom: {:}",
-        new_subdenom,
-        response,
-        factory_denom)
-    );
+        new_subdenom, response, factory_denom
+    ));
 }
 
 async fn simulate_any_msg(

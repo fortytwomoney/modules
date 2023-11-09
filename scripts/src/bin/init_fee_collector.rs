@@ -173,25 +173,25 @@
 // }
 
 fn main() {
-//     dotenv().ok();
-//     env_logger::init();
+    //     dotenv().ok();
+    //     env_logger::init();
 
-//     use dotenv::dotenv;
+    //     use dotenv::dotenv;
 
-//     let args = Arguments::parse();
+    //     let args = Arguments::parse();
 
-//     if let Err(ref err) = init_fee_collector(args) {
-//         log::error!("{}", err);
-//         err.chain()
-//             .skip(1)
-//             .for_each(|cause| log::error!("because: {}", cause));
+    //     if let Err(ref err) = init_fee_collector(args) {
+    //         log::error!("{}", err);
+    //         err.chain()
+    //             .skip(1)
+    //             .for_each(|cause| log::error!("because: {}", cause));
 
-//         // The backtrace is not always generated. Try to run this example
-//         // with `$env:RUST_BACKTRACE=1`.
-//         //    if let Some(backtrace) = e.backtrace() {
-//         //        log::debug!("backtrace: {:?}", backtrace);
-//         //    }
+    //         // The backtrace is not always generated. Try to run this example
+    //         // with `$env:RUST_BACKTRACE=1`.
+    //         //    if let Some(backtrace) = e.backtrace() {
+    //         //        log::debug!("backtrace: {:?}", backtrace);
+    //         //    }
 
-//         ::std::process::exit(1);
-//     }
+    //         ::std::process::exit(1);
+    //     }
 }

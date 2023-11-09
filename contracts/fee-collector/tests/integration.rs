@@ -10,7 +10,7 @@ use abstract_interface::{
     Abstract, AbstractAccount, AbstractInterfaceError, AccountDetails, ManagerQueryFns, VCExecFns,
 };
 use abstract_sdk::core::adapter::InstantiateMsg;
-use abstract_testing::prelude::{EUR, USD, TEST_VERSION_CONTROL};
+use abstract_testing::prelude::{EUR, TEST_VERSION_CONTROL, USD};
 use cw_orch::prelude::*;
 
 use cosmwasm_std::{coin, Decimal};
@@ -112,7 +112,7 @@ fn create_fee_collector(
             link: None,
             base_asset: None,
             name: "Vault Account".to_string(),
-            install_modules: vec![]
+            install_modules: vec![],
         },
         GovernanceDetails::Monarchy {
             monarch: mock.sender.to_string(),
