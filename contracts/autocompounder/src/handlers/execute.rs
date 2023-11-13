@@ -1157,6 +1157,30 @@ mod test {
         }
 
         #[test]
+        fn transfer_token_to_proxy_ok() -> anyhow::Result<()> {
+            let deps = app_init(false, true);
+            let sender = Addr::unchecked("sender");
+
+            let lp_token = Asset::new(AssetInfo::native("lp_token".to_string()), Uint128::new(100));
+
+            let res = transfer_token_to_proxy(lp_token, sender, &AUTOCOMPOUNDER_APP, deps.as_ref());
+            assert_that!(res).is_err();
+
+            Ok(())
+        }
+        #[test]
+        fn transfer_token_to_autocompounder_native() -> anyhow::Result<()> {
+            let sender = Addr::unchecked("sender");
+            let lp_token = Asset::new(AssetInfo::native("lp_token".to_string()), Uint128::new(100));
+
+            let res = transfer_token_to_autocompounder(lp_token, sender, &mock_env());
+            let msgs = assert_that!(res).is_ok();
+            assert_that!(msgs.subject).has_length(0);
+
+            Ok(())
+        }
+
+        #[test]
         fn add_asset_if_single_fund_adds_when_one_asset() {
             let config = min_cooldown_config(None, false);
             let mut funds = vec![AnsAsset::new("eur".to_string(), 100u128)];
