@@ -40,6 +40,7 @@ use cw_asset::{AssetInfo, AssetInfoBase};
 use cw_utils::{Duration, Expiration};
 
 pub const AUTOCOMPOUNDER: &str = "autocompounder";
+pub const AUTOCOMPOUNDER_ID: &str = "4t2:autocompounder";
 
 /// Impls for being able to call methods on the autocompounder app directly
 pub type ExecuteMsg = app::ExecuteMsg<AutocompounderExecuteMsg, Cw20ReceiveMsg>;

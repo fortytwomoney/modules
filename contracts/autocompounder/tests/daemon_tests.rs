@@ -11,7 +11,7 @@ use cosmrs::{
 use cw_orch::{
     daemon::{DaemonError, TxBuilder, Wallet},
     prelude::{
-        networks::{parse_network},
+        networks::parse_network,
         queriers::{Bank, DaemonQuerier, Node},
         Daemon, TxHandler,
     },
@@ -150,7 +150,7 @@ fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
 
     let tx_response = rt.block_on(simulate_any_msg(
         &wallet,
-        vec![create_denom_msg, any_mint_msg, any_burn_msg],
+        dbg!(vec![create_denom_msg, any_mint_msg, any_burn_msg]),
         timeout_height,
     ));
 

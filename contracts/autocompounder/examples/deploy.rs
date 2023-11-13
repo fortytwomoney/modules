@@ -1,8 +1,8 @@
-use abstract_interface::{Abstract};
+use abstract_interface::Abstract;
 use cw_orch::daemon::ChainInfo;
 
 use autocompounder::interface::AutocompounderApp;
-use autocompounder::msg::AUTOCOMPOUNDER;
+use autocompounder::msg::AUTOCOMPOUNDER_ID;
 
 use cw_orch::deploy::Deploy;
 use cw_orch::prelude::networks::parse_network;
@@ -25,7 +25,7 @@ fn deploy_autocompounder(
         .chain(network)
         .build()?;
 
-    let autocompounder = AutocompounderApp::new(format!("4t2:{}", AUTOCOMPOUNDER).as_str(), chain);
+    let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER_ID, chain);
 
     // autocompounder.deploy(version)?;
     autocompounder.upload()?;

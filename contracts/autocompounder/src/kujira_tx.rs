@@ -30,7 +30,8 @@ pub fn tokenfactory_prefix_for(chain: &str) -> String {
     match chain {
         "kujira" => "/kujira.denom.".to_string(),
         "osmosis" => "/osmosis.tokenfactory.v1beta1.".to_string(),
-        _ => panic!("chain not supported"),
+        "wyndex" => "/juno.tokenfactory.v1beta1.".to_string(),
+        _ => panic!("chain {:} not supported", chain),
     }
 }
 

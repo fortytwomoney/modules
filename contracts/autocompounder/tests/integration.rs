@@ -22,10 +22,9 @@ use cw_orch::prelude::*;
 
 use autocompounder::msg::{
     AutocompounderExecuteMsg, AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns,
-    BondingPeriodSelector,
+    BondingPeriodSelector, AUTOCOMPOUNDER_ID,
 };
 
-use autocompounder::msg::AUTOCOMPOUNDER;
 use common::abstract_helper::{self, init_auto_compounder};
 use common::vault::Vault;
 use common::AResult;
@@ -147,7 +146,7 @@ pub fn create_vault(
 
     // install autocompounder
     account.manager.install_module(
-        AUTOCOMPOUNDER,
+        AUTOCOMPOUNDER_ID,
         &abstract_core::app::InstantiateMsg {
             module: autocompounder::msg::AutocompounderInstantiateMsg {
                 code_id: if vault_token_is_cw20 {
@@ -175,7 +174,7 @@ pub fn create_vault(
     // get its address
     let auto_compounder_addr = account
         .manager
-        .module_addresses(vec![AUTOCOMPOUNDER.into()])?
+        .module_addresses(vec![AUTOCOMPOUNDER_ID.into()])?
         .modules[0]
         .1
         .clone();

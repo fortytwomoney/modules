@@ -14,7 +14,7 @@ use cosmwasm_std::{Coin, Empty};
 
 use abstract_core::app::MigrateMsg;
 
-use crate::msg::{AutocompounderExecuteMsg, AUTOCOMPOUNDER, *};
+use crate::msg::{AutocompounderExecuteMsg, AUTOCOMPOUNDER_ID, *};
 
 /// Contract wrapper for deploying with BOOT
 #[interface(InstantiateMsg, ExecuteMsg, QueryMsg, MigrateMsg)]
@@ -74,7 +74,7 @@ impl<Chain: CwEnv> Vault<Chain> {
         let chain = abstract_.ans_host.get_chain();
         let account = AbstractAccount::new(abstract_, account_id.clone());
         let staking = CwStakingAdapter::new(CW_STAKING, chain.clone());
-        let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain.clone());
+        let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER_ID, chain.clone());
 
         if account_id.is_some() {
             if account.manager.is_module_installed(CW_STAKING)? {
@@ -85,7 +85,7 @@ impl<Chain: CwEnv> Vault<Chain> {
                     .address;
                 staking.set_address(&cw_staking_address);
             }
-            if account.manager.is_module_installed(AUTOCOMPOUNDER)? {
+            if account.manager.is_module_installed(AUTOCOMPOUNDER_ID)? {
                 let autocompounder_address = account
                     .manager
                     .module_info(AUTOCOMPOUNDER)?
@@ -107,11 +107,15 @@ impl<Chain: CwEnv> Vault<Chain> {
         if self.account.manager.is_module_installed(CW_STAKING)? {
             self.account.manager.upgrade_module(CW_STAKING, &Empty {})?;
         }
-        if self.account.manager.is_module_installed(AUTOCOMPOUNDER)? {
+        if self
+            .account
+            .manager
+            .is_module_installed(AUTOCOMPOUNDER_ID)?
+        {
             let ac_versions = self
                 .account
                 .manager
-                .module_versions(vec![AUTOCOMPOUNDER.to_string()])?;
+                .module_versions(vec![AUTOCOMPOUNDER_ID.to_string()])?;
             let ac_version = ac_versions
                 .versions
                 .first()
@@ -123,7 +127,7 @@ impl<Chain: CwEnv> Vault<Chain> {
                 },
                 base: app::BaseMigrateMsg {},
             };
-            self.account.manager.upgrade_module(AUTOCOMPOUNDER, &x)?;
+            self.account.manager.upgrade_module(AUTOCOMPOUNDER_ID, &x)?;
         }
         Ok(())
     }

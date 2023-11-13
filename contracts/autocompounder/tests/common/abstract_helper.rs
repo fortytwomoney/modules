@@ -7,7 +7,7 @@ use abstract_interface::{Abstract, AbstractInterfaceError};
 use abstract_sdk::core as abstract_core;
 use abstract_sdk::core::adapter::InstantiateMsg;
 use autocompounder::interface::AutocompounderApp;
-use autocompounder::msg::AUTOCOMPOUNDER;
+use autocompounder::msg::AUTOCOMPOUNDER_ID;
 use cosmwasm_std::{Decimal, Empty};
 use cw_orch::prelude::*;
 
@@ -83,7 +83,7 @@ pub(crate) fn init_auto_compounder(
     deployment: &Abstract<Mock>,
     _version: Option<String>,
 ) -> Result<autocompounder::interface::AutocompounderApp<Mock>, AbstractInterfaceError> {
-    let auto_compounder = AutocompounderApp::new(AUTOCOMPOUNDER, chain);
+    let auto_compounder = AutocompounderApp::new(AUTOCOMPOUNDER_ID, chain);
 
     // upload and register autocompounder
     auto_compounder.upload().unwrap();

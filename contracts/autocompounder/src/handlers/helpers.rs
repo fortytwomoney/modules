@@ -323,10 +323,7 @@ pub fn transfer_to_msgs(
 
 #[cfg(test)]
 pub mod helpers_tests {
-    use crate::{
-        kujira_tx::format_tokenfactory_denom,
-        test_common::app_base_mock_querier,
-    };
+    use crate::{kujira_tx::format_tokenfactory_denom, test_common::app_base_mock_querier};
 
     use super::*;
     use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
