@@ -105,7 +105,7 @@ fn create_fee_collector(
         },
     )?;
 
-    let account = abstract_.account_factory.create_new_account(
+    let _account = abstract_.account_factory.create_new_account(
         AccountDetails {
             namespace: Some(TEST_NAMESPACE.to_string()),
             description: None,

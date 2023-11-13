@@ -1164,7 +1164,8 @@ mod test {
             let lp_token = Asset::new(AssetInfo::native("lp_token".to_string()), Uint128::new(100));
 
             let res = transfer_token_to_proxy(lp_token, sender, &AUTOCOMPOUNDER_APP, deps.as_ref());
-            assert_that!(res).is_err();
+            assert_that!(res).is_ok();
+            assert!(matches!(res.unwrap(), CosmosMsg::Bank(_)));
 
             Ok(())
         }
