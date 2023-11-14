@@ -266,6 +266,8 @@ mod test_common {
             })
             .with_raw_handler(TEST_ANS_HOST, |key| match key {
                 "\0\u{6}assetseur" => Ok(to_binary(&AssetInfo::Native("eur".into())).unwrap()),
+                "\0\nrev_assets\0\u{7}native:eur" => Ok(to_binary(&"eur".to_string()).unwrap()),
+                "\0\nrev_assets\0\u{7}native:juno" => Ok(to_binary(&"juno".to_string()).unwrap()),
                 "\0\u{6}assetsusd" => Ok(to_binary(&AssetInfo::Native("usd".into())).unwrap()),
                 "\0\u{6}assetswyndex/eur,usd" => {
                     Ok(to_binary(&AssetInfo::cw20(Addr::unchecked("usd_eur_lp"))).unwrap())
