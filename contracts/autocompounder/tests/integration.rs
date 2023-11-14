@@ -2,15 +2,16 @@ mod common;
 
 use abstract_core::objects::gov_type::GovernanceDetails;
 use abstract_interface::{AbstractInterfaceError, AccountDetails};
+
 use autocompounder::error::AutocompounderError;
-use cw20_base::contract::AbstractCw20Base;
 use cw_asset::{AssetInfo, AssetInfoBase};
+use cw_plus_interface::cw20_base::Cw20Base;
 use std::ops::Mul;
 use std::str::FromStr;
 
 use abstract_core::adapter::BaseExecuteMsgFns;
 use abstract_core::objects::{AnsAsset, AnsEntryConvertor, AssetEntry, LpToken};
-use abstract_interface::{Abstract, ManagerQueryFns, VCExecFns};
+use abstract_interface::{Abstract, ManagerQueryFns};
 use abstract_sdk::core as abstract_core;
 
 use abstract_cw_staking::CW_STAKING;
@@ -21,10 +22,9 @@ use cw_orch::prelude::*;
 
 use autocompounder::msg::{
     AutocompounderExecuteMsg, AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns,
-    BondingPeriodSelector,
+    BondingPeriodSelector, AUTOCOMPOUNDER_ID,
 };
 
-use autocompounder::msg::AUTOCOMPOUNDER;
 use common::abstract_helper::{self, init_auto_compounder};
 use common::vault::Vault;
 use common::AResult;
@@ -86,7 +86,7 @@ pub fn create_vault(
     vault_token_is_cw20: bool,
 ) -> Result<Vault<Mock>, AbstractInterfaceError> {
     // Deploy abstract
-    let abstract_ = Abstract::deploy_on(mock.clone(), Empty {})?;
+    let abstract_ = Abstract::deploy_on(mock.clone(), mock.sender().to_string())?;
     // create first Account
     abstract_.account_factory.create_default_account(
         abstract_core::objects::gov_type::GovernanceDetails::Monarchy {
@@ -99,15 +99,19 @@ pub fn create_vault(
             description: None,
             link: None,
             name: "Vault Account".to_string(),
+            namespace: Some(TEST_NAMESPACE.to_string()),
+            base_asset: None,
+            install_modules: vec![],
         },
         GovernanceDetails::Monarchy {
             monarch: mock.sender.to_string(),
         },
+        None,
     )?;
 
-    abstract_
-        .version_control
-        .claim_namespace(1, TEST_NAMESPACE.to_string())?;
+    // abstract_
+    //     .version_control
+    //     .claim_namespace(TEST_ACCOUNT_ID, )?;
 
     // Deploy mock dex
     let wyndex = WynDex::store_on(mock.clone()).unwrap();
@@ -123,7 +127,7 @@ pub fn create_vault(
     let staking_api = abstract_helper::init_staking(mock.clone(), &abstract_, None)?;
     let auto_compounder = init_auto_compounder(mock.clone(), &abstract_, None)?;
 
-    let vault_token = AbstractCw20Base::new(VAULT_TOKEN, mock.clone());
+    let vault_token = Cw20Base::new(VAULT_TOKEN, mock.clone());
     // upload the vault token code
     let vault_token_code_id = vault_token.upload()?.uploaded_code_id()?;
     // Create an Account that we will turn into a vault
@@ -142,7 +146,7 @@ pub fn create_vault(
 
     // install autocompounder
     account.manager.install_module(
-        AUTOCOMPOUNDER,
+        AUTOCOMPOUNDER_ID,
         &abstract_core::app::InstantiateMsg {
             module: autocompounder::msg::AutocompounderInstantiateMsg {
                 code_id: if vault_token_is_cw20 {
@@ -161,6 +165,7 @@ pub fn create_vault(
             },
             base: abstract_core::app::BaseInstantiateMsg {
                 ans_host_address: abstract_.ans_host.addr_str()?,
+                version_control_address: abstract_.version_control.addr_str()?,
             },
         },
         None,
@@ -169,7 +174,7 @@ pub fn create_vault(
     // get its address
     let auto_compounder_addr = account
         .manager
-        .module_addresses(vec![AUTOCOMPOUNDER.into()])?
+        .module_addresses(vec![AUTOCOMPOUNDER_ID.into()])?
         .modules[0]
         .1
         .clone();

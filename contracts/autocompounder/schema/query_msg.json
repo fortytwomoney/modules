@@ -274,10 +274,10 @@
           "description": "Returns [`AppConfigResponse`]",
           "type": "object",
           "required": [
-            "config"
+            "base_config"
           ],
           "properties": {
-            "config": {
+            "base_config": {
               "type": "object",
               "additionalProperties": false
             }
@@ -288,10 +288,24 @@
           "description": "Returns the admin.",
           "type": "object",
           "required": [
-            "admin"
+            "base_admin"
           ],
           "properties": {
-            "admin": {
+            "base_admin": {
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Returns module data",
+          "type": "object",
+          "required": [
+            "module_data"
+          ],
+          "properties": {
+            "module_data": {
               "type": "object",
               "additionalProperties": false
             }

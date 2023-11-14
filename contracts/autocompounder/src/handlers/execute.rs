@@ -32,7 +32,7 @@ use abstract_sdk::{
 use abstract_sdk::{features::AbstractResponse, AbstractSdkError};
 use cosmwasm_std::{
     Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn, Response,
-    StdResult, SubMsg, Uint128,
+    StdError, StdResult, SubMsg, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetBase, AssetInfo, AssetInfoBase, AssetList};
@@ -121,7 +121,7 @@ fn create_denom(
 
     let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
     let denom = format_tokenfactory_denom(&contract_address, &subdenom);
-    let msg = create_vault_token_submsg(contract_address, subdenom, None)?;
+    let msg = create_vault_token_submsg(contract_address, subdenom, None, config.pool_data.dex)?;
 
     CONFIG.update(deps.storage, |mut config| -> StdResult<Config> {
         config.vault_token = AssetInfo::Native(denom.clone());
@@ -431,11 +431,11 @@ fn deposit_lp(
     )?;
 
     let (lp_asset, fee_asset) = deduct_fee(lp_asset, fee_config.deposit);
-    let fee_msgs = transfer_to_msgs(
+    let fee_msg = transfer_to_msgs(
         &app,
         deps.as_ref(),
         fee_asset,
-        fee_config.fee_collector_addr,
+        &fee_config.fee_collector_addr,
     )?;
 
     let current_vault_supply = vault_token_total_supply(deps.as_ref(), &config)?;
@@ -449,6 +449,7 @@ fn deposit_lp(
         &env.contract.address,
         recipient.clone(),
         mint_amount,
+        config.pool_data.dex.clone(),
     )?;
     let stake_msg = stake_lp_tokens(
         deps.as_ref(),
@@ -461,7 +462,7 @@ fn deposit_lp(
     let res = Response::new()
         .add_message(transfer_msg)
         .add_messages(vec![mint_msg, stake_msg])
-        .add_messages(fee_msgs);
+        .add_message(fee_msg);
 
     Ok(app.custom_tag_response(
         res,
@@ -499,7 +500,14 @@ fn transfer_token_to_proxy(
         AssetInfoBase::Cw20(_addr) => Asset::cw20(_addr, lp_token.amount)
             .transfer_from_msg(sender, app.proxy_address(deps)?)
             .map_err(|e| e.into()),
-        AssetInfoBase::Native(_denom) => Ok(app.bank(deps).deposit(vec![lp_token])?.swap_remove(0)),
+        AssetInfoBase::Native(_denom) => Ok(app
+            .bank(deps)
+            .deposit(vec![lp_token])?
+            .into_iter()
+            .next()
+            .ok_or(AutocompounderError::Std(StdError::generic_err(
+                "no message",
+            )))?),
         _ => Err(AutocompounderError::AssetError(
             cw_asset::AssetError::InvalidAssetFormat {
                 received: lp_token.to_string(),
@@ -596,8 +604,12 @@ pub fn batch_unbond(
         config.unbonding_period,
     );
 
-    let burn_msg =
-        burn_vault_tokens_msg(&config, &env.contract.address, total_vault_tokens_to_burn)?;
+    let burn_msg = burn_vault_tokens_msg(
+        &config,
+        &env.contract.address,
+        total_vault_tokens_to_burn,
+        config.pool_data.dex.clone(),
+    )?;
 
     let response = Response::new().add_messages(vec![unstake_msg, burn_msg]);
     Ok(app.custom_tag_response(
@@ -792,6 +804,7 @@ fn redeem_without_bonding_period(
         &config,
         &env.contract.address,
         amount_of_vault_tokens_to_be_burned,
+        config.pool_data.dex.clone(),
     )?;
 
     // 3) withdraw lp tokens
@@ -1041,7 +1054,7 @@ fn claim_lp_rewards(
             StakingExecuteMsg {
                 provider,
                 action: StakingAction::ClaimRewards {
-                    asset: lp_token_name,
+                    assets: vec![lp_token_name],
                 },
             },
         )
@@ -1063,7 +1076,7 @@ fn claim_unbonded_tokens(
             StakingExecuteMsg {
                 provider,
                 action: StakingAction::Claim {
-                    asset: lp_token_name,
+                    assets: vec![lp_token_name],
                 },
             },
         )
@@ -1087,7 +1100,7 @@ fn unstake_lp_tokens(
             StakingExecuteMsg {
                 provider,
                 action: StakingAction::Unstake {
-                    asset: AnsAsset::new(lp_token_name, amount),
+                    assets: vec![AnsAsset::new(lp_token_name, amount)],
                     unbonding_period,
                 },
             },
@@ -1141,6 +1154,31 @@ mod test {
                 withdrawal: Decimal::zero(),
                 fee_collector_addr: Addr::unchecked("fee_collector"), // 10% fee
             }
+        }
+
+        #[test]
+        fn transfer_token_to_proxy_ok() -> anyhow::Result<()> {
+            let deps = app_init(false, true);
+            let sender = Addr::unchecked("sender");
+
+            let lp_token = Asset::new(AssetInfo::native("lp_token".to_string()), Uint128::new(100));
+
+            let res = transfer_token_to_proxy(lp_token, sender, &AUTOCOMPOUNDER_APP, deps.as_ref());
+            assert_that!(res).is_ok();
+            assert!(matches!(res.unwrap(), CosmosMsg::Bank(_)));
+
+            Ok(())
+        }
+        #[test]
+        fn transfer_token_to_autocompounder_native() -> anyhow::Result<()> {
+            let sender = Addr::unchecked("sender");
+            let lp_token = Asset::new(AssetInfo::native("lp_token".to_string()), Uint128::new(100));
+
+            let res = transfer_token_to_autocompounder(lp_token, sender, &mock_env());
+            let msgs = assert_that!(res).is_ok();
+            assert_that!(msgs.subject).has_length(0);
+
+            Ok(())
         }
 
         #[test]
@@ -1249,7 +1287,7 @@ mod test {
     }
 
     mod create_denom {
-        use crate::kujira_tx::MSG_CREATE_DENOM_TYPE_URL;
+        use crate::kujira_tx::msg_create_denom_type_url;
         use cosmwasm_std::StdError;
 
         use super::*;
@@ -1318,7 +1356,7 @@ mod test {
                         value: _,
                     } = &r.messages[0].msg
                     {
-                        url == MSG_CREATE_DENOM_TYPE_URL
+                        *url == msg_create_denom_type_url("wyndex")
                     } else {
                         false
                     }
@@ -1329,7 +1367,7 @@ mod test {
 
             let config = CONFIG.load(deps.as_ref().storage)?;
             assert_that!(config.vault_token).is_equal_to(AssetInfo::Native(
-                "factory/cosmos2contract/VT_4T2/wyndex:eur_usd:constant_product".to_string(),
+                "factory/cosmos2contract/VT_4T2/wyndex/eur_usd:constant_product".to_string(),
             ));
 
             Ok(())

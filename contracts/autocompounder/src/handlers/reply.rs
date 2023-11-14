@@ -104,8 +104,13 @@ pub fn lp_provision_reply(
     }
 
     // Mint vault tokens to the user
-    let mint_msg =
-        mint_vault_tokens_msg(&config, &env.contract.address, user_address, mint_amount)?;
+    let mint_msg = mint_vault_tokens_msg(
+        &config,
+        &env.contract.address,
+        user_address,
+        mint_amount,
+        config.pool_data.dex.clone(),
+    )?;
 
     // Stake the LP tokens
     let stake_msg = stake_lp_tokens(
@@ -354,10 +359,12 @@ fn query_rewards(
     let adapters = app.adapters(deps);
     let query = StakingQueryMsg::RewardTokens {
         provider: config.pool_data.dex.clone(),
-        staking_token: config.lp_asset_entry(),
+        staking_tokens: vec![config.lp_asset_entry()],
     };
     let RewardTokensResponse { tokens } = adapters.query(CW_STAKING, query)?;
-    Ok(tokens)
+    let first_tokens = tokens.first().unwrap();
+
+    Ok(first_tokens.clone())
 }
 
 /// queries available staking rewards assets and the corresponding balances
@@ -474,15 +481,16 @@ mod test {
 
             // 4. check the response messages and attributes
             // check the expected messages
-            let transfer_msg = AUTOCOMPOUNDER_APP.bank(deps.as_ref()).transfer(
+            let transfer_msgs = AUTOCOMPOUNDER_APP.bank(deps.as_ref()).transfer(
                 vec![eur_ans_asset.clone(), usd_ans_asset.clone()],
                 &user_addr,
             )?;
-            let expected_resp_msgs = AUTOCOMPOUNDER_APP
+            let expected_messages = AUTOCOMPOUNDER_APP
                 .executor(deps.as_ref())
-                .execute(vec![transfer_msg])?;
+                .execute(vec![transfer_msgs])?;
+
             assert_that!(response.messages).has_length(1);
-            assert_that!(msg.to_owned()).is_equal_to(expected_resp_msgs);
+            assert_that!(msg.to_owned()).is_equal_to(CosmosMsg::from(expected_messages));
 
             // check the expected attributes
             let abstract_attributes = response.events[0].attributes.clone();

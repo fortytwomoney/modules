@@ -3,7 +3,7 @@ use crate::error::AutocompounderError;
 use crate::handlers::{self};
 use crate::msg::{
     AutocompounderExecuteMsg, AutocompounderInstantiateMsg, AutocompounderMigrateMsg,
-    AutocompounderQueryMsg, AUTOCOMPOUNDER,
+    AutocompounderQueryMsg, AUTOCOMPOUNDER_ID,
 };
 use abstract_app::export_endpoints;
 use abstract_app::AppContract;
@@ -39,7 +39,7 @@ pub const LP_FEE_WITHDRAWAL_REPLY_ID: u64 = 7u64;
 /// Used as the foundation for building your app.
 /// All entrypoints are executed through this const (`instantiate`, `query`, `execute`, `migrate`)
 pub const AUTOCOMPOUNDER_APP: AutocompounderApp =
-    AutocompounderApp::new(AUTOCOMPOUNDER, MODULE_VERSION, None)
+    AutocompounderApp::new(AUTOCOMPOUNDER_ID, MODULE_VERSION, None)
         .with_instantiate(handlers::instantiate_handler)
         .with_query(handlers::query_handler)
         .with_execute(handlers::execute_handler)

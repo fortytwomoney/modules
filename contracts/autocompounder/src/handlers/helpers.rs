@@ -17,6 +17,7 @@ use abstract_core::objects::AnsAsset;
 use abstract_core::objects::PoolMetadata;
 use abstract_cw_staking::{msg::*, CW_STAKING};
 use abstract_dex_adapter::api::Dex;
+use abstract_sdk::AccountAction;
 use abstract_sdk::AdapterInterface;
 use abstract_sdk::{core::objects::AssetEntry, features::AccountIdentification};
 use abstract_sdk::{AbstractSdkResult, Execution, TransferInterface};
@@ -59,7 +60,8 @@ pub fn create_vault_token_submsg(
     minter: String,
     subdenom: String,
     code_id: Option<u64>,
-) -> Result<SubMsg, StdError> {
+    dex: String,
+) -> Result<SubMsg, AutocompounderError> {
     if let Some(code_id) = code_id {
         let msg = TokenInstantiateMsg {
             name: subdenom,
@@ -83,7 +85,7 @@ pub fn create_vault_token_submsg(
             reply_on: ReplyOn::Success,
         })
     } else {
-        let cosmos_msg = tokenfactory_create_denom_msg(minter, subdenom)?;
+        let cosmos_msg = tokenfactory_create_denom_msg(minter, subdenom, dex.as_str());
         let sub_msg = SubMsg {
             msg: cosmos_msg,
             gas_limit: None,
@@ -113,10 +115,12 @@ pub fn mint_vault_tokens_msg(
     minter: &Addr,
     recipient: Addr,
     amount: Uint128,
+    dex: String,
 ) -> Result<CosmosMsg, AutocompounderError> {
     match config.vault_token.clone() {
         AssetInfo::Native(denom) => {
-            tokenfactory_mint_msg(minter, denom, amount, recipient.as_str()).map_err(|e| e.into())
+            tokenfactory_mint_msg(minter, denom, amount, recipient.as_str(), dex.as_str())
+                .map_err(|e| e.into())
         }
         AssetInfo::Cw20(token_addr) => {
             let mint_msg = wasm_execute(
@@ -141,10 +145,11 @@ pub fn burn_vault_tokens_msg(
     config: &Config,
     minter: &Addr,
     amount: Uint128,
+    dex: String,
 ) -> AutocompounderResult<CosmosMsg> {
     match config.vault_token.clone() {
         AssetInfo::Native(denom) => {
-            tokenfactory_burn_msg(minter, denom, amount).map_err(|e| e.into())
+            tokenfactory_burn_msg(minter, denom, amount, dex.as_str()).map_err(|e| e.into())
         }
         AssetInfo::Cw20(token_addr) => {
             let msg = cw20_base::msg::ExecuteMsg::Burn { amount };
@@ -205,13 +210,20 @@ pub fn query_stake(
     let adapters = app.adapters(deps);
 
     let query = StakingQueryMsg::Staked {
-        staking_token: lp_token_name,
+        stakes: vec![lp_token_name],
         staker_address: app.proxy_address(deps)?.to_string(),
         provider: dex,
         unbonding_period,
     };
     let res: StakeResponse = adapters.query(CW_STAKING, query)?;
-    Ok(res.amount)
+    let amount = res
+        .amounts
+        .first()
+        .ok_or(AutocompounderError::Std(StdError::generic_err(
+            "No staked assets found",
+        )))?;
+
+    Ok(*amount)
 }
 
 pub fn stake_lp_tokens(
@@ -227,7 +239,7 @@ pub fn stake_lp_tokens(
         StakingExecuteMsg {
             provider,
             action: StakingAction::Stake {
-                asset,
+                assets: vec![asset],
                 unbonding_period,
             },
         },
@@ -299,23 +311,19 @@ pub fn transfer_to_msgs(
     app: &AutocompounderApp,
     deps: Deps,
     asset: AnsAsset,
-    recipient: Addr,
-) -> Result<Vec<CosmosMsg>, AutocompounderError> {
-    if asset.amount.is_zero() {
-        Ok(vec![])
+    recipient: &Addr,
+) -> Result<CosmosMsg, AutocompounderError> {
+    let actions: Vec<AccountAction> = if asset.amount.is_zero() {
+        vec![]
     } else {
-        Ok(vec![app.executor(deps).execute(vec![app
-            .bank(deps)
-            .transfer(vec![asset], &recipient)?])?])
-    }
+        vec![app.bank(deps).transfer(vec![asset], recipient)?]
+    };
+    Ok(app.executor(deps).execute(actions)?.into())
 }
 
 #[cfg(test)]
 pub mod helpers_tests {
-    use crate::{
-        contract::AUTOCOMPOUNDER_APP, kujira_tx::format_tokenfactory_denom,
-        test_common::app_base_mock_querier,
-    };
+    use crate::{kujira_tx::format_tokenfactory_denom, test_common::app_base_mock_querier};
 
     use super::*;
     use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
@@ -324,6 +332,7 @@ pub mod helpers_tests {
         testing::{mock_dependencies, MockApi, MockStorage},
         Empty, OwnedDeps, Querier, SystemResult,
     };
+
     use cw_asset::AssetInfoBase;
     use speculoos::{assert_that, result::ResultAssertions};
 
@@ -469,7 +478,7 @@ pub mod helpers_tests {
         let subdenom = "subdenom".to_string();
         let code_id = Some(1u64);
 
-        let result = create_vault_token_submsg(minter, subdenom, code_id);
+        let result = create_vault_token_submsg(minter, subdenom, code_id, "kujira".to_string());
         assert_that!(result).is_ok();
 
         let submsg = result.unwrap();
@@ -481,7 +490,8 @@ pub mod helpers_tests {
     fn test_create_lp_token_submsg_without_code_id() {
         let minter = "minter".to_string();
 
-        let result = create_vault_token_submsg(minter, "subdenom".to_string(), None);
+        let result =
+            create_vault_token_submsg(minter, "subdenom".to_string(), None, "kujira".to_string());
         assert!(result.is_ok());
 
         let submsg = result.unwrap();
@@ -494,10 +504,11 @@ pub mod helpers_tests {
         let minter = &Addr::unchecked("minter");
         let recipient = Addr::unchecked("recipient");
         let amount = Uint128::from(100u128);
+        let dex = "kujira".to_string();
 
         // native token
         let config = min_cooldown_config(Some(Duration::Time(1)), true);
-        let result = mint_vault_tokens_msg(&config, minter, recipient.clone(), amount);
+        let result = mint_vault_tokens_msg(&config, minter, recipient.clone(), amount, dex.clone());
         assert_that!(result.is_ok());
         let msg = result.unwrap();
 
@@ -509,7 +520,7 @@ pub mod helpers_tests {
 
         // cw20 token
         let config = min_cooldown_config(Some(Duration::Time(1)), false);
-        let result = mint_vault_tokens_msg(&config, minter, recipient, amount);
+        let result = mint_vault_tokens_msg(&config, minter, recipient, amount, dex);
         assert_that!(result).is_ok();
         let msg = result.unwrap();
         let CosmosMsg::Wasm(WasmMsg::Execute {
@@ -528,9 +539,10 @@ pub mod helpers_tests {
         let minter = &Addr::unchecked("minter");
         let amount = Uint128::from(100u128);
 
+        let dex = "kujira".to_string();
         // native token
         let config = min_cooldown_config(Some(Duration::Time(1)), true);
-        let result = burn_vault_tokens_msg(&config, minter, amount);
+        let result = burn_vault_tokens_msg(&config, minter, amount, dex.clone());
         assert_that!(result.is_ok());
         let msg = result.unwrap();
         let CosmosMsg::Stargate { type_url, value: _ } = msg else {
@@ -541,7 +553,7 @@ pub mod helpers_tests {
 
         // cw20 token
         let config = min_cooldown_config(Some(Duration::Time(1)), false);
-        let result = burn_vault_tokens_msg(&config, minter, amount);
+        let result = burn_vault_tokens_msg(&config, minter, amount, dex);
         assert_that!(result).is_ok();
 
         let msg = result.unwrap();
@@ -590,20 +602,6 @@ pub mod helpers_tests {
         assert_eq!(result, Uint128::from(50u128));
     }
 
-    #[test]
-    fn test_transfer_to_msgs() {
-        let deps = mock_dependencies();
-        let recipient = Addr::unchecked("recipient");
-
-        // Test transfer with zero amount
-        let asset = AnsAsset {
-            amount: Uint128::zero(),
-            name: AssetEntry::new("token"),
-        };
-        let msgs = transfer_to_msgs(&AUTOCOMPOUNDER_APP, deps.as_ref(), asset, recipient).unwrap();
-        assert_eq!(msgs.len(), 0);
-    }
-
     mod denom {
         use super::*;
         use abstract_core::objects::PoolMetadata;
@@ -630,11 +628,11 @@ pub mod helpers_tests {
         fn create_denom_from_pool() {
             let pool = eur_usd_pool();
             let denom = create_subdenom_from_pool_assets(&pool);
-            assert_eq!(denom, "VT_4T2/wyndex:juno/eur_juno/usd:constant_product");
+            assert_eq!(denom, "VT_4T2/wyndex/juno/eur_juno/usd:constant_product");
 
             let long_pool = eur_usd_pool_long();
             let denom = create_subdenom_from_pool_assets(&long_pool);
-            assert_eq!(denom, "VT_4T2/wyndex:neutron/eur_neutron/usd:constant_pro");
+            assert_eq!(denom, "VT_4T2/wyndex/neutron/eur_neutron/usd:constant_pro");
         }
     }
 }

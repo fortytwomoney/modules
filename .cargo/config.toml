@@ -5,5 +5,5 @@ nt = "nextest run"
 schema = "run --example schema --features schema"
 deploy = "run --example deploy --features interface"
 
-[net]
-git-fetch-with-cli = true
+# [net]
+# git-fetch-with-cli = true
