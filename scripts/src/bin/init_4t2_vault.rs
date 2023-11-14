@@ -49,7 +49,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             "neutron-1" => (None, "astroport", "neutron>astro", Some(180), None),
             "pisco-1" => (None, "astroport", "terra2>luna", Some(83), None),
             "phoenix-1" => (None, "astroport", "terra2>luna", Some(69), None),
-            "osmo-test-5" => (Some(2), "osmosis5", "osmosis5>osmo", None, None),
+            "osmo-test-5" => (Some(2), "osmosis", "osmosis5>osmo", None, None),
             "harpoon-4" => (
                 Some(2),
                 "kujira",
@@ -139,7 +139,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let manager_create_sub_account_msg = ExecuteMsg::CreateSubAccount {
         base_asset: None,
         namespace: None,
-        description: Some(description(pair_assets.join("|"))),
+        description: Some(description(pair_assets.join("|").replace('>', ":"))),
         link: None,
         name: format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
         install_modules: vec![
