@@ -7,6 +7,7 @@ use super::helpers::{
 use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
 use abstract_core::objects::AnsEntryConvertor;
+use abstract_sdk::feature_objects::AnsHost;
 use abstract_sdk::{AccountAction, AdapterInterface};
 
 use crate::contract::{
@@ -238,14 +239,16 @@ pub fn deposit(
 
     let ans_host = app.ans_host(deps.as_ref())?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
-    let resolved_pool_assets = config.pool_data.assets.resolve(&deps.querier, &ans_host)?;
     let _lptoken = config.liquidity_token.clone();
 
     let mut messages = vec![];
     let mut submessages = vec![];
 
-    // check if sent coins are only correct coins
-    check_info_funds_correct(&info, resolved_pool_assets)?;
+    // consolidate ans assets with funds
+
+    let info_ans_assets = resolve_info_funds(info.funds.clone(), &deps.as_ref(), &ans_host)?;
+    consolidate_funds(&mut funds, info_ans_assets.clone())?;
+
     // check if all the assets in funds are present in the pool
     check_all_funds_in_pool(&funds, &config)?;
 
@@ -324,6 +327,47 @@ pub fn deposit(
     ))
 }
 
+fn consolidate_funds(
+    funds: &mut [AnsAsset],
+    info_ans_assets: Vec<AnsAsset>,
+) -> AutocompounderResult<()> {
+    info_ans_assets
+        .iter()
+        .try_for_each(|info_asset: &AnsAsset| -> AutocompounderResult<()> {
+            if let Some(fund) = funds.iter_mut().find(|f| f.name.eq(&info_asset.name)) {
+                if fund.amount.u128() == 0u128 {
+                    if info_asset.amount.u128() > 0u128 {
+                        fund.amount = info_asset.amount;
+                    } // else both zero, so do nothing
+                } else if fund.amount != info_asset.amount {
+                    return Err(AutocompounderError::FundsMismatch {
+                        msg_funds: funds.iter().map(|a| a.to_string()).collect(),
+                        sent_funds: info_ans_assets.iter().map(|a| a.to_string()).collect(),
+                    });
+                }
+            } else {
+                return Err(AutocompounderError::FundsMismatch {
+                    msg_funds: funds.iter().map(|a| a.to_string()).collect(),
+                    sent_funds: info_ans_assets.iter().map(|a| a.to_string()).collect(),
+                });
+            }
+            Ok(())
+        })
+}
+
+fn resolve_info_funds(
+    info_funds: Vec<Coin>,
+    deps: &Deps<'_>,
+    ans_host: &AnsHost,
+) -> Result<Vec<AnsAsset>, AutocompounderError> {
+    let info_assets = info_funds
+        .into_iter()
+        .map(|f| Asset::native(f.denom, f.amount))
+        .collect::<Vec<Asset>>();
+    let info_ans_assets = info_assets.resolve(&deps.querier, ans_host)?;
+    Ok(info_ans_assets)
+}
+
 /// Add the other asset if there is only one asset. This is needed for the lp provision to work.
 fn add_asset_if_single_fund(funds: &mut Vec<AnsAsset>, config: &Config) {
     if funds.len() == 1 {
@@ -353,20 +397,6 @@ fn check_all_funds_in_pool(funds: &[AnsAsset], config: &Config) -> Result<(), Au
         if !config.pool_data.assets.contains(&asset.name) {
             return Err(AutocompounderError::AssetNotInPool {
                 asset: asset.name.to_string(),
-            });
-        }
-    }
-    Ok(())
-}
-
-fn check_info_funds_correct(
-    info: &MessageInfo,
-    resolved_pool_assets: Vec<AssetInfoBase<Addr>>,
-) -> Result<(), AutocompounderError> {
-    for Coin { denom, amount: _ } in info.funds.iter() {
-        if !resolved_pool_assets.contains(&AssetInfo::Native(denom.clone())) {
-            return Err(AutocompounderError::CoinNotInPool {
-                denom: denom.clone(),
             });
         }
     }
@@ -1144,7 +1174,7 @@ mod test {
 
     mod deposit_helpers {
         use super::*;
-        use cosmwasm_std::coins;
+        
         use speculoos::prelude::*;
 
         fn deposit_fee_config(percent: u64) -> FeeConfig {
@@ -1154,6 +1184,65 @@ mod test {
                 withdrawal: Decimal::zero(),
                 fee_collector_addr: Addr::unchecked("fee_collector"), // 10% fee
             }
+        }
+
+        #[test]
+        fn consolidate_funds_matching_assets() {
+            let info_funds = vec![AnsAsset::new("coin", 100u128)];
+            let mut funds = vec![AnsAsset::new("coin", 0u128)];
+
+            consolidate_funds(&mut funds, info_funds).unwrap();
+
+            assert_that!(&funds).has_length(1);
+            assert_that!(funds[0].amount).is_equal_to(Uint128::new(100));
+
+            // fn consolidate_funds_equal_funds() {
+            let info_funds = vec![AnsAsset::new("coin", 100u128)];
+            let mut funds = vec![AnsAsset::new("coin", 100u128)];
+
+            consolidate_funds(&mut funds, info_funds).unwrap();
+
+            assert_that!(&funds).has_length(1);
+            assert_that!(funds[0].amount).is_equal_to(Uint128::new(100));
+
+            // fn consolidate_funds_all_zero() {
+            let info_funds = vec![AnsAsset::new("coin", 0u128)];
+            let mut funds = vec![AnsAsset::new("coin", 0u128)];
+
+            consolidate_funds(&mut funds, info_funds).unwrap();
+
+            assert_that!(&funds).has_length(1);
+            assert_that!(funds[0].amount).is_equal_to(Uint128::new(0));
+
+            // fn consolidate_funds_mismatch() {
+            let info_funds = vec![AnsAsset::new("coin", 100u128)];
+            let mut funds = vec![AnsAsset::new("coin", 10u128)];
+
+            let res = consolidate_funds(&mut funds, info_funds);
+            assert_that!(res).is_err();
+        }
+
+        #[test]
+        fn consolidate_funds_non_matching_assets() {
+            let info_funds = vec![AnsAsset::new("coin", 100u128)];
+            let mut funds = vec![AnsAsset::new("coin2", 10u128)];
+            let res = consolidate_funds(&mut funds, info_funds);
+            assert_that!(res).is_err();
+
+            let info_funds = vec![AnsAsset::new("coin", 100u128)];
+            let funds = vec![];
+            let res = consolidate_funds(&mut funds.clone(), info_funds);
+            assert_that!(res).is_err();
+
+            let info_funds = vec![AnsAsset::new("coin", 100u128)];
+            let mut funds = vec![
+                AnsAsset::new("coin", 100u128),
+                AnsAsset::new("coin2", 10u128),
+            ];
+            consolidate_funds(&mut funds, info_funds).unwrap();
+            assert_that!(funds).has_length(2);
+            assert_that!(funds[0].amount).is_equal_to(Uint128::new(100));
+            assert_that!(funds[1].amount).is_equal_to(Uint128::new(10));
         }
 
         #[test]
@@ -1253,35 +1342,6 @@ mod test {
                 .is_err()
                 .is_equal_to(AutocompounderError::AssetNotInPool {
                     asset: "asset3".to_string(),
-                });
-        }
-
-        #[test]
-        fn check_info_funds_correct_all_present() {
-            let info = mock_info("sender", &coins(100, "coin1"));
-            let resolved_pool_assets = vec![
-                AssetInfo::Native("coin1".to_string()),
-                AssetInfo::Cw20(Addr::unchecked("coin2".to_string())),
-            ];
-
-            let result = check_info_funds_correct(&info, resolved_pool_assets);
-            assert_that!(&result).is_ok();
-        }
-
-        #[test]
-        fn check_info_funds_correct_some_absent() {
-            let info = mock_info("sender", &coins(100, "coin3"));
-            let resolved_pool_assets = vec![
-                AssetInfo::Native("coin1".to_string()),
-                AssetInfo::Native("coin2".to_string()),
-            ];
-
-            let result = check_info_funds_correct(&info, resolved_pool_assets);
-
-            assert_that!(&result)
-                .is_err()
-                .is_equal_to(AutocompounderError::CoinNotInPool {
-                    denom: "coin3".to_string(),
                 });
         }
     }
@@ -1500,7 +1560,10 @@ mod test {
     fn cannot_send_wrong_coins() -> anyhow::Result<()> {
         let mut deps = app_init(true, true);
         let msg = AutocompounderExecuteMsg::Deposit {
-            funds: vec![AnsAsset::new("eur", Uint128::one())],
+            funds: vec![
+                AnsAsset::new("eur", Uint128::one()),
+                AnsAsset::new("juno", Uint128::one()),
+            ],
             recipient: None,
             max_spread: None,
         };
@@ -1510,16 +1573,14 @@ mod test {
             deps.as_mut(),
             "user",
             msg,
-            &[Coin::new(1u128, "eur"), Coin::new(1u128, wrong_coin)],
+            &[
+                Coin::new(1u128, "eur"),
+                Coin::new(1u128, wrong_coin.clone()),
+            ],
         );
-        assert_that!(resp).is_err().matches(|e| {
-            matches!(
-                e,
-                AutocompounderError::CoinNotInPool {
-                    denom: _wrong_denom
-                }
-            )
-        });
+        assert_that!(resp).is_err();
+        assert_that!(resp.unwrap_err())
+            .is_equal_to(AutocompounderError::AssetNotInPool { asset: wrong_coin });
         Ok(())
     }
 

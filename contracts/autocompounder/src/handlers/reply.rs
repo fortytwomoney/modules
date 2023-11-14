@@ -1,6 +1,7 @@
 use super::helpers::{
-    convert_to_shares, mint_vault_tokens_msg, parse_instantiate_reply_cw20, query_stake,
-    stake_lp_tokens, swap_rewards_with_reply, vault_token_total_supply,
+    convert_to_shares, get_last_msgs_with_reply, mint_vault_tokens_msg,
+    parse_instantiate_reply_cw20, query_stake, stake_lp_tokens, swap_rewards,
+    vault_token_total_supply,
 };
 use crate::contract::{
     AutocompounderApp, AutocompounderResult, CP_PROVISION_REPLY_ID, SWAPPED_REPLY_ID,
@@ -230,13 +231,9 @@ pub fn lp_compound_reply(
 
         Ok(app.tag_response(response, "lp_compound_reply"))
     } else {
-        let (swap_msgs, submsg) = swap_rewards_with_reply(
-            rewards,
-            pool_assets,
-            &dex,
-            SWAPPED_REPLY_ID,
-            config.max_swap_spread,
-        )?;
+        let mut swap_msgs = swap_rewards(&app, deps.as_ref(), rewards)?;
+        let submsg = get_last_msgs_with_reply(&mut swap_msgs, SWAPPED_REPLY_ID)?;
+
         submessages.push(submsg);
 
         // adds all swap messages to the response and the submsg -> the submsg will be executed after the last swap message
