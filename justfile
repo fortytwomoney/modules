@@ -76,3 +76,6 @@ migrate-vault network account-id +args='':
 
 create-fee-collector network fee_asset commission_addr +args='':
   cargo +nightly run --bin init_fee_collector -- --network-id {{network}} --fee-asset {{fee_asset}} --commission-addr {{commission_addr}} {{args}}
+
+upload-cw20-base network:
+  cargo +nightly run --bin upload_cw20_base -- --network-id {{network}}

@@ -12,6 +12,8 @@ cw-asset = { workspace = true }
 cw-orch = { workspace = true, features = ["daemon"] }
 abstract-interface = { workspace = true, features = ["daemon"] }
 
+cw-plus-interface ={ workspace = true }
+
 log = { workspace = true }
 cosmwasm-std = { workspace = true }
 anyhow = { workspace = true }
