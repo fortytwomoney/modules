@@ -334,7 +334,8 @@ mod test_common {
                         performance_fees: Decimal::percent(3),
                         pool_assets: vec!["eur".into(), "usd".into()],
                         withdrawal_fees: Decimal::percent(3),
-                        preferred_bonding_period: BondingPeriodSelector::Shortest,
+                        preferred_bonding_period: Some(BondingPeriodSelector::Shortest),
+                        manual_bonding_data: None,
                         max_swap_spread: None,
                     },
                     base: abstract_core::app::BaseInstantiateMsg {

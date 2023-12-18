@@ -467,9 +467,6 @@ pub mod helpers_tests {
         let assets = vec![AssetEntry::new("eur"), AssetEntry::new("usd")];
 
         Config {
-            staking_target: abstract_cw_staking::msg::StakingTarget::Contract(Addr::unchecked(
-                "staking_addr",
-            )),
             pool_address: PoolAddressBase::Contract(Addr::unchecked("pool_address")),
             pool_data: PoolMetadata::new(
                 "wyndex",

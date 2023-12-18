@@ -1,3 +1,5 @@
+use std::f32::consts::E;
+
 use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
@@ -44,6 +46,7 @@ pub fn instantiate_handler(
         dex,
         mut pool_assets,
         preferred_bonding_period,
+        manual_bonding_data,
         max_swap_spread,
     } = msg;
 
@@ -68,18 +71,34 @@ pub fn instantiate_handler(
 
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
-    // get staking info
-    let staking_info = query_staking_info(
-        deps.as_ref(),
-        &app,
-        AnsEntryConvertor::new(lp_token).asset_entry(),
-        dex.clone(),
-    )?;
     let (unbonding_period, min_unbonding_cooldown) =
-        get_unbonding_period_and_min_unbonding_cooldown(
-            staking_info.clone(),
-            preferred_bonding_period,
-        )?;
+        match (preferred_bonding_period, manual_bonding_data) {
+            (Some(preferred_bonding_period), None) => {
+                let staking_info = query_staking_info(
+                    deps.as_ref(),
+                    &app,
+                    AnsEntryConvertor::new(lp_token).asset_entry(),
+                    dex.clone(),
+                )?;
+                get_unbonding_period_and_min_unbonding_cooldown(
+                    staking_info.clone(),
+                    preferred_bonding_period,
+                )?
+            }
+            (None, Some(manual_bonding_data)) => {
+                let unbonding_period = Some(manual_bonding_data.unbonding_period);
+                let min_unbonding_cooldown = compute_min_unbonding_cooldown(
+                    manual_bonding_data.max_claims_per_address,
+                    manual_bonding_data.unbonding_period.clone(),
+                )?;
+                (unbonding_period, min_unbonding_cooldown)
+            }
+            _ => {
+                return Err(AutocompounderError::Std(StdError::generic_err(
+                    "Either one of preferred_bonding_period or min_unbonding_cooldown must be set",
+                )));
+            }
+        };
 
     let pairing = DexAssetPairing::new(
         pool_assets_slice[0].clone(),
@@ -111,7 +130,6 @@ pub fn instantiate_handler(
 
     let config: Config = Config {
         vault_token,
-        staking_target: staking_info.staking_target,
         liquidity_token: lp_token_info,
         pool_data,
         pool_assets: resolved_pool_assets,
@@ -326,7 +344,8 @@ mod test {
                     performance_fees: Decimal::percent(3),
                     pool_assets: vec!["eur".into(), "usd".into(), "juno".into()],
                     withdrawal_fees: Decimal::percent(3),
-                    preferred_bonding_period: BondingPeriodSelector::Shortest,
+                    preferred_bonding_period: Some(BondingPeriodSelector::Shortest),
+                    manual_bonding_data: None,
                     max_swap_spread: None,
                 },
                 base: abstract_core::app::BaseInstantiateMsg {
@@ -478,6 +497,77 @@ mod test {
             let unbonding_duration = Duration::Height(10);
             let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration);
             assert_that!(result)
+                .is_err()
+                .matches(|e| matches!(e, AutocompounderError::Std(_)));
+            Ok(())
+        }
+    }
+
+    mod manual_bonding_data_tests {
+        /// CAN ONLY TEST THE ERROR CASES, BECAUSE THE SUCCESS CASE WILL TRIGGER A SMART-CONTRACT QUERY/EXECTUTION ON A CW20 CONTRACT
+        use super::*;
+        use crate::msg::BondingData;
+
+        fn instantiate_with(
+            deps: DepsMut,
+            preferred_bonding_period: Option<BondingPeriodSelector>,
+            manual_bonding_data: Option<BondingData>,
+        ) -> Result<Response, AutocompounderError> {
+            AUTOCOMPOUNDER_APP.instantiate(
+                deps,
+                mock_env(),
+                mock_info("sender", &[]),
+                abstract_core::app::InstantiateMsg {
+                    module: crate::msg::AutocompounderInstantiateMsg {
+                        code_id: Some(1),
+                        commission_addr: COMMISSION_RECEIVER.to_string(),
+                        deposit_fees: Decimal::percent(3),
+                        dex: ASTROPORT.to_string(),
+                        performance_fees: Decimal::percent(3),
+                        pool_assets: vec!["eur".into(), "usd".into(), "juno".into()],
+                        withdrawal_fees: Decimal::percent(3),
+                        preferred_bonding_period,
+                        manual_bonding_data,
+                        max_swap_spread: None,
+                    },
+                    base: abstract_core::app::BaseInstantiateMsg {
+                        version_control_address: TEST_VERSION_CONTROL.to_string(),
+                        ans_host_address: TEST_ANS_HOST.to_string(),
+                    },
+                },
+            )
+        }
+
+        #[test]
+        fn test_instantiate_with_both_preferred_bonding_period_and_manual_bonding_data(
+        ) -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            deps.querier = app_base_mock_querier().build();
+
+            let resp = instantiate_with(
+                deps.as_mut(),
+                Some(BondingPeriodSelector::Shortest),
+                Some(BondingData {
+                    max_claims_per_address: Some(1),
+                    unbonding_period: Duration::Height(10),
+                }),
+            );
+
+            assert_that!(resp)
+                .is_err()
+                .matches(|e| matches!(e, AutocompounderError::Std(_)));
+            Ok(())
+        }
+
+        #[test]
+        fn test_instantiate_with_neither_preferred_bonding_period_nor_manual_bonding_data(
+        ) -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            deps.querier = app_base_mock_querier().build();
+
+            let resp = instantiate_with(deps.as_mut(), None, None);
+
+            assert_that!(resp)
                 .is_err()
                 .matches(|e| matches!(e, AutocompounderError::Std(_)));
             Ok(())

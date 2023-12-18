@@ -131,7 +131,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             dex: dex.into(),
             /// Assets in the pool
             pool_assets: pair_assets.clone().into_iter().map(Into::into).collect(),
-            preferred_bonding_period: BondingPeriodSelector::Shortest,
+            preferred_bonding_period: Some(BondingPeriodSelector::Longest),
+            manual_bonding_data: None,
             max_swap_spread: Some(Decimal::percent(10)),
         },
     };
