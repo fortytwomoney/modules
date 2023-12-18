@@ -115,7 +115,7 @@ pub enum AutocompounderExecuteMsg {
     },
     // Updates min_unbonding_cooldown and unbonding_period in the config with the latest staking contract data
     UpdateStakingConfig {
-        preferred_bonding_period: BondingPeriodSelector,
+        bonding_data: Option<BondingData>,
     },
     #[cfg_attr(feature = "interface", payable)]
     CreateDenom {},

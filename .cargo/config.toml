@@ -1,7 +1,7 @@
 [alias]
 wasm = "build --release --target wasm32-unknown-unknown"
 unit-test = "test --lib"
-nt = "nextest run"
+nt = "nextest run --no-fail-fast"
 schema = "run --example schema --features schema"
 deploy = "run --example deploy --features interface"
 

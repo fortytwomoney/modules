@@ -2,9 +2,8 @@ use super::convert_to_shares;
 use super::helpers::{
     burn_vault_tokens_msg, check_fee, convert_to_assets, create_subdenom_from_pool_assets,
     create_vault_token_submsg, mint_vault_tokens_msg, query_stake, stake_lp_tokens,
-    transfer_to_msgs, vault_token_total_supply,
+    transfer_to_msgs, vault_token_total_supply, get_unbonding_period_and_cooldown,
 };
-use super::instantiate::{get_unbonding_period_and_min_unbonding_cooldown, query_staking_info};
 
 use abstract_core::objects::AnsEntryConvertor;
 use abstract_sdk::feature_objects::AnsHost;
@@ -16,7 +15,7 @@ use crate::contract::{
 };
 use crate::error::AutocompounderError;
 use crate::kujira_tx::format_tokenfactory_denom;
-use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector};
+use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector, BondingData};
 use crate::state::{
     Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
     FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS, VAULT_TOKEN_IS_INITIALIZED,
@@ -85,8 +84,8 @@ pub fn execute_handler(
         }
         AutocompounderExecuteMsg::Compound {} => compound(deps, app),
         AutocompounderExecuteMsg::UpdateStakingConfig {
-            preferred_bonding_period,
-        } => update_staking_config(deps, app, info, preferred_bonding_period),
+            bonding_data: bonding_data,
+        } => update_staking_config(deps, app, info, bonding_data),
         AutocompounderExecuteMsg::CreateDenom {} => create_denom(deps, app, info, &env),
     }
 }
@@ -142,27 +141,17 @@ pub fn update_staking_config(
     deps: DepsMut,
     app: AutocompounderApp,
     info: MessageInfo,
-    preferred_bonding_period: BondingPeriodSelector,
+    bonding_data: Option<BondingData>
 ) -> AutocompounderResult {
     app.admin.assert_admin(deps.as_ref(), &info.sender)?;
 
     let mut config = CONFIG.load(deps.storage)?;
 
-    let lp_token = config.lp_token();
+    let (new_unbonding_period, new_min_unbonding_cooldown) = get_unbonding_period_and_cooldown(bonding_data)?;
 
-    // get staking info
-    let staking_info = query_staking_info(
-        deps.as_ref(),
-        &app,
-        AnsEntryConvertor::new(lp_token.clone()).asset_entry(),
-        lp_token.dex,
-    )?;
-    let (unbonding_period, min_unbonding_cooldown) =
-        get_unbonding_period_and_min_unbonding_cooldown(staking_info, preferred_bonding_period)?;
 
-    config.unbonding_period = unbonding_period;
-    config.min_unbonding_cooldown = min_unbonding_cooldown;
-
+    config.unbonding_period = new_unbonding_period;
+    config.min_unbonding_cooldown = new_min_unbonding_cooldown;
     CONFIG.save(deps.storage, &config)?;
 
     Ok(app.custom_tag_response(
@@ -1524,7 +1513,7 @@ mod test {
         fn update_staking_config_only_admin() -> anyhow::Result<()> {
             let mut deps = app_init(true, true);
             let msg = AutocompounderExecuteMsg::UpdateStakingConfig {
-                preferred_bonding_period: BondingPeriodSelector::Longest,
+            bonding_data: Some(BondingData { unbonding_period: Duration::Time(7200), max_claims_per_address: None})
             };
 
             let resp = execute_as(deps.as_mut(), "not_mananger", msg.clone(), &[]);
