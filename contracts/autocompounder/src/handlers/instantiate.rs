@@ -140,34 +140,6 @@ pub fn instantiate_handler(
         .add_attribute("contract", AUTOCOMPOUNDER))
 }
 
-pub fn query_staking_info(
-    deps: Deps,
-    app: &AutocompounderApp,
-    lp_token_name: AssetEntry,
-    dex: String,
-) -> AutocompounderResult<StakingInfo> {
-    let adapters = app.adapters(deps);
-
-    let query = StakingQueryMsg::Info {
-        provider: dex.clone(),
-        staking_tokens: vec![lp_token_name.clone()],
-    };
-
-    let res: StakingInfoResponse = adapters.query(CW_STAKING, query.clone()).map_err(|e| {
-        StdError::generic_err(format!(
-            "Error querying staking info for {lp_token_name} on {dex}: {e}...{query:?}"
-        ))
-    })?;
-    let staking_info = res.infos.first().ok_or(StdError::generic_err(format!(
-        "No staking info found for {lp_token_name} on {dex}",
-        lp_token_name = lp_token_name,
-        dex = dex
-    )))?;
-
-    Ok(staking_info.clone())
-}
-
-
 #[cfg(test)]
 mod test {
     use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_base_mock_querier};
