@@ -71,10 +71,8 @@ pub struct AutocompounderInstantiateMsg {
     pub dex: DexName,
     /// Assets in the pool
     pub pool_assets: Vec<AssetEntry>,
-    /// Bonding period selector
-    pub preferred_bonding_period: Option<BondingPeriodSelector>,
     /// Unbonding data for manual setup
-    pub manual_bonding_data: Option<BondingData>,
+    pub bonding_data: Option<BondingData>,
     /// max swap spread
     pub max_swap_spread: Option<Decimal>,
 }

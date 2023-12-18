@@ -4171,6 +4171,7 @@ dependencies = [
  "cw-asset",
  "cw-orch 0.16.4",
  "cw-plus-interface",
+ "cw-utils",
  "cw1-general",
  "cw20 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",
  "cw20-base 1.1.1 (git+https://github.com/abstractsdk/cw-plus?rev=258fb95)",

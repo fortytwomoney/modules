@@ -22,7 +22,7 @@ use cw_orch::prelude::*;
 
 use autocompounder::msg::{
     AutocompounderExecuteMsg, AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns,
-    BondingPeriodSelector, AUTOCOMPOUNDER_ID,
+    AUTOCOMPOUNDER_ID, BondingData,
 };
 
 use common::abstract_helper::{self, init_auto_compounder};
@@ -160,8 +160,10 @@ pub fn create_vault(
                 performance_fees: Decimal::percent(3),
                 pool_assets: vec![asset1, asset2],
                 withdrawal_fees: Decimal::percent(0),
-                preferred_bonding_period: Some(BondingPeriodSelector::Shortest),
-                manual_bonding_data: None,
+                bonding_data: Some(BondingData {
+                    unbonding_period: Duration::Time(1),
+                    max_claims_per_address: None,
+                }),
                 max_swap_spread: Some(Decimal::percent(50)),
             },
             base: abstract_core::app::BaseInstantiateMsg {
@@ -171,7 +173,7 @@ pub fn create_vault(
         },
         None,
     )?;
-
+    
     // get its address
     let auto_compounder_addr = account
         .manager
@@ -206,26 +208,6 @@ pub fn create_vault(
         dex: exchange_api,
         staking: staking_api,
     })
-}
-
-#[test]
-fn proper_initialisation() {
-    // call create vault 
-    let owner = Addr::unchecked(common::OWNER);
-    let mock = Mock::new(&owner);
-    crate::create_vault(
-        mock.clone(),
-        EUR,
-        USD,
-        true,
-    ).unwrap();
-
-    // test with manual_unbonding_data
-    let owner = Addr::unchecked(common::OWNER);
-    let mock = Mock::new(&owner);
-    // TODO
-
-
 }
 
 // #[ignore = "Staking address for raw eur pool not setup"]
