@@ -136,13 +136,13 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             performance_fees: Decimal::new(100u128.into()),
             deposit_fees: Decimal::new(0u128.into()),
             withdrawal_fees: Decimal::new(0u128.into()),
-            /// address that recieves the fee commissions
+            // address that recieves the fee commissions
             commission_addr: sender.to_string(),
-            /// cw20 code id
+            // cw20 code id
             code_id: cw20_code_id,
-            /// Name of the target dex
+            // Name of the target dex
             dex: dex.into(),
-            /// Assets in the pool
+            // Assets in the pool
             pool_assets: pair_assets.clone().into_iter().map(Into::into).collect(),
             bonding_data,
             max_swap_spread: Some(Decimal::percent(10)),
