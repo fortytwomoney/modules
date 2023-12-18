@@ -1,8 +1,8 @@
 use super::convert_to_shares;
 use super::helpers::{
     burn_vault_tokens_msg, check_fee, convert_to_assets, create_subdenom_from_pool_assets,
-    create_vault_token_submsg, mint_vault_tokens_msg, query_stake, stake_lp_tokens,
-    transfer_to_msgs, vault_token_total_supply, get_unbonding_period_and_cooldown,
+    create_vault_token_submsg, get_unbonding_period_and_cooldown, mint_vault_tokens_msg,
+    query_stake, stake_lp_tokens, transfer_to_msgs, vault_token_total_supply,
 };
 
 use abstract_core::objects::AnsEntryConvertor;
@@ -15,7 +15,7 @@ use crate::contract::{
 };
 use crate::error::AutocompounderError;
 use crate::kujira_tx::format_tokenfactory_denom;
-use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector, BondingData};
+use crate::msg::{AutocompounderExecuteMsg, BondingData};
 use crate::state::{
     Claim, Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CLAIMS, CONFIG, DEFAULT_BATCH_SIZE,
     FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS, VAULT_TOKEN_IS_INITIALIZED,
@@ -83,9 +83,9 @@ pub fn execute_handler(
             batch_unbond(deps, env, app, start_after, limit)
         }
         AutocompounderExecuteMsg::Compound {} => compound(deps, app),
-        AutocompounderExecuteMsg::UpdateStakingConfig {
-            bonding_data: bonding_data,
-        } => update_staking_config(deps, app, info, bonding_data),
+        AutocompounderExecuteMsg::UpdateStakingConfig { bonding_data } => {
+            update_staking_config(deps, app, info, bonding_data)
+        }
         AutocompounderExecuteMsg::CreateDenom {} => create_denom(deps, app, info, &env),
     }
 }
@@ -141,14 +141,14 @@ pub fn update_staking_config(
     deps: DepsMut,
     app: AutocompounderApp,
     info: MessageInfo,
-    bonding_data: Option<BondingData>
+    bonding_data: Option<BondingData>,
 ) -> AutocompounderResult {
     app.admin.assert_admin(deps.as_ref(), &info.sender)?;
 
     let mut config = CONFIG.load(deps.storage)?;
 
-    let (new_unbonding_period, new_min_unbonding_cooldown) = get_unbonding_period_and_cooldown(bonding_data)?;
-
+    let (new_unbonding_period, new_min_unbonding_cooldown) =
+        get_unbonding_period_and_cooldown(bonding_data)?;
 
     config.unbonding_period = new_unbonding_period;
     config.min_unbonding_cooldown = new_min_unbonding_cooldown;
@@ -1163,7 +1163,7 @@ mod test {
 
     mod deposit_helpers {
         use super::*;
-        
+
         use speculoos::prelude::*;
 
         fn deposit_fee_config(percent: u64) -> FeeConfig {
@@ -1503,7 +1503,7 @@ mod test {
         use speculoos::assert_that;
 
         use crate::error::AutocompounderError;
-        use crate::msg::{AutocompounderExecuteMsg, BondingPeriodSelector};
+        use crate::msg::AutocompounderExecuteMsg;
         use crate::state::{Config, CONFIG};
         use crate::test_common::app_init;
 
@@ -1513,7 +1513,10 @@ mod test {
         fn update_staking_config_only_admin() -> anyhow::Result<()> {
             let mut deps = app_init(true, true);
             let msg = AutocompounderExecuteMsg::UpdateStakingConfig {
-            bonding_data: Some(BondingData { unbonding_period: Duration::Time(7200), max_claims_per_address: None})
+                bonding_data: Some(BondingData {
+                    unbonding_period: Duration::Time(7200),
+                    max_claims_per_address: None,
+                }),
             };
 
             let resp = execute_as(deps.as_mut(), "not_mananger", msg.clone(), &[]);

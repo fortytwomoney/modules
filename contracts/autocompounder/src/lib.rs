@@ -14,7 +14,7 @@ pub mod kujira_tx;
 
 #[cfg(test)]
 mod test_common {
-    use crate::{msg::{BondingPeriodSelector, BondingData}, state::VAULT_TOKEN_IS_INITIALIZED};
+    use crate::{msg::BondingData, state::VAULT_TOKEN_IS_INITIALIZED};
 
     use abstract_cw_staking::msg::{
         StakeResponse, StakingInfo, StakingInfoResponse, StakingQueryMsg, StakingTarget,
@@ -50,11 +50,6 @@ mod test_common {
     pub const SHORT_UNBONDING_PERIOD: Duration = Duration::Time(3600);
     pub const LONG_UNBONDING_PERIOD: Duration = Duration::Time(7200);
     pub const MAX_CLAIMS_PER_ADDRESS: u32 = 7;
-    
-    pub const TEST_BONDING_DATA: BondingData = BondingData {
-        unbonding_period: SHORT_UNBONDING_PERIOD,
-        max_claims_per_address: Some(MAX_CLAIMS_PER_ADDRESS),
-    };
 
     // Mock Querier with a smart-query handler for the module factory
     // Because that query is performed when the App is instantiated to get the manager's address and set it as the Admin

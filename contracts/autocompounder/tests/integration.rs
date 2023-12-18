@@ -21,8 +21,8 @@ use autocompounder::state::{Claim, Config, FeeConfig, DECIMAL_OFFSET};
 use cw_orch::prelude::*;
 
 use autocompounder::msg::{
-    AutocompounderExecuteMsg, AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns,
-    AUTOCOMPOUNDER_ID, BondingData,
+    AutocompounderExecuteMsg, AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, BondingData,
+    AUTOCOMPOUNDER_ID,
 };
 
 use common::abstract_helper::{self, init_auto_compounder};
@@ -173,7 +173,7 @@ pub fn create_vault(
         },
         None,
     )?;
-    
+
     // get its address
     let auto_compounder_addr = account
         .manager

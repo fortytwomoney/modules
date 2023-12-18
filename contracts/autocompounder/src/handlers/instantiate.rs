@@ -1,30 +1,21 @@
-use std::f32::consts::E;
-
 use crate::contract::{AutocompounderApp, AutocompounderResult};
 use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::kujira_tx::format_tokenfactory_denom;
-use crate::msg::{AutocompounderInstantiateMsg, BondingPeriodSelector, FeeConfig, AUTOCOMPOUNDER};
+use crate::msg::{AutocompounderInstantiateMsg, FeeConfig, AUTOCOMPOUNDER};
 use crate::state::{
     Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_IS_INITIALIZED, VAULT_TOKEN_SYMBOL,
 };
-use abstract_core::objects::AnsEntryConvertor;
-use abstract_cw_staking::msg::StakingInfo;
-use abstract_cw_staking::{
-    msg::{StakingInfoResponse, StakingQueryMsg},
-    CW_STAKING,
-};
-use abstract_sdk::AdapterInterface;
-
 use abstract_sdk::{
-    core::objects::{AssetEntry, DexAssetPairing, LpToken, PoolReference},
+    core::objects::{DexAssetPairing, LpToken, PoolReference},
     features::AbstractNameService,
 };
-use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError};
+use cosmwasm_std::{Addr, Decimal, DepsMut, Env, MessageInfo, Response};
 use cw_asset::AssetInfo;
-use cw_utils::Duration;
 
-use super::helpers::{create_subdenom_from_pool_assets, create_vault_token_submsg, get_unbonding_period_and_cooldown};
+use super::helpers::{
+    create_subdenom_from_pool_assets, create_vault_token_submsg, get_unbonding_period_and_cooldown,
+};
 
 /// Initial instantiation of the contract
 pub fn instantiate_handler(
@@ -70,9 +61,8 @@ pub fn instantiate_handler(
 
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
-    
-
-    let (unbonding_period, min_unbonding_cooldown) = get_unbonding_period_and_cooldown(manual_bonding_data)?;
+    let (unbonding_period, min_unbonding_cooldown) =
+        get_unbonding_period_and_cooldown(manual_bonding_data)?;
 
     let pairing = DexAssetPairing::new(
         pool_assets_slice[0].clone(),
@@ -143,6 +133,7 @@ pub fn instantiate_handler(
 #[cfg(test)]
 mod test {
     use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_base_mock_querier};
+    use abstract_core::objects::AssetEntry;
     use abstract_sdk::base::InstantiateEndpoint;
     use abstract_sdk::core as abstract_core;
     use abstract_testing::prelude::{TEST_ANS_HOST, TEST_MODULE_FACTORY, TEST_VERSION_CONTROL};
@@ -246,5 +237,4 @@ mod test {
 
         msg.validate().unwrap();
     }
-
 }

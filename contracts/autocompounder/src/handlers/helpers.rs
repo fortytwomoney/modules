@@ -404,7 +404,7 @@ pub fn get_unbonding_period_and_cooldown(
             let unbonding_period = Some(manual_bonding_data.unbonding_period);
             let min_unbonding_cooldown = compute_min_unbonding_cooldown(
                 manual_bonding_data.max_claims_per_address,
-                manual_bonding_data.unbonding_period.clone(),
+                manual_bonding_data.unbonding_period,
             )?;
             (unbonding_period, min_unbonding_cooldown)
         }
@@ -762,7 +762,7 @@ pub mod helpers_tests {
         }
     }
 
-        mod cooldown_tests {
+    mod cooldown_tests {
         type AResult = anyhow::Result<()>;
 
         use super::*;

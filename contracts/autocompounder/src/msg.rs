@@ -29,7 +29,6 @@
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
 use abstract_core::objects::{AnsEntryConvertor, LpToken};
-use abstract_cw_staking::msg::StakingTarget;
 use abstract_dex_adapter::msg::OfferAsset;
 use abstract_sdk::core::app;
 use abstract_sdk::core::objects::{AssetEntry, DexName, PoolAddress, PoolMetadata};
@@ -76,7 +75,6 @@ pub struct AutocompounderInstantiateMsg {
     /// max swap spread
     pub max_swap_spread: Option<Decimal>,
 }
-
 
 #[cosmwasm_schema::cw_serde]
 #[cfg_attr(feature = "interface", derive(cw_orch::ExecuteFns))]
@@ -237,9 +235,8 @@ pub enum BondingPeriodSelector {
 #[cosmwasm_schema::cw_serde]
 pub struct BondingData {
     pub unbonding_period: Duration,
-    pub max_claims_per_address: Option<u32>
+    pub max_claims_per_address: Option<u32>,
 }
-
 
 #[cosmwasm_schema::cw_serde]
 pub struct Claim {

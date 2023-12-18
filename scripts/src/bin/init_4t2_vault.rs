@@ -6,9 +6,7 @@ use cw_orch::deploy::Deploy;
 use cw_orch::prelude::queriers::{Bank, DaemonQuerier};
 use cw_orch::prelude::*;
 use std::env;
-use std::error::Error;
-use std::sync::Arc;
-use cw_utils::Duration;
+
 use abstract_core::{
     app, manager::ExecuteMsg, objects::gov_type::GovernanceDetails, objects::module::ModuleInfo,
     registry::ANS_HOST,
@@ -16,6 +14,8 @@ use abstract_core::{
 use abstract_cw_staking::CW_STAKING;
 use abstract_dex_adapter::EXCHANGE;
 use abstract_interface::{Abstract, AbstractAccount, AccountDetails, ManagerQueryFns};
+use cw_utils::Duration;
+use std::sync::Arc;
 
 use clap::Parser;
 use cosmwasm_std::{coin, Addr, Decimal};
@@ -23,8 +23,7 @@ use cw_orch::daemon::networks::parse_network;
 
 use autocompounder::interface::Vault;
 use autocompounder::msg::{
-    AutocompounderInstantiateMsg, AutocompounderQueryMsgFns, BondingData, BondingPeriodSelector,
-    AUTOCOMPOUNDER,
+    AutocompounderInstantiateMsg, AutocompounderQueryMsgFns, BondingData, AUTOCOMPOUNDER,
 };
 use log::info;
 
@@ -43,7 +42,7 @@ fn description(asset_string: String) -> String {
 fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
-    let (main_account_id, dex, base_pair_asset, cw20_code_id, token_creation_fee)=
+    let (main_account_id, dex, base_pair_asset, cw20_code_id, token_creation_fee) =
         match args.network_id.as_str() {
             "uni-6" => (None, "wyndex", "juno>junox", Some(4012), None),
             "juno-1" => (None, "wyndex", "juno>juno", Some(1), None),
@@ -110,13 +109,13 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     // let new_module_version =
     // ModuleVersion::Version(args.ac_version.unwrap_or(MODULE_VERSION.to_string()));
-    let bonding_data= match (args.unbonding_period_blocks, args.unbonding_period_time) {
-        ( Some(_), Some(_) ) =>  panic!("cant set both unbonding period as blocks and as time"),
-        ( Some(blocks), None ) => Some(BondingData { 
+    let bonding_data = match (args.unbonding_period_blocks, args.unbonding_period_time) {
+        (Some(_), Some(_)) => panic!("cant set both unbonding period as blocks and as time"),
+        (Some(blocks), None) => Some(BondingData {
             unbonding_period: Duration::Height(blocks),
             max_claims_per_address: args.max_claims_per_address,
         }),
-        (None, Some(seconds)) => Some(BondingData { 
+        (None, Some(seconds)) => Some(BondingData {
             unbonding_period: Duration::Time(seconds),
             max_claims_per_address: args.max_claims_per_address,
         }),

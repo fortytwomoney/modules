@@ -323,7 +323,7 @@ mod test {
         set_v0_5_0_config(deps.as_mut());
 
         migrate_from_v0_5_0(&mut deps.as_mut()).unwrap();
-        let config = CONFIG.load(deps.as_ref().storage).unwrap();
+        let _config = CONFIG.load(deps.as_ref().storage).unwrap();
         Ok(())
     }
 
@@ -333,7 +333,7 @@ mod test {
         set_v0_6_0_config(deps.as_mut());
 
         migrate_from_v0_6_0(&mut deps.as_mut()).unwrap();
-        let config = CONFIG.load(deps.as_ref().storage).unwrap();
+        let _config = CONFIG.load(deps.as_ref().storage).unwrap();
         Ok(())
     }
 
