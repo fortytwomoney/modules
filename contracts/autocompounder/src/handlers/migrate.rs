@@ -134,7 +134,7 @@ fn migrate_from_v0_5_0(deps: &mut DepsMut) -> Result<(), AutocompounderError> {
 
     let config = Config {
         // This is the change from v0.5.0 to v0.6.0
-        staking_target: StakingTarget::Contract(config_v0_5_0.staking_contract),
+        // staking_target: StakingTarget::Contract(config_v0_5_0.staking_contract),
         pool_address: config_v0_5_0.pool_address,
         pool_data: config_v0_5_0.pool_data,
         pool_assets: config_v0_5_0.pool_assets,
@@ -159,7 +159,6 @@ fn migrate_from_v0_6_0(deps: &mut DepsMut) -> Result<(), AutocompounderError> {
         from_slice(data.as_slice()).map_err(|_| StdError::generic_err("Invalid config"))?;
 
     let config = Config {
-        staking_target: config_v0_6_0.staking_target,
         pool_address: config_v0_6_0.pool_address,
         pool_data: config_v0_6_0.pool_data,
         pool_assets: config_v0_6_0.pool_assets,
@@ -207,7 +206,6 @@ fn migrate_from_v0_7_config(deps: &mut DepsMut) -> Result<(), AutocompounderErro
         from_slice(data.as_slice()).map_err(|_| StdError::generic_err("Invalid config"))?;
 
     let config = Config {
-        staking_target: config_v0_7.staking_target,
         pool_address: config_v0_7.pool_address,
         pool_data: config_v0_7.pool_data,
         pool_assets: config_v0_7.pool_assets,
@@ -325,9 +323,7 @@ mod test {
         set_v0_5_0_config(deps.as_mut());
 
         migrate_from_v0_5_0(&mut deps.as_mut()).unwrap();
-        let config = CONFIG.load(deps.as_ref().storage).unwrap();
-        assert_that!(config.staking_target)
-            .is_equal_to(StakingTarget::Contract(Addr::unchecked("staking_contract")));
+        let _config = CONFIG.load(deps.as_ref().storage).unwrap();
         Ok(())
     }
 
@@ -337,9 +333,7 @@ mod test {
         set_v0_6_0_config(deps.as_mut());
 
         migrate_from_v0_6_0(&mut deps.as_mut()).unwrap();
-        let config = CONFIG.load(deps.as_ref().storage).unwrap();
-        assert_that!(config.staking_target)
-            .is_equal_to(StakingTarget::Contract(Addr::unchecked("staking_contract")));
+        let _config = CONFIG.load(deps.as_ref().storage).unwrap();
         Ok(())
     }
 

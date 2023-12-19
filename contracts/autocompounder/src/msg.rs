@@ -29,7 +29,6 @@
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
 use abstract_core::objects::{AnsEntryConvertor, LpToken};
-use abstract_cw_staking::msg::StakingTarget;
 use abstract_dex_adapter::msg::OfferAsset;
 use abstract_sdk::core::app;
 use abstract_sdk::core::objects::{AssetEntry, DexName, PoolAddress, PoolMetadata};
@@ -71,8 +70,8 @@ pub struct AutocompounderInstantiateMsg {
     pub dex: DexName,
     /// Assets in the pool
     pub pool_assets: Vec<AssetEntry>,
-    /// Bonding period selector
-    pub preferred_bonding_period: BondingPeriodSelector,
+    /// Unbonding data for manual setup
+    pub bonding_data: Option<BondingData>,
     /// max swap spread
     pub max_swap_spread: Option<Decimal>,
 }
@@ -114,7 +113,7 @@ pub enum AutocompounderExecuteMsg {
     },
     // Updates min_unbonding_cooldown and unbonding_period in the config with the latest staking contract data
     UpdateStakingConfig {
-        preferred_bonding_period: BondingPeriodSelector,
+        bonding_data: Option<BondingData>,
     },
     #[cfg_attr(feature = "interface", payable)]
     CreateDenom {},
@@ -195,8 +194,6 @@ pub struct FeeConfig {
 
 #[cosmwasm_schema::cw_serde]
 pub struct Config {
-    /// Address of the staking contract
-    pub staking_target: StakingTarget,
     /// Pool address (number or Address)
     pub pool_address: PoolAddress,
     /// Pool metadata
@@ -233,6 +230,12 @@ pub enum BondingPeriodSelector {
     Shortest,
     Longest,
     Custom(Duration),
+}
+
+#[cosmwasm_schema::cw_serde]
+pub struct BondingData {
+    pub unbonding_period: Duration,
+    pub max_claims_per_address: Option<u32>,
 }
 
 #[cosmwasm_schema::cw_serde]

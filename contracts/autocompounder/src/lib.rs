@@ -14,7 +14,7 @@ pub mod kujira_tx;
 
 #[cfg(test)]
 mod test_common {
-    use crate::{msg::BondingPeriodSelector, state::VAULT_TOKEN_IS_INITIALIZED};
+    use crate::{msg::BondingData, state::VAULT_TOKEN_IS_INITIALIZED};
 
     use abstract_cw_staking::msg::{
         StakeResponse, StakingInfo, StakingInfoResponse, StakingQueryMsg, StakingTarget,
@@ -47,6 +47,9 @@ mod test_common {
     const TEST_CW_STAKING_MODULE: &str = "cw_staking";
     const TEST_POOL_ADDR: &str = "test_pool";
     pub const TEST_VAULT_TOKEN: &str = "test_vault_token";
+    pub const SHORT_UNBONDING_PERIOD: Duration = Duration::Time(3600);
+    pub const LONG_UNBONDING_PERIOD: Duration = Duration::Time(7200);
+    pub const MAX_CLAIMS_PER_ADDRESS: u32 = 7;
 
     // Mock Querier with a smart-query handler for the module factory
     // Because that query is performed when the App is instantiated to get the manager's address and set it as the Admin
@@ -242,10 +245,10 @@ mod test_common {
                                 )),
                                 staking_token: AssetInfo::cw20(Addr::unchecked("usd_eur_lp")),
                                 unbonding_periods: Some(vec![
-                                    Duration::Time(3600),
-                                    Duration::Time(7200),
+                                    SHORT_UNBONDING_PERIOD,
+                                    LONG_UNBONDING_PERIOD,
                                 ]),
-                                max_claims: None,
+                                max_claims: Some(MAX_CLAIMS_PER_ADDRESS),
                             }],
                         };
                         Ok(to_binary(&resp).unwrap())
@@ -314,10 +317,16 @@ mod test_common {
         let mut deps = mock_dependencies();
         let info = mock_info(TEST_MODULE_FACTORY, &[]);
 
+        let bonding_data: Option<BondingData>;
         if is_unbonding_period_enabled {
             deps.querier = app_base_mock_querier_with_unbonding_period().build();
+            bonding_data = Some(BondingData {
+                unbonding_period: SHORT_UNBONDING_PERIOD,
+                max_claims_per_address: Some(MAX_CLAIMS_PER_ADDRESS),
+            });
         } else {
             deps.querier = app_base_mock_querier().build();
+            bonding_data = None;
         }
 
         AUTOCOMPOUNDER_APP
@@ -334,7 +343,7 @@ mod test_common {
                         performance_fees: Decimal::percent(3),
                         pool_assets: vec!["eur".into(), "usd".into()],
                         withdrawal_fees: Decimal::percent(3),
-                        preferred_bonding_period: BondingPeriodSelector::Shortest,
+                        bonding_data,
                         max_swap_spread: None,
                     },
                     base: abstract_core::app::BaseInstantiateMsg {

@@ -6,7 +6,6 @@ use cw_orch::deploy::Deploy;
 use cw_orch::prelude::queriers::{Bank, DaemonQuerier};
 use cw_orch::prelude::*;
 use std::env;
-use std::sync::Arc;
 
 use abstract_core::{
     app, manager::ExecuteMsg, objects::gov_type::GovernanceDetails, objects::module::ModuleInfo,
@@ -15,6 +14,8 @@ use abstract_core::{
 use abstract_cw_staking::CW_STAKING;
 use abstract_dex_adapter::EXCHANGE;
 use abstract_interface::{Abstract, AbstractAccount, AccountDetails, ManagerQueryFns};
+use cw_utils::Duration;
+use std::sync::Arc;
 
 use clap::Parser;
 use cosmwasm_std::{coin, Addr, Decimal};
@@ -22,7 +23,7 @@ use cw_orch::daemon::networks::parse_network;
 
 use autocompounder::interface::Vault;
 use autocompounder::msg::{
-    AutocompounderInstantiateMsg, AutocompounderQueryMsgFns, BondingPeriodSelector, AUTOCOMPOUNDER,
+    AutocompounderInstantiateMsg, AutocompounderQueryMsgFns, BondingData, AUTOCOMPOUNDER,
 };
 use log::info;
 
@@ -108,6 +109,18 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     // let new_module_version =
     // ModuleVersion::Version(args.ac_version.unwrap_or(MODULE_VERSION.to_string()));
+    let bonding_data = match (args.unbonding_period_blocks, args.unbonding_period_time) {
+        (Some(_), Some(_)) => panic!("cant set both unbonding period as blocks and as time"),
+        (Some(blocks), None) => Some(BondingData {
+            unbonding_period: Duration::Height(blocks),
+            max_claims_per_address: args.max_claims_per_address,
+        }),
+        (None, Some(seconds)) => Some(BondingData {
+            unbonding_period: Duration::Time(seconds),
+            max_claims_per_address: args.max_claims_per_address,
+        }),
+        (None, None) => None,
+    };
 
     let autocompounder_instantiate_msg = &app::InstantiateMsg {
         base: app::BaseInstantiateMsg {
@@ -123,15 +136,15 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             performance_fees: Decimal::new(100u128.into()),
             deposit_fees: Decimal::new(0u128.into()),
             withdrawal_fees: Decimal::new(0u128.into()),
-            /// address that recieves the fee commissions
+            // address that recieves the fee commissions
             commission_addr: sender.to_string(),
-            /// cw20 code id
+            // cw20 code id
             code_id: cw20_code_id,
-            /// Name of the target dex
+            // Name of the target dex
             dex: dex.into(),
-            /// Assets in the pool
+            // Assets in the pool
             pool_assets: pair_assets.clone().into_iter().map(Into::into).collect(),
-            preferred_bonding_period: BondingPeriodSelector::Shortest,
+            bonding_data,
             max_swap_spread: Some(Decimal::percent(10)),
         },
     };
@@ -247,6 +260,15 @@ struct Arguments {
     /// Autocompounder version to deploy. None means latest
     #[arg(long)]
     ac_version: Option<String>,
+    /// Optional unbonding period in seconds
+    #[arg(long)]
+    unbonding_period_time: Option<u64>,
+    /// Optional unbonding period in blocks
+    #[arg(long)]
+    unbonding_period_blocks: Option<u64>,
+    /// Optional max claims per address
+    #[arg(long)]
+    max_claims_per_address: Option<u32>,
 }
 
 fn main() {

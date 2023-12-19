@@ -376,6 +376,43 @@ pub fn transfer_to_msgs(
     Ok(app.executor(deps).execute(actions)?.into())
 }
 
+/// computes the minimum cooldown period based on the max claims and unbonding duration.
+fn compute_min_unbonding_cooldown(
+    max_claims: Option<u32>,
+    unbonding_duration: Duration,
+) -> Result<Option<Duration>, AutocompounderError> {
+    if max_claims.is_none() {
+        return Ok(None);
+    } else if max_claims == Some(0) {
+        return Err(AutocompounderError::Std(StdError::generic_err(
+            "Max claims cannot be 0.",
+        )));
+    }
+
+    let min_unbonding_cooldown = max_claims.map(|max| match &unbonding_duration {
+        Duration::Height(block) => Duration::Height(block.saturating_div(max.into())),
+        Duration::Time(secs) => Duration::Time(secs.saturating_div(max.into())),
+    });
+    Ok(min_unbonding_cooldown)
+}
+
+pub fn get_unbonding_period_and_cooldown(
+    manual_bonding_data: Option<crate::msg::BondingData>,
+) -> Result<(Option<Duration>, Option<Duration>), AutocompounderError> {
+    let (unbonding_period, min_unbonding_cooldown) = match manual_bonding_data {
+        Some(manual_bonding_data) => {
+            let unbonding_period = Some(manual_bonding_data.unbonding_period);
+            let min_unbonding_cooldown = compute_min_unbonding_cooldown(
+                manual_bonding_data.max_claims_per_address,
+                manual_bonding_data.unbonding_period,
+            )?;
+            (unbonding_period, min_unbonding_cooldown)
+        }
+        None => (None, None),
+    };
+    Ok((unbonding_period, min_unbonding_cooldown))
+}
+
 #[cfg(test)]
 pub mod helpers_tests {
     use crate::{
@@ -467,9 +504,6 @@ pub mod helpers_tests {
         let assets = vec![AssetEntry::new("eur"), AssetEntry::new("usd")];
 
         Config {
-            staking_target: abstract_cw_staking::msg::StakingTarget::Contract(Addr::unchecked(
-                "staking_addr",
-            )),
             pool_address: PoolAddressBase::Contract(Addr::unchecked("pool_address")),
             pool_data: PoolMetadata::new(
                 "wyndex",
@@ -694,6 +728,80 @@ pub mod helpers_tests {
             let long_pool = eur_usd_pool_long();
             let denom = create_subdenom_from_pool_assets(&long_pool);
             assert_eq!(denom, "VT_4T2/wyndex/neutron/eur_neutron/usd:constant_pro");
+        }
+    }
+
+    mod process_bonding_data {
+        /// CAN ONLY TEST THE ERROR CASES, BECAUSE THE SUCCESS CASE WILL TRIGGER A SMART-CONTRACT QUERY/EXECTUTION ON A CW20 CONTRACT
+        use super::*;
+        use crate::msg::BondingData;
+
+        #[test]
+        fn test_get_unbonding_period_and_cooldown_with_manual_bonding_data() {
+            let manual_bonding_data = Some(BondingData {
+                unbonding_period: Duration::Time(3600),
+                max_claims_per_address: Some(6),
+            });
+
+            let (unbonding_period, min_unbonding_cooldown) =
+                get_unbonding_period_and_cooldown(manual_bonding_data).unwrap();
+
+            assert_eq!(unbonding_period, Some(Duration::Time(3600)));
+            assert_eq!(min_unbonding_cooldown, Some(Duration::Time(600)));
+        }
+
+        #[test]
+        fn test_get_unbonding_period_and_cooldown_without_manual_bonding_data() {
+            let manual_bonding_data: Option<BondingData> = None;
+
+            let (unbonding_period, min_unbonding_cooldown) =
+                get_unbonding_period_and_cooldown(manual_bonding_data).unwrap();
+
+            assert_eq!(unbonding_period, None);
+            assert_eq!(min_unbonding_cooldown, None);
+        }
+    }
+
+    mod cooldown_tests {
+        type AResult = anyhow::Result<()>;
+
+        use super::*;
+        #[test]
+        fn test_compute_min_unbonding_cooldown_height() -> AResult {
+            let max_claims = Some(2);
+            let unbonding_duration = Duration::Height(10);
+            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
+            assert_eq!(result, Some(Duration::Height(5)));
+            Ok(())
+        }
+
+        #[test]
+        fn test_compute_min_unbonding_cooldown_time() -> AResult {
+            let max_claims = Some(2);
+            let unbonding_duration = Duration::Time(10);
+            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
+            assert_eq!(result, Some(Duration::Time(5)));
+            Ok(())
+        }
+
+        #[test]
+        fn test_compute_min_unbonding_cooldown_no_max_claims() -> AResult {
+            let max_claims = None;
+            let unbonding_duration = Duration::Height(10);
+            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration)?;
+            assert_eq!(result, None);
+            Ok(())
+        }
+
+        #[test]
+        fn test_compute_min_unbonding_cooldown_zero_max_claims() -> AResult {
+            let max_claims = Some(0);
+            let unbonding_duration = Duration::Height(10);
+            let result = compute_min_unbonding_cooldown(max_claims, unbonding_duration);
+            assert_that!(result)
+                .is_err()
+                .matches(|e| matches!(e, AutocompounderError::Std(_)));
+            Ok(())
         }
     }
 
