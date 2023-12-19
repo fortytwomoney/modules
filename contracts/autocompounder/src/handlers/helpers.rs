@@ -250,8 +250,7 @@ pub fn stake_lp_tokens(
     )
 }
 
-
-/// creates subdenom that is truncated by the max denom length per app 
+/// creates subdenom that is truncated by the max denom length per app
 /// For osmosis: // max length of subdenom for osmosis is 44 https://github.com/osmosis-labs/osmosis/blob/6a53f5611ae27b653a5758333c9a0862835917f4/x/tokenfactory/types/denoms.go#L10-L36
 /// For Kujira: // max length of subdenom for kujira is 64 (+8 + 32 ) (they use comsos-sdk validateDenom function https://github.com/Team-Kujira/core/blob/554950147825e94fa52c3ff0a3b138568cf7c774/x/denom/types/denoms.go#L31 https://github.com/cosmos/cosmos-sdk/blob/47770f332c0181924a04c1d87684b8fc62a3bc69/types/coin.go#L833-L841)
 pub fn create_subdenom_from_pool_assets(pool_data: &PoolMetadata) -> String {
@@ -261,8 +260,6 @@ pub fn create_subdenom_from_pool_assets(pool_data: &PoolMetadata) -> String {
     full_denom.truncate(max_subdenom_length_for_chain(&pool_data.dex));
     full_denom
 }
-
-
 
 /// Convert vault tokens to lp assets
 pub fn convert_to_assets(shares: Uint128, total_assets: Uint128, total_supply: Uint128) -> Uint128 {
