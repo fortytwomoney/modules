@@ -1,7 +1,8 @@
 use abstract_core::module_factory::ModuleInstallConfig;
 use abstract_core::objects::AccountId;
 use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
-use cw_orch::daemon::DaemonBuilder;
+use cw_orch::daemon::networks::osmosis::OSMO_NETWORK;
+use cw_orch::daemon::{ChainInfo, ChainKind, DaemonBuilder};
 use cw_orch::deploy::Deploy;
 use cw_orch::prelude::queriers::{Bank, DaemonQuerier};
 use cw_orch::prelude::*;
@@ -51,6 +52,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             "pisco-1" => (None, "astroport", "terra2>luna", Some(83), None),
             "phoenix-1" => (None, "astroport", "terra2>luna", Some(69), None),
             "osmo-test-5" => (Some(2), "osmosis", "osmosis5>osmo", None, None),
+            "osmosis-1" => (Some(5), "osmosis", "osmosis>osmo", None, None),
             "harpoon-4" => (
                 Some(2),
                 "kujira",
@@ -64,7 +66,23 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     info!("Using dex: {} and base: {}", dex, base_pair_asset);
 
     // Setup the environment
-    let network = parse_network(&args.network_id);
+    let network: ChainInfo;
+    pub const OSMOSIS_1: ChainInfo = ChainInfo {
+        kind: ChainKind::Mainnet,
+        chain_id: "osmosis-1",
+        gas_denom: "uosmo",
+        gas_price: 0.025,
+        grpc_urls: &["http://grpc.osmosis.zone:9090"],
+        network_info: OSMO_NETWORK,
+        lcd_url: None,
+        fcd_url: None,
+    };
+
+    if &args.network_id == "osmosis-1" {
+        network = OSMOSIS_1;
+    } else {
+        network = parse_network(&args.network_id);
+    }
 
     let chain = DaemonBuilder::default()
         .handle(rt.handle())

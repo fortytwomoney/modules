@@ -1,5 +1,6 @@
 use abstract_interface::Abstract;
-use cw_orch::daemon::ChainInfo;
+use cw_orch::daemon::networks::osmosis::OSMO_NETWORK;
+use cw_orch::daemon::{ChainInfo, ChainKind};
 
 use autocompounder::interface::AutocompounderApp;
 use autocompounder::msg::AUTOCOMPOUNDER_ID;
@@ -61,7 +62,22 @@ fn main() -> anyhow::Result<()> {
 
     let args = Arguments::parse();
 
-    let network = parse_network(&args.network_id);
+    let network: ChainInfo;
+    pub const OSMOSIS_1: ChainInfo = ChainInfo {
+        kind: ChainKind::Mainnet,
+        chain_id: "osmosis-1",
+        gas_denom: "uosmo",
+        gas_price: 0.025,
+        grpc_urls: &["http://grpc.osmosis.zone:9090"],
+        network_info: OSMO_NETWORK,
+        lcd_url: None,
+        fcd_url: None,
+    };
 
+    if &args.network_id == "osmosis-1" {
+        network = OSMOSIS_1;
+    } else {
+        network = parse_network(&args.network_id);
+    }
     deploy_autocompounder(network, args.code_id)
 }
