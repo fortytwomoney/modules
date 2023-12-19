@@ -201,6 +201,18 @@ pub fn query_tokenfactory_params(deps: Deps, chain: &str) -> Result<Params, StdE
 }
 
 /// Formats the native denom to the asset info for the vault token with denom "factory/{`sender`}/{`denom`}"
+/// max length of subdenom for osmosis is 44 https://github.com/osmosis-labs/osmosis/blob/6a53f5611ae27b653a5758333c9a0862835917f4/x/tokenfactory/types/denoms.go#L10-L36
 pub fn format_tokenfactory_denom(sender: &str, denom: &str) -> String {
     format!("factory/{sender}/{denom}")
+}
+
+pub const MAX_SUBDENOM_LEN_OSMOSIS: usize = 44;
+pub const MAX_SUBDENOM_LEN_KUJIRA: usize = 64;
+
+pub fn max_subdenom_length_for_chain(dex: &str) -> usize {
+    match dex {
+        "osmosis" => MAX_SUBDENOM_LEN_OSMOSIS,
+        "kujira" => MAX_SUBDENOM_LEN_KUJIRA,
+        _ => 64,
+    }
 }
