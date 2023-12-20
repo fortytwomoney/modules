@@ -1,5 +1,5 @@
 use abstract_core::module_factory::ModuleInstallConfig;
-use abstract_core::objects::{AccountId, DexAssetPairing};
+use abstract_core::objects::{AccountId, AssetEntry, DexAssetPairing};
 use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
 use cw_orch::daemon::networks::osmosis::OSMO_NETWORK;
 use cw_orch::daemon::{ChainInfo, ChainKind, DaemonBuilder};
@@ -14,14 +14,16 @@ use abstract_dex_adapter::EXCHANGE;
 use abstract_interface::{Abstract, AbstractAccount, AccountDetails, ManagerQueryFns};
 use cw_utils::Duration;
 use std::sync::Arc;
+use abstract_core::proxy::{AssetsConfigResponse, QueryMsgFns};
+use abstract_core::manager::ExecuteMsgFns;
 use abstract_core::objects::price_source::UncheckedPriceSource;
 
 use clap::Parser;
-use cosmwasm_std::{coin, Addr, Decimal};
+use cosmwasm_std::{coin, Addr, Decimal, to_binary};
 use cw_orch::daemon::networks::parse_network;
 
-use autocompounder::interface::Vault;
-use autocompounder::msg::{AutocompounderInstantiateMsg, AutocompounderQueryMsgFns, BondingData, AUTOCOMPOUNDER, AUTOCOMPOUNDER_ID};
+use autocompounder::interface::{AutocompounderApp, Vault};
+use autocompounder::msg::{AutocompounderInstantiateMsg, AutocompounderQueryMsgFns, BondingData, AUTOCOMPOUNDER_ID};
 use log::info;
 
 // To deploy the app we need to get the memory and then register it
@@ -86,7 +88,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let sender = chain.sender();
 
     let abstr = Abstract::load_from(chain.clone())?;
-    let main_account = get_main_account(main_account_id, &abstr, &sender)?;
+    let parent_account = get_parent_account(main_account_id, &abstr, &sender)?;
 
     let instantiation_funds: Option<Vec<Coin>> = if let Some(creation_fee) = token_creation_fee {
         let bank = Bank::new(chain.channel());
@@ -117,8 +119,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     // info!("Updated module: {:?}", update);
 
-    let mut pair_assets = vec![args.paired_asset.clone(), args.other_asset.clone()];
-    pair_assets.sort();
+    let mut vault_pair_assets = vec![args.paired_asset.clone(), args.other_asset.clone()];
+    vault_pair_assets.sort();
 
     // let new_module_version =
     // ModuleVersion::Version(args.ac_version.unwrap_or(MODULE_VERSION.to_string()));
@@ -135,6 +137,22 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         (None, None) => None,
     };
 
+    let autocompounder_mod_init_msg = AutocompounderInstantiateMsg {
+        performance_fees: Decimal::new(100u128.into()),
+        deposit_fees: Decimal::new(0u128.into()),
+        withdrawal_fees: Decimal::new(0u128.into()),
+        // address that receives the fee commissions
+        commission_addr: sender.to_string(),
+        // cw20 code id
+        code_id: cw20_code_id,
+        // Name of the target dex
+        dex: dex.into(),
+        // Assets in the pool
+        pool_assets: vault_pair_assets.clone().into_iter().map(Into::into).collect(),
+        bonding_data,
+        max_swap_spread: Some(Decimal::percent(10)),
+    };
+
     let autocompounder_instantiate_msg = &app::InstantiateMsg {
         base: app::BaseInstantiateMsg {
             ans_host_address: abstr
@@ -145,47 +163,29 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                 .to_string(),
             version_control_address: abstr.version_control.address()?.to_string(),
         },
-        module: AutocompounderInstantiateMsg {
-            performance_fees: Decimal::new(100u128.into()),
-            deposit_fees: Decimal::new(0u128.into()),
-            withdrawal_fees: Decimal::new(0u128.into()),
-            // address that recieves the fee commissions
-            commission_addr: sender.to_string(),
-            // cw20 code id
-            code_id: cw20_code_id,
-            // Name of the target dex
-            dex: dex.into(),
-            // Assets in the pool
-            pool_assets: pair_assets.clone().into_iter().map(Into::into).collect(),
-            bonding_data,
-            max_swap_spread: Some(Decimal::percent(10)),
-        },
+        module: autocompounder_mod_init_msg,
     };
 
-    let manager_create_sub_account_msg = ExecuteMsg::CreateSubAccount {
-        base_asset: Some(base_pair_asset.into()),
-        namespace: None,
-        description: Some(description(pair_assets.join("|").replace('>', ":"))),
-        link: None,
-        name: format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
-        install_modules: vec![
+    let result = parent_account.manager.create_sub_account(
+        vec![
             // installs both abstract dex and staking in the instantiation of the account
             ModuleInstallConfig::new(ModuleInfo::from_id_latest(EXCHANGE)?, None),
             ModuleInstallConfig::new(ModuleInfo::from_id_latest(CW_STAKING)?, None),
-            // ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER)?, autocompounder_instantiate_msg)
+            ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER_ID)?, Some(to_binary(autocompounder_instantiate_msg)?))
         ],
-    };
-
-    let result = main_account.manager.execute(
-        &manager_create_sub_account_msg,
-        instantiation_funds.as_deref(),
+        format!("4t2 Vault ({})", vault_pair_assets.join("|").replace('>', ":")),
+        Some(base_pair_asset.into()),
+        Some(description(vault_pair_assets.join("|").replace('>', ":"))),
+        None,
+        None,
     )?;
+
     info!(
         "Instantiated AC addr: {}",
         result.instantiated_contract_address()?.to_string()
     );
 
-    let new_vault_account_id = main_account
+    let new_vault_account_id = parent_account
         .manager
         .sub_account_ids(None, None)?
         .sub_accounts
@@ -193,28 +193,18 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         .unwrap()
         .to_owned();
 
-    let new_account = AbstractAccount::new(&abstr, Some(AccountId::local(new_vault_account_id)));
-    new_account.install_module(
-        AUTOCOMPOUNDER_ID,
-        &autocompounder_instantiate_msg,
-        instantiation_funds.as_deref(),
-    )?;
+    let new_vault_account = AbstractAccount::new(&abstr, Some(AccountId::local(new_vault_account_id)));
+    println!("New vault account id: {:?}", new_vault_account.id()?);
 
-    // Register the assets on the vault
-    new_account.manager.execute_on_module(PROXY, proxy::ExecuteMsg::UpdateAssets {
-        to_add: vec![
-            (base_pair_asset.into(), UncheckedPriceSource::None),
-            (args.other_asset.into(), UncheckedPriceSource::Pair(DexAssetPairing::new(
-                pair_assets[0].clone().into(),
-                pair_assets[1].clone().into(),
-                dex
-            )))
-        ],
-        to_remove: vec![],
-    })?;
+    // Osmosis does not support value calculation via pools
+    if dex != "osmosis" {
+        let base_asset: AssetEntry = base_pair_asset.into();
+        let paired_asset: AssetEntry = if args.paired_asset == base_pair_asset.to_string() { args.other_asset.into() } else { args.paired_asset.into() };
+        register_assets(&new_vault_account, base_asset, paired_asset, dex, vault_pair_assets)?;
+    }
 
     let new_vault = Vault::new(&abstr, AccountId::local(new_vault_account_id))?;
-    let installed_modules = new_account.manager.module_infos(None, None)?;
+    let installed_modules = new_vault_account.manager.module_infos(None, None)?;
     let vault_config = new_vault.autocompounder.config()?;
 
     info!(
@@ -226,26 +216,48 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         new_vault_account_id, installed_modules, vault_config
     );
 
-    // let result = abstr.account_factory.create_new_account(
-    //     AccountDetails {
-    //     // &account_factory::ExecuteMsg::CreateAccount {
-    //     GovernanceDetails::SubAccount { manager: main_account.manager.addr_str()?, proxy: main_account.proxy.addr_str()? },
-    //     instantiation_funds.as_deref(),
-    // )?;
-
-    info!(
-        "Created account: {:?}",
-        main_account
-            .manager
-            .sub_account_ids(None, None)?
-            .sub_accounts
-            .last()
-    );
-
     Ok(())
 }
 
-fn get_main_account(
+/// Register the assets on the account for value calculation
+fn register_assets(vault_account: &AbstractAccount<Daemon>, base_pair_asset: AssetEntry, paired_asset: AssetEntry, dex: &str, vault_pair_assets: Vec<String>) -> Result<(), anyhow::Error> {
+    let AssetsConfigResponse {
+        assets: actual_registered_assets
+    } = vault_account.proxy.assets_config(None, None)?;
+
+    let actual_registered_entries = actual_registered_assets
+        .into_iter()
+        .map(|(asset, _)| asset.clone())
+        .collect::<Vec<_>>();
+
+
+    // Register the assets on the vault
+    let expected_registered_assets = vec![
+        (base_pair_asset, UncheckedPriceSource::None),
+        (paired_asset, UncheckedPriceSource::Pair(DexAssetPairing::new(
+            vault_pair_assets[0].clone().into(),
+            vault_pair_assets[1].clone().into(),
+            dex
+        )))
+    ];
+
+    let assets_to_register = expected_registered_assets
+        .into_iter()
+        .filter(|(asset, _)| !actual_registered_entries.contains(asset))
+        .map(|(asset, price_source)| (asset.clone(), price_source.clone()))
+        .collect::<Vec<_>>();
+
+    println!("Registering assets: {:?}", assets_to_register);
+
+    vault_account.manager.execute_on_module(PROXY, proxy::ExecuteMsg::UpdateAssets {
+        to_add: assets_to_register,
+        to_remove: vec![],
+    })?;
+    Ok(())
+}
+
+/// Retrieve the account that will have all the 4t2 vaults as sub-accounts
+fn get_parent_account(
     main_account_id: Option<u32>,
     abstr: &Abstract<Daemon>,
     sender: &Addr,
