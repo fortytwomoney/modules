@@ -50,12 +50,14 @@ wasm-contract module +args='':
   RUSTFLAGS='-C link-arg=-s' cargo wasm --package {{module}} {{args}}
 
 # Wasm all the contracts in the repository for the given chain
-wasm chain_name:
+wasm:
   just wasm-contract autocompounder --features export --no-default-features
-  cp target/wasm32-unknown-unknown/release/autocompounder.wasm artifacts 
+  mkdir -p artifacts
+  cp target/wasm32-unknown-unknown/release/autocompounder.wasm artifacts
 
 wasm-ac:
   just wasm-contract autocompounder --features export --no-default-features
+  mkdir -p artifacts
   cp target/wasm32-unknown-unknown/release/autocompounder.wasm artifacts 
 
 
@@ -68,7 +70,7 @@ deploy-contract module network +args='':
 # Deploy all the apps
 # would be really nice to be able to say "abstarct register autocompounder"
 deploy network +args='':
-  just wasm-contract autocompounder
+  just wasm
   just deploy-contract autocompounder {{network}}
 
 migrate-vault network account-id +args='':

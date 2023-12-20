@@ -1,5 +1,5 @@
 use abstract_core::module_factory::ModuleInstallConfig;
-use abstract_core::objects::AccountId;
+use abstract_core::objects::{AccountId, DexAssetPairing};
 use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
 use cw_orch::daemon::networks::osmosis::OSMO_NETWORK;
 use cw_orch::daemon::{ChainInfo, ChainKind, DaemonBuilder};
@@ -8,24 +8,20 @@ use cw_orch::prelude::queriers::{Bank, DaemonQuerier};
 use cw_orch::prelude::*;
 use std::env;
 
-use abstract_core::{
-    app, manager::ExecuteMsg, objects::gov_type::GovernanceDetails, objects::module::ModuleInfo,
-    registry::ANS_HOST,
-};
+use abstract_core::{app, manager::ExecuteMsg, objects::gov_type::GovernanceDetails, objects::module::ModuleInfo, proxy, PROXY, registry::ANS_HOST};
 use abstract_cw_staking::CW_STAKING;
 use abstract_dex_adapter::EXCHANGE;
 use abstract_interface::{Abstract, AbstractAccount, AccountDetails, ManagerQueryFns};
 use cw_utils::Duration;
 use std::sync::Arc;
+use abstract_core::objects::price_source::UncheckedPriceSource;
 
 use clap::Parser;
 use cosmwasm_std::{coin, Addr, Decimal};
 use cw_orch::daemon::networks::parse_network;
 
 use autocompounder::interface::Vault;
-use autocompounder::msg::{
-    AutocompounderInstantiateMsg, AutocompounderQueryMsgFns, BondingData, AUTOCOMPOUNDER,
-};
+use autocompounder::msg::{AutocompounderInstantiateMsg, AutocompounderQueryMsgFns, BondingData, AUTOCOMPOUNDER, AUTOCOMPOUNDER_ID};
 use log::info;
 
 // To deploy the app we need to get the memory and then register it
@@ -51,7 +47,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             "neutron-1" => (None, "astroport", "neutron>astro", Some(180), None),
             "pisco-1" => (None, "astroport", "terra2>luna", Some(83), None),
             "phoenix-1" => (None, "astroport", "terra2>luna", Some(69), None),
-            "osmo-test-5" => (Some(2), "osmosis", "osmosis5>osmo", None, None),
+            "osmo-test-5" => (Some(2), "osmosis", "osmosis>osmo", None, None),
             "osmosis-1" => (Some(5), "osmosis", "osmosis>osmo", None, None),
             "harpoon-4" => (
                 Some(2),
@@ -90,7 +86,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let sender = chain.sender();
 
     let abstr = Abstract::load_from(chain.clone())?;
-    let main_account = get_main_account(main_account_id, &abstr, &sender, base_pair_asset)?;
+    let main_account = get_main_account(main_account_id, &abstr, &sender)?;
 
     let instantiation_funds: Option<Vec<Coin>> = if let Some(creation_fee) = token_creation_fee {
         let bank = Bank::new(chain.channel());
@@ -121,7 +117,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     // info!("Updated module: {:?}", update);
 
-    let mut pair_assets = vec![args.paired_asset, args.other_asset];
+    let mut pair_assets = vec![args.paired_asset.clone(), args.other_asset.clone()];
     pair_assets.sort();
 
     // let new_module_version =
@@ -199,10 +195,23 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     let new_account = AbstractAccount::new(&abstr, Some(AccountId::local(new_vault_account_id)));
     new_account.install_module(
-        format!("4t2:{}", AUTOCOMPOUNDER).as_str(),
+        AUTOCOMPOUNDER_ID,
         &autocompounder_instantiate_msg,
         instantiation_funds.as_deref(),
     )?;
+
+    // Register the assets on the vault
+    new_account.manager.execute_on_module(PROXY, proxy::ExecuteMsg::UpdateAssets {
+        to_add: vec![
+            (base_pair_asset.into(), UncheckedPriceSource::None),
+            (args.other_asset.into(), UncheckedPriceSource::Pair(DexAssetPairing::new(
+                pair_assets[0].clone().into(),
+                pair_assets[1].clone().into(),
+                dex
+            )))
+        ],
+        to_remove: vec![],
+    })?;
 
     let new_vault = Vault::new(&abstr, Some(AccountId::local(new_vault_account_id)))?;
     let installed_modules = new_account.manager.module_infos(None, None)?;
@@ -240,7 +249,6 @@ fn get_main_account(
     main_account_id: Option<u32>,
     abstr: &Abstract<Daemon>,
     sender: &Addr,
-    base_asset: &str,
 ) -> Result<AbstractAccount<Daemon>, anyhow::Error> {
     let main_account = if let Some(account_id) = main_account_id {
         AbstractAccount::new(abstr, Some(AccountId::local(account_id)))
@@ -251,7 +259,7 @@ fn get_main_account(
                 description: Some("manager of 4t2 smartcontracts".to_string()),
                 link: None,
                 namespace: Some("4t2".to_string()),
-                base_asset: Some(base_asset.into()),
+                base_asset: None,
                 install_modules: vec![],
             },
             GovernanceDetails::Monarchy {
