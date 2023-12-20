@@ -658,7 +658,7 @@ pub fn receive(
     //     return Err(AutocompounderError::ZeroDepositAmount {});
     // }
     // // Withdraw fn can only be called by liquidity token or the lp token
-    // match from_binary(&msg.msg)? {
+    // match from_json(&msg.msg)? {
     //     Cw20HookMsg::Redeem {} => redeem(deps, env, app, info.sender, msg.sender, msg.amount),
     // }
 }

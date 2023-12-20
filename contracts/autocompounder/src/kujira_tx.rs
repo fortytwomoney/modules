@@ -7,7 +7,8 @@
 /// Hans, [21 Aug 2023 at 16:21:07]: subdenom in the custom bindings maps to the nonce parameter in MsgCreateDenom https://github.com/Team-Kujira/core/blob/master/x/denom/wasm/interface_msg.go#L74
 use anybuf::Anybuf;
 use cosmwasm_std::{
-    from_binary, to_binary, Addr, Coin, CosmosMsg, Deps, Empty, QueryRequest, StdError, Uint128,
+    from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, Deps, Empty, QueryRequest, StdError,
+    Uint128,
 };
 use serde::{Deserialize, Serialize};
 
@@ -104,7 +105,7 @@ pub fn tokenfactory_mint_msg(
     let proto_msg = encode_msg_mint(minter.as_str(), denom.as_str(), amount, recipient);
     let msg = CosmosMsg::Stargate {
         type_url: msg_mint_type_url(chain),
-        value: to_binary(&proto_msg)?,
+        value: to_json_binary(&proto_msg)?,
     };
     Ok(msg)
 }
@@ -139,7 +140,7 @@ pub fn tokenfactory_burn_msg(
     let proto_msg = encode_msg_burn(minter.as_str(), &denom, amount);
     let msg = CosmosMsg::Stargate {
         type_url: msg_burn_type_url(chain),
-        value: to_binary(&proto_msg)?,
+        value: to_json_binary(&proto_msg)?,
     };
     Ok(msg)
 }
@@ -185,9 +186,9 @@ pub struct Params {
 ///
 pub fn tokenfactory_params_query_request(chain: &str) -> Result<QueryRequest<Empty>, StdError> {
     let proto_msg = encode_query_params();
-    let q_request = QueryRequest::Stargate {
+    let q_request: QueryRequest<Empty> = QueryRequest::Stargate {
         path: denom_params_path(chain),
-        data: to_binary(&proto_msg)?,
+        data: to_json_binary(&proto_msg)?,
     };
 
     Ok(q_request)
@@ -195,8 +196,8 @@ pub fn tokenfactory_params_query_request(chain: &str) -> Result<QueryRequest<Emp
 
 pub fn query_tokenfactory_params(deps: Deps, chain: &str) -> Result<Params, StdError> {
     let q_request = tokenfactory_params_query_request(chain)?;
-    let response = deps.querier.query(&q_request)?;
-    let params_response: Params = from_binary(&response)?;
+    let response: Binary = deps.querier.query(&q_request)?;
+    let params_response: Params = from_json(response)?;
     Ok(params_response)
 }
 

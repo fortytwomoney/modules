@@ -4,7 +4,7 @@ use crate::msg::AutocompounderMigrateMsg;
 use crate::state::{Claim, Config, CLAIMS, CONFIG, PENDING_CLAIMS, VAULT_TOKEN_IS_INITIALIZED};
 use abstract_core::objects::{PoolAddress, PoolMetadata};
 use abstract_cw_staking::msg::StakingTarget;
-use cosmwasm_std::{from_slice, Addr, Decimal, DepsMut, Env, Response, StdError, Uint128};
+use cosmwasm_std::{from_json, Addr, Decimal, DepsMut, Env, Response, StdError, Uint128};
 use cw_asset::AssetInfo;
 use cw_storage_plus::Map;
 use cw_utils::Duration;
@@ -130,7 +130,7 @@ fn migrate_from_v0_5_0(deps: &mut DepsMut) -> Result<(), AutocompounderError> {
         .get(CONFIG.as_slice())
         .ok_or_else(|| StdError::generic_err("No config"))?;
     let config_v0_5_0: V0_5_0Config =
-        from_slice(data.as_slice()).map_err(|_| StdError::generic_err("Invalid config"))?;
+        from_json(data.as_slice()).map_err(|_| StdError::generic_err("Invalid config"))?;
 
     let config = Config {
         // This is the change from v0.5.0 to v0.6.0
@@ -156,7 +156,7 @@ fn migrate_from_v0_6_0(deps: &mut DepsMut) -> Result<(), AutocompounderError> {
         .get(CONFIG.as_slice())
         .ok_or_else(|| StdError::generic_err("No config"))?;
     let config_v0_6_0: V0_6_0Config =
-        from_slice(data.as_slice()).map_err(|_| StdError::generic_err("Invalid config"))?;
+        from_json(data.as_slice()).map_err(|_| StdError::generic_err("Invalid config"))?;
 
     let config = Config {
         pool_address: config_v0_6_0.pool_address,
@@ -203,7 +203,7 @@ fn migrate_from_v0_7_config(deps: &mut DepsMut) -> Result<(), AutocompounderErro
         .get(CONFIG.as_slice())
         .ok_or_else(|| StdError::generic_err("No config"))?;
     let config_v0_7: V0_7_0Config =
-        from_slice(data.as_slice()).map_err(|_| StdError::generic_err("Invalid config"))?;
+        from_json(data.as_slice()).map_err(|_| StdError::generic_err("Invalid config"))?;
 
     let config = Config {
         pool_address: config_v0_7.pool_address,
@@ -249,8 +249,8 @@ mod test {
 
     use super::*;
     use cosmwasm_std::testing::mock_env;
-    use cosmwasm_std::to_vec;
     use cosmwasm_std::{testing::mock_dependencies, Addr, Decimal};
+    use cosmwasm_std::{to_json_vec};
     use cw_utils::Expiration;
     use speculoos::assert_that;
     use speculoos::prelude::OptionAssertions;
@@ -274,7 +274,7 @@ mod test {
             max_swap_spread: Decimal::percent(5),
         };
         deps.storage
-            .set(CONFIG.as_slice(), &to_vec(&config).unwrap());
+            .set(CONFIG.as_slice(), &to_json_vec(&config).unwrap());
     }
 
     fn set_v0_6_0_config(deps: DepsMut) {
@@ -294,7 +294,7 @@ mod test {
             max_swap_spread: Decimal::percent(5),
         };
         deps.storage
-            .set(CONFIG.as_slice(), &to_vec(&config).unwrap());
+            .set(CONFIG.as_slice(), &to_json_vec(&config).unwrap());
     }
 
     fn set_v0_7_0_config(deps: DepsMut) {
@@ -314,7 +314,7 @@ mod test {
             max_swap_spread: Decimal::percent(5),
         };
         deps.storage
-            .set(CONFIG.as_slice(), &to_vec(&config).unwrap());
+            .set(CONFIG.as_slice(), &to_json_vec(&config).unwrap());
     }
 
     #[test]

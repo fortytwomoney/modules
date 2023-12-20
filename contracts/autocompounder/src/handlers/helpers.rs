@@ -32,8 +32,8 @@ use cosmwasm_std::Reply;
 use cosmwasm_std::SupplyResponse;
 
 use cosmwasm_std::{
-    to_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, ReplyOn, StdError, SubMsg, Uint128,
-    WasmMsg,
+    to_json_binary, wasm_execute, Addr, CosmosMsg, Decimal, Deps, ReplyOn, StdError, SubMsg,
+    Uint128, WasmMsg,
 };
 use cw20::MinterResponse;
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
@@ -79,7 +79,7 @@ pub fn create_vault_token_submsg(
             msg: WasmMsg::Instantiate {
                 admin: None,
                 code_id,
-                msg: to_binary(&msg)?,
+                msg: to_json_binary(&msg)?,
                 funds: vec![],
                 label: "4T2 Vault Token".to_string(),
             }
@@ -429,7 +429,7 @@ pub mod helpers_tests {
     use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
     use abstract_testing::prelude::{EUR, USD};
     use cosmwasm_std::{
-        from_binary, from_slice,
+        from_json,
         testing::{mock_dependencies, MockApi, MockStorage},
         Empty, OwnedDeps, Querier, SystemResult,
     };
@@ -450,7 +450,7 @@ pub mod helpers_tests {
 
     impl Querier for MockStargateQuerier {
         fn raw_query(&self, bin_request: &[u8]) -> cosmwasm_std::QuerierResult {
-            let request: QueryRequest<Empty> = match from_slice(bin_request) {
+            let request: QueryRequest<Empty> = match from_json(bin_request) {
                 Ok(request) => request,
                 Err(err) => {
                     return SystemResult::Err(cosmwasm_std::SystemError::InvalidRequest {
@@ -475,7 +475,7 @@ pub mod helpers_tests {
                         let mut supply = SupplyResponse::default();
                         supply.amount = coin;
                         SystemResult::Ok(cosmwasm_std::ContractResult::Ok(
-                            to_binary(&supply).unwrap(),
+                            to_json_binary(&supply).unwrap(),
                         ))
                     } else {
                         SystemResult::Err(cosmwasm_std::SystemError::UnsupportedRequest {
@@ -667,7 +667,7 @@ pub mod helpers_tests {
 
         assert_that!(contract_addr).is_equal_to("test_vault_token".to_string());
 
-        assert_that!(from_binary(&msg).unwrap())
+        assert_that!(from_json(&msg).unwrap())
             .is_equal_to(cw20_base::msg::ExecuteMsg::Burn { amount });
     }
 
@@ -712,13 +712,34 @@ pub mod helpers_tests {
                 vec![AssetEntry::new("juno/eur"), AssetEntry::new("juno/usd")],
             )
         }
-        fn eur_usd_pool_long() -> PoolMetadata {
+        fn eur_usd_pool_long_osmosis() -> PoolMetadata {
             PoolMetadata::new(
-                "wyndex",
+                "osmosis",
                 abstract_core::objects::PoolType::ConstantProduct,
                 vec![
                     AssetEntry::new("neutron/eur"),
                     AssetEntry::new("neutron/usd"),
+                ],
+            )
+        }
+        fn verylongasset1_verylongasset2_pool_long_kujira() -> PoolMetadata {
+            PoolMetadata::new(
+                "kujira",
+                abstract_core::objects::PoolType::ConstantProduct,
+                vec![
+                    AssetEntry::new("neutron/verylongasset1"),
+                    AssetEntry::new("neutron/verylongasset2"),
+                ],
+            )
+        }
+
+        fn verylongasset1_verylongasset2_pool_long_wyndex() -> PoolMetadata {
+            PoolMetadata::new(
+                "wyndex",
+                abstract_core::objects::PoolType::ConstantProduct,
+                vec![
+                    AssetEntry::new("neutron/verylongasset1"),
+                    AssetEntry::new("neutron/verylongasset2"),
                 ],
             )
         }
@@ -729,9 +750,26 @@ pub mod helpers_tests {
             let denom = create_subdenom_from_pool_assets(&pool);
             assert_eq!(denom, "VT_4T2/wyndex/juno/eur_juno/usd:constant_product");
 
-            let long_pool = eur_usd_pool_long();
+            // checks whether the denom is truncated to the max length for any dex
+            let long_pool = verylongasset1_verylongasset2_pool_long_wyndex();
             let denom = create_subdenom_from_pool_assets(&long_pool);
-            assert_eq!(denom, "VT_4T2/wyndex/neutron/eur_neutron/usd:constant_pro");
+            assert_eq!(
+                denom,
+                "VT_4T2/wyndex/neutron/verylongasset1_neutron/verylongasset2:cons"
+            );
+
+            // checks whether the denom is truncated to the max length for osmosis (44)
+            let long_pool = eur_usd_pool_long_osmosis();
+            let denom = create_subdenom_from_pool_assets(&long_pool);
+            assert_eq!(denom, "VT_4T2/osmosis/neutron/eur_neutron/usd:const");
+
+            // checks whether the denom is truncated to the max length for kujira (64)
+            let long_pool = verylongasset1_verylongasset2_pool_long_kujira();
+            let denom = create_subdenom_from_pool_assets(&long_pool);
+            assert_eq!(
+                denom,
+                "VT_4T2/kujira/neutron/verylongasset1_neutron/verylongasset2:cons"
+            );
         }
     }
 

@@ -28,7 +28,7 @@ use autocompounder::msg::{
 use common::abstract_helper::{self, init_auto_compounder};
 use common::vault::Vault;
 use common::AResult;
-use cosmwasm_std::{coin, coins, to_binary, Addr, Decimal, Empty, Uint128};
+use cosmwasm_std::{coin, coins, to_json_binary, Addr, Decimal, Empty, Uint128};
 
 use cw_utils::{Duration, Expiration};
 use speculoos::assert_that;
@@ -1496,7 +1496,7 @@ fn vault_token_inflation_attack_original() -> AResult {
     eur_usd_lp.call_as(&attacker).send(
         attacker_donation.into(),
         eur_usd_staking.to_string(),
-        to_binary(&ReceiveDelegationMsg::Delegate {
+        to_json_binary(&ReceiveDelegationMsg::Delegate {
             unbonding_period: unbonding_secs,
             delegate_as: Some(vault.account.proxy.addr_str()?),
         })?,
@@ -1622,7 +1622,7 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
     eur_usd_lp.call_as(&attacker).send(
         attacker_donation.into(),
         eur_usd_staking.to_string(),
-        to_binary(&ReceiveDelegationMsg::Delegate {
+        to_json_binary(&ReceiveDelegationMsg::Delegate {
             unbonding_period: unbonding_secs,
             delegate_as: Some(vault.account.proxy.addr_str()?),
         })?,

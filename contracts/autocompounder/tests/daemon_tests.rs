@@ -1,5 +1,3 @@
-
-
 use autocompounder::kujira_tx::{
     denom_params_path, encode_msg_burn, encode_msg_create_denom, encode_msg_mint,
     encode_query_supply_of, format_tokenfactory_denom, max_subdenom_length_for_chain,
