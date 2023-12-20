@@ -1,7 +1,7 @@
 use autocompounder::kujira_tx::{
     denom_params_path, encode_msg_burn, encode_msg_create_denom, encode_msg_mint,
-    encode_query_supply_of, format_tokenfactory_denom, msg_burn_type_url,
-    msg_create_denom_type_url, msg_mint_type_url, SUPPLY_OF_PATH,
+    encode_query_supply_of, format_tokenfactory_denom, max_subdenom_length_for_chain,
+    msg_burn_type_url, msg_create_denom_type_url, msg_mint_type_url, SUPPLY_OF_PATH,
 };
 use cosmrs::{
     rpc::{Client, HttpClient},
@@ -99,8 +99,12 @@ pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
     println!("decoded response value: {:?}", result);
 }
 
+// this string is 140 characters long and the max for the sdk is 127
+const LONG_TEST_DENOM: &str = "_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789";
+
 #[test_case("harpoon-4", "kujira"; "testing for kujira testnet")]
 #[test_case("osmo-test-5", "osmosis"; "testing for osmosis testnet")]
+
 fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
     // We start by creating a runtime, which is required for a sync daemon.
     let rt = Runtime::new().unwrap();
@@ -122,35 +126,61 @@ fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
     let wallet = daemon.wallet();
 
     // ------- Create Denom -----------
-    let new_subdenom = "4T2TEST2";
-    let factory_denom = format_tokenfactory_denom(daemon.sender().as_str(), new_subdenom);
-
     // let msg = tokenfactory_create_denom_msg(daemon.sender().to_string(), "4T2TEST1".to_string()).unwrap()
-    let create_denom_msg = Any {
-        type_url: msg_create_denom_type_url(chain_name),
-        value: encode_msg_create_denom(daemon.sender().as_str(), new_subdenom, chain_name),
-    };
-    let any_mint_msg = Any {
-        type_url: msg_mint_type_url(chain_name),
-        value: encode_msg_mint(
-            daemon.sender().as_str(),
-            &factory_denom,
-            1_000_000u128.into(),
-            daemon.sender().as_str(),
-        ),
-    };
-    let any_burn_msg = Any {
-        type_url: msg_burn_type_url(chain_name),
-        value: encode_msg_burn(
-            daemon.sender().as_str(),
-            &factory_denom,
-            1_000_000u128.into(),
-        ),
-    };
+    fn create_mint_burn_msgs(
+        sender_str: &str,
+        chain_name: &str,
+        new_subdenom: &str,
+        factory_denom: &str,
+    ) -> Vec<Any> {
+        let create_denom_msg = Any {
+            type_url: msg_create_denom_type_url(chain_name),
+            value: encode_msg_create_denom(sender_str, new_subdenom, chain_name),
+        };
+        let any_mint_msg = Any {
+            type_url: msg_mint_type_url(chain_name),
+            value: encode_msg_mint(sender_str, &factory_denom, 1_000_000u128.into(), sender_str),
+        };
+        let any_burn_msg = Any {
+            type_url: msg_burn_type_url(chain_name),
+            value: encode_msg_burn(sender_str, &factory_denom, 1_000_000u128.into()),
+        };
+
+        vec![create_denom_msg, any_mint_msg, any_burn_msg]
+    }
+
+    // let truncated_subdenom = LONG_TEST_DENOM.to_string().clone();
+    // let factory_denom = format_tokenfactory_denom(daemon.sender().as_str(), &truncated_subdenom.as_str());
+    // let short_denom_test_msgs = create_mint_burn_msgs(daemon.sender().as_str(), chain_name, &truncated_subdenom, &factory_denom);
+    // let tx_response = rt.block_on(simulate_any_msg(
+    //     &wallet,
+    //     short_denom_test_msgs,
+    //     timeout_height,
+    // ));
+
+    // let response = assert_that!(tx_response).is_err().subject;
+    // dbg!(format!(
+    //     "simulated creation, mint, and burn of too long denom {:} failed.
+    //     gas response: {:?}
+    //     factory_denom: {:}",
+    //     truncated_subdenom, response, factory_denom
+    // ));
+
+    let mut truncated_subdenom = LONG_TEST_DENOM.to_string().clone();
+    truncated_subdenom.truncate(max_subdenom_length_for_chain(chain_name));
+    let factory_denom =
+        format_tokenfactory_denom(daemon.sender().as_str(), &truncated_subdenom.as_str());
+
+    let short_denom_test_msgs = create_mint_burn_msgs(
+        daemon.sender().as_str(),
+        chain_name,
+        &truncated_subdenom,
+        &factory_denom,
+    );
 
     let tx_response = rt.block_on(simulate_any_msg(
         &wallet,
-        dbg!(vec![create_denom_msg, any_mint_msg, any_burn_msg]),
+        short_denom_test_msgs,
         timeout_height,
     ));
 
@@ -159,7 +189,7 @@ fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
         "simulated creation, mint, and burn of denom {:} succesful.
         gas response: {:?}
         factory_denom: {:}",
-        new_subdenom, response, factory_denom
+        truncated_subdenom, response, factory_denom
     ));
 }
 

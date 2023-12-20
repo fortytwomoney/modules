@@ -2,7 +2,7 @@ use crate::contract::{FeeCollectorApp, FeeCollectorResult};
 use crate::msg::FeeCollectorQueryMsg;
 use crate::state::{Config, ALLOWED_ASSETS, CONFIG};
 use abstract_core::objects::AssetEntry;
-use cosmwasm_std::{to_binary, Binary, Deps, Env, StdResult};
+use cosmwasm_std::{to_json_binary, Binary, Deps, Env, StdResult};
 
 pub fn query_handler(
     deps: Deps,
@@ -11,8 +11,8 @@ pub fn query_handler(
     msg: FeeCollectorQueryMsg,
 ) -> FeeCollectorResult<Binary> {
     match msg {
-        FeeCollectorQueryMsg::Config {} => to_binary(&query_config(deps)?),
-        FeeCollectorQueryMsg::AllowedAssets {} => to_binary(&query_allowed_assets(deps)?),
+        FeeCollectorQueryMsg::Config {} => to_json_binary(&query_config(deps)?),
+        FeeCollectorQueryMsg::AllowedAssets {} => to_json_binary(&query_allowed_assets(deps)?),
     }
     .map_err(Into::into)
 }

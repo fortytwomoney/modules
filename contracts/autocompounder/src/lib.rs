@@ -36,7 +36,7 @@ mod test_common {
         MockDeps, MockQuerierBuilder,
     };
     pub use cosmwasm_std::testing::*;
-    use cosmwasm_std::{from_binary, to_binary, Addr, Decimal, StdError, Uint128};
+    use cosmwasm_std::{from_json, to_json_binary, Addr, Decimal, StdError, Uint128};
     use cw_asset::AssetInfo;
     use cw_utils::Duration;
     pub use speculoos::prelude::*;
@@ -61,7 +61,7 @@ mod test_common {
         );
         abstract_env
             .builder()
-            .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_binary(msg).unwrap() {
+            .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_json(msg).unwrap() {
                 abstract_core::module_factory::QueryMsg::Context {} => {
                     let resp = ContextResponse {
                         account_base: AccountBase {
@@ -71,12 +71,12 @@ mod test_common {
                         modules: vec![],
                         modules_to_register: vec![],
                     };
-                    Ok(to_binary(&resp).unwrap())
+                    Ok(to_json_binary(&resp).unwrap())
                 }
                 _ => panic!("unexpected message"),
             })
             .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
-                match from_binary(msg).unwrap() {
+                match from_json(msg).unwrap() {
                     abstract_cw_staking::msg::QueryMsg::Module(StakingQueryMsg::Info {
                         provider: _,
                         staking_tokens: _,
@@ -91,7 +91,7 @@ mod test_common {
                                 max_claims: None,
                             }],
                         };
-                        Ok(to_binary(&resp).unwrap())
+                        Ok(to_json_binary(&resp).unwrap())
                     }
                     abstract_cw_staking::msg::QueryMsg::Module(StakingQueryMsg::Staked {
                         provider: _,
@@ -102,30 +102,30 @@ mod test_common {
                         let resp = StakeResponse {
                             amounts: vec![Uint128::new(100)],
                         };
-                        Ok(to_binary(&resp).unwrap())
+                        Ok(to_json_binary(&resp).unwrap())
                     }
                     _ => panic!("unexpected message"),
                 }
             })
-            .with_smart_handler(TEST_DEX, |msg| match from_binary(msg).unwrap() {
+            .with_smart_handler(TEST_DEX, |msg| match from_json(msg).unwrap() {
                 abstract_dex_adapter::msg::QueryMsg::Module(DexQueryMsg::SimulateSwap {
                     offer_asset: _,
                     ask_asset: _,
                     dex: _,
                 }) => {
                     let resp = "hello darkness my old friend";
-                    Ok(to_binary(&resp).unwrap())
+                    Ok(to_json_binary(&resp).unwrap())
                 }
                 _ => panic!("unexpected message"),
             })
-            .with_smart_handler(TEST_VAULT_TOKEN, |msg| match from_binary(msg).unwrap() {
+            .with_smart_handler(TEST_VAULT_TOKEN, |msg| match from_json(msg).unwrap() {
                 cw20::Cw20QueryMsg::Balance { address: _ } => {
-                    Ok(to_binary(&cw20::BalanceResponse {
+                    Ok(to_json_binary(&cw20::BalanceResponse {
                         balance: Uint128::new(1000),
                     })
                     .unwrap())
                 }
-                cw20::Cw20QueryMsg::TokenInfo {} => Ok(to_binary(&cw20::TokenInfoResponse {
+                cw20::Cw20QueryMsg::TokenInfo {} => Ok(to_json_binary(&cw20::TokenInfoResponse {
                     name: "test_vault_token".to_string(),
                     symbol: "test_vault_token".to_string(),
                     decimals: 6,
@@ -135,13 +135,13 @@ mod test_common {
                 _ => panic!("unexpected message"),
             })
             .with_raw_handler(TEST_ANS_HOST, |key| match key {
-                "\0\u{6}assetseur" => Ok(to_binary(&AssetInfo::Native("eur".into())).unwrap()),
-                "\0\u{6}assetsusd" => Ok(to_binary(&AssetInfo::Native("usd".into())).unwrap()),
+                "\0\u{6}assetseur" => Ok(to_json_binary(&AssetInfo::Native("eur".into())).unwrap()),
+                "\0\u{6}assetsusd" => Ok(to_json_binary(&AssetInfo::Native("usd".into())).unwrap()),
                 "\0\u{6}assetswyndex/eur,usd" => {
-                    Ok(to_binary(&AssetInfo::cw20(Addr::unchecked("usd_eur_lp"))).unwrap())
+                    Ok(to_json_binary(&AssetInfo::cw20(Addr::unchecked("usd_eur_lp"))).unwrap())
                 }
                 "\0\tcontracts\0\twyndexstaking/wyndex/eur,usd" => {
-                    Ok(to_binary(&Addr::unchecked("staking_addr")).unwrap())
+                    Ok(to_json_binary(&Addr::unchecked("staking_addr")).unwrap())
                 }
                 "\0\u{8}pool_ids\0\u{3}eur\0\u{4}wyndwyndex" => {
                     Err(StdError::generic_err("").to_string())
@@ -153,7 +153,7 @@ mod test_common {
                     Err(StdError::generic_err("").to_string())
                 }
                 "\0\u{8}pool_ids\0\u{3}eur\0\u{4}junowyndex" => {
-                    Ok(to_binary(&vec![PoolReference {
+                    Ok(to_json_binary(&vec![PoolReference {
                         unique_id: 0.into(),
                         pool_address: abstract_core::objects::pool_id::PoolAddressBase::Contract(
                             Addr::unchecked(TEST_POOL_ADDR),
@@ -162,7 +162,7 @@ mod test_common {
                     .unwrap())
                 }
                 "\0\u{8}pool_ids\0\u{4}juno\0\u{4}wyndwyndex" => {
-                    Ok(to_binary(&vec![PoolReference {
+                    Ok(to_json_binary(&vec![PoolReference {
                         unique_id: 0.into(),
                         pool_address: abstract_core::objects::pool_id::PoolAddressBase::Contract(
                             Addr::unchecked(TEST_POOL_ADDR),
@@ -171,7 +171,7 @@ mod test_common {
                     .unwrap())
                 }
                 "\0\u{8}pool_ids\0\u{3}eur\0\u{3}usdwyndex" => {
-                    Ok(to_binary(&vec![PoolReference {
+                    Ok(to_json_binary(&vec![PoolReference {
                         unique_id: 0.into(),
                         pool_address: abstract_core::objects::pool_id::PoolAddressBase::Contract(
                             Addr::unchecked(TEST_POOL_ADDR),
@@ -179,7 +179,7 @@ mod test_common {
                     }])
                     .unwrap())
                 }
-                "\0\u{5}pools\0\0\0\0\0\0\0\0" => Ok(to_binary(&PoolMetadata::new(
+                "\0\u{5}pools\0\0\0\0\0\0\0\0" => Ok(to_json_binary(&PoolMetadata::new(
                     WYNDEX,
                     abstract_core::objects::PoolType::ConstantProduct,
                     vec!["usd", "eur"],
@@ -191,7 +191,7 @@ mod test_common {
                 }
             })
             // .with_raw_handler(TEST_PROXY, |key| match key {
-            //     "admin" => Ok(to_binary(&Some(Addr::unchecked(TEST_MANAGER))).unwrap()),
+            //     "admin" => Ok(to_json_binary(&Some(Addr::unchecked(TEST_MANAGER))).unwrap()),
             //     _ => panic!("unexpected raw key"),
             // })
             .with_contract_map_entry(
@@ -218,7 +218,7 @@ mod test_common {
         );
         abstract_env
             .builder()
-            .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_binary(msg).unwrap() {
+            .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_json(msg).unwrap() {
                 abstract_core::module_factory::QueryMsg::Context {} => {
                     let resp = ContextResponse {
                         account_base: AccountBase {
@@ -228,12 +228,12 @@ mod test_common {
                         modules_to_register: vec![],
                         modules: vec![],
                     };
-                    Ok(to_binary(&resp).unwrap())
+                    Ok(to_json_binary(&resp).unwrap())
                 }
                 _ => panic!("unexpected message"),
             })
             .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
-                match from_binary(msg).unwrap() {
+                match from_json(msg).unwrap() {
                     abstract_cw_staking::msg::QueryMsg::Module(StakingQueryMsg::Info {
                         provider: _,
                         staking_tokens: _,
@@ -251,35 +251,39 @@ mod test_common {
                                 max_claims: Some(MAX_CLAIMS_PER_ADDRESS),
                             }],
                         };
-                        Ok(to_binary(&resp).unwrap())
+                        Ok(to_json_binary(&resp).unwrap())
                     }
                     _ => panic!("unexpected message"),
                 }
             })
-            .with_smart_handler(TEST_DEX, |msg| match from_binary(msg).unwrap() {
+            .with_smart_handler(TEST_DEX, |msg| match from_json(msg).unwrap() {
                 abstract_dex_adapter::msg::QueryMsg::Module(DexQueryMsg::SimulateSwap {
                     offer_asset: _,
                     ask_asset: _,
                     dex: _,
                 }) => {
                     let resp = "hello darkness my old friend";
-                    Ok(to_binary(&resp).unwrap())
+                    Ok(to_json_binary(&resp).unwrap())
                 }
                 _ => panic!("unexpected message"),
             })
             .with_raw_handler(TEST_ANS_HOST, |key| match key {
-                "\0\u{6}assetseur" => Ok(to_binary(&AssetInfo::Native("eur".into())).unwrap()),
-                "\0\nrev_assets\0\u{7}native:eur" => Ok(to_binary(&"eur".to_string()).unwrap()),
-                "\0\nrev_assets\0\u{7}native:juno" => Ok(to_binary(&"juno".to_string()).unwrap()),
-                "\0\u{6}assetsusd" => Ok(to_binary(&AssetInfo::Native("usd".into())).unwrap()),
+                "\0\u{6}assetseur" => Ok(to_json_binary(&AssetInfo::Native("eur".into())).unwrap()),
+                "\0\nrev_assets\0\u{7}native:eur" => {
+                    Ok(to_json_binary(&"eur".to_string()).unwrap())
+                }
+                "\0\nrev_assets\0\u{7}native:juno" => {
+                    Ok(to_json_binary(&"juno".to_string()).unwrap())
+                }
+                "\0\u{6}assetsusd" => Ok(to_json_binary(&AssetInfo::Native("usd".into())).unwrap()),
                 "\0\u{6}assetswyndex/eur,usd" => {
-                    Ok(to_binary(&AssetInfo::cw20(Addr::unchecked("usd_eur_lp"))).unwrap())
+                    Ok(to_json_binary(&AssetInfo::cw20(Addr::unchecked("usd_eur_lp"))).unwrap())
                 }
                 "\0\tcontracts\0\twyndexstaking/wyndex/eur,usd" => {
-                    Ok(to_binary(&Addr::unchecked("staking_addr")).unwrap())
+                    Ok(to_json_binary(&Addr::unchecked("staking_addr")).unwrap())
                 }
                 "\0\u{8}pool_ids\0\u{3}eur\0\u{3}usdwyndex" => {
-                    Ok(to_binary(&vec![PoolReference {
+                    Ok(to_json_binary(&vec![PoolReference {
                         unique_id: 0.into(),
                         pool_address: abstract_core::objects::pool_id::PoolAddressBase::Contract(
                             Addr::unchecked(TEST_POOL_ADDR),
@@ -287,7 +291,7 @@ mod test_common {
                     }])
                     .unwrap())
                 }
-                "\0\u{5}pools\0\0\0\0\0\0\0\0" => Ok(to_binary(&PoolMetadata::new(
+                "\0\u{5}pools\0\0\0\0\0\0\0\0" => Ok(to_json_binary(&PoolMetadata::new(
                     WYNDEX,
                     abstract_core::objects::PoolType::ConstantProduct,
                     vec!["usd", "eur"],

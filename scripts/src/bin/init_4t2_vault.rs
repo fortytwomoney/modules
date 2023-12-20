@@ -66,7 +66,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     info!("Using dex: {} and base: {}", dex, base_pair_asset);
 
     // Setup the environment
-    let network: ChainInfo;
     pub const OSMOSIS_1: ChainInfo = ChainInfo {
         kind: ChainKind::Mainnet,
         chain_id: "osmosis-1",
@@ -78,11 +77,11 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         fcd_url: None,
     };
 
-    if &args.network_id == "osmosis-1" {
-        network = OSMOSIS_1;
+    let network: ChainInfo = if &args.network_id == "osmosis-1" {
+        OSMOSIS_1
     } else {
-        network = parse_network(&args.network_id);
-    }
+        parse_network(&args.network_id)
+    };
 
     let chain = DaemonBuilder::default()
         .handle(rt.handle())

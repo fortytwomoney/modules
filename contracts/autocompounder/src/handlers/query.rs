@@ -5,7 +5,7 @@ use crate::state::{
 };
 use abstract_sdk::features::AccountIdentification;
 use abstract_sdk::AdapterInterface;
-use cosmwasm_std::{to_binary, Addr, Binary, Deps, Env, Order, StdResult, Uint128};
+use cosmwasm_std::{to_json_binary, Addr, Binary, Deps, Env, Order, StdResult, Uint128};
 
 use crate::msg::AutocompounderQueryMsg;
 use abstract_cw_staking::{msg::StakingQueryMsg, CW_STAKING};
@@ -26,31 +26,33 @@ pub fn query_handler(
     msg: AutocompounderQueryMsg,
 ) -> AutocompounderResult<Binary> {
     match msg {
-        AutocompounderQueryMsg::Config {} => Ok(to_binary(&query_config(deps)?)?),
-        AutocompounderQueryMsg::FeeConfig {} => Ok(to_binary(&query_fee_config(deps)?)?),
+        AutocompounderQueryMsg::Config {} => Ok(to_json_binary(&query_config(deps)?)?),
+        AutocompounderQueryMsg::FeeConfig {} => Ok(to_json_binary(&query_fee_config(deps)?)?),
         AutocompounderQueryMsg::PendingClaims { address } => {
-            Ok(to_binary(&query_pending_claims(deps, address)?)?)
+            Ok(to_json_binary(&query_pending_claims(deps, address)?)?)
         }
-        AutocompounderQueryMsg::AllPendingClaims { start_after, limit } => Ok(to_binary(
+        AutocompounderQueryMsg::AllPendingClaims { start_after, limit } => Ok(to_json_binary(
             &query_all_pending_claims(deps, start_after, limit)?,
         )?),
-        AutocompounderQueryMsg::Claims { address } => Ok(to_binary(&query_claims(deps, address)?)?),
-        AutocompounderQueryMsg::AllClaims { start_after, limit } => {
-            Ok(to_binary(&query_all_claims(deps, start_after, limit)?)?)
+        AutocompounderQueryMsg::Claims { address } => {
+            Ok(to_json_binary(&query_claims(deps, address)?)?)
         }
+        AutocompounderQueryMsg::AllClaims { start_after, limit } => Ok(to_json_binary(
+            &query_all_claims(deps, start_after, limit)?,
+        )?),
         AutocompounderQueryMsg::LatestUnbonding {} => {
-            Ok(to_binary(&query_latest_unbonding(deps)?)?)
+            Ok(to_json_binary(&query_latest_unbonding(deps)?)?)
         }
         AutocompounderQueryMsg::TotalLpPosition {} => {
-            Ok(to_binary(&query_total_lp_position(app, deps)?)?)
+            Ok(to_json_binary(&query_total_lp_position(app, deps)?)?)
         }
         AutocompounderQueryMsg::Balance { address } => {
-            Ok(to_binary(&query_balance(deps, address)?)?)
+            Ok(to_json_binary(&query_balance(deps, address)?)?)
         }
-        AutocompounderQueryMsg::TotalSupply {} => Ok(to_binary(&query_total_supply(deps)?)?),
-        AutocompounderQueryMsg::AssetsPerShares { shares } => {
-            Ok(to_binary(&query_assets_per_shares(app, deps, shares)?)?)
-        }
+        AutocompounderQueryMsg::TotalSupply {} => Ok(to_json_binary(&query_total_supply(deps)?)?),
+        AutocompounderQueryMsg::AssetsPerShares { shares } => Ok(to_json_binary(
+            &query_assets_per_shares(app, deps, shares)?,
+        )?),
     }
 }
 
