@@ -105,18 +105,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         None
     };
 
-    // // This might be still useful at some point for instantiation fees
-    // let update = abstr.version_control.update_module_configuration(
-    //     AUTOCOMPOUNDER.to_string(),
-    //     Namespace::new("4t2")?,
-    //     abstract_core::version_control::UpdateModule::Versioned {
-    //         version: MODULE_VERSION.to_string(),
-    //         metadata: None,
-    //         monetization: None,
-    //         instantiation_funds: instantiation_funds.clone(),
-    //     },
-    // )?;
-
     // info!("Updated module: {:?}", update);
 
     let mut vault_pair_assets = vec![args.paired_asset.clone(), args.other_asset.clone()];
@@ -307,6 +295,9 @@ struct Arguments {
     /// Optional max claims per address
     #[arg(long)]
     max_claims_per_address: Option<u32>,
+    /// Force creating a new vault instead of loading an existing one
+    #[arg(long)]
+    force_new: bool,
 }
 
 fn main() {

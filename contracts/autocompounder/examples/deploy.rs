@@ -1,4 +1,4 @@
-use abstract_interface::Abstract;
+use abstract_interface::{Abstract, AppDeployer};
 use cw_orch::daemon::networks::osmosis::OSMO_NETWORK;
 use cw_orch::daemon::{ChainInfo, ChainKind};
 
@@ -28,15 +28,19 @@ fn deploy_autocompounder(
 
     let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER_ID, chain);
 
-    // autocompounder.deploy(version)?;
-    autocompounder.upload()?;
+    autocompounder.deploy(version)?;
 
-    // autocompounder.set_code_id(5039);
-
-    let abstr = Abstract::<Daemon>::load_from(autocompounder.get_chain().to_owned())?;
-    abstr
-        .version_control
-        .register_apps(vec![(autocompounder.as_instance(), version.to_string())])?;
+    // // This might be still useful at some point for instantiation fees
+    // let update = abstr.version_control.update_module_configuration(
+    //     AUTOCOMPOUNDER.to_string(),
+    //     Namespace::new("4t2")?,
+    //     abstract_core::version_control::UpdateModule::Versioned {
+    //         version: MODULE_VERSION.to_string(),
+    //         metadata: None,
+    //         monetization: None,
+    //         instantiation_funds: instantiation_funds.clone(),
+    //     },
+    // )?;
 
     Ok(())
 }
