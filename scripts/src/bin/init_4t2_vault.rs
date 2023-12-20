@@ -164,21 +164,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         module: autocompounder_mod_init_msg,
     };
 
-    // TODO: update this code with 0.20 version includes payable attribute
-    // let result = parent_account.manager.create_sub_account(
-    //     vec![
-    //         // installs both abstract dex and staking in the instantiation of the account
-    //         ModuleInstallConfig::new(ModuleInfo::from_id_latest(EXCHANGE)?, None),
-    //         ModuleInstallConfig::new(ModuleInfo::from_id_latest(CW_STAKING)?, None),
-    //         ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER_ID)?, Some(to_binary(autocompounder_instantiate_msg)?)),
-    //     ],
-    //     format!("4t2 Vault ({})", vault_pair_assets.join("|").replace('>', ":")),
-    //     Some(base_pair_asset.into()),
-    //     Some(description(vault_pair_assets.join("|").replace('>', ":"))),
-    //     None,
-    //     None,
-    // )?;
-
     let result = parent_account.manager.execute(&manager::ExecuteMsg::CreateSubAccount {
         name: vault_name,
         description: Some(description(human_readable_assets)),
