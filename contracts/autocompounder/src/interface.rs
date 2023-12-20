@@ -70,33 +70,31 @@ pub struct Vault<Chain: CwEnv> {
 }
 
 impl<Chain: CwEnv> Vault<Chain> {
-    pub fn new(abstract_: &Abstract<Chain>, account_id: Option<AccountId>) -> anyhow::Result<Self> {
+    pub fn new(abstract_: &Abstract<Chain>, account_id: AccountId) -> anyhow::Result<Self> {
         let chain = abstract_.ans_host.get_chain();
-        let account = AbstractAccount::new(abstract_, account_id.clone());
+        let account = AbstractAccount::new(abstract_, Some(account_id.clone()));
         let staking = CwStakingAdapter::new(CW_STAKING, chain.clone());
         let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER_ID, chain.clone());
 
-        if account_id.is_some() {
-            if account.manager.is_module_installed(CW_STAKING)? {
-                let cw_staking_address = account
-                    .manager
-                    .module_info(CW_STAKING)?
-                    .ok_or(anyhow::anyhow!("No cw-staking module"))?
-                    .address;
-                staking.set_address(&cw_staking_address);
-            } else {
-                return Err(anyhow::anyhow!("No cw-staking module"));
-            }
-            if account.manager.is_module_installed(AUTOCOMPOUNDER_ID)? {
-                let autocompounder_address = account
-                    .manager
-                    .module_info(AUTOCOMPOUNDER)?
-                    .ok_or(anyhow::anyhow!("No autocompounder module"))?
-                    .address;
-                autocompounder.set_address(&autocompounder_address);
-            } else {
-                return Err(anyhow::anyhow!("No autocompounder module"));
-            }
+        if account.manager.is_module_installed(CW_STAKING)? {
+            let cw_staking_address = account
+                .manager
+                .module_info(CW_STAKING)?
+                .ok_or(anyhow::anyhow!("No cw-staking module"))?
+                .address;
+            staking.set_address(&cw_staking_address);
+        } else {
+            return Err(anyhow::anyhow!("No cw-staking module"));
+        }
+        if account.manager.is_module_installed(AUTOCOMPOUNDER_ID)? {
+            let autocompounder_address = account
+                .manager
+                .module_info(AUTOCOMPOUNDER)?
+                .ok_or(anyhow::anyhow!("No autocompounder module"))?
+                .address;
+            autocompounder.set_address(&autocompounder_address);
+        } else {
+            return Err(anyhow::anyhow!("No autocompounder module"));
         }
 
         Ok(Self {

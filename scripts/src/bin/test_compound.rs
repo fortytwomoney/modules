@@ -45,7 +45,7 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
 
     let abstr = Abstract::load_from(chain)?;
 
-    let mut vault: Vault<_> = Vault::new(&abstr, Some(AccountId::local(args.vault_id)))?;
+    let mut vault: Vault<_> = Vault::new(&abstr, AccountId::local(args.vault_id))?;
 
     // Update the modules in the vault
     vault.update()?;

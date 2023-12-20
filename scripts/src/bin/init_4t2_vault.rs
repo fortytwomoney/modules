@@ -213,7 +213,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         to_remove: vec![],
     })?;
 
-    let new_vault = Vault::new(&abstr, Some(AccountId::local(new_vault_account_id)))?;
+    let new_vault = Vault::new(&abstr, AccountId::local(new_vault_account_id))?;
     let installed_modules = new_account.manager.module_infos(None, None)?;
     let vault_config = new_vault.autocompounder.config()?;
 
