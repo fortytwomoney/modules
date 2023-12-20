@@ -90,7 +90,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let sender = chain.sender();
 
     let abstr = Abstract::load_from(chain.clone())?;
-    let main_account = get_main_account(main_account_id, &abstr, &sender)?;
+    let main_account = get_main_account(main_account_id, &abstr, &sender, base_pair_asset)?;
 
     let instantiation_funds: Option<Vec<Coin>> = if let Some(creation_fee) = token_creation_fee {
         let bank = Bank::new(chain.channel());
@@ -167,7 +167,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     };
 
     let manager_create_sub_account_msg = ExecuteMsg::CreateSubAccount {
-        base_asset: None,
+        base_asset: Some(base_pair_asset.into()),
         namespace: None,
         description: Some(description(pair_assets.join("|").replace('>', ":"))),
         link: None,
@@ -240,6 +240,7 @@ fn get_main_account(
     main_account_id: Option<u32>,
     abstr: &Abstract<Daemon>,
     sender: &Addr,
+    base_asset: &str,
 ) -> Result<AbstractAccount<Daemon>, anyhow::Error> {
     let main_account = if let Some(account_id) = main_account_id {
         AbstractAccount::new(abstr, Some(AccountId::local(account_id)))
@@ -250,7 +251,7 @@ fn get_main_account(
                 description: Some("manager of 4t2 smartcontracts".to_string()),
                 link: None,
                 namespace: Some("4t2".to_string()),
-                base_asset: None,
+                base_asset: Some(base_asset.into()),
                 install_modules: vec![],
             },
             GovernanceDetails::Monarchy {

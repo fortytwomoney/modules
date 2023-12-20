@@ -84,6 +84,8 @@ impl<Chain: CwEnv> Vault<Chain> {
                     .ok_or(anyhow::anyhow!("No cw-staking module"))?
                     .address;
                 staking.set_address(&cw_staking_address);
+            } else {
+                return Err(anyhow::anyhow!("No cw-staking module"));
             }
             if account.manager.is_module_installed(AUTOCOMPOUNDER_ID)? {
                 let autocompounder_address = account
@@ -92,6 +94,8 @@ impl<Chain: CwEnv> Vault<Chain> {
                     .ok_or(anyhow::anyhow!("No autocompounder module"))?
                     .address;
                 autocompounder.set_address(&autocompounder_address);
+            } else {
+                return Err(anyhow::anyhow!("No autocompounder module"));
             }
         }
 
