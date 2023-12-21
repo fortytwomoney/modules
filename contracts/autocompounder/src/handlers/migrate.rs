@@ -1,7 +1,7 @@
 use crate::contract::{AutocompounderApp, AutocompounderResult, MODULE_VERSION};
 use crate::error::AutocompounderError;
 use crate::msg::AutocompounderMigrateMsg;
-use crate::state::{Claim, Config, CLAIMS, CONFIG, PENDING_CLAIMS, VAULT_TOKEN_IS_INITIALIZED};
+use crate::state::{Claim, Config, CLAIMS, CONFIG, PENDING_CLAIMS};
 use abstract_core::objects::{PoolAddress, PoolMetadata};
 use abstract_cw_staking::msg::StakingTarget;
 use cosmwasm_std::{from_json, Addr, Decimal, DepsMut, Env, Response, StdError, Uint128};
@@ -23,7 +23,6 @@ pub fn migrate_handler(
             migrate_from_v0_5_0(&mut deps)?;
             migrate_from_v0_7_claims(&mut deps)?;
             migrate_from_v0_7_pending_claims(&mut deps)?;
-            VAULT_TOKEN_IS_INITIALIZED.save(deps.storage, &true)?;
             Ok(Response::default()
                 .add_attribute("migration", format!("v0.5.0 -> ${}", CURRENT_VERSION)))
         }
@@ -31,7 +30,6 @@ pub fn migrate_handler(
             migrate_from_v0_6_0(&mut deps)?;
             migrate_from_v0_7_claims(&mut deps)?;
             migrate_from_v0_7_pending_claims(&mut deps)?;
-            VAULT_TOKEN_IS_INITIALIZED.save(deps.storage, &true)?;
             Ok(Response::default()
                 .add_attribute("migration", format!("v0.6.0 -> ${}", CURRENT_VERSION)))
         }
@@ -39,15 +37,11 @@ pub fn migrate_handler(
             migrate_from_v0_7_config(&mut deps)?;
             migrate_from_v0_7_claims(&mut deps)?;
             migrate_from_v0_7_pending_claims(&mut deps)?;
-            VAULT_TOKEN_IS_INITIALIZED.save(deps.storage, &true)?;
             Ok(Response::default()
                 .add_attribute("migration", format!("v0.7.- -> ${}", CURRENT_VERSION)))
         }
-        "0.8.0" => {
-            VAULT_TOKEN_IS_INITIALIZED.save(deps.storage, &true)?;
-            Ok(Response::default()
-                .add_attribute("migration", format!("v0.8.0 -> ${}", CURRENT_VERSION)))
-        }
+        "0.8.0" => Ok(Response::default()
+            .add_attribute("migration", format!("v0.8.0 -> ${}", CURRENT_VERSION))),
         _ => Err(crate::error::AutocompounderError::Std(
             StdError::generic_err("version migration not supported"),
         )),
@@ -249,8 +243,8 @@ mod test {
 
     use super::*;
     use cosmwasm_std::testing::mock_env;
+    use cosmwasm_std::to_json_vec;
     use cosmwasm_std::{testing::mock_dependencies, Addr, Decimal};
-    use cosmwasm_std::{to_json_vec};
     use cw_utils::Expiration;
     use speculoos::assert_that;
     use speculoos::prelude::OptionAssertions;

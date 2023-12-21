@@ -14,7 +14,7 @@ pub mod kujira_tx;
 
 #[cfg(test)]
 mod test_common {
-    use crate::{msg::BondingData, state::VAULT_TOKEN_IS_INITIALIZED};
+    use crate::msg::BondingData;
 
     use abstract_cw_staking::msg::{
         StakeResponse, StakingInfo, StakingInfoResponse, StakingQueryMsg, StakingTarget,
@@ -358,11 +358,6 @@ mod test_common {
             )
             .unwrap();
 
-        if vault_token_is_cw20 {
-            VAULT_TOKEN_IS_INITIALIZED
-                .save(deps.as_mut().storage, &true)
-                .unwrap();
-        }
         deps
     }
 }

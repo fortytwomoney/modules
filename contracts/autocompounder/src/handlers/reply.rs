@@ -8,10 +8,7 @@ use crate::contract::{
 };
 use crate::error::AutocompounderError;
 
-use crate::state::{
-    Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG,
-    VAULT_TOKEN_IS_INITIALIZED,
-};
+use crate::state::{Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
 use abstract_core::objects::{AnsEntryConvertor, AssetEntry};
 use abstract_cw_staking::{
     msg::{RewardTokensResponse, StakingQueryMsg},
@@ -55,7 +52,6 @@ pub fn instantiate_reply(
         }));
         // CONFIG.load(deps.storage)?.vault_token
     };
-    VAULT_TOKEN_IS_INITIALIZED.save(deps.storage, &true)?;
 
     Ok(app.custom_tag_response(
         Response::new(),
