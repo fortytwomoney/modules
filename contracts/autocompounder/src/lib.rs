@@ -135,6 +135,12 @@ mod test_common {
                 _ => panic!("unexpected message"),
             })
             .with_raw_handler(TEST_ANS_HOST, |key| match key {
+                "\0\u{6}assetseur_usd_lp" => {
+                    Ok(to_json_binary(&AssetInfo::cw20(Addr::unchecked("eur_usd_lp"))).unwrap())
+                }
+                "\0\u{6}assetsnoteur_usd_lp" => {
+                    Ok(to_json_binary(&AssetInfo::cw20(Addr::unchecked("noteur_usd_lp"))).unwrap())
+                }
                 "\0\u{6}assetseur" => Ok(to_json_binary(&AssetInfo::Native("eur".into())).unwrap()),
                 "\0\u{6}assetsusd" => Ok(to_json_binary(&AssetInfo::Native("usd".into())).unwrap()),
                 "\0\u{6}assetswyndex/eur,usd" => {

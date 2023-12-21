@@ -1,4 +1,5 @@
 use super::convert_to_shares;
+
 use super::helpers::{
     burn_vault_tokens_msg, check_fee, convert_to_assets, get_unbonding_period_and_cooldown,
     mint_vault_tokens_msg, query_stake, stake_lp_tokens, transfer_to_msgs,
@@ -85,7 +86,7 @@ pub fn execute_handler(
         AutocompounderExecuteMsg::Compound {} => compound(deps, app),
         AutocompounderExecuteMsg::UpdateStakingConfig { bonding_data } => {
             update_staking_config(deps, app, info, bonding_data)
-        } // AutocompounderExecuteMsg::CreateDenom {} => create_denom(deps, app, info, &env),
+        }
     }
 }
 
@@ -1695,6 +1696,43 @@ mod test {
 
         #[test]
         fn deposit_recipient() -> anyhow::Result<()> {
+            let mut app = app_init(false, true);
+            let config = min_cooldown_config(None, false);
+            let fee_config = FeeConfig {
+                deposit: Decimal::percent(10),
+                performance: Decimal::percent(10),
+                withdrawal: Decimal::percent(10),
+                fee_collector_addr: Addr::unchecked("fee_collector"),
+            };
+            CONFIG.save(&mut app.storage, &config)?;
+            FEE_CONFIG.save(&mut app.storage, &fee_config)?;
+
+            // this is just to make the rest of the
+            let info = mock_info("sender", &[]);
+            let lp_asset = AnsAsset::new("eur_usd_lp", Uint128::new(100));
+            let not_lp_asset = AnsAsset::new("noteur_usd_lp", Uint128::new(100));
+
+            // this positive test case is not persee needed, but it's here as a sanity check
+            assert_that!(deposit_lp(
+                app.as_mut(),
+                info.clone(),
+                mock_env(),
+                AUTOCOMPOUNDER_APP,
+                lp_asset.clone(),
+                None
+            ))
+            .is_ok();
+
+            assert_that!(deposit_lp(
+                app.as_mut(),
+                info,
+                mock_env(),
+                AUTOCOMPOUNDER_APP,
+                not_lp_asset,
+                None
+            ))
+            .is_err()
+            .matches(|e| matches!(e, AutocompounderError::SenderIsNotLpToken {}));
             Ok(())
         }
 

@@ -422,7 +422,7 @@ pub mod helpers_tests {
     use crate::{
         contract::AUTOCOMPOUNDER_APP,
         kujira_tx::format_tokenfactory_denom,
-        test_common::{app_base_mock_querier, app_init},
+        test_common::{app_base_mock_querier, app_init, TEST_VAULT_TOKEN},
     };
 
     use super::*;
@@ -517,9 +517,9 @@ pub mod helpers_tests {
             pool_assets: vec![],
             liquidity_token: AssetInfoBase::Cw20(Addr::unchecked("eur_usd_lp")),
             vault_token: if vt_is_native {
-                AssetInfoBase::Native("test_vault_token".to_string())
+                AssetInfoBase::Native(TEST_VAULT_TOKEN.to_string())
             } else {
-                AssetInfoBase::Cw20(Addr::unchecked("test_vault_token"))
+                AssetInfoBase::Cw20(Addr::unchecked(TEST_VAULT_TOKEN))
             },
             unbonding_period: Some(Duration::Time(100)),
             min_unbonding_cooldown,
