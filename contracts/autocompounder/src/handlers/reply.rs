@@ -8,10 +8,7 @@ use crate::contract::{
 };
 use crate::error::AutocompounderError;
 
-use crate::state::{
-    Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG,
-    VAULT_TOKEN_IS_INITIALIZED,
-};
+use crate::state::{Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
 use abstract_core::objects::{AnsEntryConvertor, AssetEntry};
 use abstract_cw_staking::{
     msg::{RewardTokensResponse, StakingQueryMsg},
@@ -40,7 +37,7 @@ pub fn instantiate_reply(
     reply: Reply,
 ) -> AutocompounderResult {
     // Logic to execute on example reply
-    let vault_token = if let Some(vault_token) = parse_instantiate_reply_cw20(reply)? {
+    let vault_token = if let Ok(Some(vault_token)) = parse_instantiate_reply_cw20(reply) {
         // @improvement: ideally we'd also parse the Reply in case of native token, however i dont know how currently. so we store if beforehand.
 
         CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
@@ -55,7 +52,6 @@ pub fn instantiate_reply(
         }));
         // CONFIG.load(deps.storage)?.vault_token
     };
-    VAULT_TOKEN_IS_INITIALIZED.save(deps.storage, &true)?;
 
     Ok(app.custom_tag_response(
         Response::new(),
@@ -421,6 +417,24 @@ mod test {
                     data: None,
                 }),
             }
+        }
+
+        #[test]
+        fn instantiate_with_invalid_reply() -> anyhow::Result<()> {
+            let mut deps = app_init(false, true); // Assuming you have this helper function already set up.
+            let config = min_cooldown_config(None, false); // Using the same config helper as before.
+            CONFIG.save(deps.as_mut().storage, &config)?; // Saving the config to the storage.
+            let env = mock_env(); // Using the same mock_env helper as before.
+
+            let res = instantiate_reply(deps.as_mut(), env, AUTOCOMPOUNDER_APP, empty_reply());
+            assert_that!(res).is_err();
+            assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(
+                StdError::ParseErr {
+                    target_type: "MsgInstantiateContractResponse".to_string(),
+                    msg: "instantiate reply couldnt be parsed to target".to_string(),
+                },
+            ));
+            Ok(())
         }
 
         #[test]

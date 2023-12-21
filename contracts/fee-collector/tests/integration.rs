@@ -7,7 +7,7 @@ use abstract_core::objects::AssetEntry;
 use abstract_dex_adapter::msg::DexInstantiateMsg;
 use abstract_dex_adapter::{interface::DexAdapter, EXCHANGE};
 use abstract_interface::{
-    Abstract, AbstractAccount, AbstractInterfaceError, AccountDetails, ManagerQueryFns, 
+    Abstract, AbstractAccount, AbstractInterfaceError, AccountDetails, ManagerQueryFns,
 };
 use abstract_sdk::core::adapter::InstantiateMsg;
 use abstract_testing::prelude::{EUR, TEST_VERSION_CONTROL, USD};

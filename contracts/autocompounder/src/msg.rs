@@ -115,8 +115,6 @@ pub enum AutocompounderExecuteMsg {
     UpdateStakingConfig {
         bonding_data: Option<BondingData>,
     },
-    #[cfg_attr(feature = "interface", payable)]
-    CreateDenom {},
 }
 
 #[cosmwasm_schema::cw_serde]

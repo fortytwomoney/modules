@@ -3,9 +3,7 @@ use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::kujira_tx::format_tokenfactory_denom;
 use crate::msg::{AutocompounderInstantiateMsg, FeeConfig, AUTOCOMPOUNDER};
-use crate::state::{
-    Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_IS_INITIALIZED, VAULT_TOKEN_SYMBOL,
-};
+use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_SYMBOL};
 use abstract_sdk::{
     core::objects::{DexAssetPairing, LpToken, PoolReference},
     features::AbstractNameService,
@@ -104,7 +102,6 @@ pub fn instantiate_handler(
     };
 
     CONFIG.save(deps.storage, &config)?;
-    VAULT_TOKEN_IS_INITIALIZED.save(deps.storage, &false)?;
 
     let fee_config = FeeConfig {
         performance: performance_fees,

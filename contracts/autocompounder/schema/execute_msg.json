@@ -307,27 +307,18 @@
           "properties": {
             "update_staking_config": {
               "type": "object",
-              "required": [
-                "preferred_bonding_period"
-              ],
               "properties": {
-                "preferred_bonding_period": {
-                  "$ref": "#/definitions/BondingPeriodSelector"
+                "bonding_data": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/BondingData"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               },
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "create_denom"
-          ],
-          "properties": {
-            "create_denom": {
-              "type": "object",
               "additionalProperties": false
             }
           },
@@ -371,28 +362,25 @@
       "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
       "type": "string"
     },
-    "BondingPeriodSelector": {
-      "oneOf": [
-        {
-          "type": "string",
-          "enum": [
-            "shortest",
-            "longest"
-          ]
-        },
-        {
-          "type": "object",
-          "required": [
-            "custom"
+    "BondingData": {
+      "type": "object",
+      "required": [
+        "unbonding_period"
+      ],
+      "properties": {
+        "max_claims_per_address": {
+          "type": [
+            "integer",
+            "null"
           ],
-          "properties": {
-            "custom": {
-              "$ref": "#/definitions/Duration"
-            }
-          },
-          "additionalProperties": false
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "unbonding_period": {
+          "$ref": "#/definitions/Duration"
         }
-      ]
+      },
+      "additionalProperties": false
     },
     "Cw20ReceiveMsg": {
       "description": "Cw20ReceiveMsg should be de/serialized under `Receive()` variant in a ExecuteMsg",
