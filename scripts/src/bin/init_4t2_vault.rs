@@ -8,22 +8,26 @@ use cw_orch::prelude::queriers::{Bank, DaemonQuerier};
 use cw_orch::prelude::*;
 use std::env;
 
-use abstract_core::{app, manager, manager::ExecuteMsg, objects::gov_type::GovernanceDetails, objects::module::ModuleInfo, proxy, PROXY, registry::ANS_HOST};
+use abstract_core::objects::price_source::UncheckedPriceSource;
+use abstract_core::proxy::{AssetsConfigResponse, QueryMsgFns};
+use abstract_core::{
+    app, manager, objects::gov_type::GovernanceDetails, objects::module::ModuleInfo, proxy,
+    registry::ANS_HOST, PROXY,
+};
 use abstract_cw_staking::CW_STAKING;
 use abstract_dex_adapter::EXCHANGE;
 use abstract_interface::{Abstract, AbstractAccount, AccountDetails, ManagerQueryFns};
 use cw_utils::Duration;
 use std::sync::Arc;
-use abstract_core::proxy::{AssetsConfigResponse, QueryMsgFns};
-use abstract_core::manager::ExecuteMsgFns;
-use abstract_core::objects::price_source::UncheckedPriceSource;
 
 use clap::Parser;
-use cosmwasm_std::{coin, Addr, Decimal, to_binary};
+use cosmwasm_std::{coin, to_json_binary, Addr, Decimal};
 use cw_orch::daemon::networks::parse_network;
 
-use autocompounder::interface::{AutocompounderApp, Vault};
-use autocompounder::msg::{AutocompounderInstantiateMsg, AutocompounderQueryMsgFns, BondingData, AUTOCOMPOUNDER_ID};
+use autocompounder::interface::Vault;
+use autocompounder::msg::{
+    AutocompounderInstantiateMsg, AutocompounderQueryMsgFns, BondingData, AUTOCOMPOUNDER_ID,
+};
 use log::info;
 
 // To deploy the app we need to get the memory and then register it
@@ -119,7 +123,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         None
     };
 
-
     // let new_module_version =
     // ModuleVersion::Version(args.ac_version.unwrap_or(MODULE_VERSION.to_string()));
     let bonding_data = match (args.unbonding_period_blocks, args.unbonding_period_time) {
@@ -164,19 +167,25 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         module: autocompounder_mod_init_msg,
     };
 
-    let result = parent_account.manager.execute(&manager::ExecuteMsg::CreateSubAccount {
-        name: vault_name,
-        description: Some(description(human_readable_assets)),
-        base_asset: Some(base_pair_asset.into()),
-        install_modules: vec![
-            // installs both abstract dex and staking in the instantiation of the account
-            ModuleInstallConfig::new(ModuleInfo::from_id_latest(EXCHANGE)?, None),
-            ModuleInstallConfig::new(ModuleInfo::from_id_latest(CW_STAKING)?, None),
-            ModuleInstallConfig::new(ModuleInfo::from_id_latest(AUTOCOMPOUNDER_ID)?, Some(to_binary(autocompounder_instantiate_msg)?)),
-        ],
-        namespace: None,
-        link: None,
-    }, instantiation_funds.as_deref())?;
+    let result = parent_account.manager.execute(
+        &manager::ExecuteMsg::CreateSubAccount {
+            name: vault_name,
+            description: Some(description(human_readable_assets)),
+            base_asset: Some(base_pair_asset.into()),
+            install_modules: vec![
+                // installs both abstract dex and staking in the instantiation of the account
+                ModuleInstallConfig::new(ModuleInfo::from_id_latest(EXCHANGE)?, None),
+                ModuleInstallConfig::new(ModuleInfo::from_id_latest(CW_STAKING)?, None),
+                ModuleInstallConfig::new(
+                    ModuleInfo::from_id_latest(AUTOCOMPOUNDER_ID)?,
+                    Some(to_json_binary(autocompounder_instantiate_msg)?),
+                ),
+            ],
+            namespace: None,
+            link: None,
+        },
+        instantiation_funds.as_deref(),
+    )?;
 
     info!(
         "Instantiated AC addr: {}",
@@ -191,14 +200,25 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         .unwrap()
         .to_owned();
 
-    let new_vault_account = AbstractAccount::new(&abstr, Some(AccountId::local(new_vault_account_id)));
+    let new_vault_account =
+        AbstractAccount::new(&abstr, Some(AccountId::local(new_vault_account_id)));
     println!("New vault account id: {:?}", new_vault_account.id()?);
 
     // Osmosis does not support value calculation via pools
     if dex != "osmosis" {
         let base_asset: AssetEntry = base_pair_asset.into();
-        let paired_asset: AssetEntry = if args.paired_asset == base_pair_asset.to_string() { args.other_asset.into() } else { args.paired_asset.into() };
-        register_assets(&new_vault_account, base_asset, paired_asset, dex, pair_assets)?;
+        let paired_asset: AssetEntry = if args.paired_asset == *base_pair_asset.to_string() {
+            args.other_asset.into()
+        } else {
+            args.paired_asset.into()
+        };
+        register_assets(
+            &new_vault_account,
+            base_asset,
+            paired_asset,
+            dex,
+            pair_assets,
+        )?;
     }
 
     let new_vault = Vault::new(&abstr, AccountId::local(new_vault_account_id))?;
@@ -217,8 +237,12 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn check_for_existing_vaults(abstr: &Abstract<Daemon>, parent_account: AbstractAccount<Daemon>, vault_name: String) -> Result<(), anyhow::Error> {
-// check all sub-accounts for the same vault
+fn check_for_existing_vaults(
+    abstr: &Abstract<Daemon>,
+    parent_account: AbstractAccount<Daemon>,
+    vault_name: String,
+) -> Result<(), anyhow::Error> {
+    // check all sub-accounts for the same vault
     let mut start_after: Option<u32> = None;
 
     loop {
@@ -232,11 +256,14 @@ fn check_for_existing_vaults(abstr: &Abstract<Daemon>, parent_account: AbstractA
         }
 
         for sub_account_id in sub_account_batch.clone() {
-            let sub_account = AbstractAccount::new(&abstr, Some(AccountId::local(sub_account_id)));
+            let sub_account = AbstractAccount::new(abstr, Some(AccountId::local(sub_account_id)));
             let sub_account_name = sub_account.manager.info()?.info.name;
 
             if sub_account_name == vault_name {
-                panic!("Found existing vault: {} with same assets as vault id: {}", vault_name, sub_account_id);
+                panic!(
+                    "Found existing vault: {} with same assets as vault id: {}",
+                    vault_name, sub_account_id
+                );
             }
         }
 
@@ -246,9 +273,15 @@ fn check_for_existing_vaults(abstr: &Abstract<Daemon>, parent_account: AbstractA
 }
 
 /// Register the assets on the account for value calculation
-fn register_assets(vault_account: &AbstractAccount<Daemon>, base_pair_asset: AssetEntry, paired_asset: AssetEntry, dex: &str, vault_pair_assets: Vec<String>) -> Result<(), anyhow::Error> {
+fn register_assets(
+    vault_account: &AbstractAccount<Daemon>,
+    base_pair_asset: AssetEntry,
+    paired_asset: AssetEntry,
+    dex: &str,
+    vault_pair_assets: Vec<String>,
+) -> Result<(), anyhow::Error> {
     let AssetsConfigResponse {
-        assets: actual_registered_assets
+        assets: actual_registered_assets,
     } = vault_account.proxy.assets_config(None, None)?;
 
     let actual_registered_entries = actual_registered_assets
@@ -256,15 +289,17 @@ fn register_assets(vault_account: &AbstractAccount<Daemon>, base_pair_asset: Ass
         .map(|(asset, _)| asset.clone())
         .collect::<Vec<_>>();
 
-
     // Register the assets on the vault
     let expected_registered_assets = vec![
         (base_pair_asset, UncheckedPriceSource::None),
-        (paired_asset, UncheckedPriceSource::Pair(DexAssetPairing::new(
-            vault_pair_assets[0].clone().into(),
-            vault_pair_assets[1].clone().into(),
-            dex,
-        ))),
+        (
+            paired_asset,
+            UncheckedPriceSource::Pair(DexAssetPairing::new(
+                vault_pair_assets[0].clone().into(),
+                vault_pair_assets[1].clone().into(),
+                dex,
+            )),
+        ),
     ];
 
     let assets_to_register = expected_registered_assets
@@ -275,10 +310,13 @@ fn register_assets(vault_account: &AbstractAccount<Daemon>, base_pair_asset: Ass
 
     println!("Registering assets: {:?}", assets_to_register);
 
-    vault_account.manager.execute_on_module(PROXY, proxy::ExecuteMsg::UpdateAssets {
-        to_add: assets_to_register,
-        to_remove: vec![],
-    })?;
+    vault_account.manager.execute_on_module(
+        PROXY,
+        proxy::ExecuteMsg::UpdateAssets {
+            to_add: assets_to_register,
+            to_remove: vec![],
+        },
+    )?;
     Ok(())
 }
 
