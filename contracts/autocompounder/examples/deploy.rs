@@ -1,11 +1,10 @@
-use abstract_interface::{Abstract, AppDeployer};
+use abstract_interface::AppDeployer;
 use cw_orch::daemon::networks::osmosis::OSMO_NETWORK;
 use cw_orch::daemon::{ChainInfo, ChainKind};
 
 use autocompounder::interface::AutocompounderApp;
 use autocompounder::msg::AUTOCOMPOUNDER_ID;
 
-use cw_orch::deploy::Deploy;
 use cw_orch::prelude::networks::parse_network;
 use cw_orch::prelude::*;
 use std::env;

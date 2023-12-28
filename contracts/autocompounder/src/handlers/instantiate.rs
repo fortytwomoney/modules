@@ -4,12 +4,12 @@ use crate::handlers::helpers::check_fee;
 use crate::kujira_tx::format_tokenfactory_denom;
 use crate::msg::{AutocompounderInstantiateMsg, FeeConfig, AUTOCOMPOUNDER};
 use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_SYMBOL};
-use abstract_core::objects::{AssetEntry, AnsEntryConvertor};
+use abstract_core::objects::{AnsEntryConvertor, AssetEntry};
 use abstract_cw_staking::msg::{StakingInfoResponse, StakingQueryMsg};
 use abstract_cw_staking::CW_STAKING;
 use abstract_sdk::AdapterInterface;
 use abstract_sdk::{
-    core::objects::{DexAssetPairing, LpToken, PoolReference},
+    core::objects::{LpToken, PoolReference},
     features::AbstractNameService,
 };
 use cosmwasm_std::{Addr, Decimal, DepsMut, Env, MessageInfo, Response};
@@ -51,35 +51,28 @@ pub fn instantiate_handler(
     }
 
     let lp_token = LpToken::new(dex.clone(), pool_assets.clone());
-    let lp_asset: AssetEntry = AnsEntryConvertor::new(lp_token).asset_entry();
+    let lp_asset: AssetEntry = AnsEntryConvertor::new(lp_token.clone()).asset_entry();
+    let pairing = AnsEntryConvertor::new(lp_token.clone()).dex_asset_pairing()?;
 
-    let staking_info: StakingInfoResponse = app.adapters(deps.as_ref()).query::<StakingQueryMsg, _>(
-        CW_STAKING,
-        StakingQueryMsg::Info {
-            provider: dex.clone(),
-            staking_tokens: vec![lp_asset],
-        },
-    )?;
+    let staking_info: StakingInfoResponse =
+        app.adapters(deps.as_ref()).query::<StakingQueryMsg, _>(
+            CW_STAKING,
+            StakingQueryMsg::Info {
+                provider: dex.clone(),
+                staking_tokens: vec![lp_asset],
+            },
+        )?;
 
     // verify that pool assets are valid
     ans.query(&pool_assets)?;
 
-    let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
-
     let (unbonding_period, min_unbonding_cooldown) =
         get_unbonding_period_and_cooldown(manual_bonding_data)?;
 
-    let pairing = DexAssetPairing::new(
-        pool_assets_slice[0].clone(),
-        pool_assets_slice[1].clone(),
-        &dex,
-    );
     let mut pool_references = ans.query(&pairing)?;
     let pool_reference: PoolReference = pool_references.swap_remove(0);
     // get the pool data
-    let mut pool_data = ans.query(&pool_reference.unique_id)?;
-
-    pool_data.assets.sort();
+    let pool_data = ans.query(&pool_reference.unique_id)?;
 
     let resolved_pool_assets = ans.query(&pool_data.assets)?;
 
@@ -137,7 +130,7 @@ pub fn instantiate_handler(
 #[cfg(test)]
 mod test {
     use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_base_mock_querier};
-    use abstract_core::objects::AssetEntry;
+    use abstract_core::objects::{AssetEntry, DexAssetPairing};
     use abstract_sdk::base::InstantiateEndpoint;
     use abstract_sdk::core as abstract_core;
     use abstract_testing::prelude::{TEST_ANS_HOST, TEST_MODULE_FACTORY, TEST_VERSION_CONTROL};
