@@ -4,6 +4,10 @@ use crate::handlers::helpers::check_fee;
 use crate::kujira_tx::format_tokenfactory_denom;
 use crate::msg::{AutocompounderInstantiateMsg, FeeConfig, AUTOCOMPOUNDER};
 use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_SYMBOL};
+use abstract_core::objects::{AssetEntry, AnsEntryConvertor};
+use abstract_cw_staking::msg::{StakingInfoResponse, StakingQueryMsg};
+use abstract_cw_staking::CW_STAKING;
+use abstract_sdk::AdapterInterface;
 use abstract_sdk::{
     core::objects::{DexAssetPairing, LpToken, PoolReference},
     features::AbstractNameService,
@@ -33,7 +37,7 @@ pub fn instantiate_handler(
         commission_addr,
         code_id,
         dex,
-        mut pool_assets,
+        pool_assets,
         bonding_data: manual_bonding_data,
         max_swap_spread,
     } = msg;
@@ -46,16 +50,19 @@ pub fn instantiate_handler(
         return Err(AutocompounderError::PoolWithMoreThanTwoAssets {});
     }
 
-    pool_assets.sort();
+    let lp_token = LpToken::new(dex.clone(), pool_assets.clone());
+    let lp_asset: AssetEntry = AnsEntryConvertor::new(lp_token).asset_entry();
+
+    let staking_info: StakingInfoResponse = app.adapters(deps.as_ref()).query::<StakingQueryMsg, _>(
+        CW_STAKING,
+        StakingQueryMsg::Info {
+            provider: dex.clone(),
+            staking_tokens: vec![lp_asset],
+        },
+    )?;
 
     // verify that pool assets are valid
-    let _resolved_assets = ans.query(&pool_assets)?;
-
-    let lp_token = LpToken {
-        dex: dex.clone(),
-        assets: pool_assets.clone(),
-    };
-    let lp_token_info = ans.query(&lp_token)?;
+    ans.query(&pool_assets)?;
 
     let pool_assets_slice = &mut [&pool_assets[0].clone(), &pool_assets[1].clone()];
 
@@ -92,7 +99,7 @@ pub fn instantiate_handler(
 
     let config: Config = Config {
         vault_token,
-        liquidity_token: lp_token_info,
+        liquidity_token: staking_info.infos[0].staking_token.clone(),
         pool_data,
         pool_assets: resolved_pool_assets,
         pool_address: pool_reference.pool_address,
