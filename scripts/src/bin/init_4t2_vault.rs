@@ -108,6 +108,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     // reload parent account into context
     let parent_account = get_parent_account(parent_account_id, &abstr, &sender)?;
 
+    // Funds for creating the token denomination
     let instantiation_funds: Option<Vec<Coin>> = if let Some(creation_fee) = token_creation_fee {
         let bank = Bank::new(chain.channel());
         let balance: u128 = rt
@@ -167,23 +168,21 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         module: autocompounder_mod_init_msg,
     };
 
+    let manager_create_sub_account_msg = manager::ExecuteMsg::CreateSubAccount {
+        base_asset: None,
+        namespace: None,
+        description: Some(description(pair_assets.join("|").replace('>', ":"))),
+        link: None,
+        name: format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
+        install_modules: vec![
+            // installs both abstract dex and staking in the instantiation of the account
+            ModuleInstallConfig::new(ModuleInfo::from_id_latest(EXCHANGE)?, None),
+            ModuleInstallConfig::new(ModuleInfo::from_id_latest(CW_STAKING)?, None),
+        ],
+    };
+
     let result = parent_account.manager.execute(
-        &manager::ExecuteMsg::CreateSubAccount {
-            name: vault_name,
-            description: Some(description(human_readable_assets)),
-            base_asset: Some(base_pair_asset.into()),
-            install_modules: vec![
-                // installs both abstract dex and staking in the instantiation of the account
-                ModuleInstallConfig::new(ModuleInfo::from_id_latest(EXCHANGE)?, None),
-                ModuleInstallConfig::new(ModuleInfo::from_id_latest(CW_STAKING)?, None),
-                ModuleInstallConfig::new(
-                    ModuleInfo::from_id_latest(AUTOCOMPOUNDER_ID)?,
-                    Some(to_json_binary(autocompounder_instantiate_msg)?),
-                ),
-            ],
-            namespace: None,
-            link: None,
-        },
+        &manager_create_sub_account_msg,
         instantiation_funds.as_deref(),
     )?;
 
@@ -204,6 +203,12 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         AbstractAccount::new(&abstr, Some(AccountId::local(new_vault_account_id)));
     println!("New vault account id: {:?}", new_vault_account.id()?);
 
+    new_vault_account.install_module(
+        AUTOCOMPOUNDER_ID,
+        &autocompounder_instantiate_msg,
+        None,
+    )?;
+
     // Osmosis does not support value calculation via pools
     if dex != "osmosis" {
         let base_asset: AssetEntry = base_pair_asset.into();
@@ -212,6 +217,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         } else {
             args.paired_asset.into()
         };
+
         register_assets(
             &new_vault_account,
             base_asset,
