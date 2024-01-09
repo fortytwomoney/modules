@@ -181,7 +181,6 @@ pub fn deposit(
 
     let ans_host = app.ans_host(deps.as_ref())?;
     let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
-    let _lptoken = config.liquidity_token.clone();
 
     let mut messages = vec![];
     let mut submessages = vec![];
