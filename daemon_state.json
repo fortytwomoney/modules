@@ -140,7 +140,7 @@
   "osmosis": {
     "osmosis-1": {
       "code_ids": {
-        "4t2:autocompounder": 369,
+        "4t2:autocompounder": 401,
         "abstract:account-factory": 298,
         "abstract:ans-host": 296,
         "abstract:manager": 300,
