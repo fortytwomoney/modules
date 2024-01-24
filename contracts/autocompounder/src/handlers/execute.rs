@@ -1763,7 +1763,7 @@ mod test {
             assert_that!(res.messages).has_length(1);
             assert_that!(res.messages[0].msg).is_equal_to(
                 transfer_token_to_autocompounder(lp_asset_base, sender, env, &info.funds)?
-                    .get(0)
+                    .first()
                     .unwrap(),
             );
 

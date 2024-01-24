@@ -152,7 +152,7 @@ pub fn query_total_lp_position(
         unbonding_period: config.unbonding_period,
     };
     let res: abstract_cw_staking::msg::StakeResponse = adapters.query(CW_STAKING, query)?;
-    let amount = res.amounts.get(0).ok_or(AutocompounderError::Std(
+    let amount = res.amounts.first().ok_or(AutocompounderError::Std(
         cosmwasm_std::StdError::generic_err("No amount found"),
     ))?;
     Ok(*amount)
