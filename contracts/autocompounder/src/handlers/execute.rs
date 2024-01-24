@@ -496,19 +496,25 @@ fn transfer_token_to_autocompounder(
     match asset.info.clone() {
         AssetInfoBase::Cw20(addr) => {
             if !funds.is_empty() {
-                return Err(AutocompounderError::FundsMismatch { wanted_funds: asset.to_string(), sent_funds: funds[0].to_string() })
+                return Err(AutocompounderError::FundsMismatch {
+                    wanted_funds: asset.to_string(),
+                    sent_funds: funds[0].to_string(),
+                });
             }
-            return Ok(vec![Asset::cw20(addr, asset.amount)
+            Ok(vec![Asset::cw20(addr, asset.amount)
                 .transfer_from_msg(sender, env.contract.address.clone())
-                .map_err(|e| -> AutocompounderError { e.into() })?]);
+                .map_err(|e| -> AutocompounderError { e.into() })?])
         }
         AssetInfoBase::Native(denom) => {
             let required_funds = vec![Coin {
                 denom,
                 amount: asset.amount,
             }];
-            if funds != &required_funds {
-                return Err(AutocompounderError::FundsMismatch { wanted_funds: required_funds[0].to_string(), sent_funds: funds[0].to_string() })
+            if funds != required_funds {
+                return Err(AutocompounderError::FundsMismatch {
+                    wanted_funds: required_funds[0].to_string(),
+                    sent_funds: funds[0].to_string(),
+                });
             }
 
             Ok(vec![])
@@ -1221,31 +1227,65 @@ mod test {
             let wanted_funds = Coin {
                 denom: "lp_token".to_string(),
                 amount: Uint128::new(100),
-            }.to_string();
+            }
+            .to_string();
 
-            let res =
-                transfer_token_to_autocompounder(lp_token.clone(), sender.clone(), &mock_env(), &info.funds);
+            let res = transfer_token_to_autocompounder(
+                lp_token.clone(),
+                sender.clone(),
+                &mock_env(),
+                &info.funds,
+            );
             let msgs = assert_that!(res).is_ok();
             assert_that!(msgs.subject).has_length(0);
 
             // Check if it would fail if funds are not enough
             let info = mock_info("sender", &coins(99, "lp_token"));
-            let res =
-                transfer_token_to_autocompounder(lp_token.clone(), sender.clone(), &mock_env(), &info.funds);
-            assert_that!(res).is_err().is_equal_to(AutocompounderError::FundsMismatch { wanted_funds:wanted_funds.clone() , sent_funds: info.funds[0].to_string()} );
-            
+            let res = transfer_token_to_autocompounder(
+                lp_token.clone(),
+                sender.clone(),
+                &mock_env(),
+                &info.funds,
+            );
+            assert_that!(res)
+                .is_err()
+                .is_equal_to(AutocompounderError::FundsMismatch {
+                    wanted_funds: wanted_funds.clone(),
+                    sent_funds: info.funds[0].to_string(),
+                });
+
             // Check if it would fail if funds are wrong denom
             let info = mock_info("sender", &coins(100, "wrong_denom"));
-            let res =
-                transfer_token_to_autocompounder(lp_token.clone(), sender.clone(), &mock_env(), &info.funds);
-            assert_that!(res).is_err().is_equal_to(AutocompounderError::FundsMismatch { wanted_funds:wanted_funds.clone() , sent_funds: info.funds[0].to_string()} );
+            let res = transfer_token_to_autocompounder(
+                lp_token.clone(),
+                sender.clone(),
+                &mock_env(),
+                &info.funds,
+            );
+            assert_that!(res)
+                .is_err()
+                .is_equal_to(AutocompounderError::FundsMismatch {
+                    wanted_funds: wanted_funds.clone(),
+                    sent_funds: info.funds[0].to_string(),
+                });
 
             // check if it would fail for multiple coins
-            let info = mock_info("sender", &vec![coin(100, "lp_token"), coin(33, "more_tokens")]);
-            let res =
-                transfer_token_to_autocompounder(lp_token.clone(), sender.clone(), &mock_env(), &info.funds);
-            assert_that!(res).is_err().is_equal_to(AutocompounderError::FundsMismatch { wanted_funds:wanted_funds.clone() , sent_funds: info.funds[0].to_string()} );
-
+            let info = mock_info(
+                "sender",
+                &vec![coin(100, "lp_token"), coin(33, "more_tokens")],
+            );
+            let res = transfer_token_to_autocompounder(
+                lp_token.clone(),
+                sender.clone(),
+                &mock_env(),
+                &info.funds,
+            );
+            assert_that!(res)
+                .is_err()
+                .is_equal_to(AutocompounderError::FundsMismatch {
+                    wanted_funds: wanted_funds.clone(),
+                    sent_funds: info.funds[0].to_string(),
+                });
 
             Ok(())
         }
@@ -1254,23 +1294,38 @@ mod test {
         fn transfer_token_to_autocompounder_non_native() -> anyhow::Result<()> {
             let info = mock_info("sender", &coins(10, "lp_token"));
             let sender = info.sender.clone();
-            let lp_token = Asset::new(AssetInfo::cw20(Addr::unchecked("lp_token")), Uint128::new(100));
+            let lp_token = Asset::new(
+                AssetInfo::cw20(Addr::unchecked("lp_token")),
+                Uint128::new(100),
+            );
 
-            let res =
-                transfer_token_to_autocompounder(lp_token.clone(), sender.clone(), &mock_env(), &info.funds);
-            assert_that!(res).is_err().is_equal_to(AutocompounderError::FundsMismatch { wanted_funds: lp_token.to_string(), sent_funds: info.funds[0].to_string() });
-
+            let res = transfer_token_to_autocompounder(
+                lp_token.clone(),
+                sender.clone(),
+                &mock_env(),
+                &info.funds,
+            );
+            assert_that!(res)
+                .is_err()
+                .is_equal_to(AutocompounderError::FundsMismatch {
+                    wanted_funds: lp_token.to_string(),
+                    sent_funds: info.funds[0].to_string(),
+                });
 
             let info = mock_info("sender", &[]);
-            let res =
-                transfer_token_to_autocompounder(lp_token.clone(), sender, &mock_env(), &info.funds);
+            let res = transfer_token_to_autocompounder(
+                lp_token.clone(),
+                sender,
+                &mock_env(),
+                &info.funds,
+            );
             let msgs = assert_that!(res).is_ok();
             assert_that!(msgs.subject).has_length(1);
 
             Ok(())
         }
 
-         #[test]
+        #[test]
         fn add_asset_if_single_fund_adds_when_one_asset() {
             let config = min_cooldown_config(None, false);
             let mut funds = vec![AnsAsset::new("eur".to_string(), 100u128)];

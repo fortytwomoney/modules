@@ -51,7 +51,6 @@ pub enum AutocompounderError {
     #[error("Deposit can only be called by the lp token")]
     SenderIsNotLpToken {},
 
-
     #[error("mismatch of sent {sent} but specified deposit amount of {wanted}")]
     FundMismatch { sent: Uint128, wanted: Uint128 },
 
