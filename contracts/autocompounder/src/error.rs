@@ -90,9 +90,9 @@ pub enum AutocompounderError {
         actual_funds: String,
     },
 
-    #[error("funds mismatch. funds in message {msg_funds}, but sent funds are {sent_funds}")]
+    #[error("funds mismatch. funds wanted {wanted_funds}, but sent funds are {sent_funds}")]
     FundsMismatch {
-        msg_funds: String,
+        wanted_funds: String,
         sent_funds: String,
     },
 

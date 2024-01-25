@@ -77,7 +77,7 @@ pub fn execute_handler(
             recipient: receiver,
         } => deposit_lp(deps, info, env, app, lp_token, receiver),
         AutocompounderExecuteMsg::Redeem { amount, recipient } => {
-            redeem(deps, env, app, info.sender, amount, recipient)
+            redeem(deps, env, app, info, amount, recipient)
         }
         AutocompounderExecuteMsg::Withdraw {} => withdraw_claims(deps, app, env, info.sender),
         AutocompounderExecuteMsg::BatchUnbond { start_after, limit } => {
@@ -282,13 +282,13 @@ fn consolidate_funds(
                     } // else both zero, so do nothing
                 } else if fund.amount != info_asset.amount {
                     return Err(AutocompounderError::FundsMismatch {
-                        msg_funds: funds.iter().map(|a| a.to_string()).collect(),
+                        wanted_funds: funds.iter().map(|a| a.to_string()).collect(),
                         sent_funds: info_ans_assets.iter().map(|a| a.to_string()).collect(),
                     });
                 }
             } else {
                 return Err(AutocompounderError::FundsMismatch {
-                    msg_funds: funds.iter().map(|a| a.to_string()).collect(),
+                    wanted_funds: funds.iter().map(|a| a.to_string()).collect(),
                     sent_funds: info_ans_assets.iter().map(|a| a.to_string()).collect(),
                 });
             }
@@ -491,12 +491,34 @@ fn transfer_token_to_autocompounder(
     asset: Asset,
     sender: Addr,
     env: &Env,
+    funds: &[Coin],
 ) -> Result<Vec<CosmosMsg>, AutocompounderError> {
     match asset.info.clone() {
-        AssetInfoBase::Cw20(addr) => Ok(vec![Asset::cw20(addr, asset.amount)
-            .transfer_from_msg(sender, env.contract.address.clone())
-            .map_err(|e| -> AutocompounderError { e.into() })?]),
-        AssetInfoBase::Native(_denom) => Ok(vec![]),
+        AssetInfoBase::Cw20(addr) => {
+            if !funds.is_empty() {
+                return Err(AutocompounderError::FundsMismatch {
+                    wanted_funds: asset.to_string(),
+                    sent_funds: funds[0].to_string(),
+                });
+            }
+            Ok(vec![Asset::cw20(addr, asset.amount)
+                .transfer_from_msg(sender, env.contract.address.clone())
+                .map_err(|e| -> AutocompounderError { e.into() })?])
+        }
+        AssetInfoBase::Native(denom) => {
+            let required_funds = vec![Coin {
+                denom,
+                amount: asset.amount,
+            }];
+            if funds != required_funds {
+                return Err(AutocompounderError::FundsMismatch {
+                    wanted_funds: required_funds[0].to_string(),
+                    sent_funds: funds[0].to_string(),
+                });
+            }
+
+            Ok(vec![])
+        }
         _ => Err(AutocompounderError::AssetError(
             cw_asset::AssetError::InvalidAssetFormat {
                 received: asset.to_string(),
@@ -617,14 +639,14 @@ fn redeem(
     deps: DepsMut,
     env: Env,
     app: AutocompounderApp,
-    sender: Addr,
+    info: MessageInfo,
     amount_of_vault_tokens_to_be_burned: Uint128,
     recipient: Option<Addr>,
 ) -> AutocompounderResult {
     // parse sender
     let recipient = unwrap_recipient_is_allowed(
         recipient,
-        &sender,
+        &info.sender,
         forbidden_deposit_addresses(deps.as_ref(), &env, &app)?,
     )?;
     let config = CONFIG.load(deps.storage)?;
@@ -634,7 +656,7 @@ fn redeem(
             deps,
             &env,
             &recipient,
-            sender,
+            info,
             config,
             &app,
             amount_of_vault_tokens_to_be_burned,
@@ -645,7 +667,7 @@ fn redeem(
             &env,
             app,
             recipient,
-            sender,
+            info,
             amount_of_vault_tokens_to_be_burned,
         )
     }
@@ -682,14 +704,14 @@ fn receive_and_register_claim(
     env: &Env,
     app: AutocompounderApp,
     recipient: Addr,
-    sender: Addr,
+    info: MessageInfo,
     amount_of_vault_tokens_to_be_burned: Uint128,
 ) -> AutocompounderResult {
     let config = CONFIG.load(deps.as_ref().storage)?;
+    let sender = info.sender.clone();
 
-    // transfer vault tokens to the autocompounder contract
     let vault_token = AssetBase::new(config.vault_token, amount_of_vault_tokens_to_be_burned);
-    let transfer_msgs = transfer_token_to_autocompounder(vault_token, sender, env)?;
+    let transfer_msgs = transfer_token_to_autocompounder(vault_token, sender, env, &info.funds)?;
 
     register_pre_claim(deps, recipient.clone(), amount_of_vault_tokens_to_be_burned)?;
 
@@ -709,18 +731,20 @@ fn redeem_without_bonding_period(
     deps: DepsMut,
     env: &Env,
     recipient: &Addr,
-    sender: Addr,
+    info: MessageInfo,
     config: Config,
     app: &AutocompounderApp,
     amount_of_vault_tokens_to_be_burned: Uint128,
 ) -> Result<Response, AutocompounderError> {
     let fee_config = FEE_CONFIG.load(deps.storage)?;
+    let sender = info.sender.clone();
 
     let vault_token_asset = AssetBase::new(
         config.vault_token.clone(),
         amount_of_vault_tokens_to_be_burned,
     );
-    let transfer_msgs = transfer_token_to_autocompounder(vault_token_asset, sender, env)?;
+    let transfer_msgs =
+        transfer_token_to_autocompounder(vault_token_asset, sender, env, &info.funds)?;
 
     // save the user address and the assets owned by the contract to the cache for later use in reply
     CACHED_USER_ADDR.save(deps.storage, recipient)?;
@@ -1111,6 +1135,7 @@ mod test {
     mod deposit_helpers {
         use super::*;
 
+        use cosmwasm_std::{coin, coins};
         use speculoos::prelude::*;
 
         fn deposit_fee_config(percent: u64) -> FeeConfig {
@@ -1196,12 +1221,106 @@ mod test {
         }
         #[test]
         fn transfer_token_to_autocompounder_native() -> anyhow::Result<()> {
-            let sender = Addr::unchecked("sender");
+            let info = mock_info("sender", &coins(100, "lp_token"));
+            let sender = info.sender.clone();
             let lp_token = Asset::new(AssetInfo::native("lp_token".to_string()), Uint128::new(100));
+            let wanted_funds = Coin {
+                denom: "lp_token".to_string(),
+                amount: Uint128::new(100),
+            }
+            .to_string();
 
-            let res = transfer_token_to_autocompounder(lp_token, sender, &mock_env());
+            let res = transfer_token_to_autocompounder(
+                lp_token.clone(),
+                sender.clone(),
+                &mock_env(),
+                &info.funds,
+            );
             let msgs = assert_that!(res).is_ok();
             assert_that!(msgs.subject).has_length(0);
+
+            // Check if it would fail if funds are not enough
+            let info = mock_info("sender", &coins(99, "lp_token"));
+            let res = transfer_token_to_autocompounder(
+                lp_token.clone(),
+                sender.clone(),
+                &mock_env(),
+                &info.funds,
+            );
+            assert_that!(res)
+                .is_err()
+                .is_equal_to(AutocompounderError::FundsMismatch {
+                    wanted_funds: wanted_funds.clone(),
+                    sent_funds: info.funds[0].to_string(),
+                });
+
+            // Check if it would fail if funds are wrong denom
+            let info = mock_info("sender", &coins(100, "wrong_denom"));
+            let res = transfer_token_to_autocompounder(
+                lp_token.clone(),
+                sender.clone(),
+                &mock_env(),
+                &info.funds,
+            );
+            assert_that!(res)
+                .is_err()
+                .is_equal_to(AutocompounderError::FundsMismatch {
+                    wanted_funds: wanted_funds.clone(),
+                    sent_funds: info.funds[0].to_string(),
+                });
+
+            // check if it would fail for multiple coins
+            let info = mock_info(
+                "sender",
+                &vec![coin(100, "lp_token"), coin(33, "more_tokens")],
+            );
+            let res = transfer_token_to_autocompounder(
+                lp_token.clone(),
+                sender.clone(),
+                &mock_env(),
+                &info.funds,
+            );
+            assert_that!(res)
+                .is_err()
+                .is_equal_to(AutocompounderError::FundsMismatch {
+                    wanted_funds: wanted_funds.clone(),
+                    sent_funds: info.funds[0].to_string(),
+                });
+
+            Ok(())
+        }
+
+        #[test]
+        fn transfer_token_to_autocompounder_non_native() -> anyhow::Result<()> {
+            let info = mock_info("sender", &coins(10, "lp_token"));
+            let sender = info.sender.clone();
+            let lp_token = Asset::new(
+                AssetInfo::cw20(Addr::unchecked("lp_token")),
+                Uint128::new(100),
+            );
+
+            let res = transfer_token_to_autocompounder(
+                lp_token.clone(),
+                sender.clone(),
+                &mock_env(),
+                &info.funds,
+            );
+            assert_that!(res)
+                .is_err()
+                .is_equal_to(AutocompounderError::FundsMismatch {
+                    wanted_funds: lp_token.to_string(),
+                    sent_funds: info.funds[0].to_string(),
+                });
+
+            let info = mock_info("sender", &[]);
+            let res = transfer_token_to_autocompounder(
+                lp_token.clone(),
+                sender,
+                &mock_env(),
+                &info.funds,
+            );
+            let msgs = assert_that!(res).is_ok();
+            assert_that!(msgs.subject).has_length(1);
 
             Ok(())
         }
@@ -1553,6 +1672,10 @@ mod test {
     }
 
     mod redeem {
+        use cosmwasm_std::coins;
+
+        use crate::test_common::TEST_VAULT_TOKEN;
+
         use super::*;
 
         #[test]
@@ -1594,12 +1717,38 @@ mod test {
         }
 
         #[test]
-        fn receive_and_register() -> anyhow::Result<()> {
+        fn receive_and_register_native() -> anyhow::Result<()> {
+            let mut deps = app_init(true, true);
+            let config = min_cooldown_config(Some(Duration::Height(1)), true);
+            CONFIG.save(deps.as_mut().storage, &config)?;
+            let env = &mock_env();
+            let info = mock_info("sender", &coins(100, TEST_VAULT_TOKEN));
+            let sender = info.sender.clone();
+
+            let amount = Uint128::new(100);
+
+            let res = receive_and_register_claim(
+                deps.as_mut(),
+                env,
+                AUTOCOMPOUNDER_APP,
+                sender.clone(),
+                info.clone(),
+                amount,
+            )?;
+            assert_that!(res.messages).has_length(0);
+
+            Ok(())
+        }
+
+        #[test]
+        fn receive_and_register_cw20() -> anyhow::Result<()> {
             let mut deps = app_init(true, true);
             let config = min_cooldown_config(Some(Duration::Height(1)), false);
             CONFIG.save(deps.as_mut().storage, &config)?;
             let env = &mock_env();
-            let sender = Addr::unchecked("sender");
+            let info = mock_info("sender", &[]);
+            let sender = info.sender.clone();
+
             let amount = Uint128::new(100);
             let lp_asset_base = AssetBase::new(config.vault_token, amount);
 
@@ -1608,13 +1757,13 @@ mod test {
                 env,
                 AUTOCOMPOUNDER_APP,
                 sender.clone(),
-                sender.clone(),
+                info.clone(),
                 amount,
             )?;
             assert_that!(res.messages).has_length(1);
             assert_that!(res.messages[0].msg).is_equal_to(
-                transfer_token_to_autocompounder(lp_asset_base, sender, env)?
-                    .get(0)
+                transfer_token_to_autocompounder(lp_asset_base, sender, env, &info.funds)?
+                    .first()
                     .unwrap(),
             );
 
@@ -1622,11 +1771,14 @@ mod test {
         }
 
         #[test]
-        fn without_bonding_period() -> anyhow::Result<()> {
+
+        fn without_bonding_period_cw20() -> anyhow::Result<()> {
+            // NOTE: This test cant be done with native tokens because itll trigger a stargate query which is not supported in the test environment
             let mut deps = app_init(false, true);
             let config = min_cooldown_config(None, false);
             let env = &mock_env();
-            let sender = Addr::unchecked("sender");
+            let info = mock_info("sender", &[]);
+            let sender = info.sender.clone();
             let amount = Uint128::new(100);
 
             let err = CACHED_ASSETS.load(&deps.storage, "native:eur".to_string());
@@ -1651,7 +1803,7 @@ mod test {
                 deps.as_mut(),
                 env,
                 &sender,
-                sender.clone(),
+                info,
                 config.clone(),
                 &AUTOCOMPOUNDER_APP,
                 amount,

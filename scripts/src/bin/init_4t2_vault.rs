@@ -21,7 +21,7 @@ use cw_utils::Duration;
 use std::sync::Arc;
 
 use clap::Parser;
-use cosmwasm_std::{coin, to_json_binary, Addr, Decimal};
+use cosmwasm_std::{coin, Addr, Decimal};
 use cw_orch::daemon::networks::parse_network;
 
 use autocompounder::interface::Vault;
@@ -203,11 +203,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         AbstractAccount::new(&abstr, Some(AccountId::local(new_vault_account_id)));
     println!("New vault account id: {:?}", new_vault_account.id()?);
 
-    new_vault_account.install_module(
-        AUTOCOMPOUNDER_ID,
-        &autocompounder_instantiate_msg,
-        None,
-    )?;
+    new_vault_account.install_module(AUTOCOMPOUNDER_ID, &autocompounder_instantiate_msg, None)?;
 
     // Osmosis does not support value calculation via pools
     if dex != "osmosis" {
