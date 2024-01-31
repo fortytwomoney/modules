@@ -651,7 +651,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "autocompounder"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "abstract-app",
  "abstract-core",
@@ -2348,7 +2348,7 @@ checksum = "25cbce373ec4653f1a01a31e8a5e5ec0c622dc27ff9c4e6606eefef5cbbed4a5"
 
 [[package]]
 name = "fee-collector"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "abstract-app",
  "abstract-core",
@@ -2470,7 +2470,7 @@ dependencies = [
 
 [[package]]
 name = "forty-two"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "abstract-dex-adapter",
  "abstract-sdk",
@@ -4153,7 +4153,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scripts"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "abstract-core",
  "abstract-cw-staking",

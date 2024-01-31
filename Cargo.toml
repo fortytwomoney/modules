@@ -11,7 +11,7 @@ members = ["contracts/*", "packages/*", "scripts"]
 resolver = "2"
 
 [workspace.package]
-version = "0.9.5"
+version = "0.9.6"
 authors = []
 edition = "2021"
 
