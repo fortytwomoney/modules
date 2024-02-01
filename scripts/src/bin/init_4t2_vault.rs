@@ -66,7 +66,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
             "pion-1" => (None, "astroport", "neutron>astro", Some(188), None),
             "neutron-1" => (None, "astroport", "neutron>astro", Some(180), None),
             "pisco-1" => (None, "astroport", "terra2>luna", Some(83), None),
-            "phoenix-1" => (None, "astroport", "terra2>luna", Some(69), None),
+            "phoenix-1" => (Some(5), "astroport", "terra2>luna", Some(69), None),
             "osmo-test-5" => (Some(2), "osmosis", "osmosis>osmo", None, None),
             "osmosis-1" => (Some(5), "osmosis", "osmosis>osmo", None, None),
             "harpoon-4" => (
@@ -93,6 +93,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         .chain(network)
         .build()?;
 
+    // let abstr = Abstract::deploy_on(chain.clone(), "".into())?;
+
     // let (chain, _, _, test_parent) = setup_test_tube()?;
     //
     // let parent_account_id = Some(test_parent.id()?.seq());
@@ -102,7 +104,11 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     let abstr = Abstract::load_from(chain.clone())?;
 
+
+    // panic!("{:?}", "abstr");
     let parent_account = get_parent_account(parent_account_id, &abstr, &sender)?;
+
+    // panic!("here");
 
     let mut pair_assets = vec![args.paired_asset.clone(), args.other_asset.clone()];
     pair_assets.sort();
@@ -184,7 +190,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         namespace: None,
         description: Some(description(pair_assets.join("|").replace('>', ":"))),
         link: None,
-        name: format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
+        name: format!("TESTING 4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
         install_modules: vec![
             // installs both abstract dex and staking in the instantiation of the account
             ModuleInstallConfig::new(ModuleInfo::from_id_latest(EXCHANGE)?, None),
@@ -439,7 +445,7 @@ fn get_parent_account<Env: CwEnv>(
                 name: "fortytwo manager".to_string(),
                 description: Some("manager of 4t2 smartcontracts".to_string()),
                 link: None,
-                namespace: Some("4t2".to_string()),
+                namespace: Some("testing-for-4t2".to_string()),
                 base_asset: None,
                 install_modules: vec![],
             },
