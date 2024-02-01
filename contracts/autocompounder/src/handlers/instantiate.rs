@@ -69,6 +69,8 @@ pub fn instantiate_handler(
     let (unbonding_period, min_unbonding_cooldown) =
         get_unbonding_period_and_cooldown(manual_bonding_data)?;
 
+    panic!();
+
     let mut pool_references = ans.query(&pairing)?;
     let pool_reference: PoolReference = pool_references.swap_remove(0);
     // get the pool data

@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use abstract_core::objects::AccountId;
 use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING};
 use abstract_interface::{Abstract, ManagerQueryFns};
@@ -34,7 +35,14 @@ impl<Chain: CwEnv> Uploadable for AutocompounderApp<Chain> {
         )
     }
     fn wasm(&self) -> WasmPath {
-        artifacts_dir_from_workspace!()
+        // artifacts_dir_from_workspace!()
+        //     .find_wasm_path("autocompounder")
+        //     .unwrap()
+
+        let mut artifacts_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        artifacts_path.push("../../artifacts");
+
+        ArtifactsDir::new(artifacts_path)
             .find_wasm_path("autocompounder")
             .unwrap()
     }

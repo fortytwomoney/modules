@@ -1,5 +1,5 @@
 use abstract_core::module_factory::ModuleInstallConfig;
-use abstract_core::objects::{AccountId, AssetEntry, DexAssetPairing};
+use abstract_core::objects::{AccountId, AssetEntry, DexAssetPairing, PoolMetadata};
 use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
 use cw_orch::daemon::networks::osmosis::OSMO_NETWORK;
 use cw_orch::daemon::{ChainInfo, ChainKind, DaemonBuilder};
@@ -10,21 +10,23 @@ use std::env;
 
 use abstract_core::objects::price_source::UncheckedPriceSource;
 use abstract_core::proxy::{AssetsConfigResponse, QueryMsgFns};
-use abstract_core::{
-    app, manager, objects::gov_type::GovernanceDetails, objects::module::ModuleInfo, proxy,
-    registry::ANS_HOST, PROXY,
-};
+use abstract_core::{app, manager, objects::gov_type::GovernanceDetails, objects::module::ModuleInfo, proxy, registry::ANS_HOST, PROXY, OSMOSIS};
 use abstract_cw_staking::CW_STAKING;
 use abstract_dex_adapter::EXCHANGE;
-use abstract_interface::{Abstract, AbstractAccount, AccountDetails, ManagerQueryFns};
+use abstract_interface::{Abstract, AbstractAccount, AccountDetails, AdapterDeployer, AppDeployer, ManagerQueryFns};
 use cw_utils::Duration;
 use std::sync::Arc;
+use abstract_core::ans_host::ExecuteMsgFns;
+use abstract_core::objects::pool_id::PoolAddressBase;
+use abstract_cw_staking::interface::CwStakingAdapter;
+use abstract_dex_adapter::interface::DexAdapter;
+use abstract_dex_adapter::msg::DexInstantiateMsg;
 
 use clap::Parser;
-use cosmwasm_std::{coin, Addr, Decimal};
+use cosmwasm_std::{coin, Addr, Decimal, coins};
 use cw_orch::daemon::networks::parse_network;
 
-use autocompounder::interface::Vault;
+use autocompounder::interface::{AutocompounderApp, Vault};
 use autocompounder::msg::{
     AutocompounderInstantiateMsg, AutocompounderQueryMsgFns, BondingData, AUTOCOMPOUNDER_ID,
 };
@@ -90,9 +92,16 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         .handle(rt.handle())
         .chain(network)
         .build()?;
+
+    // let (chain, _, _, test_parent) = setup_test_tube()?;
+    //
+    // let parent_account_id = Some(test_parent.id()?.seq());
+    //
+
     let sender = chain.sender();
 
     let abstr = Abstract::load_from(chain.clone())?;
+
     let parent_account = get_parent_account(parent_account_id, &abstr, &sender)?;
 
     let mut pair_assets = vec![args.paired_asset.clone(), args.other_asset.clone()];
@@ -110,16 +119,18 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     // Funds for creating the token denomination
     let instantiation_funds: Option<Vec<Coin>> = if let Some(creation_fee) = token_creation_fee {
-        let bank = Bank::new(chain.channel());
-        let balance: u128 = rt
-            .block_on(bank.balance(&sender, Some("ukuji".to_string())))
-            .unwrap()[0]
-            .amount
-            .parse()?;
-        if balance < creation_fee {
-            panic!("Not enough ukuji to pay for token factory creation fee");
-        }
-        Some(vec![coin(creation_fee, "ukuji")])
+        // let bank = Bank::new(chain.channel());
+        // let balance: u128 = rt
+        //     .block_on(bank.balance(&sender, Some("ukuji".to_string())))
+        //     .unwrap()[0]
+        //     .amount
+        //     .parse()?;
+        // if balance < creation_fee {
+        //     panic!("Not enough ukuji to pay for token factory creation fee");
+        // }
+        // Some(vec![coin(creation_fee, "ukuji")])
+        // Some(vec![coin(creation_fee, "ukuji")])
+        None
     } else {
         None
     };
@@ -239,9 +250,101 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn check_for_existing_vaults(
-    abstr: &Abstract<Daemon>,
-    parent_account: AbstractAccount<Daemon>,
+const ASSET_1: &str = "uosmo";
+const ASSET_2: &str = "uatom";
+pub const LP: &str = "osmosis/atom,osmo";
+
+fn get_pool_token(id: u64) -> String {
+    format!("gamm/pool/{}", id)
+}
+
+
+fn setup_test_tube() -> anyhow::Result<(
+    OsmosisTestTube,
+    u64,
+    CwStakingAdapter<OsmosisTestTube>,
+    AbstractAccount<OsmosisTestTube>,
+)> {
+    let tube = OsmosisTestTube::new(vec![
+        coin(1_000_000_000_000, ASSET_1),
+        coin(1_000_000_000_000, ASSET_2),
+    ]);
+
+    let deployment = Abstract::deploy_on(tube.clone(), tube.sender().to_string())?;
+
+    let _root_os = deployment.account_factory.create_default_account(GovernanceDetails::Monarchy {
+        monarch: Addr::unchecked(deployment.account_factory.get_chain().sender()).to_string(),
+    })?;
+
+    // Deploy staking adatper
+    let staking: CwStakingAdapter<OsmosisTestTube> =
+        CwStakingAdapter::new("abstract:cw-staking", tube.clone());
+
+    staking.deploy("0.19.2".parse()?, Empty {})?;
+
+    // deploy dex adapter
+    let dex: DexAdapter<OsmosisTestTube> = DexAdapter::new("abstract:dex", tube.clone());
+    dex.deploy("0.19.2".parse()?, DexInstantiateMsg { swap_fee: Default::default(), recipient_account: 0 })?;
+
+    let autocompounder: AutocompounderApp<OsmosisTestTube> = AutocompounderApp::new("4t2:autocompounder", tube.clone());
+    autocompounder.deploy("1.2.3".parse()?)?;
+
+    let os = deployment.account_factory.create_default_account(GovernanceDetails::Monarchy {
+        monarch: Addr::unchecked(deployment.account_factory.get_chain().sender()).to_string(),
+    })?;
+    let _manager_addr = os.manager.address()?;
+
+    // transfer some LP tokens to the AbstractAccount, as if it provided liquidity
+    let pool_id = tube.create_pool(vec![coin(1_000, ASSET_1), coin(1_000, ASSET_2)])?;
+
+    deployment
+        .ans_host
+        .update_asset_addresses(
+            vec![
+                ("osmo".to_string(), cw_asset::AssetInfoBase::native(ASSET_1)),
+                ("atom".to_string(), cw_asset::AssetInfoBase::native(ASSET_2)),
+                (
+                    LP.to_string(),
+                    cw_asset::AssetInfoBase::native(get_pool_token(pool_id)),
+                ),
+            ],
+            vec![],
+        )
+        .unwrap();
+
+    deployment
+        .ans_host
+        .update_dexes(vec!["osmosis".into()], vec![])
+        .unwrap();
+
+    deployment
+        .ans_host
+        .update_pools(
+            vec![(
+                PoolAddressBase::id(pool_id),
+                PoolMetadata::constant_product(
+                    "osmosis",
+                    vec!["atom".to_string(), "osmo".to_string()],
+                ),
+            )],
+            vec![],
+        )
+        .unwrap();
+
+    // install exchange on AbstractAccount
+    os.install_adapter(staking.clone(), &Empty {}, None)?;
+
+    tube.bank_send(
+        os.proxy.addr_str()?,
+        coins(1_000u128, get_pool_token(pool_id)),
+    )?;
+
+    Ok((tube, pool_id, staking, os))
+}
+
+fn check_for_existing_vaults<Env: CwEnv>(
+    abstr: &Abstract<Env>,
+    parent_account: AbstractAccount<Env>,
     vault_name: String,
 ) -> Result<(), anyhow::Error> {
     // check all sub-accounts for the same vault
@@ -275,8 +378,8 @@ fn check_for_existing_vaults(
 }
 
 /// Register the assets on the account for value calculation
-fn register_assets(
-    vault_account: &AbstractAccount<Daemon>,
+fn register_assets<Env: CwEnv>(
+    vault_account: &AbstractAccount<Env>,
     base_pair_asset: AssetEntry,
     paired_asset: AssetEntry,
     dex: &str,
@@ -323,11 +426,11 @@ fn register_assets(
 }
 
 /// Retrieve the account that will have all the 4t2 vaults as sub-accounts
-fn get_parent_account(
+fn get_parent_account<Env: CwEnv>(
     main_account_id: Option<u32>,
-    abstr: &Abstract<Daemon>,
+    abstr: &Abstract<Env>,
     sender: &Addr,
-) -> Result<AbstractAccount<Daemon>, anyhow::Error> {
+) -> Result<AbstractAccount<Env>, anyhow::Error> {
     let main_account = if let Some(account_id) = main_account_id {
         AbstractAccount::new(abstr, Some(AccountId::local(account_id)))
     } else {
