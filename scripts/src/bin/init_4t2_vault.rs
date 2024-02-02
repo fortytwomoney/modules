@@ -1,4 +1,6 @@
-use abstract_core::module_factory::ModuleInstallConfig;
+use abstract_client::{AbstractClient, Namespace};
+use abstract_core::manager::ModuleInstallConfig;
+use abstract_core::objects::module::ModuleVersion;
 use abstract_core::objects::{AccountId, AssetEntry, DexAssetPairing, PoolMetadata};
 use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
 use cw_orch::daemon::networks::osmosis::OSMO_NETWORK;
@@ -17,10 +19,10 @@ use abstract_core::{
     registry::ANS_HOST, OSMOSIS, PROXY,
 };
 use abstract_cw_staking::interface::CwStakingAdapter;
-use abstract_cw_staking::CW_STAKING;
+use abstract_cw_staking::CW_STAKING_ADAPTER_ID;
 use abstract_dex_adapter::interface::DexAdapter;
 use abstract_dex_adapter::msg::DexInstantiateMsg;
-use abstract_dex_adapter::EXCHANGE;
+use abstract_dex_adapter::DEX_ADAPTER_ID;
 use abstract_interface::{
     Abstract, AbstractAccount, AccountDetails, AdapterDeployer, AppDeployer, DeployStrategy,
     ManagerQueryFns,
@@ -174,18 +176,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         max_swap_spread: Some(Decimal::percent(10)),
     };
 
-    let autocompounder_instantiate_msg = &app::InstantiateMsg {
-        base: app::BaseInstantiateMsg {
-            ans_host_address: abstr
-                .version_control
-                .module(ModuleInfo::from_id_latest(ANS_HOST)?)?
-                .reference
-                .unwrap_addr()?
-                .to_string(),
-            version_control_address: abstr.version_control.address()?.to_string(),
-        },
-        module: autocompounder_mod_init_msg,
-    };
+    let autocompounder_instantiate_msg = &autocompounder_mod_init_msg;
 
     let manager_create_sub_account_msg = manager::ExecuteMsg::CreateSubAccount {
         base_asset: None,
@@ -308,6 +299,7 @@ fn setup_test_tube() -> anyhow::Result<(
             swap_fee: Default::default(),
             recipient_account: 0,
         },
+        DeployStrategy::Try,
     )?;
 
     let autocompounder: AutocompounderApp<OsmosisTestTube> =
