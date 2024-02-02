@@ -37,7 +37,7 @@ pub struct App<Chain: CwEnv> {
     pub abstract_core: Abstract<Chain>,
 }
 
-const DEX_ADAPTER_VERSION: &str = "0.19.2";
+const DEX_ADAPTER_VERSION: &str = "0.20.0";
 
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
@@ -144,21 +144,11 @@ fn create_fee_collector(
         .install_module::<Empty>(DEX_ADAPTER_ID, None, None)?;
     account.manager.install_module(
         FEE_COLLECTOR,
-        Some(&abstract_core::app::InstantiateMsg {
-            module: fee_collector::msg::FeeCollectorInstantiateMsg {
-                commission_addr: COMMISSION_ADDR.to_string(),
-                max_swap_spread: Decimal::percent(25),
-                fee_asset: EUR.to_string(),
-                dex: WYNDEX.to_string(),
-            },
-            base: abstract_core::app::BaseInstantiateMsg {
-                ans_host_address: abstract_.ans_host.addr_str()?,
-                version_control_address: TEST_VERSION_CONTROL.to_string(),
-                account_base: AccountBase {
-                    manager: account.manager.address()?,
-                    proxy: account.proxy.address()?,
-                },
-            },
+        Some(&fee_collector::msg::FeeCollectorInstantiateMsg {
+            commission_addr: COMMISSION_ADDR.to_string(),
+            max_swap_spread: Decimal::percent(25),
+            fee_asset: EUR.to_string(),
+            dex: WYNDEX.to_string(),
         }),
         None,
     )?;
@@ -284,7 +274,11 @@ fn test_collect_fees() -> AResult {
     )?;
 
     // not admin
-    let _err = app.fee_collector.collect().unwrap_err();
+    let _err = app
+        .fee_collector
+        .call_as(&Addr::unchecked("non-admin"))
+        .collect()
+        .unwrap_err();
 
     // call as admin
     // will swap 1K USD to EUR, 1K WYND to EUR. Both pools have 10K/10K ratio, so 10K swap leads to a spread 0f 129 which is 0.90%

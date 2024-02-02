@@ -66,8 +66,16 @@ anybuf = "0.1.0"
 wyndex-bundle = { workspace = true }
 wyndex-stake = { git = "https://github.com/cosmorama/wynddex.git", rev = "v1.1.2" }
 autocompounder = { path = ".", features = ["interface"] }
-abstract-dex-adapter = { workspace = true, features = ["interface", "testing"] }
-abstract-cw-staking = { workspace = true, features = ["interface", "testing"] }
+abstract-dex-adapter = { workspace = true, features = [
+  "interface",
+  "testing",
+  "wynd",
+] }
+abstract-cw-staking = { workspace = true, features = [
+  "interface",
+  "testing",
+  "wynd",
+] }
 abstract-interface = { workspace = true, features = ["daemon"] }
 abstract-testing = { workspace = true }
 abstract-core = { workspace = true }

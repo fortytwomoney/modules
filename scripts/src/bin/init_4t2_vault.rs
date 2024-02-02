@@ -160,7 +160,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         (None, None) => None,
     };
 
-    let autocompounder_mod_init_msg = AutocompounderInstantiateMsg {
+    let autocompounder_instantiate_msg = AutocompounderInstantiateMsg {
         performance_fees: Decimal::new(100u128.into()),
         deposit_fees: Decimal::new(0u128.into()),
         withdrawal_fees: Decimal::new(0u128.into()),
@@ -175,8 +175,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         bonding_data,
         max_swap_spread: Some(Decimal::percent(10)),
     };
-
-    let autocompounder_instantiate_msg = &autocompounder_mod_init_msg;
 
     let manager_create_sub_account_msg = manager::ExecuteMsg::CreateSubAccount {
         base_asset: None,
@@ -289,12 +287,12 @@ fn setup_test_tube() -> anyhow::Result<(
     let staking: CwStakingAdapter<OsmosisTestTube> =
         CwStakingAdapter::new("abstract:cw-staking", tube.clone());
 
-    staking.deploy("0.19.2".parse()?, Empty {}, DeployStrategy::Try)?;
+    staking.deploy("0.20.0".parse()?, Empty {}, DeployStrategy::Try)?;
 
     // deploy dex adapter
     let dex: DexAdapter<OsmosisTestTube> = DexAdapter::new("abstract:dex", tube.clone());
     dex.deploy(
-        "0.19.2".parse()?,
+        "0.20.0".parse()?,
         DexInstantiateMsg {
             swap_fee: Default::default(),
             recipient_account: 0,

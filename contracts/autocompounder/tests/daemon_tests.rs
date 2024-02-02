@@ -32,6 +32,7 @@ pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
     let rt = Runtime::new().unwrap();
 
     let network = parse_network(chain_id).unwrap();
+    let denom = network.gas_denom;
     // We can now create a daemon. This daemon will be used to interact with the chain.
     let daemon = Daemon::builder()
         // set the network to use
@@ -43,8 +44,7 @@ pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
         .unwrap();
 
     // We can now use the daemon to interact with the chain. For example, we can query the total supply of a token.
-    let denom = ""; //"ukuji";
-
+    // let denom = "ukuji";
     // let chain = "kujira".to_string();
 
     println!("{:?}", daemon.sender());

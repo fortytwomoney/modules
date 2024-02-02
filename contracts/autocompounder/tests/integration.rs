@@ -144,33 +144,23 @@ pub fn create_vault(
     // install autocompounder
     account.manager.install_module(
         AUTOCOMPOUNDER_ID,
-        Some(&abstract_core::app::InstantiateMsg {
-            module: autocompounder::msg::AutocompounderInstantiateMsg {
-                code_id: if vault_token_is_cw20 {
-                    Some(vault_token_code_id)
-                } else {
-                    None
-                },
-                commission_addr: COMMISSION_RECEIVER.to_string(),
-                deposit_fees: Decimal::percent(0),
-                dex: WYNDEX.to_string(),
-                performance_fees: Decimal::percent(3),
-                pool_assets: vec![asset1, asset2],
-                withdrawal_fees: Decimal::percent(0),
-                bonding_data: Some(BondingData {
-                    unbonding_period: Duration::Time(1),
-                    max_claims_per_address: None,
-                }),
-                max_swap_spread: Some(Decimal::percent(50)),
+        Some(&autocompounder::msg::AutocompounderInstantiateMsg {
+            code_id: if vault_token_is_cw20 {
+                Some(vault_token_code_id)
+            } else {
+                None
             },
-            base: abstract_core::app::BaseInstantiateMsg {
-                ans_host_address: abstract_.ans_host.addr_str()?,
-                version_control_address: abstract_.version_control.addr_str()?,
-                account_base: AccountBase {
-                    manager: account.manager.address()?,
-                    proxy: account.proxy.address()?,
-                },
-            },
+            commission_addr: COMMISSION_RECEIVER.to_string(),
+            deposit_fees: Decimal::percent(0),
+            dex: WYNDEX.to_string(),
+            performance_fees: Decimal::percent(3),
+            pool_assets: vec![asset1, asset2],
+            withdrawal_fees: Decimal::percent(0),
+            bonding_data: Some(BondingData {
+                unbonding_period: Duration::Time(1),
+                max_claims_per_address: None,
+            }),
+            max_swap_spread: Some(Decimal::percent(50)),
         }),
         None,
     )?;
