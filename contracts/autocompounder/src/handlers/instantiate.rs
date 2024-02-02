@@ -6,13 +6,13 @@ use crate::msg::{AutocompounderInstantiateMsg, FeeConfig, AUTOCOMPOUNDER};
 use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_SYMBOL};
 use abstract_core::objects::{AnsEntryConvertor, AssetEntry};
 use abstract_cw_staking::msg::{StakingInfoResponse, StakingQueryMsg};
-use abstract_cw_staking::CW_STAKING;
-use abstract_sdk::AdapterInterface;
+use abstract_cw_staking::CW_STAKING_ADAPTER_ID;
+use abstract_sdk::{AbstractResponse, AdapterInterface};
 use abstract_sdk::{
     core::objects::{LpToken, PoolReference},
     features::AbstractNameService,
 };
-use cosmwasm_std::{Addr, Decimal, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{Addr, Decimal, DepsMut, Env, MessageInfo};
 use cw_asset::AssetInfo;
 
 use super::helpers::{
@@ -56,7 +56,7 @@ pub fn instantiate_handler(
 
     let staking_info: StakingInfoResponse =
         app.adapters(deps.as_ref()).query::<StakingQueryMsg, _>(
-            CW_STAKING,
+            CW_STAKING_ADAPTER_ID,
             StakingQueryMsg::Info {
                 provider: dex.clone(),
                 staking_tokens: vec![lp_asset],
@@ -121,7 +121,7 @@ pub fn instantiate_handler(
         config.pool_data.dex,
     )?;
 
-    Ok(Response::new()
+    Ok(app.response("instantiate")
         .add_submessage(sub_msg)
         .add_attribute("action", "instantiate")
         .add_attribute("contract", AUTOCOMPOUNDER))

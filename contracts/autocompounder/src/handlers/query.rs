@@ -8,7 +8,7 @@ use abstract_sdk::AdapterInterface;
 use cosmwasm_std::{to_json_binary, Addr, Binary, Deps, Env, Order, StdResult, Uint128};
 
 use crate::msg::AutocompounderQueryMsg;
-use abstract_cw_staking::{msg::StakingQueryMsg, CW_STAKING};
+use abstract_cw_staking::{msg::StakingQueryMsg, CW_STAKING_ADAPTER_ID};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 
@@ -151,7 +151,7 @@ pub fn query_total_lp_position(
         staker_address: app.proxy_address(deps)?.to_string(),
         unbonding_period: config.unbonding_period,
     };
-    let res: abstract_cw_staking::msg::StakeResponse = adapters.query(CW_STAKING, query)?;
+    let res: abstract_cw_staking::msg::StakeResponse = adapters.query(CW_STAKING_ADAPTER_ID, query)?;
     let amount = res.amounts.first().ok_or(AutocompounderError::Std(
         cosmwasm_std::StdError::generic_err("No amount found"),
     ))?;

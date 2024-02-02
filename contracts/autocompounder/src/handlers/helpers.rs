@@ -17,7 +17,7 @@ use crate::{
 use abstract_core::objects::AnsAsset;
 use abstract_core::objects::DexAssetPairing;
 use abstract_core::objects::PoolMetadata;
-use abstract_cw_staking::{msg::*, CW_STAKING};
+use abstract_cw_staking::{msg::*, CW_STAKING_ADAPTER_ID};
 use abstract_dex_adapter::DexInterface;
 use abstract_sdk::feature_objects::AnsHost;
 use abstract_sdk::features::AbstractNameService;
@@ -219,7 +219,7 @@ pub fn query_stake(
         provider: dex,
         unbonding_period,
     };
-    let res: StakeResponse = adapters.query(CW_STAKING, query)?;
+    let res: StakeResponse = adapters.query(CW_STAKING_ADAPTER_ID, query)?;
     let amount = res
         .amounts
         .first()
@@ -239,7 +239,7 @@ pub fn stake_lp_tokens(
 ) -> AbstractSdkResult<CosmosMsg> {
     let adapters = app.adapters(deps);
     adapters.request(
-        CW_STAKING,
+        CW_STAKING_ADAPTER_ID,
         StakingExecuteMsg {
             provider,
             action: StakingAction::Stake {

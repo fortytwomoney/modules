@@ -1,10 +1,10 @@
-use abstract_cw_staking::CW_STAKING;
-use abstract_dex_adapter::EXCHANGE;
+use abstract_cw_staking::CW_STAKING_ADAPTER_ID;
+use abstract_dex_adapter::DEX_ADAPTER_ID;
 use abstract_sdk::core::objects::dependency::StaticDependency;
 
-const DEX_DEP: StaticDependency = StaticDependency::new(EXCHANGE, &[">=0.3.0"]);
+const DEX_DEP: StaticDependency = StaticDependency::new(DEX_ADAPTER_ID, &[">=0.3.0"]);
 
-const CW_STAKING_DEP: StaticDependency = StaticDependency::new(CW_STAKING, &[">=0.1.0"]);
+const CW_STAKING_DEP: StaticDependency = StaticDependency::new(CW_STAKING_ADAPTER_ID, &[">=0.1.0"]);
 
 /// Dependencies for the app
 pub const AUTOCOMPOUNDER_DEPS: &[StaticDependency] = &[DEX_DEP, CW_STAKING_DEP];

@@ -80,7 +80,7 @@ fn update_config(
 
     CONFIG.save(deps.storage, &config)?;
 
-    Ok(app.tag_response(Response::default(), "update_config"))
+    Ok(app.response("update_config"))
 }
 
 /// Add allowed assets
@@ -133,7 +133,7 @@ fn add_allowed_assets(
     supported_assets.sort();
     ALLOWED_ASSETS.save(deps.storage, &supported_assets)?;
 
-    Ok(app.tag_response(Response::default(), "add_allowed_assets"))
+    Ok(app.response("add_allowed_assets"))
 }
 
 fn collect(deps: DepsMut, msg_info: MessageInfo, app: FeeCollectorApp) -> FeeCollectorResult {
@@ -183,9 +183,8 @@ fn collect(deps: DepsMut, msg_info: MessageInfo, app: FeeCollectorApp) -> FeeCol
     );
 
     // send all funds to commission address
-    let response = Response::new()
-        .add_messages(swap_msgs)
-        .add_submessage(last_swap_submsg);
 
-    Ok(app.custom_tag_response(response, "collect", vec![("4t2", "/FC/Collect")]))
+    Ok(app.custom_response( "collect", vec![("4t2", "/FC/Collect")])
+        .add_messages(swap_msgs)
+        .add_submessage(last_swap_submsg))
 }

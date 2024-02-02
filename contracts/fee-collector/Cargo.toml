@@ -74,5 +74,5 @@ env_logger = "0.10.0"
 clap = { version = "4.0.32", features = ["derive"] }
 abstract-sdk = { workspace = true, features = ["test-utils"] }
 
-abstract-dex-adapter = { workspace = true, features = ["juno", "interface"] }
-abstract-cw-staking = { workspace = true, features = ["juno", "interface"] }
+abstract-dex-adapter = { workspace = true, features = ["testing", "interface"] }
+abstract-cw-staking = { workspace = true, features = ["testing", "interface"] }

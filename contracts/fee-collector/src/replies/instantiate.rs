@@ -12,5 +12,5 @@ pub fn instantiate_reply(
 ) -> FeeCollectorResult {
     let _data = reply.result.unwrap().data.unwrap();
 
-    Ok(app.tag_response(Response::default(), "instantiate_reply"))
+    Ok(app.response("instantiate_reply"))
 }

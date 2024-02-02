@@ -11,5 +11,5 @@ pub fn migrate_handler(
     app: FeeCollectorApp,
     _msg: FeeCollectorMigrateMsg,
 ) -> FeeCollectorResult {
-    Ok(app.tag_response(Response::default(), "migrate"))
+    Ok(app.response("migrate"))
 }
