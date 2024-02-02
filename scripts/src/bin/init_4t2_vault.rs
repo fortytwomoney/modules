@@ -1,4 +1,5 @@
-use abstract_core::objects::{AccountId, AssetEntry, DexAssetPairing};
+use abstract_core::module_factory::ModuleInstallConfig;
+use abstract_core::objects::{AccountId, AssetEntry, DexAssetPairing, PoolMetadata};
 use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
 use cw_orch::daemon::networks::osmosis::OSMO_NETWORK;
 use cw_orch::daemon::{ChainInfo, ChainKind, DaemonBuilder};
@@ -7,28 +8,31 @@ use cw_orch::prelude::queriers::{Bank, DaemonQuerier};
 use cw_orch::prelude::*;
 use std::env;
 
+use abstract_core::ans_host::ExecuteMsgFns;
+use abstract_core::objects::pool_id::PoolAddressBase;
 use abstract_core::objects::price_source::UncheckedPriceSource;
 use abstract_core::proxy::{AssetsConfigResponse, QueryMsgFns};
 use abstract_core::{
     app, manager, objects::gov_type::GovernanceDetails, objects::module::ModuleInfo, proxy,
-    registry::ANS_HOST, PROXY,
+    registry::ANS_HOST, OSMOSIS, PROXY,
 };
-use abstract_cw_staking::CW_STAKING_ADAPTER_ID;
-use abstract_dex_adapter::DEX_ADAPTER_ID;
-use abstract_interface::{Abstract, AbstractAccount, AccountDetails, ManagerQueryFns};
+use abstract_cw_staking::interface::CwStakingAdapter;
+use abstract_cw_staking::CW_STAKING;
+use abstract_dex_adapter::interface::DexAdapter;
+use abstract_dex_adapter::msg::DexInstantiateMsg;
+use abstract_dex_adapter::EXCHANGE;
+use abstract_interface::{
+    Abstract, AbstractAccount, AccountDetails, AdapterDeployer, AppDeployer, DeployStrategy,
+    ManagerQueryFns,
+};
 use cw_utils::Duration;
 use std::sync::Arc;
-use abstract_client::{AbstractClient, Account};
-use abstract_core::manager::ModuleInstallConfig;
-use abstract_core::objects::module::ModuleVersion;
-use abstract_core::objects::namespace::Namespace;
-use abstract_core::version_control::AccountBase;
 
 use clap::Parser;
-use cosmwasm_std::{coin, Addr, Decimal, Uint128};
+use cosmwasm_std::{coin, coins, Addr, Decimal};
 use cw_orch::daemon::networks::parse_network;
 
-use autocompounder::interface::Vault;
+use autocompounder::interface::{AutocompounderApp, Vault};
 use autocompounder::msg::{
     AutocompounderInstantiateMsg, AutocompounderQueryMsgFns, BondingData, AUTOCOMPOUNDER_ID,
 };
@@ -63,24 +67,23 @@ fn description(asset_string: String) -> String {
 fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
-    let (dex, base_pair_asset, cw20_code_id, token_creation_fee) =
-        match args.network_id.as_str() {
-            "uni-6" => ("wyndex", "juno>junox", Some(4012), None),
-            "juno-1" => ("wyndex", "juno>juno", Some(1), None),
-            "pion-1" => ("astroport", "neutron>astro", Some(188), None),
-            "neutron-1" => ("astroport", "neutron>astro", Some(180), None),
-            "pisco-1" => ("astroport", "terra2>luna", Some(83), None),
-            "phoenix-1" => ("astroport", "terra2>luna", Some(69), None),
-            "osmo-test-5" => ("osmosis", "osmosis>osmo", None, None),
-            "osmosis-1" => ("osmosis", "osmosis>osmo", None, None),
-            "harpoon-4" => (
-                "kujira",
-                "kujira>kuji",
-                None,
-                Some(TOKEN_FACTORY_CREATION_FEE),
-            ),
-            _ => panic!("Unknown network id: {}", args.network_id),
-        };
+    let (dex, base_pair_asset, cw20_code_id, token_creation_fee) = match args.network_id.as_str() {
+        "uni-6" => ("wyndex", "juno>junox", Some(4012), None),
+        "juno-1" => ("wyndex", "juno>juno", Some(1), None),
+        "pion-1" => ("astroport", "neutron>astro", Some(188), None),
+        "neutron-1" => ("astroport", "neutron>astro", Some(180), None),
+        "pisco-1" => ("astroport", "terra2>luna", Some(83), None),
+        "phoenix-1" => ("astroport", "terra2>luna", Some(69), None),
+        "osmo-test-5" => ("osmosis", "osmosis>osmo", None, None),
+        "osmosis-1" => ("osmosis", "osmosis>osmo", None, None),
+        "harpoon-4" => (
+            "kujira",
+            "kujira>kuji",
+            None,
+            Some(TOKEN_FACTORY_CREATION_FEE),
+        ),
+        _ => panic!("Unknown network id: {}", args.network_id),
+    };
 
     info!("Using dex: {} and base: {}", dex, base_pair_asset);
 
@@ -95,12 +98,22 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         .handle(rt.handle())
         .chain(network)
         .build()?;
+
+    // let abstr = Abstract::deploy_on(chain.clone(), "".into())?;
+
+    // let (chain, _, _, test_parent) = setup_test_tube()?;
+    //
+    // let parent_account_id = Some(test_parent.id()?.seq());
+    //
+
     let sender = chain.sender();
 
     let abstr = Abstract::load_from(chain.clone())?;
     let abstr_client = AbstractClient::new(chain.clone())?;
 
     let parent_account = get_parent_account(&abstr, &abstr_client)?;
+
+    // panic!("here");
 
     let mut pair_assets = vec![args.paired_asset.clone(), args.other_asset.clone()];
     pair_assets.sort();
@@ -114,16 +127,18 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     // Funds for creating the token denomination
     let instantiation_funds: Option<Vec<Coin>> = if let Some(creation_fee) = token_creation_fee {
-        let bank = Bank::new(chain.channel());
-        let balance: u128 = rt
-            .block_on(bank.balance(&sender, Some("ukuji".to_string())))
-            .unwrap()[0]
-            .amount
-            .parse()?;
-        if balance < creation_fee {
-            panic!("Not enough ukuji to pay for token factory creation fee");
-        }
-        Some(vec![coin(creation_fee, "ukuji")])
+        // let bank = Bank::new(chain.channel());
+        // let balance: u128 = rt
+        //     .block_on(bank.balance(&sender, Some("ukuji".to_string())))
+        //     .unwrap()[0]
+        //     .amount
+        //     .parse()?;
+        // if balance < creation_fee {
+        //     panic!("Not enough ukuji to pay for token factory creation fee");
+        // }
+        // Some(vec![coin(creation_fee, "ukuji")])
+        // Some(vec![coin(creation_fee, "ukuji")])
+        None
     } else {
         None
     };
@@ -168,10 +183,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                 .unwrap_addr()?
                 .to_string(),
             version_control_address: abstr.version_control.address()?.to_string(),
-            account_base: AccountBase {
-                manager: parent_account.manager.address()?,
-                proxy: parent_account.proxy.address()?,
-            }
         },
         module: autocompounder_mod_init_msg,
     };
@@ -181,7 +192,10 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         namespace: None,
         description: Some(description(pair_assets.join("|").replace('>', ":"))),
         link: None,
-        name: format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
+        name: format!(
+            "TESTING 4t2 Vault ({})",
+            pair_assets.join("|").replace('>', ":")
+        ),
         install_modules: vec![
             // installs both abstract dex and staking in the instantiation of the account
             ModuleInstallConfig::new(ModuleInfo::from_id_latest(DEX_ADAPTER_ID)?, None),
@@ -207,11 +221,15 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         .unwrap()
         .to_owned();
 
-    let new_vault_account =
-        AbstractAccount::new(&abstr, AccountId::local(new_vault_account_id));
+    let new_vault_account = AbstractAccount::new(&abstr, AccountId::local(new_vault_account_id));
     println!("New vault account id: {:?}", new_vault_account.id()?);
 
-    new_vault_account.manager.install_module_version(AUTOCOMPOUNDER_ID, ModuleVersion::Version("0.9.7-test".into()), Some(&autocompounder_instantiate_msg), None)?;
+    new_vault_account.manager.install_module_version(
+        AUTOCOMPOUNDER_ID,
+        ModuleVersion::Version("0.9.7-test".into()),
+        Some(&autocompounder_instantiate_msg),
+        None,
+    )?;
 
     // Osmosis does not support value calculation via pools
     if dex != "osmosis" {
@@ -247,9 +265,113 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn check_for_existing_vaults(
-    abstr: &Abstract<Daemon>,
-    parent_account: AbstractAccount<Daemon>,
+const ASSET_1: &str = "uosmo";
+const ASSET_2: &str = "uatom";
+pub const LP: &str = "osmosis/atom,osmo";
+
+fn get_pool_token(id: u64) -> String {
+    format!("gamm/pool/{}", id)
+}
+
+fn setup_test_tube() -> anyhow::Result<(
+    OsmosisTestTube,
+    u64,
+    CwStakingAdapter<OsmosisTestTube>,
+    AbstractAccount<OsmosisTestTube>,
+)> {
+    let tube = OsmosisTestTube::new(vec![
+        coin(1_000_000_000_000, ASSET_1),
+        coin(1_000_000_000_000, ASSET_2),
+    ]);
+
+    let deployment = Abstract::deploy_on(tube.clone(), tube.sender().to_string())?;
+
+    let _root_os =
+        deployment
+            .account_factory
+            .create_default_account(GovernanceDetails::Monarchy {
+                monarch: Addr::unchecked(deployment.account_factory.get_chain().sender())
+                    .to_string(),
+            })?;
+
+    // Deploy staking adatper
+    let staking: CwStakingAdapter<OsmosisTestTube> =
+        CwStakingAdapter::new("abstract:cw-staking", tube.clone());
+
+    staking.deploy("0.19.2".parse()?, Empty {}, DeployStrategy::Try)?;
+
+    // deploy dex adapter
+    let dex: DexAdapter<OsmosisTestTube> = DexAdapter::new("abstract:dex", tube.clone());
+    dex.deploy(
+        "0.19.2".parse()?,
+        DexInstantiateMsg {
+            swap_fee: Default::default(),
+            recipient_account: 0,
+        },
+    )?;
+
+    let autocompounder: AutocompounderApp<OsmosisTestTube> =
+        AutocompounderApp::new("4t2:autocompounder", tube.clone());
+    autocompounder.deploy("1.2.3".parse()?, DeployStrategy::Try)?;
+
+    let os = deployment
+        .account_factory
+        .create_default_account(GovernanceDetails::Monarchy {
+            monarch: Addr::unchecked(deployment.account_factory.get_chain().sender()).to_string(),
+        })?;
+    let _manager_addr = os.manager.address()?;
+
+    // transfer some LP tokens to the AbstractAccount, as if it provided liquidity
+    let pool_id = tube.create_pool(vec![coin(1_000, ASSET_1), coin(1_000, ASSET_2)])?;
+
+    deployment
+        .ans_host
+        .update_asset_addresses(
+            vec![
+                ("osmo".to_string(), cw_asset::AssetInfoBase::native(ASSET_1)),
+                ("atom".to_string(), cw_asset::AssetInfoBase::native(ASSET_2)),
+                (
+                    LP.to_string(),
+                    cw_asset::AssetInfoBase::native(get_pool_token(pool_id)),
+                ),
+            ],
+            vec![],
+        )
+        .unwrap();
+
+    deployment
+        .ans_host
+        .update_dexes(vec!["osmosis".into()], vec![])
+        .unwrap();
+
+    deployment
+        .ans_host
+        .update_pools(
+            vec![(
+                PoolAddressBase::id(pool_id),
+                PoolMetadata::constant_product(
+                    "osmosis",
+                    vec!["atom".to_string(), "osmo".to_string()],
+                ),
+            )],
+            vec![],
+        )
+        .unwrap();
+
+    // install exchange on AbstractAccount
+    os.install_adapter(&staking, None)?;
+
+    tube.bank_send(
+        os.proxy.addr_str()?,
+        coins(1_000u128, get_pool_token(pool_id)),
+    )?;
+
+    Ok((tube, pool_id, staking, os))
+}
+
+fn check_for_existing_vaults<Env: CwEnv>(
+    abstr: &Abstract<Env>,
+    parent_account: AbstractAccount<Env>,
     vault_name: String,
 ) -> Result<(), anyhow::Error> {
     // check all sub-accounts for the same vault
@@ -283,8 +405,8 @@ fn check_for_existing_vaults(
 }
 
 /// Register the assets on the account for value calculation
-fn register_assets(
-    vault_account: &AbstractAccount<Daemon>,
+fn register_assets<Env: CwEnv>(
+    vault_account: &AbstractAccount<Env>,
     base_pair_asset: AssetEntry,
     paired_asset: AssetEntry,
     dex: &str,
@@ -330,15 +452,13 @@ fn register_assets(
     Ok(())
 }
 
-
-
-
 /// Retrieve the account that will have all the 4t2 vaults as sub-accounts
 fn get_parent_account<Chain: CwEnv>(
     abstr: &Abstract<Chain>,
     client: &AbstractClient<Chain>,
 ) -> Result<AbstractAccount<Chain>, anyhow::Error> {
-    let account = client.account_builder()
+    let account = client
+        .account_builder()
         .name("fortytwo manager")
         .namespace(Namespace::unchecked(FORTY_TWO_ADMIN_NAMESPACE))
         .description("manager of 4t2 smartcontracts")

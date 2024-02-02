@@ -9,7 +9,7 @@ edition.workspace = true
 cw20-base = { workspace = true }
 cw20 = { workspace = true }
 cw-asset = { workspace = true }
-cw-orch = { workspace = true, features = ["daemon"] }
+cw-orch = { workspace = true, features = ["daemon", "osmosis-test-tube"] }
 abstract-interface = { workspace = true, features = ["daemon"] }
 cw-utils = { workspace = true }
 
@@ -24,7 +24,7 @@ serde = { workspace = true }
 dotenv = { workspace = true }
 env_logger = { workspace = true }
 semver = { workspace = true }
-abstract-cw-staking = { workspace = true }
+abstract-cw-staking = { workspace = true, features = ["interface"] }
 abstract-dex-adapter ={ workspace = true }
 abstract-core = { workspace = true }
 abstract-client = { workspace = true }
@@ -36,3 +36,6 @@ fee-collector = { workspace = true, features = ["interface"] }
 cw1-general = { git = "https://github.com/MbBrainz/cw-plus.git", features = [
   "interface",
 ], rev = "44431592ddad1ccfff654bcab8f0c8818518521c" }
+
+[patch.crates-io]
+time = "0.3.12"
