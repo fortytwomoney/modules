@@ -1,4 +1,4 @@
-use abstract_interface::AppDeployer;
+use abstract_interface::{AppDeployer, DeployStrategy};
 use cw_orch::daemon::networks::osmosis::OSMO_NETWORK;
 use cw_orch::daemon::{ChainInfo, ChainKind};
 
@@ -27,7 +27,7 @@ fn deploy_autocompounder(
 
     let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER_ID, chain);
 
-    autocompounder.deploy(version)?;
+    autocompounder.deploy(version, DeployStrategy::Error)?;
 
     // // This might be still useful at some point for instantiation fees
     // let update = abstr.version_control.update_module_configuration(

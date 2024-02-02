@@ -15,6 +15,7 @@ cw-utils = { workspace = true }
 
 cw-plus-interface ={ workspace = true }
 
+thiserror = { workspace = true }
 log = { workspace = true }
 cosmwasm-std = { workspace = true }
 anyhow = { workspace = true }
@@ -26,6 +27,7 @@ semver = { workspace = true }
 abstract-cw-staking = { workspace = true }
 abstract-dex-adapter ={ workspace = true }
 abstract-core = { workspace = true }
+abstract-client = { workspace = true }
 tokio = { workspace = true }
 clap = { workspace = true }
 speculoos = { workspace = true }

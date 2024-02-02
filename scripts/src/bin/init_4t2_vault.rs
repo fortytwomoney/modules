@@ -18,10 +18,14 @@ use abstract_dex_adapter::DEX_ADAPTER_ID;
 use abstract_interface::{Abstract, AbstractAccount, AccountDetails, ManagerQueryFns};
 use cw_utils::Duration;
 use std::sync::Arc;
+use abstract_client::{AbstractClient, Account};
 use abstract_core::manager::ModuleInstallConfig;
+use abstract_core::objects::module::ModuleVersion;
+use abstract_core::objects::namespace::Namespace;
+use abstract_core::version_control::AccountBase;
 
 use clap::Parser;
-use cosmwasm_std::{coin, Addr, Decimal};
+use cosmwasm_std::{coin, Addr, Decimal, Uint128};
 use cw_orch::daemon::networks::parse_network;
 
 use autocompounder::interface::Vault;
@@ -45,6 +49,8 @@ pub const OSMOSIS_1: ChainInfo = ChainInfo {
     fcd_url: None,
 };
 
+const FORTY_TWO_ADMIN_NAMESPACE: &'static str = "4t2-testing";
+
 const _MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn description(asset_string: String) -> String {
@@ -57,18 +63,17 @@ fn description(asset_string: String) -> String {
 fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
 
-    let (parent_account_id, dex, base_pair_asset, cw20_code_id, token_creation_fee) =
+    let (dex, base_pair_asset, cw20_code_id, token_creation_fee) =
         match args.network_id.as_str() {
-            "uni-6" => (None, "wyndex", "juno>junox", Some(4012), None),
-            "juno-1" => (None, "wyndex", "juno>juno", Some(1), None),
-            "pion-1" => (None, "astroport", "neutron>astro", Some(188), None),
-            "neutron-1" => (None, "astroport", "neutron>astro", Some(180), None),
-            "pisco-1" => (None, "astroport", "terra2>luna", Some(83), None),
-            "phoenix-1" => (None, "astroport", "terra2>luna", Some(69), None),
-            "osmo-test-5" => (Some(2), "osmosis", "osmosis>osmo", None, None),
-            "osmosis-1" => (Some(5), "osmosis", "osmosis>osmo", None, None),
+            "uni-6" => ("wyndex", "juno>junox", Some(4012), None),
+            "juno-1" => ("wyndex", "juno>juno", Some(1), None),
+            "pion-1" => ("astroport", "neutron>astro", Some(188), None),
+            "neutron-1" => ("astroport", "neutron>astro", Some(180), None),
+            "pisco-1" => ("astroport", "terra2>luna", Some(83), None),
+            "phoenix-1" => ("astroport", "terra2>luna", Some(69), None),
+            "osmo-test-5" => ("osmosis", "osmosis>osmo", None, None),
+            "osmosis-1" => ("osmosis", "osmosis>osmo", None, None),
             "harpoon-4" => (
-                Some(2),
                 "kujira",
                 "kujira>kuji",
                 None,
@@ -93,7 +98,9 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let sender = chain.sender();
 
     let abstr = Abstract::load_from(chain.clone())?;
-    let parent_account = get_parent_account(parent_account_id, &abstr, &sender)?;
+    let abstr_client = AbstractClient::new(chain.clone())?;
+
+    let parent_account = get_parent_account(&abstr, &abstr_client)?;
 
     let mut pair_assets = vec![args.paired_asset.clone(), args.other_asset.clone()];
     pair_assets.sort();
@@ -102,11 +109,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     let vault_name = format!("4t2 Vault ({})", human_readable_assets);
 
     if !args.force_new {
-        check_for_existing_vaults(&abstr, parent_account, vault_name.clone())?;
+        check_for_existing_vaults(&abstr, parent_account.clone(), vault_name.clone())?;
     }
-
-    // reload parent account into context
-    let parent_account = get_parent_account(parent_account_id, &abstr, &sender)?;
 
     // Funds for creating the token denomination
     let instantiation_funds: Option<Vec<Coin>> = if let Some(creation_fee) = token_creation_fee {
@@ -164,6 +168,10 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
                 .unwrap_addr()?
                 .to_string(),
             version_control_address: abstr.version_control.address()?.to_string(),
+            account_base: AccountBase {
+                manager: parent_account.manager.address()?,
+                proxy: parent_account.proxy.address()?,
+            }
         },
         module: autocompounder_mod_init_msg,
     };
@@ -203,7 +211,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         AbstractAccount::new(&abstr, AccountId::local(new_vault_account_id));
     println!("New vault account id: {:?}", new_vault_account.id()?);
 
-    new_vault_account.install_module(AUTOCOMPOUNDER_ID, Some(&autocompounder_instantiate_msg), None)?;
+    new_vault_account.manager.install_module_version(AUTOCOMPOUNDER_ID, ModuleVersion::Version("0.9.7-test".into()), Some(&autocompounder_instantiate_msg), None)?;
 
     // Osmosis does not support value calculation via pools
     if dex != "osmosis" {
@@ -322,31 +330,25 @@ fn register_assets(
     Ok(())
 }
 
+
+
+
 /// Retrieve the account that will have all the 4t2 vaults as sub-accounts
-fn get_parent_account(
-    main_account_id: Option<u32>,
-    abstr: &Abstract<Daemon>,
-    sender: &Addr,
-) -> Result<AbstractAccount<Daemon>, anyhow::Error> {
-    let main_account = if let Some(account_id) = main_account_id {
-        AbstractAccount::new(abstr, AccountId::local(account_id))
-    } else {
-        abstr.account_factory.create_new_account(
-            AccountDetails {
-                name: "fortytwo manager".to_string(),
-                description: Some("manager of 4t2 smartcontracts".to_string()),
-                link: None,
-                namespace: Some("4t2".to_string()),
-                base_asset: None,
-                install_modules: vec![],
-            },
-            GovernanceDetails::Monarchy {
-                monarch: sender.to_string(),
-            },
-            None,
-        )?
-    };
-    Ok(main_account)
+fn get_parent_account<Chain: CwEnv>(
+    abstr: &Abstract<Chain>,
+    client: &AbstractClient<Chain>,
+) -> Result<AbstractAccount<Chain>, anyhow::Error> {
+    let account = client.account_builder()
+        .name("fortytwo manager")
+        .namespace(Namespace::unchecked(FORTY_TWO_ADMIN_NAMESPACE))
+        .description("manager of 4t2 smartcontracts")
+        .ownership(GovernanceDetails::Monarchy {
+            monarch: client.sender().to_string(),
+        })
+        .install_on_sub_account(true)
+        .build()?;
+
+    Ok(AbstractAccount::new(&abstr, account.id()?))
 }
 
 #[derive(Parser, Default, Debug)]
