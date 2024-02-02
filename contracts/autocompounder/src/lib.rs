@@ -359,6 +359,10 @@ mod test_common {
                     base: abstract_core::app::BaseInstantiateMsg {
                         ans_host_address: TEST_ANS_HOST.to_string(),
                         version_control_address: TEST_VERSION_CONTROL.to_string(),
+                        account_base: AccountBase {
+                            manager: Addr::unchecked(TEST_MANAGER),
+                            proxy: Addr::unchecked(TEST_PROXY),
+                        }
                     },
                 },
             )

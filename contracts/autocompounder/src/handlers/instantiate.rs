@@ -133,7 +133,8 @@ mod test {
     use abstract_core::objects::{AssetEntry, DexAssetPairing};
     use abstract_sdk::base::InstantiateEndpoint;
     use abstract_sdk::core as abstract_core;
-    use abstract_testing::prelude::{TEST_ANS_HOST, TEST_MODULE_FACTORY, TEST_VERSION_CONTROL};
+    use abstract_core::version_control::AccountBase;
+    use abstract_testing::prelude::{TEST_ANS_HOST, TEST_MODULE_FACTORY, TEST_VERSION_CONTROL, TEST_MANAGER, TEST_PROXY};
     const ASTROPORT: &str = "astroport";
     const COMMISSION_RECEIVER: &str = "commission_receiver";
     use crate::test_common::app_init;
@@ -201,6 +202,10 @@ mod test {
                 base: abstract_core::app::BaseInstantiateMsg {
                     version_control_address: TEST_VERSION_CONTROL.to_string(),
                     ans_host_address: TEST_ANS_HOST.to_string(),
+                    account_base: AccountBase {
+                        manager: Addr::unchecked(TEST_MANAGER),
+                        proxy: Addr::unchecked(TEST_PROXY),
+                    }
                 },
             },
         );

@@ -2,10 +2,10 @@ use abstract_core::objects::gov_type::GovernanceDetails;
 use cw_orch::deploy::Deploy;
 use std::str::FromStr;
 
-use abstract_core::adapter::BaseExecuteMsgFns;
 use abstract_core::objects::AssetEntry;
+use abstract_core::version_control::AccountBase;
 use abstract_dex_adapter::msg::DexInstantiateMsg;
-use abstract_dex_adapter::{interface::DexAdapter, EXCHANGE};
+use abstract_dex_adapter::{interface::DexAdapter, DEX_ADAPTER_ID};
 use abstract_interface::{
     Abstract, AbstractAccount, AbstractInterfaceError, AccountDetails, ManagerQueryFns,
 };
@@ -46,7 +46,7 @@ pub(crate) fn init_exchange(
     deployment: &Abstract<Mock>,
     version: Option<String>,
 ) -> Result<DexAdapter<Mock>, AbstractInterfaceError> {
-    let exchange = DexAdapter::new(EXCHANGE, chain);
+    let exchange = DexAdapter::new(DEX_ADAPTER_ID, chain);
 
     exchange.upload()?;
     exchange.instantiate(
@@ -139,10 +139,10 @@ fn create_fee_collector(
     )?;
 
     // install dex
-    account.manager.install_module(EXCHANGE, &Empty {}, None)?;
+    account.manager.install_module(DEX_ADAPTER_ID, None, None)?;
     account.manager.install_module(
         FEE_COLLECTOR,
-        &abstract_core::app::InstantiateMsg {
+        Some(&abstract_core::app::InstantiateMsg {
             module: fee_collector::msg::FeeCollectorInstantiateMsg {
                 commission_addr: COMMISSION_ADDR.to_string(),
                 max_swap_spread: Decimal::percent(25),
@@ -152,8 +152,12 @@ fn create_fee_collector(
             base: abstract_core::app::BaseInstantiateMsg {
                 ans_host_address: abstract_.ans_host.addr_str()?,
                 version_control_address: TEST_VERSION_CONTROL.to_string(),
+                account_base: AccountBase {
+                    manager: account.manager.address()?,
+                    proxy: account.proxy.address()?,
+                }
             },
-        },
+        }),
         None,
     )?;
 

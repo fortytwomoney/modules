@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
-use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING};
+use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING_ADAPTER_ID};
 use abstract_dex_adapter::msg::DexInstantiateMsg;
-use abstract_dex_adapter::{interface::DexAdapter, EXCHANGE};
+use abstract_dex_adapter::{DEX_ADAPTER_ID, interface::DexAdapter};
 use abstract_interface::{Abstract, AbstractInterfaceError};
 use abstract_sdk::core as abstract_core;
 use abstract_sdk::core::adapter::InstantiateMsg;
@@ -18,7 +18,7 @@ pub(crate) fn init_exchange(
     deployment: &Abstract<Mock>,
     version: Option<String>,
 ) -> Result<DexAdapter<Mock>, AbstractInterfaceError> {
-    let exchange = DexAdapter::new(EXCHANGE, chain);
+    let exchange = DexAdapter::new(DEX_ADAPTER_ID, chain);
 
     exchange.upload()?;
     exchange.instantiate(
@@ -52,7 +52,7 @@ pub(crate) fn init_staking(
     deployment: &Abstract<Mock>,
     version: Option<String>,
 ) -> Result<CwStakingAdapter<Mock>, AbstractInterfaceError> {
-    let staking = CwStakingAdapter::new(CW_STAKING, chain);
+    let staking = CwStakingAdapter::new(CW_STAKING_ADAPTER_ID, chain);
 
     staking.upload()?;
     staking.instantiate(

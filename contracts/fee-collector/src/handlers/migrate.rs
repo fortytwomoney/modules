@@ -1,7 +1,7 @@
 use crate::contract::{FeeCollectorApp, FeeCollectorResult};
 use crate::msg::FeeCollectorMigrateMsg;
 use abstract_sdk::AbstractResponse;
-use cosmwasm_std::{DepsMut, Env, Response};
+use cosmwasm_std::{DepsMut, Env};
 
 /// Handle the app migrate msg
 /// The top-level Abstract app does version checking and dispatches to this handler

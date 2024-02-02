@@ -3,7 +3,7 @@ use crate::{
     msg::Cw20HookMsg,
 };
 use abstract_sdk::AbstractResponse;
-use cosmwasm_std::{from_json, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{from_json, DepsMut, Env, MessageInfo};
 use cw20::Cw20ReceiveMsg;
 
 /// handler function invoked when the vault dapp contract receives

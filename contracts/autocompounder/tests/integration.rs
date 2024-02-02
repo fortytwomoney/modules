@@ -11,11 +11,12 @@ use std::str::FromStr;
 
 use abstract_core::adapter::BaseExecuteMsgFns;
 use abstract_core::objects::{AnsAsset, AnsEntryConvertor, AssetEntry, LpToken};
+use abstract_core::version_control::AccountBase;
+use abstract_cw_staking::CW_STAKING_ADAPTER_ID;
+use abstract_dex_adapter::DEX_ADAPTER_ID;
 use abstract_interface::{Abstract, ManagerQueryFns};
 use abstract_sdk::core as abstract_core;
 
-use abstract_cw_staking::CW_STAKING;
-use abstract_dex_adapter::EXCHANGE;
 
 use autocompounder::state::{Claim, Config, FeeConfig, DECIMAL_OFFSET};
 use cw_orch::prelude::*;
@@ -138,16 +139,16 @@ pub fn create_vault(
     )?;
 
     // install dex
-    account.manager.install_module(EXCHANGE, &Empty {}, None)?;
+    account.manager.install_module(DEX_ADAPTER_ID, None, None)?;
     // install staking
     account
         .manager
-        .install_module(CW_STAKING, &Empty {}, None)?;
+        .install_module(CW_STAKING_ADAPTER_ID, None, None)?;
 
     // install autocompounder
     account.manager.install_module(
         AUTOCOMPOUNDER_ID,
-        &abstract_core::app::InstantiateMsg {
+        Some(&abstract_core::app::InstantiateMsg {
             module: autocompounder::msg::AutocompounderInstantiateMsg {
                 code_id: if vault_token_is_cw20 {
                     Some(vault_token_code_id)
@@ -169,8 +170,12 @@ pub fn create_vault(
             base: abstract_core::app::BaseInstantiateMsg {
                 ans_host_address: abstract_.ans_host.addr_str()?,
                 version_control_address: abstract_.version_control.addr_str()?,
+                account_base: AccountBase {
+                    manager: account.manager.address()?,
+                    proxy: account.proxy.address()?,
+                }
             },
-        },
+        }),
         None,
     )?;
 

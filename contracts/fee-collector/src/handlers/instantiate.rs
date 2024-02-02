@@ -1,6 +1,6 @@
 use abstract_core::objects::AssetEntry;
 use abstract_sdk::AbstractResponse;
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{DepsMut, Env, MessageInfo};
 
 use crate::contract::{FeeCollectorApp, FeeCollectorResult};
 use crate::msg::FeeCollectorInstantiateMsg;

@@ -31,8 +31,7 @@ pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
     // We start by creating a runtime, which is required for a sync daemon.
     let rt = Runtime::new().unwrap();
 
-    let network = parse_network(chain_id);
-    let denom = network.gas_denom;
+    let network = parse_network(chain_id).unwrap();
     // We can now create a daemon. This daemon will be used to interact with the chain.
     let daemon = Daemon::builder()
         // set the network to use
@@ -109,8 +108,7 @@ fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
     // We start by creating a runtime, which is required for a sync daemon.
     let rt = Runtime::new().unwrap();
 
-    let network = parse_network(chain_id);
-    let _denom = network.gas_denom;
+    let network = parse_network(chain_id).unwrap();
     // We can now create a daemon. This daemon will be used to interact with the chain.
     let daemon = Daemon::builder()
         // set the network to use
