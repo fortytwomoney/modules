@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING_ADAPTER_ID};
 use abstract_dex_adapter::msg::DexInstantiateMsg;
-use abstract_dex_adapter::{DEX_ADAPTER_ID, interface::DexAdapter};
+use abstract_dex_adapter::{interface::DexAdapter, DEX_ADAPTER_ID};
 use abstract_interface::{Abstract, AbstractInterfaceError};
 use abstract_sdk::core as abstract_core;
 use abstract_sdk::core::adapter::InstantiateMsg;

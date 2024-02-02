@@ -162,7 +162,7 @@ pub fn update_fee_config(
 
     FEE_CONFIG.save(deps.storage, &config)?;
 
-    Ok(app.custom_response( "update_fee_config", updates))
+    Ok(app.custom_response("update_fee_config", updates))
 }
 
 // This is the function that is called when the user wants to pool AND stake their funds
@@ -253,10 +253,8 @@ pub fn deposit(
     )?;
     CACHED_USER_ADDR.save(deps.storage, &recipient)?;
 
-    let mut response = app.custom_response(
-        "deposit",
-        vec![("recipient", recipient.to_string())],
-    )
+    let mut response = app
+        .custom_response("deposit", vec![("recipient", recipient.to_string())])
         .add_messages(messages)
         .add_submessages(submessages);
 
@@ -429,10 +427,9 @@ fn deposit_lp(
         config.unbonding_period,
     )?;
 
-    Ok(app.custom_response(
-        "deposit-lp",
-        vec![("recipient", recipient.to_string())],
-    ).add_message(transfer_msg)
+    Ok(app
+        .custom_response("deposit-lp", vec![("recipient", recipient.to_string())])
+        .add_message(transfer_msg)
         .add_messages(vec![mint_msg, stake_msg])
         .add_message(fee_msg))
 }
@@ -599,13 +596,15 @@ pub fn batch_unbond(
         config.pool_data.dex.clone(),
     )?;
 
-    Ok(app.custom_response(
-        "batch_unbond",
-        vec![
-            ("unbond_amount", total_lp_amount_to_unbond.to_string()),
-            ("burn_amount", total_vault_tokens_to_burn.to_string()),
-        ],
-    ).add_messages(vec![unstake_msg, burn_msg]))
+    Ok(app
+        .custom_response(
+            "batch_unbond",
+            vec![
+                ("unbond_amount", total_lp_amount_to_unbond.to_string()),
+                ("burn_amount", total_vault_tokens_to_burn.to_string()),
+            ],
+        )
+        .add_messages(vec![unstake_msg, burn_msg]))
 }
 
 /// Handles receiving CW20 messages
@@ -708,13 +707,15 @@ fn receive_and_register_claim(
 
     register_pre_claim(deps, recipient.clone(), amount_of_vault_tokens_to_be_burned)?;
 
-    Ok(app.custom_response(
-        "claim_registered",
-        vec![
-            ("recipient", recipient.to_string()),
-            ("amount", amount_of_vault_tokens_to_be_burned.to_string()),
-        ],
-    ).add_messages(transfer_msgs))
+    Ok(app
+        .custom_response(
+            "claim_registered",
+            vec![
+                ("recipient", recipient.to_string()),
+                ("amount", amount_of_vault_tokens_to_be_burned.to_string()),
+            ],
+        )
+        .add_messages(transfer_msgs))
 }
 
 /// Redeems the vault tokens without a bonding period.
@@ -795,19 +796,21 @@ fn redeem_without_bonding_period(
 
     // TODO: Check all the lp_token() calls and make sure they are everywhere.
 
-    Ok(app.custom_response(
-        "redeem",
-        vec![
-            (
-                "vault_token_burn_amount",
-                &amount_of_vault_tokens_to_be_burned.to_string(),
-            ),
-            (
-                "lp_token_withdraw_amount",
-                &lp_tokens_withdraw_amount.to_string(),
-            ),
-        ],
-    ).add_messages(transfer_msgs)
+    Ok(app
+        .custom_response(
+            "redeem",
+            vec![
+                (
+                    "vault_token_burn_amount",
+                    &amount_of_vault_tokens_to_be_burned.to_string(),
+                ),
+                (
+                    "lp_token_withdraw_amount",
+                    &lp_tokens_withdraw_amount.to_string(),
+                ),
+            ],
+        )
+        .add_messages(transfer_msgs)
         .add_message(unstake_msg)
         .add_message(burn_msg)
         .add_submessage(sub_msg))
@@ -904,13 +907,15 @@ pub fn withdraw_claims(
         dex.withdraw_liquidity(config.lp_asset_entry(), lp_tokens_to_withdraw)?;
     let sub_msg = SubMsg::reply_on_success(withdraw_msg, LP_WITHDRAWAL_REPLY_ID);
 
-    Ok(app.custom_response(
-        "withdraw_claims",
-        vec![
-            ("recipient", sender.to_string()),
-            ("lp_tokens_to_withdraw", lp_tokens_to_withdraw.to_string()),
-        ],
-    ).add_message(claim_msg)
+    Ok(app
+        .custom_response(
+            "withdraw_claims",
+            vec![
+                ("recipient", sender.to_string()),
+                ("lp_tokens_to_withdraw", lp_tokens_to_withdraw.to_string()),
+            ],
+        )
+        .add_message(claim_msg)
         .add_submessage(sub_msg))
 }
 

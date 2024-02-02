@@ -49,7 +49,7 @@ cosmwasm-schema = { version = "1.1" }
 cw-asset = { version = "3.0" }
 schemars = "0.8"
 serde = { version = "1.0", default-featcuures = false, features = ["derive"] }
-thiserror = { version = "1.0.49" }
+thiserror = { version = "1.0.56" }
 cw-storage-plus = "1.0.1"
 cw-controllers = "1.0.1"
 cw-paginate = { git = "https://github.com/DA0-DA0/dao-contracts.git", tag = "v1.0.0" }

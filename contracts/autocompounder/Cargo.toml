@@ -19,7 +19,7 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [features]
-backtraces = ["cosmwasm-std/backtraces"]
+# backtraces = ["cosmwasm-std/backtraces"]
 export = []
 default = ["export"]
 schema = ["abstract-app/schema"]
@@ -66,19 +66,13 @@ anybuf = "0.1.0"
 wyndex-bundle = { workspace = true }
 wyndex-stake = { git = "https://github.com/cosmorama/wynddex.git", rev = "v1.1.2" }
 autocompounder = { path = ".", features = ["interface"] }
-abstract-dex-adapter = { workspace = true, features = [
-  "interface",
-  "testing",
-] }
-abstract-cw-staking = { workspace = true, features = [
-  "interface",
-  "testing",
-] }
+abstract-dex-adapter = { workspace = true, features = ["interface", "testing"] }
+abstract-cw-staking = { workspace = true, features = ["interface", "testing"] }
 abstract-interface = { workspace = true, features = ["daemon"] }
 abstract-testing = { workspace = true }
 abstract-core = { workspace = true }
 cw-orch = { workspace = true, features = ["daemon"] }
-cosmrs = "0.14.0"
+cosmrs = { version = "0.15.0", features = ["rpc"] }
 test-case = "3.2.1"
 cw-plus-interface = { workspace = true }
 cw-multi-test = { workspace = true }

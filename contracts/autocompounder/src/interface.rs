@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use abstract_core::objects::AccountId;
 use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING_ADAPTER_ID};
 use abstract_interface::{Abstract, ManagerQueryFns};
@@ -6,6 +5,7 @@ use abstract_interface::{AbstractAccount, AppDeployer};
 use abstract_sdk::core::app;
 use abstract_sdk::core::app::BaseExecuteMsg;
 use cw_orch::{interface, prelude::*};
+use std::path::PathBuf;
 
 /*use boot_core::{
     contract, BootError, BootExecute, Contract, ContractWrapper, CwEnv, IndexResponse, TxResponse,
@@ -126,8 +126,14 @@ impl<Chain: CwEnv> Vault<Chain> {
 
     /// Update the vault to have the latest versions of the modules
     pub fn update(&mut self) -> anyhow::Result<()> {
-        if self.account.manager.is_module_installed(CW_STAKING_ADAPTER_ID)? {
-            self.account.manager.upgrade_module(CW_STAKING_ADAPTER_ID, &Empty {})?;
+        if self
+            .account
+            .manager
+            .is_module_installed(CW_STAKING_ADAPTER_ID)?
+        {
+            self.account
+                .manager
+                .upgrade_module(CW_STAKING_ADAPTER_ID, &Empty {})?;
         }
         if self
             .account

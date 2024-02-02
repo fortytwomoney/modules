@@ -1,4 +1,4 @@
-use abstract_sdk::{Execution, features::AbstractResponse, TransferInterface};
+use abstract_sdk::{features::AbstractResponse, Execution, TransferInterface};
 use cosmwasm_std::{DepsMut, Env, Reply};
 
 use crate::{
@@ -19,6 +19,7 @@ pub fn swapped_reply(
 
     let transfer_msg = bank.transfer(vec![fee_balance], &config.commission_addr)?;
 
-    Ok(app.response("swapped_reply")
+    Ok(app
+        .response("swapped_reply")
         .add_message(app.executor(deps.as_ref()).execute(vec![transfer_msg])?))
 }

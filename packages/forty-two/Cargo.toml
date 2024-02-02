@@ -9,7 +9,7 @@ readme = "README.md"
 [features]
 default = []
 interface = ["dep:cw-orch"]
-backtraces = ["cosmwasm-std/backtraces"]
+# backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
 cosmwasm-std = { workspace = true, features = ["iterator"] }

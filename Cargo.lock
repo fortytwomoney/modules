@@ -1008,7 +1008,7 @@ dependencies = [
  "anyhow",
  "autocompounder",
  "clap 4.4.18",
- "cosmrs 0.14.0",
+ "cosmrs 0.15.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-asset",
@@ -1172,7 +1172,7 @@ dependencies = [
  "hmac",
  "k256 0.11.6",
  "once_cell",
- "pbkdf2 0.11.0",
+ "pbkdf2",
  "rand_core 0.6.4",
  "ripemd",
  "sha2 0.10.8",
@@ -1189,8 +1189,6 @@ dependencies = [
  "bs58 0.5.0",
  "hmac",
  "k256 0.13.1",
- "once_cell",
- "pbkdf2 0.12.2",
  "rand_core 0.6.4",
  "ripemd",
  "sha2 0.10.8",
@@ -1464,17 +1462,6 @@ dependencies = [
 
 [[package]]
 name = "cosmos-sdk-proto"
-version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73c9d2043a9e617b0d602fbc0a0ecd621568edbf3a9774890a6d562389bd8e1c"
-dependencies = [
- "prost 0.11.9",
- "prost-types 0.11.9",
- "tendermint-proto 0.32.2",
-]
-
-[[package]]
-name = "cosmos-sdk-proto"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32560304ab4c365791fd307282f76637213d8083c1a98490c35159cd67852237"
@@ -1503,26 +1490,6 @@ dependencies = [
  "subtle-encoding",
  "tendermint 0.23.9",
  "tendermint-rpc 0.23.9",
- "thiserror",
-]
-
-[[package]]
-name = "cosmrs"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af13955d6f356272e6def9ff5e2450a7650df536d8934f47052a20c76513d2f6"
-dependencies = [
- "bip32 0.5.1",
- "cosmos-sdk-proto 0.19.0",
- "ecdsa 0.16.9",
- "eyre",
- "getrandom",
- "k256 0.13.1",
- "rand_core 0.6.4",
- "serde",
- "serde_json",
- "subtle-encoding",
- "tendermint 0.32.2",
  "thiserror",
 ]
 
@@ -3213,7 +3180,7 @@ checksum = "1e013a4f0b8772418eee1fc462e74017aba13c364a7b61bd3df1ddcbfe47b065"
 dependencies = [
  "hmac",
  "once_cell",
- "pbkdf2 0.11.0",
+ "pbkdf2",
  "rand_core 0.6.4",
  "sha2 0.10.8",
  "subtle-encoding",
@@ -4119,16 +4086,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "83a0692ec44e4cf1ef28ca317f14f8f07da2d95ec3fa01f86e4467b725e60917"
 dependencies = [
  "digest 0.10.7",
-]
-
-[[package]]
-name = "pbkdf2"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8ed6a7761f76e3b9f92dfb0a60a6a6477c61024b775147ff0973a02653abaf2"
-dependencies = [
- "digest 0.10.7",
- "hmac",
 ]
 
 [[package]]
@@ -5295,12 +5252,10 @@ dependencies = [
  "ed25519-consensus",
  "flex-error",
  "futures",
- "k256 0.13.1",
  "num-traits",
  "once_cell",
  "prost 0.11.9",
  "prost-types 0.11.9",
- "ripemd",
  "serde",
  "serde_bytes",
  "serde_json",

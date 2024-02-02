@@ -34,8 +34,5 @@ pub fn instantiate_handler(
     CONFIG.save(deps.storage, &config)?;
     ALLOWED_ASSETS.save(deps.storage, &vec![])?;
 
-    Ok(app.custom_response(
-        "instantiate",
-        vec![("4t2", "/FC/instantiate")],
-    ))
+    Ok(app.custom_response("instantiate", vec![("4t2", "/FC/instantiate")]))
 }

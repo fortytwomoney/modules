@@ -9,14 +9,12 @@ use cw_plus_interface::cw20_base::Cw20Base;
 use std::ops::Mul;
 use std::str::FromStr;
 
-use abstract_core::adapter::BaseExecuteMsgFns;
 use abstract_core::objects::{AnsAsset, AnsEntryConvertor, AssetEntry, LpToken};
 use abstract_core::version_control::AccountBase;
 use abstract_cw_staking::CW_STAKING_ADAPTER_ID;
 use abstract_dex_adapter::DEX_ADAPTER_ID;
 use abstract_interface::{Abstract, ManagerQueryFns};
 use abstract_sdk::core as abstract_core;
-
 
 use autocompounder::state::{Claim, Config, FeeConfig, DECIMAL_OFFSET};
 use cw_orch::prelude::*;
@@ -29,7 +27,7 @@ use autocompounder::msg::{
 use common::abstract_helper::{self, init_auto_compounder};
 use common::vault::Vault;
 use common::AResult;
-use cosmwasm_std::{coin, coins, to_json_binary, Addr, Decimal, Empty, Uint128};
+use cosmwasm_std::{coin, coins, to_json_binary, Addr, Decimal, Uint128};
 
 use cw_utils::{Duration, Expiration};
 use speculoos::assert_that;
@@ -139,11 +137,9 @@ pub fn create_vault(
     )?;
 
     // install dex
-    account.manager.install_module(DEX_ADAPTER_ID, None, None)?;
+    account.install_adapter(&exchange_api, None)?;
     // install staking
-    account
-        .manager
-        .install_module(CW_STAKING_ADAPTER_ID, None, None)?;
+    account.install_adapter(&staking_api, None)?;
 
     // install autocompounder
     account.manager.install_module(
@@ -173,7 +169,7 @@ pub fn create_vault(
                 account_base: AccountBase {
                     manager: account.manager.address()?,
                     proxy: account.proxy.address()?,
-                }
+                },
             },
         }),
         None,
@@ -190,12 +186,16 @@ pub fn create_vault(
     auto_compounder.set_address(&Addr::unchecked(auto_compounder_addr.clone()));
 
     // give the autocompounder permissions to call on the dex and cw-staking contracts
-    exchange_api
-        .call_as(&account.manager.address()?)
-        .update_authorized_addresses(vec![auto_compounder_addr.to_string()], vec![])?;
-    staking_api
-        .call_as(&account.manager.address()?)
-        .update_authorized_addresses(vec![auto_compounder_addr.to_string()], vec![])?;
+    account.manager.update_adapter_authorized_addresses(
+        DEX_ADAPTER_ID,
+        vec![auto_compounder_addr.to_string()],
+        vec![],
+    )?;
+    account.manager.update_adapter_authorized_addresses(
+        CW_STAKING_ADAPTER_ID,
+        vec![auto_compounder_addr.to_string()],
+        vec![],
+    )?;
 
     // set the vault token address
     let auto_compounder_config = auto_compounder.config()?;

@@ -23,7 +23,6 @@ mod test_common {
     use abstract_sdk::base::InstantiateEndpoint;
     pub use abstract_sdk::core as abstract_core;
     use abstract_sdk::core::{
-        module_factory::ContextResponse,
         objects::{PoolMetadata, PoolReference},
         version_control::AccountBase,
     };
@@ -61,20 +60,20 @@ mod test_common {
         );
         abstract_env
             .builder()
-            .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_json(msg).unwrap() {
-                abstract_core::module_factory::QueryMsg::Context {} => {
-                    let resp = ContextResponse {
-                        account_base: AccountBase {
-                            manager: Addr::unchecked(TEST_MANAGER),
-                            proxy: Addr::unchecked(TEST_PROXY),
-                        },
-                        modules: vec![],
-                        modules_to_register: vec![],
-                    };
-                    Ok(to_json_binary(&resp).unwrap())
-                }
-                _ => panic!("unexpected message"),
-            })
+            // .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_json(msg).unwrap() {
+            //     abstract_core::module_factory::QueryMsg::Context {} => {
+            //         let resp = ContextResponse {
+            //             account_base: AccountBase {
+            //                 manager: Addr::unchecked(TEST_MANAGER),
+            //                 proxy: Addr::unchecked(TEST_PROXY),
+            //             },
+            //             modules: vec![],
+            //             modules_to_register: vec![],
+            //         };
+            //         Ok(to_json_binary(&resp).unwrap())
+            //     }
+            //     _ => panic!("unexpected message"),
+            // })
             .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
                 match from_json(msg).unwrap() {
                     abstract_cw_staking::msg::QueryMsg::Module(StakingQueryMsg::Info {
@@ -224,20 +223,20 @@ mod test_common {
         );
         abstract_env
             .builder()
-            .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_json(msg).unwrap() {
-                abstract_core::module_factory::QueryMsg::Context {} => {
-                    let resp = ContextResponse {
-                        account_base: AccountBase {
-                            manager: Addr::unchecked(TEST_MANAGER),
-                            proxy: Addr::unchecked(TEST_PROXY),
-                        },
-                        modules_to_register: vec![],
-                        modules: vec![],
-                    };
-                    Ok(to_json_binary(&resp).unwrap())
-                }
-                _ => panic!("unexpected message"),
-            })
+            // .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_json(msg).unwrap() {
+                // abstract_core::module_factory::QueryMsg::Context {} => {
+                //     let resp = ContextResponse {
+                //         account_base: AccountBase {
+                //             manager: Addr::unchecked(TEST_MANAGER),
+                //             proxy: Addr::unchecked(TEST_PROXY),
+                //         },
+                //         modules_to_register: vec![],
+                //         modules: vec![],
+                //     };
+                //     Ok(to_json_binary(&resp).unwrap())
+                // }
+                // _ => panic!("unexpected message"),
+            // })
             .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
                 match from_json(msg).unwrap() {
                     abstract_cw_staking::msg::QueryMsg::Module(StakingQueryMsg::Info {
@@ -362,7 +361,7 @@ mod test_common {
                         account_base: AccountBase {
                             manager: Addr::unchecked(TEST_MANAGER),
                             proxy: Addr::unchecked(TEST_PROXY),
-                        }
+                        },
                     },
                 },
             )

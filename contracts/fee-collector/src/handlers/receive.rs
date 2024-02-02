@@ -19,10 +19,7 @@ pub fn receive_handler(
     match from_json(cw20_msg.msg)? {
         Cw20HookMsg::Deposit {} => {
             // Do nothing, just return
-            Ok(app.custom_response(
-                "receive_cw20",
-                vec![("method", "deposit")],
-            ))
+            Ok(app.custom_response("receive_cw20", vec![("method", "deposit")]))
         }
     }
 }

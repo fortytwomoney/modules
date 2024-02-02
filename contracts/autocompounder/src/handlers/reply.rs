@@ -10,7 +10,10 @@ use crate::error::AutocompounderError;
 
 use crate::state::{Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, FEE_CONFIG};
 use abstract_core::objects::{AnsEntryConvertor, AssetEntry};
-use abstract_cw_staking::{CW_STAKING_ADAPTER_ID, msg::{RewardTokensResponse, StakingQueryMsg}};
+use abstract_cw_staking::{
+    msg::{RewardTokensResponse, StakingQueryMsg},
+    CW_STAKING_ADAPTER_ID,
+};
 use abstract_dex_adapter::api::DexInterface;
 use abstract_dex_adapter::msg::OfferAsset;
 use abstract_sdk::Execution;
@@ -21,9 +24,7 @@ use abstract_sdk::{
     AbstractSdkResult, Resolve, TransferInterface,
 };
 use abstract_sdk::{AccountAction, AdapterInterface};
-use cosmwasm_std::{
-    CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, StdResult, SubMsg, Uint128,
-};
+use cosmwasm_std::{CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, StdResult, SubMsg, Uint128};
 use cw_asset::{Asset, AssetInfo};
 
 /// Handle a reply for the [`INSTANTIATE_REPLY_ID`] reply.
@@ -114,10 +115,13 @@ pub fn lp_provision_reply(
         config.unbonding_period,
     )?;
 
-    Ok(app.custom_response(
-        "lp_provision_reply",
-        vec![("vault_token_minted", mint_amount)],
-    ).add_message(mint_msg).add_message(stake_msg))
+    Ok(app
+        .custom_response(
+            "lp_provision_reply",
+            vec![("vault_token_minted", mint_amount)],
+        )
+        .add_message(mint_msg)
+        .add_message(stake_msg))
 }
 
 pub fn lp_withdrawal_reply(
@@ -138,12 +142,14 @@ pub fn lp_withdrawal_reply(
     let transfer_msg = bank.transfer(funds.clone(), &user_address)?;
     CACHED_ASSETS.clear(deps.storage);
 
-    Ok(app.custom_response(
-        "lp_withdrawal_reply",
-        funds
-            .into_iter()
-            .map(|asset| ("recieved", asset.to_string())),
-    ).add_messages(app.executor(deps.as_ref()).execute(vec![transfer_msg])))
+    Ok(app
+        .custom_response(
+            "lp_withdrawal_reply",
+            funds
+                .into_iter()
+                .map(|asset| ("recieved", asset.to_string())),
+        )
+        .add_messages(app.executor(deps.as_ref()).execute(vec![transfer_msg])))
 }
 
 /// Calculates the difference between the currently proxy-owned assets and the assets that were cached before the lp_withdrawal_reply
@@ -212,7 +218,8 @@ pub fn lp_compound_reply(
 
         submessages.push(SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID));
 
-        let response = app.response("lp_compound_reply")
+        let response = app
+            .response("lp_compound_reply")
             .add_messages(app.executor(deps.as_ref()).execute(messages))
             .add_submessages(submessages);
 
@@ -225,7 +232,8 @@ pub fn lp_compound_reply(
 
         // adds all swap messages to the response and the submsg -> the submsg will be executed after the last swap message
         // and will trigger the reply SWAPPED_REPLY_ID
-        let response = app.response("lp_compound_reply")
+        let response = app
+            .response("lp_compound_reply")
             .add_messages(app.executor(deps.as_ref()).execute(messages))
             .add_messages(swap_msgs)
             .add_submessages(submessages);
@@ -328,7 +336,9 @@ pub fn compound_lp_provision_reply(
         config.unbonding_period,
     )?;
 
-    Ok(app.response("compound_lp_provision_reply").add_message(stake_msg))
+    Ok(app
+        .response("compound_lp_provision_reply")
+        .add_message(stake_msg))
 }
 
 fn query_rewards(

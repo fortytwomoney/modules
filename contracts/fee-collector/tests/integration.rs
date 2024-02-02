@@ -139,7 +139,9 @@ fn create_fee_collector(
     )?;
 
     // install dex
-    account.manager.install_module(DEX_ADAPTER_ID, None, None)?;
+    account
+        .manager
+        .install_module::<Empty>(DEX_ADAPTER_ID, None, None)?;
     account.manager.install_module(
         FEE_COLLECTOR,
         Some(&abstract_core::app::InstantiateMsg {
@@ -155,7 +157,7 @@ fn create_fee_collector(
                 account_base: AccountBase {
                     manager: account.manager.address()?,
                     proxy: account.proxy.address()?,
-                }
+                },
             },
         }),
         None,
@@ -172,9 +174,11 @@ fn create_fee_collector(
     fee_collector.set_address(&Addr::unchecked(fee_collector_addr.clone()));
 
     // give the autocompounder permissions to call on the dex and cw-staking contracts
-    exchange_api
-        .call_as(&account.manager.address()?)
-        .update_authorized_addresses(vec![fee_collector_addr.to_string()], vec![])?;
+    account.manager.update_adapter_authorized_addresses(
+        DEX_ADAPTER_ID,
+        vec![fee_collector_addr.to_string()],
+        vec![],
+    )?;
 
     let _fee_collector_config = fee_collector.config()?;
 

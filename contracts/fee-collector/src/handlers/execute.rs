@@ -184,7 +184,8 @@ fn collect(deps: DepsMut, msg_info: MessageInfo, app: FeeCollectorApp) -> FeeCol
 
     // send all funds to commission address
 
-    Ok(app.custom_response( "collect", vec![("4t2", "/FC/Collect")])
+    Ok(app
+        .custom_response("collect", vec![("4t2", "/FC/Collect")])
         .add_messages(swap_msgs)
         .add_submessage(last_swap_submsg))
 }

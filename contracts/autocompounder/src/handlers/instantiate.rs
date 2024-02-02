@@ -7,11 +7,11 @@ use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_S
 use abstract_core::objects::{AnsEntryConvertor, AssetEntry};
 use abstract_cw_staking::msg::{StakingInfoResponse, StakingQueryMsg};
 use abstract_cw_staking::CW_STAKING_ADAPTER_ID;
-use abstract_sdk::{AbstractResponse, AdapterInterface};
 use abstract_sdk::{
     core::objects::{LpToken, PoolReference},
     features::AbstractNameService,
 };
+use abstract_sdk::{AbstractResponse, AdapterInterface};
 use cosmwasm_std::{Addr, Decimal, DepsMut, Env, MessageInfo};
 use cw_asset::AssetInfo;
 
@@ -69,8 +69,6 @@ pub fn instantiate_handler(
     let (unbonding_period, min_unbonding_cooldown) =
         get_unbonding_period_and_cooldown(manual_bonding_data)?;
 
-    panic!();
-
     let mut pool_references = ans.query(&pairing)?;
     let pool_reference: PoolReference = pool_references.swap_remove(0);
     // get the pool data
@@ -123,7 +121,8 @@ pub fn instantiate_handler(
         config.pool_data.dex,
     )?;
 
-    Ok(app.response("instantiate")
+    Ok(app
+        .response("instantiate")
         .add_submessage(sub_msg)
         .add_attribute("action", "instantiate")
         .add_attribute("contract", AUTOCOMPOUNDER))
@@ -133,10 +132,12 @@ pub fn instantiate_handler(
 mod test {
     use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_base_mock_querier};
     use abstract_core::objects::{AssetEntry, DexAssetPairing};
+    use abstract_core::version_control::AccountBase;
     use abstract_sdk::base::InstantiateEndpoint;
     use abstract_sdk::core as abstract_core;
-    use abstract_core::version_control::AccountBase;
-    use abstract_testing::prelude::{TEST_ANS_HOST, TEST_MODULE_FACTORY, TEST_VERSION_CONTROL, TEST_MANAGER, TEST_PROXY};
+    use abstract_testing::prelude::{
+        TEST_ANS_HOST, TEST_MANAGER, TEST_MODULE_FACTORY, TEST_PROXY, TEST_VERSION_CONTROL,
+    };
     const ASTROPORT: &str = "astroport";
     const COMMISSION_RECEIVER: &str = "commission_receiver";
     use crate::test_common::app_init;
@@ -207,7 +208,7 @@ mod test {
                     account_base: AccountBase {
                         manager: Addr::unchecked(TEST_MANAGER),
                         proxy: Addr::unchecked(TEST_PROXY),
-                    }
+                    },
                 },
             },
         );

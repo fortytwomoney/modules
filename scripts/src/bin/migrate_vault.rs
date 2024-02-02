@@ -61,14 +61,16 @@ fn migrate_vault(args: Arguments) -> anyhow::Result<()> {
             new_version
         );
 
-        autocompounder.deploy(new_version, DeployStrategy::Error).map_err(|e| {
-            println!(
+        autocompounder
+            .deploy(new_version, DeployStrategy::Error)
+            .map_err(|e| {
+                println!(
                 "Error deploying. If its a version error, try do switch this part of the code to 
             manual uploading and version registration, as that surpasses the version control. {:?}",
                 e
             );
-            e
-        })?;
+                e
+            })?;
 
         // // in case the .deploy function complains about versioning, use this:
         // // WARNING: This will overwrite the currently registered code for the version if it exists
