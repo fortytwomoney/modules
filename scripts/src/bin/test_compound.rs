@@ -31,7 +31,7 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
     };
 
     info!("Using dex: {} and base: {}", dex, base_pair_asset);
-    let network = parse_network(&args.network_id);
+    let network = parse_network(&args.network_id).unwrap();
 
     // Setup the environment
     let chain = DaemonBuilder::default()

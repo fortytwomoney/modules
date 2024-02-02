@@ -1,4 +1,3 @@
-use abstract_core::module_factory::ModuleInstallConfig;
 use abstract_core::objects::{AccountId, AssetEntry, DexAssetPairing};
 use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
 use cw_orch::daemon::networks::osmosis::OSMO_NETWORK;
@@ -14,11 +13,12 @@ use abstract_core::{
     app, manager, objects::gov_type::GovernanceDetails, objects::module::ModuleInfo, proxy,
     registry::ANS_HOST, PROXY,
 };
-use abstract_cw_staking::CW_STAKING;
-use abstract_dex_adapter::EXCHANGE;
+use abstract_cw_staking::CW_STAKING_ADAPTER_ID;
+use abstract_dex_adapter::DEX_ADAPTER_ID;
 use abstract_interface::{Abstract, AbstractAccount, AccountDetails, ManagerQueryFns};
 use cw_utils::Duration;
 use std::sync::Arc;
+use abstract_core::manager::ModuleInstallConfig;
 
 use clap::Parser;
 use cosmwasm_std::{coin, Addr, Decimal};
@@ -83,7 +83,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         // Override osmosis 1 config temporarily
         OSMOSIS_1
     } else {
-        parse_network(&args.network_id)
+        parse_network(&args.network_id).unwrap()
     };
 
     let chain = DaemonBuilder::default()
@@ -176,8 +176,8 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         name: format!("4t2 Vault ({})", pair_assets.join("|").replace('>', ":")),
         install_modules: vec![
             // installs both abstract dex and staking in the instantiation of the account
-            ModuleInstallConfig::new(ModuleInfo::from_id_latest(EXCHANGE)?, None),
-            ModuleInstallConfig::new(ModuleInfo::from_id_latest(CW_STAKING)?, None),
+            ModuleInstallConfig::new(ModuleInfo::from_id_latest(DEX_ADAPTER_ID)?, None),
+            ModuleInstallConfig::new(ModuleInfo::from_id_latest(CW_STAKING_ADAPTER_ID)?, None),
         ],
     };
 
@@ -200,10 +200,10 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         .to_owned();
 
     let new_vault_account =
-        AbstractAccount::new(&abstr, Some(AccountId::local(new_vault_account_id)));
+        AbstractAccount::new(&abstr, AccountId::local(new_vault_account_id));
     println!("New vault account id: {:?}", new_vault_account.id()?);
 
-    new_vault_account.install_module(AUTOCOMPOUNDER_ID, &autocompounder_instantiate_msg, None)?;
+    new_vault_account.install_module(AUTOCOMPOUNDER_ID, Some(&autocompounder_instantiate_msg), None)?;
 
     // Osmosis does not support value calculation via pools
     if dex != "osmosis" {
@@ -258,7 +258,7 @@ fn check_for_existing_vaults(
         }
 
         for sub_account_id in sub_account_batch.clone() {
-            let sub_account = AbstractAccount::new(abstr, Some(AccountId::local(sub_account_id)));
+            let sub_account = AbstractAccount::new(abstr, AccountId::local(sub_account_id));
             let sub_account_name = sub_account.manager.info()?.info.name;
 
             if sub_account_name == vault_name {
@@ -329,7 +329,7 @@ fn get_parent_account(
     sender: &Addr,
 ) -> Result<AbstractAccount<Daemon>, anyhow::Error> {
     let main_account = if let Some(account_id) = main_account_id {
-        AbstractAccount::new(abstr, Some(AccountId::local(account_id)))
+        AbstractAccount::new(abstr, AccountId::local(account_id))
     } else {
         abstr.account_factory.create_new_account(
             AccountDetails {

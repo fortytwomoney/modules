@@ -11,7 +11,7 @@
 // use cw_orch::prelude::{networks::parse_network, DaemonBuilder};
 
 // fn init_cw1(args: Arguments) -> anyhow::Result<()> {
-//     let network = parse_network(&args.network_id);
+//     let network = parse_network(&args.network_id).unwrap();
 
 //     println!("{:?}",network.grpc_urls);
 //     let rt = Arc::new(tokio::runtime::Runtime::new()?);

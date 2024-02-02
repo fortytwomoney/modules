@@ -80,7 +80,7 @@ fn main() -> anyhow::Result<()> {
     if &args.network_id == "osmosis-1" {
         network = OSMOSIS_1;
     } else {
-        network = parse_network(&args.network_id);
+        network = parse_network(&args.network_id).unwrap();
     }
     deploy_autocompounder(network, args.code_id)
 }

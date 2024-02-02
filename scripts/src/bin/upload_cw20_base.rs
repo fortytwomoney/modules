@@ -8,7 +8,7 @@ use clap::Parser;
 use cw_orch::prelude::{networks::parse_network, DaemonBuilder};
 
 fn upload_cw20base(args: Arguments) -> anyhow::Result<()> {
-    let network = parse_network(&args.network_id);
+    let network = parse_network(&args.network_id).unwrap();
 
     println!("{:?}", network.grpc_urls);
     let rt = Arc::new(tokio::runtime::Runtime::new()?);

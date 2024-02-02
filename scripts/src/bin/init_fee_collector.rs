@@ -82,7 +82,7 @@
 //     info!("Using dex: {} and base: {}", dex, base_pair_asset);
 
 //     // Setup the environment
-//     let network = parse_network(&args.network_id);
+//     let network = parse_network(&args.network_id).unwrap();
 
 //     // TODO: make grpc url dynamic by removing this line once cw-orch gets updated
 //     let chain = DaemonBuilder::default()

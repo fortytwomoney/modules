@@ -5,7 +5,7 @@ use abstract_sdk::{
     AbstractSdkResult, Resolve, TransferInterface,
 };
 
-use cosmwasm_std::{Decimal, DepsMut, Env, MessageInfo, Response, SubMsg};
+use cosmwasm_std::{Decimal, DepsMut, Env, MessageInfo, SubMsg};
 
 use crate::{
     contract::{FeeCollectorApp, FeeCollectorResult},

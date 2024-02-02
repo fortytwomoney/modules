@@ -1,5 +1,5 @@
 use abstract_core::objects::AccountId;
-use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING};
+use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING_ADAPTER_ID};
 use abstract_interface::{Abstract, ManagerQueryFns};
 use abstract_interface::{AbstractAccount, AppDeployer};
 use abstract_sdk::core::app;
@@ -72,14 +72,14 @@ pub struct Vault<Chain: CwEnv> {
 impl<Chain: CwEnv> Vault<Chain> {
     pub fn new(abstract_: &Abstract<Chain>, account_id: AccountId) -> anyhow::Result<Self> {
         let chain = abstract_.ans_host.get_chain();
-        let account = AbstractAccount::new(abstract_, Some(account_id.clone()));
-        let staking = CwStakingAdapter::new(CW_STAKING, chain.clone());
+        let account = AbstractAccount::new(abstract_, account_id.clone());
+        let staking = CwStakingAdapter::new(CW_STAKING_ADAPTER_ID, chain.clone());
         let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER_ID, chain.clone());
 
-        if account.manager.is_module_installed(CW_STAKING)? {
+        if account.manager.is_module_installed(CW_STAKING_ADAPTER_ID)? {
             let cw_staking_address = account
                 .manager
-                .module_info(CW_STAKING)?
+                .module_info(CW_STAKING_ADAPTER_ID)?
                 .ok_or(anyhow::anyhow!(
                     "Could not find cw-staking module on Account {}",
                     account_id
@@ -118,8 +118,8 @@ impl<Chain: CwEnv> Vault<Chain> {
 
     /// Update the vault to have the latest versions of the modules
     pub fn update(&mut self) -> anyhow::Result<()> {
-        if self.account.manager.is_module_installed(CW_STAKING)? {
-            self.account.manager.upgrade_module(CW_STAKING, &Empty {})?;
+        if self.account.manager.is_module_installed(CW_STAKING_ADAPTER_ID)? {
+            self.account.manager.upgrade_module(CW_STAKING_ADAPTER_ID, &Empty {})?;
         }
         if self
             .account
