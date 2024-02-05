@@ -10,7 +10,6 @@ use std::ops::Mul;
 use std::str::FromStr;
 
 use abstract_core::objects::{AnsAsset, AnsEntryConvertor, AssetEntry, LpToken};
-use abstract_core::version_control::AccountBase;
 use abstract_cw_staking::CW_STAKING_ADAPTER_ID;
 use abstract_dex_adapter::DEX_ADAPTER_ID;
 use abstract_interface::{Abstract, ManagerQueryFns};
@@ -27,6 +26,7 @@ use autocompounder::msg::{
 use common::abstract_helper::{self, init_auto_compounder};
 use common::vault::Vault;
 use common::AResult;
+use common::{TEST_NAMESPACE, VAULT_TOKEN};
 use cosmwasm_std::{coin, coins, to_json_binary, Addr, Decimal, Uint128};
 
 use cw_utils::{Duration, Expiration};
@@ -42,8 +42,6 @@ use wyndex_bundle::*;
 
 const WYNDEX: &str = "wyndex";
 const COMMISSION_RECEIVER: &str = "commission_receiver";
-const VAULT_TOKEN: &str = "vault_token";
-const TEST_NAMESPACE: &str = "4t2";
 const ATTACKER: &str = "attacker";
 /// Convert vault tokens to lp assets
 pub fn convert_to_assets(
@@ -122,8 +120,8 @@ pub fn create_vault(
             .asset_entry();
 
     // Set up the dex and staking contracts
-    let exchange_api = abstract_helper::init_exchange(mock.clone(), &abstract_, None)?;
-    let staking_api = abstract_helper::init_staking(mock.clone(), &abstract_, None)?;
+    let exchange_api = abstract_helper::init_exchange(mock.clone(), None)?;
+    let staking_api = abstract_helper::init_staking(mock.clone(), None)?;
     let auto_compounder = init_auto_compounder(mock.clone(), &abstract_, None)?;
 
     let vault_token = Cw20Base::new(VAULT_TOKEN, mock.clone());

@@ -38,7 +38,6 @@ mod test_common {
     use cosmwasm_std::{from_json, to_json_binary, Addr, Decimal, StdError, Uint128};
     use cw_asset::AssetInfo;
     use cw_utils::Duration;
-    pub use speculoos::prelude::*;
 
     use crate::contract::AUTOCOMPOUNDER_APP;
     const WYNDEX: &str = "wyndex";
@@ -224,18 +223,18 @@ mod test_common {
         abstract_env
             .builder()
             // .with_smart_handler(TEST_MODULE_FACTORY, |msg| match from_json(msg).unwrap() {
-                // abstract_core::module_factory::QueryMsg::Context {} => {
-                //     let resp = ContextResponse {
-                //         account_base: AccountBase {
-                //             manager: Addr::unchecked(TEST_MANAGER),
-                //             proxy: Addr::unchecked(TEST_PROXY),
-                //         },
-                //         modules_to_register: vec![],
-                //         modules: vec![],
-                //     };
-                //     Ok(to_json_binary(&resp).unwrap())
-                // }
-                // _ => panic!("unexpected message"),
+            // abstract_core::module_factory::QueryMsg::Context {} => {
+            //     let resp = ContextResponse {
+            //         account_base: AccountBase {
+            //             manager: Addr::unchecked(TEST_MANAGER),
+            //             proxy: Addr::unchecked(TEST_PROXY),
+            //         },
+            //         modules_to_register: vec![],
+            //         modules: vec![],
+            //     };
+            //     Ok(to_json_binary(&resp).unwrap())
+            // }
+            // _ => panic!("unexpected message"),
             // })
             .with_smart_handler(TEST_CW_STAKING_MODULE, |msg| {
                 match from_json(msg).unwrap() {

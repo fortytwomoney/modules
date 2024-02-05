@@ -115,8 +115,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     let parent_account = get_parent_account(&abstr, &abstr_client)?;
 
-    // panic!("here");
-
     let mut pair_assets = vec![args.paired_asset.clone(), args.other_asset.clone()];
     pair_assets.sort();
 

@@ -1,9 +1,12 @@
+use abstract_core::manager::ModuleInstallConfig;
+use abstract_core::objects::module::ModuleInfo;
 use abstract_core::objects::AccountId;
 use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING_ADAPTER_ID};
-use abstract_interface::{Abstract, ManagerQueryFns};
+use abstract_interface::{Abstract, ManagerQueryFns, RegisteredModule};
 use abstract_interface::{AbstractAccount, AppDeployer};
 use abstract_sdk::core::app;
 use abstract_sdk::core::app::BaseExecuteMsg;
+use cw_orch::contract::Contract;
 use cw_orch::{interface, prelude::*};
 use std::path::PathBuf;
 
@@ -15,6 +18,7 @@ use cosmwasm_std::{Coin, Empty};
 
 use abstract_core::app::MigrateMsg;
 
+use crate::contract::AUTOCOMPOUNDER_APP;
 use crate::msg::{AutocompounderExecuteMsg, AUTOCOMPOUNDER_ID, *};
 
 /// Contract wrapper for deploying with BOOT
@@ -68,6 +72,53 @@ where
         coins: Option<&[Coin]>,
     ) -> Result<TxResponse<Chain>, CwOrchError> {
         self.execute(&app::ExecuteMsg::Base(execute_msg), coins)
+    }
+}
+
+impl<Chain: cw_orch::environment::CwEnv> abstract_interface::DependencyCreation
+    for AutocompounderApp<Chain>
+{
+    type DependenciesConfig = cosmwasm_std::Empty;
+
+    fn dependency_install_configs(
+        _configuration: Self::DependenciesConfig,
+    ) -> Result<
+        Vec<abstract_core::manager::ModuleInstallConfig>,
+        abstract_interface::AbstractInterfaceError,
+    > {
+        let dex_install_config = ModuleInstallConfig::new(
+            ModuleInfo::from_id(
+                abstract_dex_adapter::DEX_ADAPTER_ID,
+                abstract_dex_adapter::contract::CONTRACT_VERSION.into(),
+            )?,
+            None,
+        );
+        let cw_staking_install_config = ModuleInstallConfig::new(
+            ModuleInfo::from_id(
+                abstract_cw_staking::CW_STAKING_ADAPTER_ID,
+                abstract_cw_staking::contract::CONTRACT_VERSION.into(),
+            )?,
+            None,
+        );
+        Ok(vec![dex_install_config, cw_staking_install_config])
+    }
+}
+
+impl<Chain: CwEnv> RegisteredModule for AutocompounderApp<Chain> {
+    type InitMsg = AutocompounderInstantiateMsg;
+
+    fn module_id<'a>() -> &'a str {
+        AUTOCOMPOUNDER_APP.module_id()
+    }
+
+    fn module_version<'a>() -> &'a str {
+        AUTOCOMPOUNDER_APP.version()
+    }
+}
+
+impl<Chain: CwEnv> From<Contract<Chain>> for AutocompounderApp<Chain> {
+    fn from(value: Contract<Chain>) -> Self {
+        Self(value)
     }
 }
 

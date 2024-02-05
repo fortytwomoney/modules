@@ -34,6 +34,11 @@ interface = [
   "cw20-base/interface",
 ]
 kujira = []
+test-tube = [
+  "cw-orch/osmosis-test-tube",
+  "abstract-dex-adapter/osmosis",
+  "abstract-cw-staking/osmosis",
+]
 
 [dependencies]
 cosmwasm-std = { workspace = true, features = ["stargate"] }
@@ -79,6 +84,7 @@ abstract-cw-staking = { workspace = true, features = [
 abstract-interface = { workspace = true, features = ["daemon"] }
 abstract-testing = { workspace = true }
 abstract-core = { workspace = true }
+abstract-client = { workspace = true }
 cw-orch = { workspace = true, features = ["daemon"] }
 cosmrs = { version = "0.15.0", features = ["rpc"] }
 test-case = "3.2.1"
