@@ -48,11 +48,11 @@ use cw_utils::parse_reply_instantiate_data;
 // ------------------------------------------------------------
 // Helper functions for vault tokens
 // ------------------------------------------------------------
-/// performs stargate query for the following path: "cosmos.bank.v1beta1.Query/SupplyOf".
+/// performs stargate query for the following path: "/cosmos.bank.v1beta1.Query/SupplyOf".
 pub fn query_supply_with_stargate(deps: Deps, denom: &str) -> AutocompounderResult<Coin> {
     // this may not work because kujira has its own custom bindings. https://docs.rs/kujira-std/latest/kujira_std/enum.KujiraQuery.html
     let request = QueryRequest::Stargate {
-        path: "cosmos.bank.v1beta1.Query/SupplyOf".to_string(),
+        path: "/cosmos.bank.v1beta1.Query/SupplyOf".to_string(),
         data: encode_query_supply_of(denom).into(),
     };
     let res: SupplyResponse = deps.querier.query(&request)?;

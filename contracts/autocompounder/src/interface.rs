@@ -129,6 +129,7 @@ pub struct Vault<Chain: CwEnv> {
 }
 
 impl<Chain: CwEnv> Vault<Chain> {
+    // TODO: pass single Account object in here
     pub fn new(abstract_: &Abstract<Chain>, account_id: AccountId) -> anyhow::Result<Self> {
         let chain = abstract_.ans_host.get_chain();
         let account = AbstractAccount::new(abstract_, account_id.clone());
