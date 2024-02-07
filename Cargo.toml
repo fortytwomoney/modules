@@ -60,7 +60,7 @@ cw20-base = { git = "https://github.com/AbstractSDK/cw-plus.git", features = [
 ], tag = "v1.2.2" }
 cw-plus-interface = { git = "https://github.com/AbstractSDK/cw-plus.git", tag = "v1.2.2" }
 cw20 = { git = "https://github.com/AbstractSDK/cw-plus.git", tag = "v1.2.2" }
-cw2 = { git= "https://github.com/abstractsdk/cw-plus", version = "1.0.1", rev="258fb95" }
+cw2 = { git = "https://github.com/abstractsdk/cw-plus", version = "1.0.1", rev = "258fb95" }
 anyhow = { version = "1.0.51" }
 cw-multi-test = "0.16"
 rstest = "0.16.0"
@@ -86,3 +86,21 @@ debug-assertions = false
 panic = "abort"
 codegen-units = 1
 incremental = false
+
+# Testing out fixes
+# TODO: bump abstract itself
+[patch.crates-io]
+## Abstract dependencies
+abstract-sdk = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
+abstract-app = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
+abstract-core = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
+abstract-interface = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
+abstract-testing = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
+abstract-client = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
+
+## Abstract API
+abstract-dex-adapter = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
+abstract-cw-staking = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
+
+# Dev Abstract dependencies
+wyndex-bundle = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
