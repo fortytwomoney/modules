@@ -27,8 +27,7 @@ dependencies = [
 [[package]]
 name = "abstract-adapter"
 version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd0f7492a8572b724e6555d72080274748675bce9b1cdb39bd153c718e843802"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#8882b7af16ce764c6091b4f1c916b1210d07eaeb"
 dependencies = [
  "abstract-core",
  "abstract-sdk",
@@ -45,8 +44,7 @@ dependencies = [
 [[package]]
 name = "abstract-adapter-utils"
 version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b73dc75f2d3d47848446b44ec58ba01ae3f5a27e3a4e0db18ba9f7fce48410cc"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#8882b7af16ce764c6091b4f1c916b1210d07eaeb"
 dependencies = [
  "cosmwasm-std",
  "cw-asset",
@@ -482,8 +480,7 @@ dependencies = [
 [[package]]
 name = "abstract-dex-standard"
 version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e23e8cd5147dcb8fa0b6ee662fa047dfd7779556e9c5406a2f3ef9334ac6368"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#8882b7af16ce764c6091b4f1c916b1210d07eaeb"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -730,8 +727,7 @@ dependencies = [
 [[package]]
 name = "abstract-staking-standard"
 version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd0ef6ff0102d78b628a837e22663f2cbbb0fb96512ed574d775b011e5f71720"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#8882b7af16ce764c6091b4f1c916b1210d07eaeb"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -6412,18 +6408,3 @@ dependencies = [
  "quote",
  "syn 2.0.48",
 ]
-
-[[patch.unused]]
-name = "abstract-cw-staking"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#8882b7af16ce764c6091b4f1c916b1210d07eaeb"
-
-[[patch.unused]]
-name = "abstract-dex-adapter"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#8882b7af16ce764c6091b4f1c916b1210d07eaeb"
-
-[[patch.unused]]
-name = "wyndex-bundle"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#8882b7af16ce764c6091b4f1c916b1210d07eaeb"

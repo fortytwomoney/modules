@@ -101,10 +101,7 @@ abstract-core = { git = "https://github.com/AbstractSDK/abstract.git", branch = 
 abstract-interface = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
 abstract-testing = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
 abstract-client = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
-
-## Abstract API
-abstract-dex-adapter = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
-abstract-cw-staking = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
-
-# Dev Abstract dependencies
-wyndex-bundle = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
+abstract-staking-standard = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
+abstract-dex-standard = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
+abstract-adapter = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
+abstract-adapter-utils = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
