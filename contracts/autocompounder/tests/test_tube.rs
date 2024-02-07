@@ -88,24 +88,17 @@ fn setup_vault() -> anyhow::Result<VaultOsmosis> {
         .assets(vec![
             (EUR.to_owned(), eur_token.clone().into()),
             (USD.to_owned(), usd_token.clone().into()),
+            (
+                format!("{DEX}/{EUR},{USD}"),
+                AssetInfo::native(format!("gamm/pool/{pool_id}")).into(),
+            ),
         ])
-        // .pools(vec![(
-        //     PoolAddressBase::id(pool_id),
-        //     PoolMetadata::stable(DEX, vec![EUR, USD]),
-        // )])
-        // .dex(DEX)
-        .build()?;
-
-    abstract_client
-        .name_service()
-        .update_dexes(vec![DEX.to_owned()], vec![])?;
-    abstract_client.name_service().update_pools(
-        vec![(
+        .dex(DEX)
+        .pools(vec![(
             PoolAddressBase::id(pool_id),
             PoolMetadata::stable(DEX, vec![EUR, USD]),
-        )],
-        vec![],
-    )?;
+        )])
+        .build()?;
 
     // let abstract_publisher = abstract_client
     //     .publisher_builder(Namespace::new("abstract")?)
@@ -225,8 +218,8 @@ fn deposit_asset() -> AResult {
 
     vault.autocompounder_app.deposit(
         vec![
-            AnsAsset::new(usd_asset.clone(), amount),
             AnsAsset::new(eur_asset, amount),
+            AnsAsset::new(usd_asset.clone(), amount),
         ],
         None,
         None,
