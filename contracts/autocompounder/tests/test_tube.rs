@@ -1,28 +1,27 @@
 #![cfg(feature = "test-tube")]
 
 mod common;
+const DECIMAL_OFFSET: u32 = 17;
+
+use std::str::FromStr;
 
 use abstract_client::{AbstractClient, Namespace};
 use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
 use abstract_core::objects::{AnsAsset, AssetEntry};
-use abstract_dex_adapter::{interface::DexAdapter, msg::DexInstantiateMsg, DEX_ADAPTER_ID};
-use abstract_interface::{AdapterDeployer, ExecuteMsgFns, RegisteredModule};
+use abstract_dex_adapter::{interface::DexAdapter, msg::DexInstantiateMsg};
+use autocompounder::interface::AutocompounderApp;
 use autocompounder::msg::BondingData;
 use autocompounder::msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns};
-use autocompounder::state::{Config, DECIMAL_OFFSET};
-use autocompounder::{interface::AutocompounderApp, msg::AutocompounderInstantiateMsg};
-use common::{AResult, TEST_NAMESPACE, VAULT_TOKEN};
-use cosmwasm_std::{coin, coins, Addr, Decimal, Uint128};
-use cw_asset::{AssetInfo, AssetInfoBase};
-use cw_orch::contract::interface_traits::{
-    ContractInstance, CwOrchQuery, CwOrchUpload, Uploadable,
-};
+use autocompounder::state::Config;
+use common::{AResult, TEST_NAMESPACE};
+use cosmwasm_std::{coin, Addr, Decimal, Uint128};
+use cw_asset::AssetInfo;
+use cw_orch::contract::interface_traits::ContractInstance;
 use cw_orch::prelude::*;
 use cw_orch::{
-    environment::{BankQuerier, BankSetter, IndexResponse, TxHandler},
+    environment::{BankQuerier, TxHandler},
     osmosis_test_tube::{osmosis_test_tube::Account, OsmosisTestTube},
 };
-use cw_plus_interface::cw20_base::Cw20Base;
 use cw_utils::Duration;
 
 mod vault {
@@ -69,13 +68,26 @@ pub const EUR: &str = "eur";
 pub const USD: &str = "usd";
 pub const DEX: &str = "osmosis";
 
+#[allow(unused)]
+mod debug {
+    // Put it in any part of your code to enable logs
+    fn enable_debug_logs() {
+        std::env::set_var("RUST_LOG", "debug");
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
+    fn disable_debug_logs() {
+        std::env::remove_var("RUST_LOG")
+    }
+}
+
 fn setup_vault() -> anyhow::Result<VaultOsmosis> {
     let mut chain = OsmosisTestTube::new(vec![coin(1_000_000_000_000, "uosmo")]);
     // No access to set balance on test-tube
     let wallet = chain.init_account(vec![
         coin(1_000_000_000_000, "uosmo"),
-        coin(1_000_000_000_000, EUR),
-        coin(1_000_000_000_000, USD),
+        coin(1_000_000, EUR),
+        coin(1_000_000, USD),
     ])?;
 
     let pool_id = chain
@@ -100,22 +112,20 @@ fn setup_vault() -> anyhow::Result<VaultOsmosis> {
         )])
         .build()?;
 
-    // let abstract_publisher = abstract_client
-    //     .publisher_builder(Namespace::new("abstract")?)
-    //     .build()?;
+    let abstract_publisher = abstract_client
+        .publisher_builder(Namespace::new("abstract")?)
+        .build()?;
 
-    let _exchange = common::abstract_helper::init_exchange(chain.clone(), None)?;
+    let _exchange: DexAdapter<_> = abstract_publisher.publish_adapter(DexInstantiateMsg {
+        swap_fee: Decimal::from_str("0.003")?,
+        recipient_account: 0,
+    })?;
     let _staking = common::abstract_helper::init_staking(chain.clone(), None)?;
 
     let fortytwo_publisher = abstract_client
         .publisher_builder(Namespace::new(TEST_NAMESPACE)?)
         .build()?;
     fortytwo_publisher.publish_app::<AutocompounderApp<_>>()?;
-
-    // abstract_publisher.publish_adapter::<_, DexAdapter<OsmosisTestTube>>(DexInstantiateMsg {
-    //     swap_fee: Decimal::from_str("0.003").unwrap(),
-    //     recipient_account: 0,
-    // })?;
 
     let commission_account = chain.init_account(vec![coin(1_000_000_000_000, "uosmo")])?;
     let commission_addr = Addr::unchecked(commission_account.address());
@@ -144,7 +154,6 @@ fn setup_vault() -> anyhow::Result<VaultOsmosis> {
         &[],
     )?;
 
-    // TODO: Authorize autocompounder on adapters?
     _exchange.execute(
         &abstract_dex_adapter::msg::ExecuteMsg::Base(abstract_core::adapter::BaseExecuteMsg {
             proxy_address: Some(autocompounder_app.account().proxy()?.to_string()),
@@ -184,6 +193,7 @@ fn setup_vault() -> anyhow::Result<VaultOsmosis> {
     })
 }
 
+// TODO: finish test
 #[test]
 fn deposit_asset() -> AResult {
     let vault = setup_vault()?;
@@ -227,7 +237,7 @@ fn deposit_asset() -> AResult {
     )?;
 
     let position: Uint128 = vault.autocompounder_app.total_lp_position()?;
-    assert_eq!(position, Uint128::from(10_000u128));
+    assert_eq!(position, Uint128::from(100_000_000_000_000_000_000u128));
 
     let AssetInfo::Native(denom) = config.vault_token else {
         panic!("Expected factory token")
@@ -238,7 +248,6 @@ fn deposit_asset() -> AResult {
         10_000u128 * 10u128.pow(DECIMAL_OFFSET)
     );
 
-    // single cw20asset deposit from different address
     // single asset deposit from different address
     // raw_token
     //     .call_as(&user1)
