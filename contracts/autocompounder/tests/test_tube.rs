@@ -86,8 +86,8 @@ fn setup_vault() -> anyhow::Result<VaultOsmosis> {
     // No access to set balance on test-tube
     let wallet = chain.init_account(vec![
         coin(1_000_000_000_000, "uosmo"),
-        coin(1_000_000, EUR),
-        coin(1_000_000, USD),
+        coin(1_000_000_000_000, EUR),
+        coin(1_000_000_000_000, USD),
     ])?;
 
     let pool_id = chain

@@ -26,6 +26,7 @@ schema = ["abstract-app/schema"]
 interface = [
   "export",
   "dep:abstract-interface",
+  "dep:abstract-client",
   "dep:cw-orch",
   "dep:anyhow",
   "abstract-dex-adapter/interface",
@@ -62,6 +63,7 @@ abstract-dex-adapter = { workspace = true, default-features = false }
 abstract-cw-staking = { workspace = true, default-features = false }
 
 abstract-interface = { workspace = true, optional = true }
+abstract-client = { workspace = true, optional = true }
 cw-orch = { workspace = true, optional = true }
 abstract-core = { workspace = true }
 anyhow = { workspace = true, optional = true }

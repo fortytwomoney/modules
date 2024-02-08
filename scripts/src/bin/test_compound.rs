@@ -1,7 +1,6 @@
+use abstract_client::AbstractClient;
 use abstract_core::objects::AccountId;
 use abstract_core::objects::{AnsAsset, PoolMetadata};
-use abstract_interface::Abstract;
-use abstract_interface::VersionControl;
 use autocompounder::{
     interface::Vault,
     msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns},
@@ -40,12 +39,11 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
         .build()?;
     let sender = chain.sender();
 
-    // Set version control address
-    let _vc = VersionControl::load(chain.clone(), &Addr::unchecked(MODULE_VERSION));
+    let client = AbstractClient::new(chain)?;
+    let account_id = AccountId::local(args.vault_id);
+    let account = client.account_from(account_id)?;
 
-    let abstr = Abstract::load_from(chain)?;
-
-    let mut vault: Vault<_> = Vault::new(&abstr, AccountId::local(args.vault_id))?;
+    let mut vault: Vault<_> = Vault::new(account.as_ref())?;
 
     // Update the modules in the vault
     vault.update()?;

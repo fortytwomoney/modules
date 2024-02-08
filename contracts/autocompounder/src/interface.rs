@@ -1,9 +1,8 @@
 use abstract_core::manager::ModuleInstallConfig;
 use abstract_core::objects::module::ModuleInfo;
-use abstract_core::objects::AccountId;
 use abstract_cw_staking::{interface::CwStakingAdapter, CW_STAKING_ADAPTER_ID};
-use abstract_interface::{Abstract, ManagerQueryFns, RegisteredModule};
 use abstract_interface::{AbstractAccount, AppDeployer};
+use abstract_interface::{ManagerQueryFns, RegisteredModule};
 use abstract_sdk::core::app;
 use abstract_sdk::core::app::BaseExecuteMsg;
 use cw_orch::contract::Contract;
@@ -130,9 +129,9 @@ pub struct Vault<Chain: CwEnv> {
 
 impl<Chain: CwEnv> Vault<Chain> {
     // TODO: pass single Account object in here
-    pub fn new(abstract_: &Abstract<Chain>, account_id: AccountId) -> anyhow::Result<Self> {
-        let chain = abstract_.ans_host.get_chain();
-        let account = AbstractAccount::new(abstract_, account_id.clone());
+    pub fn new(account: &AbstractAccount<Chain>) -> anyhow::Result<Self> {
+        let chain = account.manager.get_chain().clone();
+        let account_id = account.id()?;
         let staking = CwStakingAdapter::new(CW_STAKING_ADAPTER_ID, chain.clone());
         let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER_ID, chain.clone());
 
@@ -141,15 +140,13 @@ impl<Chain: CwEnv> Vault<Chain> {
                 .manager
                 .module_info(CW_STAKING_ADAPTER_ID)?
                 .ok_or(anyhow::anyhow!(
-                    "Could not find cw-staking module on Account {}",
-                    account_id
+                    "Could not find cw-staking module on Account {account_id}",
                 ))?
                 .address;
             staking.set_address(&cw_staking_address);
         } else {
             return Err(anyhow::anyhow!(
-                "Cw-staking module not installed on Account {}",
-                account_id
+                "Cw-staking module not installed on Account {account_id}",
             ));
         }
         if account.manager.is_module_installed(AUTOCOMPOUNDER_ID)? {
@@ -170,7 +167,7 @@ impl<Chain: CwEnv> Vault<Chain> {
         }
 
         Ok(Self {
-            account,
+            account: account.clone(),
             staking,
             autocompounder,
         })

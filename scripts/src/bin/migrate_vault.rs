@@ -1,16 +1,16 @@
+use abstract_client::AbstractClient;
 use abstract_core::objects::AccountId;
 use anyhow::Ok;
 use autocompounder::interface::{AutocompounderApp, Vault};
 
 use cw_orch::daemon::DaemonBuilder;
-use cw_orch::deploy::Deploy;
 
 use cw_orch::prelude::*;
 use semver::Version;
 use std::env;
 use std::sync::Arc;
 
-use abstract_interface::{Abstract, AppDeployer, DeployStrategy, ManagerQueryFns};
+use abstract_interface::{AppDeployer, DeployStrategy, ManagerQueryFns};
 
 use clap::Parser;
 
@@ -28,10 +28,11 @@ fn migrate_vault(args: Arguments) -> anyhow::Result<()> {
         .chain(network)
         .build()?;
 
-    let abstr = Abstract::load_from(chain.clone())?;
+    let abstract_client = AbstractClient::new(chain.clone())?;
     let account_id = AccountId::local(args.account_id);
+    let account = abstract_client.account_from(account_id)?;
 
-    let mut vault = Vault::new(&abstr, account_id)?;
+    let mut vault = Vault::new(account.as_ref())?;
 
     let versions = vault
         .account
