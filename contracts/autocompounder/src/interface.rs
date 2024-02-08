@@ -7,7 +7,6 @@ use abstract_sdk::core::app;
 use abstract_sdk::core::app::BaseExecuteMsg;
 use cw_orch::contract::Contract;
 use cw_orch::{interface, prelude::*};
-use std::path::PathBuf;
 
 /*use boot_core::{
     contract, BootError, BootExecute, Contract, ContractWrapper, CwEnv, IndexResponse, TxResponse,
@@ -38,14 +37,7 @@ impl<Chain: CwEnv> Uploadable for AutocompounderApp<Chain> {
         )
     }
     fn wasm(&self) -> WasmPath {
-        // artifacts_dir_from_workspace!()
-        //     .find_wasm_path("autocompounder")
-        //     .unwrap()
-
-        let mut artifacts_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        artifacts_path.push("../../artifacts");
-
-        ArtifactsDir::new(artifacts_path)
+        artifacts_dir_from_workspace!()
             .find_wasm_path("autocompounder")
             .unwrap()
     }
@@ -128,7 +120,6 @@ pub struct Vault<Chain: CwEnv> {
 }
 
 impl<Chain: CwEnv> Vault<Chain> {
-    // TODO: pass single Account object in here
     pub fn new(account: &AbstractAccount<Chain>) -> anyhow::Result<Self> {
         let chain = account.manager.get_chain().clone();
         let account_id = account.id()?;
