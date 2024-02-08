@@ -84,13 +84,6 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
         .chain(network)
         .build()?;
 
-    // let abstr = Abstract::deploy_on(chain.clone(), "".into())?;
-
-    // let (chain, _, _, test_parent) = setup_test_tube()?;
-    //
-    // let parent_account_id = Some(test_parent.id()?.seq());
-    //
-
     let sender = chain.sender();
 
     let abstr_client = AbstractClient::new(chain.clone())?;
