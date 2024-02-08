@@ -5,7 +5,7 @@ version = 3
 [[package]]
 name = "abstract-account-factory"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -27,7 +27,7 @@ dependencies = [
 [[package]]
 name = "abstract-adapter"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-core",
  "abstract-sdk",
@@ -44,7 +44,7 @@ dependencies = [
 [[package]]
 name = "abstract-adapter-utils"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "cosmwasm-std",
  "cw-asset",
@@ -54,7 +54,7 @@ dependencies = [
 [[package]]
 name = "abstract-ans-host"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -73,7 +73,7 @@ dependencies = [
 [[package]]
 name = "abstract-app"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-core",
  "abstract-interface",
@@ -94,7 +94,7 @@ dependencies = [
 [[package]]
 name = "abstract-astroport-adapter"
 version = "2.10.0"
-source = "git+https://github.com/AbstractSDK/abstract.git#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -106,7 +106,7 @@ dependencies = [
 [[package]]
 name = "abstract-astrovault-adapter"
 version = "0.1.0"
-source = "git+https://github.com/AbstractSDK/abstract.git#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -118,7 +118,7 @@ dependencies = [
 [[package]]
 name = "abstract-client"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-core",
  "abstract-cw-plus-interface",
@@ -137,7 +137,7 @@ dependencies = [
 [[package]]
 name = "abstract-core"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-polytone",
  "cosmwasm-schema",
@@ -207,7 +207,7 @@ dependencies = [
 [[package]]
 name = "abstract-cw-staking"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -451,7 +451,7 @@ dependencies = [
 [[package]]
 name = "abstract-dex-adapter"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -480,7 +480,7 @@ dependencies = [
 [[package]]
 name = "abstract-dex-standard"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -501,7 +501,7 @@ dependencies = [
 [[package]]
 name = "abstract-ibc-client"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -522,7 +522,7 @@ dependencies = [
 [[package]]
 name = "abstract-ibc-host"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -544,7 +544,7 @@ dependencies = [
 [[package]]
 name = "abstract-interface"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-account-factory",
  "abstract-ans-host",
@@ -575,7 +575,7 @@ dependencies = [
 [[package]]
 name = "abstract-kujira-adapter"
 version = "0.2.0"
-source = "git+https://github.com/AbstractSDK/abstract.git#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -586,7 +586,7 @@ dependencies = [
 [[package]]
 name = "abstract-macros"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -596,7 +596,7 @@ dependencies = [
 [[package]]
 name = "abstract-manager"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -619,7 +619,7 @@ dependencies = [
 [[package]]
 name = "abstract-module-factory"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -640,7 +640,7 @@ dependencies = [
 [[package]]
 name = "abstract-osmosis-adapter"
 version = "0.15.2"
-source = "git+https://github.com/AbstractSDK/abstract.git#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -682,7 +682,7 @@ dependencies = [
 [[package]]
 name = "abstract-proxy"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -704,7 +704,7 @@ dependencies = [
 [[package]]
 name = "abstract-sdk"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -727,7 +727,7 @@ dependencies = [
 [[package]]
 name = "abstract-staking-standard"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -749,7 +749,7 @@ dependencies = [
 [[package]]
 name = "abstract-testing"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-core",
  "cosmwasm-schema",
@@ -769,7 +769,7 @@ dependencies = [
 [[package]]
 name = "abstract-version-control"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -786,7 +786,7 @@ dependencies = [
 [[package]]
 name = "abstract-wyndex-adapter"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -6267,7 +6267,7 @@ dependencies = [
 [[package]]
 name = "wyndex-bundle"
 version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git#568e08ecb35161f5688aedccb3b9f3bc10ccbf03"
+source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
 dependencies = [
  "abstract-core",
  "abstract-interface",
