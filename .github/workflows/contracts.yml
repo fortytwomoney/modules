@@ -2,8 +2,8 @@ name: Clippy & Tests
 on:
   pull_request:
     branches:
-     - main
-     - develop
+      - main
+      - develop
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -18,7 +18,7 @@ jobs:
     name: Clippy Linter
     runs-on: ubuntu-latest
     container:
-        image: rust:latest
+      image: rust:latest
     steps:
       - name: Setup | Checkout
         uses: actions/checkout@v3
@@ -49,7 +49,7 @@ jobs:
     name: Compile
     runs-on: ubuntu-latest
     container:
-        image: rust:latest
+      image: rust:latest
     steps:
       - name: Setup | Checkout
         uses: actions/checkout@v3
@@ -62,15 +62,20 @@ jobs:
         uses: ATiltedTree/setup-rust@v1
         with:
           rust-version: stable
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ">=1.19.0"
+
       - name: Dependencies | Compile
         run: cargo update
       - name: Build | Compile
         run: cargo check
   test:
     name: Test
-    runs-on:  ubuntu-latest
+    runs-on: ubuntu-latest
     container:
-        image: rust:latest
+      image: rust:latest
     needs: [compile]
     steps:
       - name: Setup | Checkout
