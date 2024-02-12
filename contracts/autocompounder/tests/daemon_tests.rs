@@ -109,7 +109,7 @@ const LONG_TEST_DENOM: &str = "_123456789_123456789_123456789_123456789_12345678
 
 #[test_case("harpoon-4", "kujira"; "testing for kujira testnet")]
 #[test_case("osmo-test-5", "osmosis"; "testing for osmosis testnet")]
-
+#[serial_test::serial]
 fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
     // We start by creating a runtime, which is required for a sync daemon.
     let rt = Runtime::new().unwrap();
