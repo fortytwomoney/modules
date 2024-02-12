@@ -38,7 +38,7 @@ pub const OSMOSIS_1: ChainInfo = ChainInfo {
     fcd_url: None,
 };
 
-const FORTY_TWO_ADMIN_NAMESPACE: &'static str = "4t2-testing";
+const FORTY_TWO_ADMIN_NAMESPACE: &str = "4t2-testing";
 
 const _MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
