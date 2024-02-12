@@ -58,10 +58,11 @@ jobs:
           ssh-private-key: |
             ${{ secrets.ABSTRACT_SSH_PRIVATE_KEY }}
             ${{ secrets.ABSTRACT_BOOT_SSH_PRIVATE_KEY }}
-      - name: Setup | Rust
-        uses: ATiltedTree/setup-rust@v1
+
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@master
         with:
-          rust-version: stable
+          toolchain: stable
       - name: Setup Go
         uses: actions/setup-go@v3
         with:
@@ -85,9 +86,9 @@ jobs:
           ssh-private-key: |
             ${{ secrets.ABSTRACT_SSH_PRIVATE_KEY }}
             ${{ secrets.ABSTRACT_BOOT_SSH_PRIVATE_KEY }}
-      - name: Setup | Rust
-        uses: ATiltedTree/setup-rust@v1
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@master
         with:
-          rust-version: stable
+          toolchain: stable
       - name: Unit Test | Test
         run: cargo test
