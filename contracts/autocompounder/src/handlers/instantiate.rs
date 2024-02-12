@@ -113,8 +113,7 @@ pub fn instantiate_handler(
     FEE_CONFIG.save(deps.storage, &fee_config)?;
 
     // create LP token SubMsg
-    // let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
-    let subdenom = VAULT_TOKEN_SYMBOL.to_owned();
+    let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
     let sub_msg = create_vault_token_submsg(
         env.contract.address.to_string(),
         subdenom,

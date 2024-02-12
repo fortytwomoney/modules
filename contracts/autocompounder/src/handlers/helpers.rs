@@ -1,11 +1,11 @@
 use crate::contract::INSTANTIATE_REPLY_ID;
 
 use crate::kujira_tx::encode_query_supply_of;
-
 use crate::kujira_tx::max_subdenom_length_for_chain;
 use crate::kujira_tx::tokenfactory_burn_msg;
 use crate::kujira_tx::tokenfactory_create_denom_msg;
 use crate::kujira_tx::tokenfactory_mint_msg;
+use crate::kujira_tx::SUPPLY_OF_PATH;
 use crate::msg::Config;
 use crate::state::CONFIG;
 use crate::state::DECIMAL_OFFSET;
@@ -50,9 +50,9 @@ use cw_utils::parse_reply_instantiate_data;
 // ------------------------------------------------------------
 /// performs stargate query for the following path: "/cosmos.bank.v1beta1.Query/SupplyOf".
 pub fn query_supply_with_stargate(deps: Deps, denom: &str) -> AutocompounderResult<Coin> {
-    // this may not work because kujira has its own custom bindings. https://docs.rs/kujira-std/latest/kujira_std/enum.KujiraQuery.html
+    // this may not work because kujira has its own custom bindings. https://docs.rs/kujira-std/0.8.4/kujira_std/enum.KujiraQuery.html
     let request = QueryRequest::Stargate {
-        path: "/cosmos.bank.v1beta1.Query/SupplyOf".to_string(),
+        path: SUPPLY_OF_PATH.to_string(),
         data: encode_query_supply_of(denom).into(),
     };
     let res: SupplyResponse = deps.querier.query(&request)?;
@@ -467,7 +467,7 @@ pub mod helpers_tests {
         fn handle_query(&self, request: &QueryRequest<Empty>) -> cosmwasm_std::QuerierResult {
             match request {
                 QueryRequest::Stargate { path, data: _ } => {
-                    if path == "cosmos.bank.v1beta1.Query/SupplyOf" {
+                    if path == SUPPLY_OF_PATH {
                         let coin = Coin {
                             denom: "test_vault_token".to_string(),
                             amount: Uint128::from(100u128),
