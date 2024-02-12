@@ -17,8 +17,6 @@ jobs:
   lint:
     name: Clippy Linter
     runs-on: ubuntu-latest
-    container:
-      image: rust:latest
     steps:
       - name: Setup | Checkout
         uses: actions/checkout@v3
@@ -27,29 +25,17 @@ jobs:
           ssh-private-key: |
             ${{ secrets.ABSTRACT_SSH_PRIVATE_KEY }}
             ${{ secrets.ABSTRACT_BOOT_SSH_PRIVATE_KEY }}
-      - name: Setup | Rust
-        id: rustup
-        uses: ATiltedTree/setup-rust@v1
+
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@master
         with:
-          rust-version: stable
-          components: clippy
-        continue-on-error: true
-      - name: Delete rustup cache
-        run: rm -rf ~/.rustup
-        if: ${{ steps.rustup.outcome }} != "success"
-      - name: Setup Rust (again)
-        if: ${{ steps.rustup.outcome }} != "success"
-        uses: ATiltedTree/setup-rust@v1
-        with:
-          rust-version: stable
+          toolchain: stable
           components: clippy
       - name: Build | Lint
         run: cargo clippy -- -D warnings
   compile:
     name: Compile
     runs-on: ubuntu-latest
-    container:
-      image: rust:latest
     steps:
       - name: Setup | Checkout
         uses: actions/checkout@v3
@@ -75,8 +61,6 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    container:
-      image: rust:latest
     needs: [compile]
     steps:
       - name: Setup | Checkout
