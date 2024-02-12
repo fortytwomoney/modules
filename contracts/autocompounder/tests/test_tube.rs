@@ -121,7 +121,7 @@ fn setup_vault() -> anyhow::Result<VaultOsmosis> {
         swap_fee: Decimal::from_str("0.003")?,
         recipient_account: 0,
     })?;
-    let _staking: CwStakingAdapter<_> = abstract_publisher.publish_adapter(Empty{})?;
+    let _staking: CwStakingAdapter<_> = abstract_publisher.publish_adapter(Empty {})?;
 
     let fortytwo_publisher = abstract_client
         .publisher_builder(Namespace::new(TEST_NAMESPACE)?)

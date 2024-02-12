@@ -3,14 +3,14 @@ use cw_orch::deploy::Deploy;
 use std::str::FromStr;
 
 use abstract_core::objects::AssetEntry;
-use abstract_core::version_control::AccountBase;
+
 use abstract_dex_adapter::msg::DexInstantiateMsg;
 use abstract_dex_adapter::{interface::DexAdapter, DEX_ADAPTER_ID};
 use abstract_interface::{
     Abstract, AbstractAccount, AbstractInterfaceError, AccountDetails, ManagerQueryFns,
 };
 use abstract_sdk::core::adapter::InstantiateMsg;
-use abstract_testing::prelude::{EUR, TEST_VERSION_CONTROL, USD};
+use abstract_testing::prelude::{EUR, USD};
 use cw_orch::prelude::*;
 
 use cosmwasm_std::{coin, Decimal};

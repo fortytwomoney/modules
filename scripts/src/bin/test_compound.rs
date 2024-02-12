@@ -7,14 +7,13 @@ use autocompounder::{
     state::Config,
 };
 use clap::Parser;
-use cosmwasm_std::{coins, Addr};
+use cosmwasm_std::coins;
 use cw_orch::daemon::networks::parse_network;
 use cw_orch::daemon::DaemonBuilder;
-use cw_orch::deploy::Deploy;
+
 use cw_orch::prelude::TxHandler;
 use log::info;
 
-const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 use speculoos::prelude::*;
 use std::sync::Arc;
 
