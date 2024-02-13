@@ -98,6 +98,7 @@ pub enum AutocompounderExecuteMsg {
         lp_token: OfferAsset,
         recipient: Option<Addr>,
     },
+    #[cfg_attr(feature = "interface", payable)]
     Redeem {
         amount: Uint128,
         recipient: Option<Addr>,

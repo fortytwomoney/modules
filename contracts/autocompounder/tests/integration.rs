@@ -297,7 +297,7 @@ fn deposit_cw20_asset() -> AResult {
         .vault_token
         .call_as(&owner)
         .increase_allowance(redeem_amount, _ac_addres, None)?;
-    vault.auto_compounder.redeem(redeem_amount, None)?;
+    vault.auto_compounder.redeem(redeem_amount, None, &[])?;
 
     // check that the vault token decreased
     let vault_token_balance = vault.vault_token.balance(owner.to_string())?;
@@ -380,7 +380,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     // withdraw part from the auto-compounder
     let redeem_amount = Uint128::from(20000u128);
     vault_token.increase_allowance(redeem_amount, auto_compounder_addr.clone(), None)?;
-    vault.auto_compounder.redeem(redeem_amount, None)?;
+    vault.auto_compounder.redeem(redeem_amount, None, &[])?;
 
     // check that the vault token decreased
     let vault_token_balance = vault_token.balance(owner.to_string())?;
@@ -391,7 +391,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     // check that the pending claims are updated
     let redeem_amount = Uint128::from(20000u128);
     vault_token.increase_allowance(redeem_amount, auto_compounder_addr.clone(), None)?;
-    vault.auto_compounder.redeem(redeem_amount, None)?;
+    vault.auto_compounder.redeem(redeem_amount, None, &[])?;
 
     let pending_claims: Uint128 = vault.auto_compounder.pending_claims(owner.clone())?;
     assert_that!(pending_claims.u128()).is_equal_to(40000u128);
@@ -437,7 +437,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 
     let redeem_amount = Uint128::from(60000u128);
     vault_token.increase_allowance(redeem_amount, auto_compounder_addr, None)?;
-    vault.auto_compounder.redeem(redeem_amount, None)?;
+    vault.auto_compounder.redeem(redeem_amount, None, &[])?;
 
     vault.auto_compounder.batch_unbond(None, None)?;
     mock.wait_blocks(60 * 60 * 24 * 21)?;
@@ -676,7 +676,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     vault.auto_compounder.set_sender(&owner);
     let redeem_amount = Uint128::from(4000u128 * 10u128.pow(DECIMAL_OFFSET));
     vault_token.increase_allowance(redeem_amount, auto_compounder_addr.clone(), None)?;
-    vault.auto_compounder.redeem(redeem_amount, None)?;
+    vault.auto_compounder.redeem(redeem_amount, None, &[])?;
 
     // check that the vault token decreased
     let vault_token_balance = vault_token.balance(owner.to_string())?;
@@ -744,7 +744,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     // withdraw all owner funds from the auto-compounder
     let redeem_amount = Uint128::from(6000u128 * 10u128.pow(DECIMAL_OFFSET));
     vault_token.increase_allowance(redeem_amount, auto_compounder_addr.clone(), None)?;
-    vault.auto_compounder.redeem(redeem_amount, None)?;
+    vault.auto_compounder.redeem(redeem_amount, None, &[])?;
 
     // testing general non unbonding staking contract functionality
     let pending_claims = vault.auto_compounder.pending_claims(owner.clone())?.into();
@@ -771,7 +771,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     vault_token.set_sender(&user1);
     let redeem_amount = vault_token_balance_user1;
     vault_token.increase_allowance(redeem_amount, auto_compounder_addr, None)?;
-    vault.auto_compounder.redeem(redeem_amount, None)?;
+    vault.auto_compounder.redeem(redeem_amount, None, &[])?;
 
     let pending_claims = vault.auto_compounder.pending_claims(user1.clone())?.into();
     assert_that!(pending_claims).is_equal_to(vault_token_balance_user1.u128());
@@ -899,7 +899,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
     // Redeem vault tokens and create pending claim of user tokens to see if the user actually received more of EUR and USD then they deposited
     let redeem_amount = vault_token_balance.balance;
     vault_token.increase_allowance(redeem_amount, auto_compounder_addr, None)?;
-    vault.auto_compounder.redeem(redeem_amount, None)?;
+    vault.auto_compounder.redeem(redeem_amount, None, &[])?;
 
     // Unbond tokens & clear pending claims
     vault.auto_compounder.batch_unbond(None, None)?;
@@ -970,7 +970,7 @@ fn test_deposit_fees_fee_token_and_withdraw_fees() -> AResult {
 
     let redeem_amount = owner_balance;
     vault_token.increase_allowance(redeem_amount, vault.auto_compounder.addr_str()?, None)?;
-    vault.auto_compounder.redeem(redeem_amount, None)?;
+    vault.auto_compounder.redeem(redeem_amount, None, &[])?;
 
     let amount: Uint128 = vault.auto_compounder.pending_claims(owner.clone())?;
     assert_that!(amount).is_equal_to(owner_balance);
@@ -1044,7 +1044,7 @@ fn test_deposit_fees_non_fee_token() -> AResult {
 
     let redeem_amount = owner_balance;
     vault_token.increase_allowance(redeem_amount, vault.auto_compounder.addr_str()?, None)?;
-    vault.auto_compounder.redeem(redeem_amount, None)?;
+    vault.auto_compounder.redeem(redeem_amount, None, &[])?;
 
     let amount: Uint128 = vault.auto_compounder.pending_claims(owner.clone())?;
     assert_that!(amount).is_equal_to(owner_balance);
@@ -1196,7 +1196,7 @@ fn test_owned_funds_stay_in_vault() -> AResult {
 
     let redeem_amount = vault_token.balance(owner.to_string())?.balance;
     vault_token.increase_allowance(redeem_amount, vault.auto_compounder.addr_str()?, None)?;
-    vault.auto_compounder.redeem(redeem_amount, None)?;
+    vault.auto_compounder.redeem(redeem_amount, None, &[])?;
 
     // Unbond tokens & clear pending claims
     vault.auto_compounder.batch_unbond(None, None)?;
@@ -1281,7 +1281,7 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
         vault
             .auto_compounder
             .call_as(addr)
-            .redeem(redeem_amount, None)?;
+            .redeem(redeem_amount, None, &[])?;
     }
     // max 20 page per call. Test it by doing 30
     let claims = vault.auto_compounder.all_pending_claims(Some(30), None)?;
@@ -1531,7 +1531,7 @@ fn vault_token_inflation_attack_original() -> AResult {
     vault
         .auto_compounder
         .call_as(&attacker)
-        .redeem(redeem_amount, None)?;
+        .redeem(redeem_amount, None, &[])?;
 
     // attacker unbonds tokens
     let pending_claims: Uint128 = vault.auto_compounder.pending_claims(attacker.clone())?;
