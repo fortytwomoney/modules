@@ -3,7 +3,7 @@ use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::kujira_tx::format_tokenfactory_denom;
 use crate::msg::{AutocompounderInstantiateMsg, FeeConfig, AUTOCOMPOUNDER};
-use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_SYMBOL};
+use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG};
 use abstract_core::objects::{AnsEntryConvertor, AssetEntry};
 use abstract_cw_staking::msg::{StakingInfoResponse, StakingQueryMsg};
 use abstract_cw_staking::CW_STAKING_ADAPTER_ID;
@@ -81,12 +81,14 @@ pub fn instantiate_handler(
         max_swap_spread.unwrap_or_else(|| Decimal::percent(DEFAULT_MAX_SPREAD.into()));
 
     // vault_token will be overwritten in the instantiate reply if we are using a cw20
+
+    let subdenom = create_subdenom_from_pool_assets(&pool_data);
     let vault_token = if code_id.is_some() {
         AssetInfo::cw20(Addr::unchecked(""))
     } else {
         AssetInfo::Native(format_tokenfactory_denom(
             env.contract.address.as_str(),
-            VAULT_TOKEN_SYMBOL,
+            &subdenom,
         ))
     };
 
@@ -113,7 +115,6 @@ pub fn instantiate_handler(
     FEE_CONFIG.save(deps.storage, &fee_config)?;
 
     // create LP token SubMsg
-    let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
     let sub_msg = create_vault_token_submsg(
         env.contract.address.to_string(),
         subdenom,
@@ -168,13 +169,15 @@ mod test {
             withdrawal: Decimal::percent(3),
             fee_collector_addr: Addr::unchecked("commission_receiver".to_string()),
         });
+        assert_that!(&config.vault_token).matches(|v| matches!(v, AssetInfo::Cw20(_)));
 
         // test native token factory asset
         let deps = app_init(false, false);
         let config = CONFIG.load(deps.as_ref().storage).unwrap();
+        let expected_subdenom = create_subdenom_from_pool_assets(&config.pool_data);
         assert_that!(config.vault_token).is_equal_to(AssetInfo::Native(format_tokenfactory_denom(
             "cosmos2contract",
-            VAULT_TOKEN_SYMBOL,
+            &expected_subdenom,
         )));
         Ok(())
     }
