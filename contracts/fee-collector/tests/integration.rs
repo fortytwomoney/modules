@@ -6,6 +6,8 @@ use abstract_core::objects::AssetEntry;
 
 use abstract_dex_adapter::msg::DexInstantiateMsg;
 use abstract_dex_adapter::{interface::DexAdapter, DEX_ADAPTER_ID};
+use abstract_dex_adapter::contract::CONTRACT_VERSION as DEX_ADAPTER_VERSION;
+
 use abstract_interface::{
     Abstract, AbstractAccount, AbstractInterfaceError, AccountDetails, ManagerQueryFns,
 };
@@ -36,8 +38,6 @@ pub struct App<Chain: CwEnv> {
     pub wyndex: WynDex,
     pub abstract_core: Abstract<Chain>,
 }
-
-const DEX_ADAPTER_VERSION: &str = "0.20.0";
 
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
