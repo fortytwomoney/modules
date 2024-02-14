@@ -77,7 +77,6 @@ pub fn convert_to_shares(
     )
 }
 
-#[test]
 fn setup_mock() -> Result<GenericVault<Mock>, AbstractInterfaceError> {
 
 
