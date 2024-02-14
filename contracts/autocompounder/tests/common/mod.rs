@@ -1,5 +1,6 @@
 pub mod abstract_helper;
 pub mod vault;
+pub mod account_setup;
 
 pub type AResult = anyhow::Result<()>;
 

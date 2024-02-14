@@ -3,18 +3,15 @@
 mod common;
 const DECIMAL_OFFSET: u32 = 17;
 
-use std::str::FromStr;
-
-use abstract_client::{AbstractClient, Namespace};
+use abstract_client::AbstractClient;
 use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
 use abstract_core::objects::{AnsAsset, AssetEntry};
-use abstract_cw_staking::interface::CwStakingAdapter;
-use abstract_dex_adapter::{interface::DexAdapter, msg::DexInstantiateMsg};
 use autocompounder::interface::AutocompounderApp;
 use autocompounder::msg::BondingData;
 use autocompounder::msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns};
 use autocompounder::state::Config;
-use common::{AResult, TEST_NAMESPACE};
+use common::account_setup::setup_autocompounder_account;
+use common::AResult;
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
 use cw_asset::AssetInfo;
 use cw_orch::contract::interface_traits::ContractInstance;
@@ -91,6 +88,7 @@ fn setup_vault() -> anyhow::Result<VaultOsmosis> {
         coin(1_000_000_000_000, USD),
     ])?;
 
+    // @note This should be moved before the genericVault
     let pool_id = chain
         .call_as(&wallet)
         .create_pool(vec![coin(10_000, EUR), coin(10_000, USD)])?;
@@ -113,68 +111,26 @@ fn setup_vault() -> anyhow::Result<VaultOsmosis> {
         )])
         .build()?;
 
-    let abstract_publisher = abstract_client
-        .publisher_builder(Namespace::new("abstract")?)
-        .build()?;
-
-    let _exchange: DexAdapter<_> = abstract_publisher.publish_adapter(DexInstantiateMsg {
-        swap_fee: Decimal::from_str("0.003")?,
-        recipient_account: 0,
-    })?;
-    let _staking: CwStakingAdapter<_> = abstract_publisher.publish_adapter(Empty {})?;
-
-    let fortytwo_publisher = abstract_client
-        .publisher_builder(Namespace::new(TEST_NAMESPACE)?)
-        .build()?;
-    fortytwo_publisher.publish_app::<AutocompounderApp<_>>()?;
-
     let commission_account = chain.init_account(vec![coin(1_000_000_000_000, "uosmo")])?;
     let commission_addr = Addr::unchecked(commission_account.address());
 
-    let account = abstract_client
-        .account_builder()
-        .install_on_sub_account(true)
-        .build()?;
-
-    let autocompounder_app = account.install_app_with_dependencies::<AutocompounderApp<_>>(
-        &autocompounder::msg::AutocompounderInstantiateMsg {
-            code_id: None,
-            commission_addr: commission_addr.to_string(),
-            deposit_fees: Decimal::percent(0),
-            dex: DEX.to_string(),
-            performance_fees: Decimal::percent(3),
-            pool_assets: vec![AssetEntry::new(EUR), AssetEntry::new(USD)],
-            withdrawal_fees: Decimal::percent(0),
-            bonding_data: Some(BondingData {
-                unbonding_period: Duration::Time(1),
-                max_claims_per_address: None,
-            }),
-            max_swap_spread: Some(Decimal::percent(50)),
-        },
-        cosmwasm_std::Empty {},
-        &[],
-    )?;
-
-    _exchange.execute(
-        &abstract_dex_adapter::msg::ExecuteMsg::Base(abstract_core::adapter::BaseExecuteMsg {
-            proxy_address: Some(autocompounder_app.account().proxy()?.to_string()),
-            msg: abstract_core::adapter::AdapterBaseMsg::UpdateAuthorizedAddresses {
-                to_add: vec![autocompounder_app.addr_str()?],
-                to_remove: vec![],
-            },
+    let autocompounder_instantiate_msg = autocompounder::msg::AutocompounderInstantiateMsg {
+        code_id: None,
+        commission_addr: commission_addr.to_string(),
+        deposit_fees: Decimal::percent(0),
+        dex: DEX.to_string(),
+        performance_fees: Decimal::percent(3),
+        pool_assets: vec![AssetEntry::new(EUR), AssetEntry::new(USD)],
+        withdrawal_fees: Decimal::percent(0),
+        bonding_data: Some(BondingData {
+            unbonding_period: Duration::Time(1),
+            max_claims_per_address: None,
         }),
-        None,
-    )?;
-    _staking.execute(
-        &abstract_cw_staking::msg::ExecuteMsg::Base(abstract_core::adapter::BaseExecuteMsg {
-            proxy_address: Some(autocompounder_app.account().proxy()?.to_string()),
-            msg: abstract_core::adapter::AdapterBaseMsg::UpdateAuthorizedAddresses {
-                to_add: vec![autocompounder_app.addr_str()?],
-                to_remove: vec![],
-            },
-        }),
-        None,
-    )?;
+        max_swap_spread: Some(Decimal::percent(50)),
+    };
+
+    let (_, _, fortytwo_publisher,account, autocompounder_app) =
+        setup_autocompounder_account(&abstract_client, &autocompounder_instantiate_msg)?;
 
     let osmosis_dex = OsmosisDex {
         eur_token,
@@ -223,7 +179,7 @@ fn deposit_asset() -> AResult {
     // deposit 10_000 usd and eur (native-native)
     let amount = 10_000u128;
     vault.add_balance(&owner, vec![coin(amount, EUR), coin(amount, USD)])?;
-    let user1 = chain.init_account(vec![coin(amount, EUR)])?;
+    let _user1 = chain.init_account(vec![coin(amount, EUR)])?;
 
     vault.add_balance(&ac_addres, vec![coin(amount, EUR), coin(amount, USD)])?;
 
