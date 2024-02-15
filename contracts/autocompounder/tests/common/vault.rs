@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use abstract_client::AbstractClient;
 use abstract_client::{Account, Application};
 use abstract_core::objects::pool_id::UncheckedPoolAddress;
@@ -13,7 +15,7 @@ use cw20::msg::Cw20ExecuteMsgFns;
 use cw_asset::{Asset, AssetInfo, AssetInfoBase, AssetInfoUnchecked};
 use cw_orch::contract::interface_traits::CallAs;
 use cw_orch::contract::interface_traits::ContractInstance;
-use cw_orch::environment::{CwEnv, TxHandler};
+use cw_orch::environment::{CwEnv, MutCwEnv, TxHandler};
 use cw_orch::osmosis_test_tube::osmosis_test_tube::SigningAccount;
 use cw_orch::osmosis_test_tube::OsmosisTestTube;
 use cw_plus_interface::cw20_base::Cw20Base;
@@ -45,6 +47,114 @@ pub struct GenericVault<Chain: CwEnv> {
     pub signing_account: Option<SigningAccount>, // preferably this is not included in the struct, but needed to initially set balances for osmosis_testtube
 }
 
+pub struct AstroportDex<Chain: CwEnv> {
+    pub chain: Chain,
+    pub cw20_minter: <Chain as TxHandler>::Sender,
+    pub assets: Vec<AssetInfo>,
+    pub pools: Vec<(UncheckedPoolAddress, PoolMetadata)>,
+}
+
+pub struct OsmosisDex<OsmosisTestTube> {
+    pub chain: OsmosisTestTube,
+    pub signer: Rc<SigningAccount>,
+    pub assets: Vec<String>,
+    pub pools: Vec<(UncheckedPoolAddress, PoolMetadata)>,
+}
+
+trait DexInit {
+    fn base_assets(&self) -> Vec<AssetEntry>;
+    fn asset_infos(&self) -> Vec<AssetInfo>;
+    fn set_balances(
+        &mut self,
+        balances: &[(&Addr, &[Asset])],
+    ) -> Result<(), Box<dyn std::error::Error>>;
+}
+
+impl DexInit for OsmosisDex<OsmosisTestTube> {
+    fn base_assets(&self) -> Vec<AssetEntry> {
+        self.assets
+            .iter()
+            .map(|asset| AssetEntry::new(asset.as_str()))
+            .collect()
+    }
+
+    fn asset_infos(&self) -> Vec<AssetInfo> {
+        self.assets
+            .iter()
+            .map(|asset| AssetInfo::cw20(Addr::unchecked(asset.clone())))
+            .collect()
+    }
+
+    fn set_balances(
+        &mut self,
+        balances: &[(&Addr, &[Asset])],
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        balances.into_iter().try_for_each(|(address, assets)| -> Result<(), Box<dyn std::error::Error>> {
+            let (native_balances, cw20_balances) = split_native_from_cw20_assets(assets.to_vec());
+
+            if !cw20_balances.is_empty() {
+                panic!("This method is only for setting native assets, no cw20");
+            }
+
+            let _res = self
+                .chain
+                .call_as(&self.signer)
+                .bank_send(address.to_string(), native_balances)
+                .map_err(|err| Box::new(err) as Box<dyn std::error::Error>)?;
+
+            Ok(())
+        })?;
+        Ok(())
+    }
+}
+
+impl<Chain: MutCwEnv> DexInit for AstroportDex<Chain> {
+    fn base_assets(&self) -> Vec<AssetEntry> {
+        self.assets
+            .iter()
+            .map(|asset| AssetEntry::new(asset.to_string().as_str()))
+            .collect()
+    }
+
+    fn asset_infos(&self) -> Vec<AssetInfo> {
+        todo!()
+        // self.assets
+        //     .iter()
+        //     .map(|asset| *asset)
+        //     .collect()
+    }
+
+    fn set_balances(
+        &mut self,
+        balances: &[(&Addr, &[Asset])],
+    ) -> Result<(), Box<dyn std::error::Error>>{
+        balances.into_iter().try_for_each(
+            |(address, assets)| -> Result<(), Box<dyn std::error::Error>> {
+                let (native_balances, cw20_balances) =
+                    split_native_from_cw20_assets(assets.to_vec());
+
+                self.chain
+                    .set_balance(address, native_balances)
+                    .map_err(|err: <Chain as TxHandler>::Error| Box::new(err.into()));
+
+                cw20_balances
+                    .into_iter()
+                    .try_for_each(|(cw20, amount)| -> Result<(), Box<dyn std::error::Error>> { 
+
+                        let cw20_token = Cw20Base::new(cw20, self.chain.clone());
+                        let _res = cw20_token.call_as(&self.cw20_minter).mint(
+                            amount.into(),
+                            address.to_string(),
+                        ).map_err(|err: cw_orch::prelude::CwOrchError| Box::new(err) as Box<dyn std::error::Error>)?;
+                        Ok(()) });
+
+                Ok(())
+            },
+        )?;
+        Ok(())
+    }
+}
+
 pub struct GenericDex {
     pub assets: Vec<(String, AssetInfoBase<String>)>,
     pub pools: Vec<(UncheckedPoolAddress, PoolMetadata)>,
@@ -57,7 +167,11 @@ impl GenericDex {
         pools: Vec<(UncheckedPoolAddress, PoolMetadata)>,
         dex_name: String,
     ) -> Self {
-        Self { assets, pools, dex_name }
+        Self {
+            assets,
+            pools,
+            dex_name,
+        }
     }
 
     pub fn asset_entries(&self) -> Vec<AssetEntry> {
@@ -66,7 +180,7 @@ impl GenericDex {
             .map(|asset| {
                 let (symbol, _asset_info) = asset;
                 AssetEntry::new(symbol.as_str())
-                })
+            })
             .collect()
     }
 
@@ -76,12 +190,8 @@ impl GenericDex {
             .map(|asset| {
                 let (_, asset_info) = asset;
                 match asset_info {
-                    AssetInfoBase::Cw20(c) => {
-                        AssetInfo::cw20(Addr::unchecked(c.clone()))
-                    }
-                    AssetInfoBase::Native(denom) => {
-                        AssetInfo::native(denom.clone())
-                    }
+                    AssetInfoBase::Cw20(c) => AssetInfo::cw20(Addr::unchecked(c.clone())),
+                    AssetInfoBase::Native(denom) => AssetInfo::native(denom.clone()),
                     _ => panic!("invalid base"),
                 }
             })
@@ -130,30 +240,28 @@ impl<T: CwEnv> GenericVault<T> {
             _ => panic!("invalid vault token"),
         }
     }
-
 }
-
 
 type StartingBalances<'a> = Vec<(&'a Addr, &'a Vec<Asset>)>;
-fn split_native_from_cw20_assets(assets: &&Vec<cw_asset::AssetBase<Addr>>) -> (Vec<cosmwasm_std::Coin>, Vec<cosmwasm_std::Addr>) {
-    assets
-        .iter()
-        .fold((vec![], vec![]), |mut res, asset|  {
-            match &asset.info {
-                AssetInfo::Cw20(c) => {
-                    res.1.push(c.clone());
-                }
-                AssetInfo::Native(n) => {
-                    let fund = cosmwasm_std::coin(asset.amount.into(), n.clone());
-                    res.0.push(fund);
-                }
-                _ => {}
+fn split_native_from_cw20_assets(
+    assets: Vec<cw_asset::AssetBase<Addr>>,
+) -> (Vec<cosmwasm_std::Coin>, Vec<(cosmwasm_std::Addr, u128)>) {
+    assets.iter().fold((vec![], vec![]), |mut res, asset| {
+        match &asset.info {
+            AssetInfo::Cw20(c) => {
+                res.1.push((c.clone(), asset.amount.into()));
             }
-            res
-        })
+            AssetInfo::Native(n) => {
+                let fund = cosmwasm_std::coin(asset.amount.into(), n.clone());
+                res.0.push(fund);
+            }
+            _ => {}
+        }
+        res
+    })
 }
 
-impl<T: CwEnv + Clone + 'static> GenericVault<T> {
+impl<T: MutCwEnv + Clone + 'static> GenericVault<T> {
     pub fn new(
         chain: T,
         assets: Vec<(String, AssetInfoUnchecked)>,
@@ -161,7 +269,7 @@ impl<T: CwEnv + Clone + 'static> GenericVault<T> {
         autocompounder_instantiate_msg: &autocompounder::msg::AutocompounderInstantiateMsg,
     ) -> Result<Self, Error> {
         // Initialize the blockchain environment, similar to OsmosisTestTube setup
-        let mut chain_env = chain.clone(); // Assuming T can be used similar to OsmosisTestTube
+        let chain_env = chain.clone(); // Assuming T can be used similar to OsmosisTestTube
 
         // TODO: Add balance init for accounts. This should include both cw20 assets as native assets.
 
