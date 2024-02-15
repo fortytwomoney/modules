@@ -5,6 +5,7 @@ use abstract_core::objects::pool_id::PoolAddressBase;
 use abstract_interface::{AbstractInterfaceError, AccountDetails};
 
 use autocompounder::error::AutocompounderError;
+use common::dexes::{DexInit, WyndDex as SetupWyndDex};
 use cw_asset::{AssetInfo, AssetInfoBase};
 use cw_plus_interface::cw20_base::Cw20Base;
 use std::ops::Mul;
@@ -78,8 +79,6 @@ pub fn convert_to_shares(
 }
 
 fn setup_mock() -> Result<GenericVault<Mock>, AbstractInterfaceError> {
-
-
     let owner = Addr::unchecked(common::OWNER);
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
     let user1 = Addr::unchecked(common::USER1);
@@ -103,18 +102,18 @@ fn setup_mock() -> Result<GenericVault<Mock>, AbstractInterfaceError> {
         PoolMetadata::stable(WYNDEX, vec![EUR, USD]),
     );
 
-    let assets: Vec<(String, AssetInfoBase<String>)>= vec![
+
+    let assets: Vec<(String, AssetInfo)>= vec![
         (EUR.to_string(), AssetInfoBase::native(EUR)),
         (USD.to_string(), AssetInfoBase::native(USD)),
-        (RAW_TOKEN.to_string(), AssetInfoBase::cw20(Addr::unchecked(RAW_TOKEN)).into()),
-        (RAW_2_TOKEN.to_string(), AssetInfoBase::cw20(Addr::unchecked(RAW_2_TOKEN)).into()),
-        (LpToken::new(WYNDEX, vec![EUR, USD]).to_string() ,AssetInfoBase::cw20(eur_usd_lp.address()?).into()),
-        (LpToken::new(WYNDEX, vec![RAW_TOKEN, EUR]).to_string(), AssetInfoBase::cw20(raw_eur_lp.address()?).into()),
-        (LpToken::new(WYNDEX, vec![WYND_TOKEN, EUR]).to_string(), AssetInfoBase::cw20(wynd_eur_lp.address()?).into()),
-        (LpToken::new(WYNDEX, vec![RAW_TOKEN, RAW_2_TOKEN]).to_string(), AssetInfoBase::cw20(raw_raw_2_lp.address()?).into()),
+        (RAW_TOKEN.to_string(), AssetInfoBase::cw20(Addr::unchecked(RAW_TOKEN))),
+        (RAW_2_TOKEN.to_string(), AssetInfoBase::cw20(Addr::unchecked(RAW_2_TOKEN))),
+        (LpToken::new(WYNDEX, vec![EUR, USD]).to_string() ,AssetInfoBase::cw20(eur_usd_lp.address()?)),
+        (LpToken::new(WYNDEX, vec![RAW_TOKEN, EUR]).to_string(), AssetInfoBase::cw20(raw_eur_lp.address()?)),
+        (LpToken::new(WYNDEX, vec![WYND_TOKEN, EUR]).to_string(), AssetInfoBase::cw20(wynd_eur_lp.address()?)),
+        (LpToken::new(WYNDEX, vec![RAW_TOKEN, RAW_2_TOKEN]).to_string(), AssetInfoBase::cw20(raw_raw_2_lp.address()?)),
     ];
-
-
+    
     let swap_pools = vec![
         (
             PoolAddressBase::contract(Addr::unchecked("eur_usd_pair")),
@@ -134,7 +133,25 @@ fn setup_mock() -> Result<GenericVault<Mock>, AbstractInterfaceError> {
         )
     ];
 
-    let mut chain = Mock::new(&owner);
+    let pools_tokens  = swap_pools.iter().map(
+        |(_, metadata)| -> Vec<String>{
+            metadata.assets.iter().map(|a| a.to_string()).collect()}).collect::<Vec<Vec<String>>>();
+
+    let mut wyndex_setup = SetupWyndDex {
+        chain: mock.clone(),
+        assets: assets.iter().map(|a| a.1.clone()).collect(),
+        cw20_minter: wyndex_owner,
+        name: "wyndex".to_string(),
+    };
+
+    // in the case of wyndex all the pools are already setup in the wyndex bundle. 
+    wyndex_setup.setup_pools(vec![]).unwrap();
+
+    // TODO: set balances for test users and env
+    wyndex_setup.set_balances(
+        &vec![]
+    ).unwrap();
+
     let pools = [vec![vault_pool.clone()],swap_pools].concat();
 
     let instantiate_msg = autocompounder::msg::AutocompounderInstantiateMsg {
@@ -157,11 +174,11 @@ fn setup_mock() -> Result<GenericVault<Mock>, AbstractInterfaceError> {
 
 
     let vault = GenericVault::new(
-        chain,
+        mock,
         assets,
         dex,
         &instantiate_msg,
-    )?;
+    ).unwrap();
     Ok(vault)
 }
 
@@ -175,7 +192,6 @@ fn deposit_cw20_asset<Chain: CwEnv>(vault: GenericVault<Chain>) -> AResult {
     let owner = Addr::unchecked(common::OWNER);
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
     let user1 = Addr::unchecked(common::USER1);
-    let mock = Mock::new(&owner);
 
     let GenericDex {
         assets,
