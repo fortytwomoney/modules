@@ -2,8 +2,9 @@ use std::rc::Rc;
 
 use abstract_client::AbstractClient;
 use abstract_client::{Account, Application};
+use abstract_core::ans_host::QueryMsgFns;
 use abstract_core::objects::pool_id::{PoolAddressBase, UncheckedPoolAddress};
-use abstract_core::objects::{AnsAsset, AssetEntry, PoolMetadata, PoolType};
+use abstract_core::objects::{AnsAsset, AssetEntry, PoolMetadata, PoolType, UncheckedContractEntry};
 use abstract_cw_staking::interface::CwStakingAdapter;
 use abstract_dex_adapter::interface::DexAdapter;
 use abstract_interface::{Abstract, AbstractAccount};
@@ -12,8 +13,9 @@ use autocompounder::interface::AutocompounderApp;
 use autocompounder::msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns};
 use cosmwasm_std::{coin, coins, Addr, Coin};
 use cw20::msg::Cw20ExecuteMsgFns;
+use cw20_base::msg::QueryMsgFns as _;
 use cw_asset::{Asset, AssetInfo, AssetInfoBase, AssetInfoUnchecked};
-use cw_orch::contract::interface_traits::CallAs;
+use cw_orch::contract::interface_traits::{CallAs, CwOrchQuery};
 use cw_orch::contract::interface_traits::ContractInstance;
 use cw_orch::environment::{CwEnv, MutCwEnv, TxHandler};
 use cw_orch::osmosis_test_tube::osmosis_test_tube::SigningAccount;
@@ -65,6 +67,7 @@ pub struct GenericVault<Chain: CwEnv> {
 pub struct GenericDex {
     pub assets: Vec<AssetWithInfo>,
     pub pools: Vec<(UncheckedPoolAddress, PoolMetadata)>,
+    pub contracts: Vec<(UncheckedContractEntry, String)>,
     pub dex_name: String,
 }
 
@@ -72,6 +75,7 @@ impl GenericDex {
     pub fn new(
         assets: Vec<(String, AssetInfoBase<Addr>)>,
         pools: Vec<(UncheckedPoolAddress, PoolMetadata)>,
+        contracts: Vec<( UncheckedContractEntry, String)>,
         dex_name: String,
     ) -> Self {
         let assets_with_info = assets
@@ -84,6 +88,7 @@ impl GenericDex {
         Self {
             assets: assets_with_info,
             pools,
+            contracts,
             dex_name,
         }
     }
@@ -103,6 +108,7 @@ impl GenericDex {
     }
 }
 
+#[allow(dead_code)]
 impl<T: CwEnv> GenericVault<T> {
     pub fn redeem_vault_token(
         &self,
@@ -139,10 +145,26 @@ impl<T: CwEnv> GenericVault<T> {
             _ => panic!("invalid vault token"),
         }
     }
+
+    pub fn vault_token_balance(&self, account: String) -> Result<u128, Error> {
+        match self.autocompounder_app.config()?.vault_token {
+            AssetInfoBase::Cw20(c) => {
+                let vault_token = Cw20Base::new(c, self.chain.clone());
+                Ok(vault_token
+                    .balance(account.clone())?
+                .balance
+                    .u128())
+            }
+            // @Buckram123 HELP: how do i Properly handle the balance().unwrap()
+            AssetInfoBase::Native(denom) => Ok(self.chain.balance(account, Some(denom)).unwrap().first().unwrap().amount.u128()),
+            _ => panic!("invalid vault token"),
+        }
+    }
 }
 
 
 
+#[allow(dead_code)]
 impl<T: MutCwEnv + Clone + 'static> GenericVault<T> {
     pub fn new(
         chain: T,
@@ -161,13 +183,22 @@ impl<T: MutCwEnv + Clone + 'static> GenericVault<T> {
         
         // Setup the abstract client similar to the provided `setup_vault` function
         let abstract_client = AbstractClient::builder(chain_env.clone())
-            .assets(unchecked_assets)
-            .dex(&dex.dex_name)
-            .pools(dex.pools.clone())
-            .build()?; // Simplified for illustration
+        .assets(unchecked_assets)
+        .dex(&dex.dex_name)
+        .pools(dex.pools.clone())
+        .contracts(dex.contracts.clone())
+        .build()?; // Simplified for illustration
 
+
+        // let ans_pools = abstract_client.name_service().pool_list(None, None, None)?;
+
+        // let ans_others = abstract_client.name_service().contract_list(None, None, None)?;
+
+        // println!("pools:  /n{:?}/n/nContracts: /n{:?}", ans_pools, ans_others);
+    
         let (dex_adapter, staking_adapter, _fortytwo_publisher, account, autocompounder_app) =
             setup_autocompounder_account(&abstract_client, &autocompounder_instantiate_msg)?;
+
 
         // Return the constructed GenericVault instance
         Ok(Self {

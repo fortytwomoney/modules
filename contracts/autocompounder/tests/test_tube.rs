@@ -6,14 +6,17 @@ const DECIMAL_OFFSET: u32 = 17;
 use abstract_client::AbstractClient;
 use abstract_core::objects::{pool_id::PoolAddressBase, PoolMetadata};
 use abstract_core::objects::{AnsAsset, AssetEntry};
+use abstract_interface::{Abstract, AbstractInterfaceError};
 use autocompounder::interface::AutocompounderApp;
 use autocompounder::msg::BondingData;
 use autocompounder::msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns};
 use autocompounder::state::Config;
 use common::account_setup::setup_autocompounder_account;
-use common::AResult;
+use common::vault::{AssetWithInfo, GenericDex, GenericVault};
+use common::{AResult, COMMISSION_RECEIVER};
+use common::dexes::{DexInit, OsmosisDex as OsmosisDexSetup};
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
-use cw_asset::AssetInfo;
+use cw_asset::{Asset, AssetInfo};
 use cw_orch::contract::interface_traits::ContractInstance;
 use cw_orch::prelude::*;
 use cw_orch::{
@@ -77,6 +80,86 @@ mod debug {
     fn disable_debug_logs() {
         std::env::remove_var("RUST_LOG")
     }
+}
+
+
+pub fn setup_osmosis_vault() -> Result<GenericVault<OsmosisTestTube>, AbstractInterfaceError> {
+    let eur_token = AssetInfo::native(EUR);
+    let usd_token = AssetInfo::native(USD);
+    let osmo_token = AssetInfo::native("uosmo");
+
+    let mut chain = OsmosisTestTube::new(vec![coin(1_000_000_000_000, "uosmo")]);
+    let owner = chain.init_account(vec![
+        coin(1_000_000_000_000, "uosmo"),
+        coin(1_000_000_000_000, EUR),
+        coin(1_000_000_000_000, USD),
+    ],
+    )?;
+    let user = chain.init_account(vec![])?;
+
+    let mut osmosis_setup = OsmosisDexSetup {
+        chain: chain.clone(),
+        signer: owner ,
+        assets: vec![],
+        name: "osmosis".to_string(),
+    };
+
+    
+    let pools = osmosis_setup.setup_pools(
+        vec![
+            vec![
+                Asset::new(AssetInfo::native(EUR), 10_000u128),
+                Asset::new(AssetInfo::native(USD), 10_000u128),
+                ]
+                ]
+            ).unwrap();
+            
+    let assets: Vec<AssetWithInfo> = vec![
+            (EUR.to_owned(), eur_token.clone()),
+            (USD.to_owned(), usd_token.clone()),
+            // pools.iter().map(|(pool_id, metadata)| {
+            //     // TODO: Properly set the asset name here based on test_tube.ts
+            //     ("thisIsNotTheRightDenom", AssetInfo::native(format!("{DEX}/{EUR},{USD}")).into())
+            //     },).collect::<Vec<_>>(),
+    ]
+    .iter()
+    .map(|(ans_name, asset_info)| AssetWithInfo::new(ans_name, asset_info.clone()))
+    .collect();
+
+    osmosis_setup.set_balances(&[(&Addr::unchecked(user.address()), &vec![
+        Asset::new(AssetInfo::native(USD), 10_000u128),
+        Asset::new(AssetInfo::native(EUR), 10_000u128)
+    ])]).unwrap();
+
+
+    let instantiate_msg = autocompounder::msg::AutocompounderInstantiateMsg {
+        code_id: None,
+        commission_addr: COMMISSION_RECEIVER.to_string(),
+        deposit_fees: Decimal::percent(0),
+        dex: osmosis_setup.name.clone(),
+        performance_fees: Decimal::percent(3),
+        pool_assets: pools.first().unwrap().1.assets.clone(),
+        withdrawal_fees: Decimal::percent(0),
+        bonding_data: Some(BondingData {
+            unbonding_period: Duration::Time(1),
+            max_claims_per_address: None,
+        }),
+        max_swap_spread: Some(Decimal::percent(50)),
+    };
+
+    let dex = GenericDex {
+        assets: assets.clone(),
+        pools,
+        contracts: vec![],
+        dex_name: osmosis_setup.name.clone().to_string(),
+    };
+
+    let vault = GenericVault::new(chain, assets, dex, &instantiate_msg).unwrap();
+
+    // TODO: Check autocompounder config
+    let config: Config = vault.autocompounder_app.config().unwrap();
+
+    Ok(vault)
 }
 
 fn setup_vault() -> anyhow::Result<VaultOsmosis> {
