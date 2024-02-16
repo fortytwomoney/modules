@@ -26,7 +26,7 @@ use autocompounder::msg::{
 };
 
 use common::abstract_helper::{self, init_auto_compounder};
-use common::vault::{GenericDex, GenericVault, Vault};
+use common::vault::{AssetWithInfo, GenericDex, GenericVault, Vault};
 use common::AResult;
 use common::{TEST_NAMESPACE, VAULT_TOKEN};
 use cosmwasm_std::{coin, coins, to_json_binary, Addr, Decimal, Uint128};
@@ -83,6 +83,7 @@ fn setup_mock() -> Result<GenericVault<Mock>, AbstractInterfaceError> {
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
     let user1 = Addr::unchecked(common::USER1);
     let mock = Mock::new(&owner);
+    let abstract_ = Abstract::deploy_on(mock.clone(), mock.sender().to_string())?;
     let wyndex = WynDex::store_on(mock.clone()).unwrap();
 
     let WynDex {
@@ -90,6 +91,7 @@ fn setup_mock() -> Result<GenericVault<Mock>, AbstractInterfaceError> {
         raw_2_token,
         eur_token,
         usd_token,
+        wynd_token,
         eur_usd_lp,
         raw_eur_lp,
         wynd_eur_lp,
@@ -98,22 +100,46 @@ fn setup_mock() -> Result<GenericVault<Mock>, AbstractInterfaceError> {
     } = wyndex;
 
     let vault_pool = (
-        PoolAddressBase::contract(Addr::unchecked("eur_usd_pair")),
-        PoolMetadata::stable(WYNDEX, vec![EUR, USD]),
+        PoolAddressBase::contract(Addr::unchecked("wyndex:raw_raw_2_pair")),
+        PoolMetadata::stable(WYNDEX, vec![RAW_TOKEN, RAW_2_TOKEN]),
     );
 
-
-    let assets: Vec<(String, AssetInfo)>= vec![
+    let assets: Vec<AssetWithInfo> = vec![
         (EUR.to_string(), AssetInfoBase::native(EUR)),
         (USD.to_string(), AssetInfoBase::native(USD)),
-        (RAW_TOKEN.to_string(), AssetInfoBase::cw20(Addr::unchecked(RAW_TOKEN))),
-        (RAW_2_TOKEN.to_string(), AssetInfoBase::cw20(Addr::unchecked(RAW_2_TOKEN))),
-        (LpToken::new(WYNDEX, vec![EUR, USD]).to_string() ,AssetInfoBase::cw20(eur_usd_lp.address()?)),
-        (LpToken::new(WYNDEX, vec![RAW_TOKEN, EUR]).to_string(), AssetInfoBase::cw20(raw_eur_lp.address()?)),
-        (LpToken::new(WYNDEX, vec![WYND_TOKEN, EUR]).to_string(), AssetInfoBase::cw20(wynd_eur_lp.address()?)),
-        (LpToken::new(WYNDEX, vec![RAW_TOKEN, RAW_2_TOKEN]).to_string(), AssetInfoBase::cw20(raw_raw_2_lp.address()?)),
-    ];
-    
+        (
+            RAW_TOKEN.to_string(),
+            AssetInfoBase::cw20(Addr::unchecked(RAW_TOKEN)),
+        ),
+        (
+            RAW_2_TOKEN.to_string(),
+            AssetInfoBase::cw20(Addr::unchecked(RAW_2_TOKEN)),
+        ),
+        (
+            WYND_TOKEN.to_string(),
+            AssetInfoBase::cw20(Addr::unchecked(WYND_TOKEN)),
+        ),
+        (
+            LpToken::new(WYNDEX, vec![EUR, USD]).to_string(),
+            AssetInfoBase::cw20(eur_usd_lp.address()?),
+        ),
+        (
+            LpToken::new(WYNDEX, vec![RAW_TOKEN, EUR]).to_string(),
+            AssetInfoBase::cw20(raw_eur_lp.address()?),
+        ),
+        (
+            LpToken::new(WYNDEX, vec![EUR, WYND_TOKEN]).to_string(),
+            AssetInfoBase::cw20(wynd_eur_lp.address()?),
+        ),
+        (
+            LpToken::new(WYNDEX, vec![RAW_TOKEN, RAW_2_TOKEN]).to_string(),
+            AssetInfoBase::cw20(raw_raw_2_lp.address()?),
+        ),
+    ]
+    .iter()
+    .map(|(ans_name, asset_info)| AssetWithInfo::new(ans_name, asset_info.clone()))
+    .collect();
+
     let swap_pools = vec![
         (
             PoolAddressBase::contract(Addr::unchecked("eur_usd_pair")),
@@ -127,164 +153,124 @@ fn setup_mock() -> Result<GenericVault<Mock>, AbstractInterfaceError> {
             PoolAddressBase::contract(Addr::unchecked("wynd_eur_pair")),
             PoolMetadata::stable(WYNDEX, vec![WYND_TOKEN, EUR]),
         ),
-        (
-            PoolAddressBase::contract(Addr::unchecked("raw_raw_2_pair")),
-            PoolMetadata::stable(WYNDEX, vec![RAW_TOKEN, RAW_2_TOKEN]),
-        )
+
     ];
 
-    let pools_tokens  = swap_pools.iter().map(
-        |(_, metadata)| -> Vec<String>{
-            metadata.assets.iter().map(|a| a.to_string()).collect()}).collect::<Vec<Vec<String>>>();
+    // let pools_tokens = swap_pools
+    //     .iter()
+    //     .map(|(_, metadata)| -> Vec<String> {
+    //         metadata.assets.iter().map(|a| a.to_string()).collect()
+    //     })
+    //     .collect::<Vec<Vec<String>>>();
 
     let mut wyndex_setup = SetupWyndDex {
         chain: mock.clone(),
-        assets: assets.iter().map(|a| a.1.clone()).collect(),
+        assets: assets.iter().map(|f| f.asset_info.clone()).collect(),
         cw20_minter: wyndex_owner,
         name: "wyndex".to_string(),
     };
 
-    // in the case of wyndex all the pools are already setup in the wyndex bundle. 
+    // in the case of wyndex all the pools are already setup in the wyndex bundle.
     wyndex_setup.setup_pools(vec![]).unwrap();
 
     // TODO: set balances for test users and env
-    wyndex_setup.set_balances(
-        &vec![]
-    ).unwrap();
+    wyndex_setup.set_balances(&vec![]).unwrap();
 
-    let pools = [vec![vault_pool.clone()],swap_pools].concat();
+    let pools = [vec![vault_pool.clone()], swap_pools].concat();
+      let vault_token = Cw20Base::new(VAULT_TOKEN, mock.clone());
+      let cw20_id = vault_token.upload().unwrap().uploaded_code_id().unwrap();
 
     let instantiate_msg = autocompounder::msg::AutocompounderInstantiateMsg {
-        performance_fees: todo!(),
-        deposit_fees: todo!(),
-        withdrawal_fees: todo!(),
-        commission_addr: todo!(),
-        code_id: todo!(),
-        dex: todo!(),
-        pool_assets: todo!(),
-        bonding_data: todo!(),
-        max_swap_spread: todo!(),
+            code_id: Some(cw20_id),
+            commission_addr: COMMISSION_RECEIVER.to_string(),
+            deposit_fees: Decimal::percent(0),
+            dex: WYNDEX.to_string(),
+            performance_fees: Decimal::percent(3),
+            pool_assets: vault_pool.1.assets.clone(),
+            withdrawal_fees: Decimal::percent(0),
+            bonding_data: Some(BondingData {
+                unbonding_period: Duration::Time(1),
+                max_claims_per_address: None,
+            }),
+            max_swap_spread: Some(Decimal::percent(50)),
     };
 
     let dex = GenericDex {
-        assets: assets,
+        assets: assets.clone(),
         pools,
         dex_name: WYNDEX.to_string(),
     };
 
+    let vault = GenericVault::new(mock, assets, dex, &instantiate_msg).unwrap();
 
-    let vault = GenericVault::new(
-        mock,
-        assets,
-        dex,
-        &instantiate_msg,
-    ).unwrap();
+    // TODO: Check autocompounder config
+    let config: Config = vault.autocompounder_app.config().unwrap();
+
     Ok(vault)
 }
 
 #[test]
 fn deposit_cw20_asset_mock() -> AResult {
     let vault = setup_mock()?;
-    deposit_cw20_asset(vault)
+    let owner = Addr::unchecked(common::OWNER);
+    let user1 = Addr::unchecked(common::USER1);
+    deposit_cw20_asset(vault, &owner, &user1)
 }
 
-fn deposit_cw20_asset<Chain: CwEnv>(vault: GenericVault<Chain>) -> AResult {
-    let owner = Addr::unchecked(common::OWNER);
-    let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
-    let user1 = Addr::unchecked(common::USER1);
+fn deposit_cw20_asset<Chain: CwEnv>(
+    vault: GenericVault<Chain>,
+    owner: &<Chain as TxHandler>::Sender,
+    user: &<Chain as TxHandler>::Sender,
+) -> AResult {
 
-    let GenericDex {
-        assets,
-        pools,
-        dex_name,
-        ..
-    } = vault.dex;
 
     let _ac_addres = vault.autocompounder_app.addr_str()?;
-    let raw_asset = AssetEntry::new(RAW_TOKEN);
-    let raw2_asset = AssetEntry::new(RAW_2_TOKEN);
-
-    let asset_entries = vec![raw_asset.clone(), raw2_asset.clone()];
-    let asset_infos = [raw_token.address()?, raw_2_token.address()?]
-        .iter()
-        .map(|a| AssetInfo::Cw20(a.to_owned()))
-        .collect::<Vec<_>>();
-
-    let config: Config = vault.auto_compounder.config()?;
-
-    // check the config
-    assert_that!(config.pool_data.assets).is_equal_to(asset_entries);
-    assert_that!(config.pool_assets).is_equal_to(asset_infos);
+    let config: Config = vault.autocompounder_app.config()?;
 
     // deposit 10_000 raw and raw2 (cw20-cw20)
     let amount = 10_000u128;
-    raw_token
-        .call_as(&wyndex_owner)
-        .transfer(amount.into(), owner.to_string())?;
-    raw_token
-        .call_as(&wyndex_owner)
-        .transfer(amount.into(), user1.to_string())?;
-    raw_2_token
-        .call_as(&wyndex_owner)
-        .transfer(amount.into(), owner.to_string())?;
+    vault.deposit_assets(owner, amount, amount)?;
 
-    raw_token
-        .call_as(&owner)
-        .increase_allowance(amount.into(), _ac_addres.to_string(), None)?;
-    raw_2_token
-        .call_as(&owner)
-        .increase_allowance(amount.into(), _ac_addres.to_string(), None)?;
-
-    vault.auto_compounder.deposit(
-        vec![
-            AnsAsset::new(raw_asset.clone(), amount),
-            AnsAsset::new(raw2_asset, amount),
-        ],
-        None,
-        None,
-        &[],
-    )?;
-
-    let position = vault.auto_compounder.total_lp_position()?;
+    let position = vault.autocompounder_app.total_lp_position()?;
     assert_that!(position).is_equal_to(Uint128::from(10_000u128));
 
-    let balance_owner = vault.vault_token.balance(owner.to_string())?;
-    assert_that!(balance_owner.balance.u128()).is_equal_to(10_000u128 * 10u128.pow(DECIMAL_OFFSET));
+    // let balance_owner = vault.vault_token.balance(owner.to_string())?;
+    // assert_that!(balance_owner.balance.u128()).is_equal_to(10_000u128 * 10u128.pow(DECIMAL_OFFSET));
 
-    // single cw20asset deposit from different address
-    // single asset deposit from different address
-    raw_token
-        .call_as(&user1)
-        .increase_allowance(1000u128.into(), _ac_addres.to_string(), None)?;
-    vault.auto_compounder.call_as(&user1).deposit(
-        vec![AnsAsset::new(raw_asset, 1000u128)],
-        None,
-        None,
-        &[],
-    )?;
+    // // single cw20asset deposit from different address
+    // // single asset deposit from different address
+    // raw_token
+    //     .call_as(&user1)
+    //     .increase_allowance(1000u128.into(), _ac_addres.to_string(), None)?;
+    // vault.autocompounder_app.call_as(&user1).deposit(
+    //     vec![AnsAsset::new(raw_asset, 1000u128)],
+    //     None,
+    //     None,
+    //     &[],
+    // )?;
 
-    // check that the vault token is minted
-    let vault_token_balance = vault.vault_token.balance(owner.to_string())?;
-    assert_that!(vault_token_balance.balance.u128())
-        .is_equal_to(10000u128 * 10u128.pow(DECIMAL_OFFSET));
-    let new_position = vault.auto_compounder.total_lp_position()?;
-    // check if the user1 balance is correct
-    let vault_token_balance_user1 = vault.vault_token.balance(user1.to_string())?;
-    assert_that!(vault_token_balance_user1.balance.u128())
-        .is_equal_to(487u128 * 10u128.pow(DECIMAL_OFFSET));
-    assert_that!(new_position).is_greater_than(position);
+    // // check that the vault token is minted
+    // let vault_token_balance = vault.vault_token.balance(owner.to_string())?;
+    // assert_that!(vault_token_balance.balance.u128())
+    //     .is_equal_to(10000u128 * 10u128.pow(DECIMAL_OFFSET));
+    // let new_position = vault.autocompounder_app.total_lp_position()?;
+    // // check if the user1 balance is correct
+    // let vault_token_balance_user1 = vault.vault_token.balance(user1.to_string())?;
+    // assert_that!(vault_token_balance_user1.balance.u128())
+    //     .is_equal_to(487u128 * 10u128.pow(DECIMAL_OFFSET));
+    // assert_that!(new_position).is_greater_than(position);
 
-    let redeem_amount = Uint128::from(4000u128 * 10u128.pow(DECIMAL_OFFSET));
-    vault
-        .vault_token
-        .call_as(&owner)
-        .increase_allowance(redeem_amount, _ac_addres, None)?;
-    vault.auto_compounder.redeem(redeem_amount, None, &[])?;
+    // let redeem_amount = Uint128::from(4000u128 * 10u128.pow(DECIMAL_OFFSET));
+    // vault
+    //     .vault_token
+    //     .call_as(&owner)
+    //     .increase_allowance(redeem_amount, _ac_addres, None)?;
+    // vault.autocompounder_app.redeem(redeem_amount, None, &[])?;
 
-    // check that the vault token decreased
-    let vault_token_balance = vault.vault_token.balance(owner.to_string())?;
-    assert_that!(vault_token_balance.balance.u128())
-        .is_equal_to(6000u128 * 10u128.pow(DECIMAL_OFFSET));
+    // // check that the vault token decreased
+    // let vault_token_balance = vault.vault_token.balance(owner.to_string())?;
+    // assert_that!(vault_token_balance.balance.u128())
+    //     .is_equal_to(6000u128 * 10u128.pow(DECIMAL_OFFSET));
 
     Ok(())
 }

@@ -3,7 +3,7 @@ use std::rc::Rc;
 use abstract_client::AbstractClient;
 use abstract_client::{Account, Application};
 use abstract_core::objects::pool_id::{PoolAddressBase, UncheckedPoolAddress};
-use abstract_core::objects::{AssetEntry, PoolMetadata, PoolType};
+use abstract_core::objects::{AnsAsset, AssetEntry, PoolMetadata, PoolType};
 use abstract_cw_staking::interface::CwStakingAdapter;
 use abstract_dex_adapter::interface::DexAdapter;
 use abstract_interface::{Abstract, AbstractAccount};
@@ -22,6 +22,22 @@ use cw_plus_interface::cw20_base::Cw20Base;
 use wyndex_bundle::WynDex;
 
 use super::account_setup::setup_autocompounder_account;
+use super::AResult;
+
+#[derive(Clone)]
+pub struct AssetWithInfo {
+    pub ans_name: String,
+    pub asset_info: AssetInfo,
+}
+
+impl AssetWithInfo {
+    pub fn new<T: Into<String>, U: Into<AssetInfoBase<Addr>>>(name: T, info: U) -> Self {
+        Self {
+            ans_name: name.into(),
+            asset_info: info.into(),
+        }
+    }
+}
 
 #[allow(dead_code)]
 pub struct Vault<Chain: CwEnv> {
@@ -47,7 +63,7 @@ pub struct GenericVault<Chain: CwEnv> {
 }
 
 pub struct GenericDex {
-    pub assets: Vec<(String, AssetInfoBase<Addr>)>,
+    pub assets: Vec<AssetWithInfo>,
     pub pools: Vec<(UncheckedPoolAddress, PoolMetadata)>,
     pub dex_name: String,
 }
@@ -58,40 +74,32 @@ impl GenericDex {
         pools: Vec<(UncheckedPoolAddress, PoolMetadata)>,
         dex_name: String,
     ) -> Self {
+        let assets_with_info = assets
+            .into_iter()
+            .map(|(name, asset)| AssetWithInfo {
+                ans_name: name,
+                asset_info: asset.into(),
+            })
+            .collect();
         Self {
-            assets,
+            assets: assets_with_info,
             pools,
             dex_name,
         }
     }
 
-    pub fn asset_entries(&self) -> Vec<AssetEntry> {
-        self.assets
-            .iter()
-            .map(|asset| {
-                let (symbol, _asset_info) = asset;
-                AssetEntry::new(symbol.as_str())
-            })
-            .collect()
-    }
-
-    pub fn asset_infos(&self) -> Vec<AssetInfo> {
-        self.assets
-            .iter()
-            .map(|asset| {
-                let (_, asset_info) = asset;
-                match asset_info {
-                    AssetInfoBase::Cw20(c) => AssetInfo::cw20(c.clone()),
-                    AssetInfoBase::Native(denom) => AssetInfo::native(denom.clone()),
-                    _ => panic!("invalid base"),
-                }
-            })
-            .collect()
-    }
 
     /// returns the first pool. should be the main pool
     pub fn main_pool(&self) -> (UncheckedPoolAddress, PoolMetadata) {
         self.pools.first().unwrap().to_owned()
+    }
+
+    pub fn asset_a(&self) -> AssetWithInfo {
+        self.assets[0].clone()
+    }
+
+    pub fn asset_b(&self) -> AssetWithInfo {
+        self.assets[1].clone()
     }
 }
 
@@ -138,7 +146,7 @@ impl<T: CwEnv> GenericVault<T> {
 impl<T: MutCwEnv + Clone + 'static> GenericVault<T> {
     pub fn new(
         chain: T,
-        assets: Vec<(String, AssetInfo)>,
+        assets: Vec<AssetWithInfo>,
         dex: GenericDex,
         autocompounder_instantiate_msg: &autocompounder::msg::AutocompounderInstantiateMsg,
     ) -> Result<Self, Error> {
@@ -148,11 +156,9 @@ impl<T: MutCwEnv + Clone + 'static> GenericVault<T> {
         // TODO: Add balance init for accounts. This should include both cw20 assets as native assets.
         let unchecked_assets = assets
             .iter()
-            .map(|(symbol, asset_info)| (symbol.clone(), asset_info.into()))
+            .map(|asset| (asset.ans_name.clone(), asset.asset_info.clone().into()))
             .collect();
         
-
-
         // Setup the abstract client similar to the provided `setup_vault` function
         let abstract_client = AbstractClient::builder(chain_env.clone())
             .assets(unchecked_assets)
@@ -176,6 +182,71 @@ impl<T: MutCwEnv + Clone + 'static> GenericVault<T> {
         })
     }
 }
+
+// Dex convenience functions
+#[allow(dead_code)]
+impl<Chain: CwEnv> GenericVault<Chain> {
+    fn main_pool(&self) -> (UncheckedPoolAddress, PoolMetadata) {
+        self.dex.main_pool()
+    }
+
+    /// Allows for depositing any amount without having to care about cw20 or native assets
+    pub fn deposit_assets(&self, depositor: &Chain::Sender, amount_a: u128, amount_b: u128) -> AResult {
+
+
+        let asset_a = self.dex.asset_a();
+        let asset_b = self.dex.asset_b();
+
+        let assets = vec![
+            (&asset_a, amount_a),
+            (&asset_b, amount_b),
+        ];
+
+        let ans_assets_deposit_coins = assets.into_iter().map(|(asset, amount)| {
+            self.asset_amount_to_deposit(depositor, amount, asset)
+        })
+        .collect::<Result<Vec<(AnsAsset, Option<Coin>)>, Error>>()?;
+
+        let (ans_assets, deposit_coins ): (Vec<_>, Vec<_>)= ans_assets_deposit_coins.into_iter().unzip();
+
+        let deposit_coins = deposit_coins.into_iter().filter_map(|x| x).collect::<Vec<_>>();
+        
+
+        self.autocompounder_app.call_as(depositor).deposit(
+            ans_assets,
+            None,
+            None,
+            &deposit_coins,
+        )?;
+
+        Ok(())
+    }
+
+
+    fn asset_amount_to_deposit(&self, depositor: &Chain::Sender, amount: u128, asset: &AssetWithInfo) -> Result<(AnsAsset, Option<Coin>), Error> {
+        match &asset.asset_info {
+            AssetInfoBase::Cw20(addr) => {
+                let cw20_asset = Cw20Base::new(addr, self.chain.clone());
+                cw20_asset
+                    .call_as(depositor)
+                    .increase_allowance(amount.into(), self.autocompounder_app.addr_str()?, None)?;
+                Ok((AnsAsset::new(asset.ans_name.clone(), amount), None))
+            }
+            AssetInfoBase::Native(denom) => {
+                Ok((AnsAsset::new(asset.ans_name.clone(), amount), Some(coin(amount, denom))))
+            }
+            _ => panic!("invalid asset_info"),
+        }
+    }
+
+
+    
+
+    
+}
+
+
+
 
 // NOTE: I think because Osmosis has only native assets, and Astroport has both, we should have 3 environments: 
 // - Osmosis environment with only native asset pools
