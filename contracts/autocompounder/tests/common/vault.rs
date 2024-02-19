@@ -168,7 +168,6 @@ impl<T: CwEnv> GenericVault<T> {
 impl<T: MutCwEnv + Clone + 'static> GenericVault<T> {
     pub fn new(
         chain: T,
-        assets: Vec<AssetWithInfo>,
         dex: GenericDex,
         autocompounder_instantiate_msg: &autocompounder::msg::AutocompounderInstantiateMsg,
     ) -> Result<Self, Error> {
@@ -176,7 +175,7 @@ impl<T: MutCwEnv + Clone + 'static> GenericVault<T> {
         let chain_env = chain.clone(); // Assuming T can be used similar to OsmosisTestTube
 
         // TODO: Add balance init for accounts. This should include both cw20 assets as native assets.
-        let unchecked_assets = assets
+        let unchecked_assets = dex.assets
             .iter()
             .map(|asset| (asset.ans_name.clone(), asset.asset_info.clone().into()))
             .collect();

@@ -10,6 +10,39 @@ use cw_orch::environment::{CwEnv, MutCwEnv, TxHandler};
 use cw_orch::osmosis_test_tube::osmosis_test_tube::SigningAccount;
 use cw_orch::osmosis_test_tube::OsmosisTestTube;
 use cw_plus_interface::cw20_base::Cw20Base;
+use osmosis_std::cosmwasm_to_proto_coins;
+use osmosis_std::shim::Timestamp;
+use osmosis_std::types::osmosis::incentives::MsgCreateGauge;
+use osmosis_test_tube::Module;
+
+use super::osmosis_pool_incentives_module::Incentives;
+
+
+pub struct IncentiveParams {
+    /// start time in seconds would default to the current block time if none
+    start_time: Option<u64>,
+    num_epochs_paid_over: u64,
+    coins: Vec<cosmwasm_std::Coin>,
+}
+
+#[allow(dead_code)]
+impl IncentiveParams {
+    pub fn new(coins: Vec<cosmwasm_std::Coin>, num_epochs: u64) -> IncentiveParams {
+        IncentiveParams {
+            coins,
+            start_time: None,
+            num_epochs_paid_over: num_epochs,
+        }
+    }
+
+    pub fn from_coin(amount: u128, denom: String, num_epochs: u64) -> IncentiveParams {
+        IncentiveParams {
+            coins: vec![coin(amount, denom)],
+            start_time: None,
+            num_epochs_paid_over: num_epochs,
+        }
+    }
+}
 
 pub struct WyndDex<Chain: CwEnv> {
     pub chain: Chain,
@@ -32,7 +65,15 @@ pub trait DexInit {
         &mut self,
         balances: &[(&Addr, &[Asset])],
     ) -> Result<(), Box<dyn std::error::Error>>;
-    fn setup_pools(&self, initial_liquidity: Vec<Vec<Asset>>) -> Result<Vec<(UncheckedPoolAddress, PoolMetadata)>, Box<dyn std::error::Error>>;
+    fn setup_pools(
+        &self,
+        initial_liquidity: Vec<Vec<Asset>>,
+    ) -> Result<Vec<(UncheckedPoolAddress, PoolMetadata)>, Box<dyn std::error::Error>>;
+    fn setup_incentives(
+        &self,
+        pool: &(PoolAddressBase<String>, PoolMetadata),
+        incentives: IncentiveParams,
+    ) -> Result<(), Box<dyn std::error::Error>>;
 }
 
 impl DexInit for OsmosisDex<OsmosisTestTube> {
@@ -75,8 +116,11 @@ impl DexInit for OsmosisDex<OsmosisTestTube> {
         Ok(())
     }
 
-    fn setup_pools(&self, initial_liquidity: Vec<Vec<Asset>>) -> Result<Vec<(UncheckedPoolAddress, PoolMetadata)>, Box<dyn std::error::Error>> {
-        initial_liquidity
+    fn setup_pools(
+        &self,
+        initial_liquidity: Vec<Vec<Asset>>,
+    ) -> Result<Vec<(UncheckedPoolAddress, PoolMetadata)>, Box<dyn std::error::Error>> {
+        let pools = initial_liquidity
             .iter()
             .map(|liquidity| -> Result<(UncheckedPoolAddress, PoolMetadata), Box<dyn std::error::Error>> {
                 // map all assets as native. if not raise error
@@ -90,12 +134,50 @@ impl DexInit for OsmosisDex<OsmosisTestTube> {
                 }).collect::<Result<Vec<_>, _>>()?;
                 let pool_id = self.chain.create_pool(native_liquidity.clone()).map_err(Box::new)?;
 
+
                 Ok((
                     PoolAddressBase::id(pool_id),
                     PoolMetadata::constant_product(self.name.clone(), native_liquidity.iter().map(|c| c.denom.clone()).collect::<Vec<String>>())
                 ))
             })
-            .collect::<Result<Vec<(UncheckedPoolAddress, PoolMetadata)>, Box<dyn std::error::Error>>>()
+            .collect::<Result<Vec<(UncheckedPoolAddress, PoolMetadata)>, Box<dyn std::error::Error>>>();
+
+        let pools = pools?;
+        Ok(pools)
+    }
+
+    fn setup_incentives(
+        &self,
+        pool: &(PoolAddressBase<String>, PoolMetadata),
+        incentives: IncentiveParams,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let osmosistesttube = &*self.chain.app.borrow();
+        let incentive_wrapper = Incentives::new(osmosistesttube);
+
+        incentive_wrapper
+            .create_gauge(
+                MsgCreateGauge {
+                    is_perpetual: false,
+                    owner: self.chain.sender().to_string(),
+                    distribute_to: None,
+                    coins: cosmwasm_to_proto_coins(incentives.coins),
+                    start_time: match incentives.start_time {
+                        Some(val) => Some(Timestamp {
+                            seconds: i64::try_from(val).map_err(|_e| {
+                                cosmwasm_std::StdError::generic_err("try from u64 to i64 error")
+                            })?,
+                            nanos: 0,
+                        }),
+                        None => None,
+                    },
+                    num_epochs_paid_over: incentives.num_epochs_paid_over,
+                    pool_id: get_id_from_osmo_pool(&pool.0),
+                },
+                &self.chain.sender,
+            )
+            .map_err(|e| Box::new(cosmwasm_std::StdError::generic_err(e.to_string())) as Box<dyn std::error::Error>)?;
+
+        Ok(())
     }
 }
 
@@ -147,7 +229,10 @@ impl<Chain: MutCwEnv> DexInit for WyndDex<Chain> {
         Ok(())
     }
 
-    fn setup_pools(&self, initial_liquidity: Vec<Vec<Asset>>) -> Result<Vec<(UncheckedPoolAddress, PoolMetadata)>, Box<dyn std::error::Error>> {
+    fn setup_pools(
+        &self,
+        initial_liquidity: Vec<Vec<Asset>>,
+    ) -> Result<Vec<(UncheckedPoolAddress, PoolMetadata)>, Box<dyn std::error::Error>> {
         // my current idea is to just verify whether the pools with the initial liquidity actuaally exist on chain. if not raise an error
         // TODO: verify whether pools exist on chain
 
@@ -163,8 +248,15 @@ impl<Chain: MutCwEnv> DexInit for WyndDex<Chain> {
 
         Ok(pools)
     }
-}
 
+    fn setup_incentives(
+        &self,
+        pool: &(PoolAddressBase<String>, PoolMetadata),
+        incentives: IncentiveParams,
+    ) -> Result<(),Box<dyn std::error::Error>> {
+        todo!()
+    }
+}
 
 /// UTILS
 
@@ -184,4 +276,12 @@ fn split_native_from_cw20_assets(
         }
         res
     })
+}
+
+
+pub fn get_id_from_osmo_pool(pool_id: &PoolAddressBase<String>) -> u64 {
+    match pool_id {
+        PoolAddressBase::Id(id) => *id,
+        _ => panic!("Invalid pool ID"),
+    }
 }
