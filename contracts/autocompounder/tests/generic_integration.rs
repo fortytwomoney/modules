@@ -10,12 +10,11 @@ use abstract_interface::AbstractInterfaceError;
 use autocompounder::error::AutocompounderError;
 use autocompounder::state::DECIMAL_OFFSET;
 use common::dexes::get_id_from_osmo_pool;
+use common::dexes::DexBase;
 use common::dexes::DexInit;
 use common::dexes::IncentiveParams;
 use common::dexes::OsmosisDex as OsmosisDexSetup;
 use common::dexes::WyndDex as SetupWyndDex;
-use common::osmosis_pool_incentives_module::Incentives;
-use cosmwasm_std::coin;
 use cw_asset::Asset;
 use cw_asset::AssetInfo;
 use cw_asset::AssetInfoBase;
@@ -30,7 +29,7 @@ use cw_orch::prelude::*;
 
 use autocompounder::msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, BondingData};
 
-use common::vault::{AssetWithInfo, GenericDex, GenericVault};
+use common::vault::{AssetWithInfo, GenericVault};
 use common::AResult;
 use common::VAULT_TOKEN;
 use cosmwasm_std::{Addr, Decimal, Uint128};
@@ -38,11 +37,6 @@ use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw_utils::Duration;
 
 use cw_orch::deploy::Deploy;
-use osmosis_std::cosmwasm_to_proto_coins;
-use osmosis_std::shim::Timestamp;
-use osmosis_std::types::cosmos::base::v1beta1::Coin as OsmosisCoin;
-use osmosis_std::types::osmosis::incentives::MsgCreateGauge;
-use osmosis_test_tube::Module;
 use speculoos::assert_that;
 use wyndex_bundle::*;
 
@@ -82,7 +76,7 @@ pub fn convert_to_shares(
     )
 }
 
-fn setup_mock_cw20_vault() -> Result<GenericVault<Mock>, AbstractInterfaceError> {
+fn setup_mock_cw20_vault() -> Result<GenericVault<'static, Mock>, AbstractInterfaceError> {
     let owner = Addr::unchecked(common::OWNER);
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
     let user1 = Addr::unchecked(common::USER1);
@@ -165,10 +159,15 @@ fn setup_mock_cw20_vault() -> Result<GenericVault<Mock>, AbstractInterfaceError>
         UncheckedContractEntry::new(WYNDEX.to_string(), format!("staking/{raw_raw_2_lp_asset}")),
         raw_raw_2_staking.to_string(),
     )];
+    let pools = [vec![vault_pool.clone()], swap_pools].concat();
 
     let mut wyndex_setup = SetupWyndDex {
         chain: mock.clone(),
-        assets: assets.iter().map(|f| f.asset_info.clone()).collect(),
+        dex_base: DexBase {
+            pools,
+            contracts,
+            assets,
+        },
         cw20_minter: wyndex_owner,
         name: "wyndex".to_string(),
     };
@@ -179,7 +178,6 @@ fn setup_mock_cw20_vault() -> Result<GenericVault<Mock>, AbstractInterfaceError>
     // TODO: set balances for test users and env
     wyndex_setup.set_balances(&vec![]).unwrap();
 
-    let pools = [vec![vault_pool.clone()], swap_pools].concat();
     let vault_token = Cw20Base::new(VAULT_TOKEN, mock.clone());
     let cw20_id = vault_token.upload().unwrap().uploaded_code_id().unwrap();
 
@@ -198,14 +196,7 @@ fn setup_mock_cw20_vault() -> Result<GenericVault<Mock>, AbstractInterfaceError>
         max_swap_spread: Some(Decimal::percent(50)),
     };
 
-    let dex = GenericDex {
-        assets,
-        pools,
-        contracts,
-        dex_name: WYNDEX.to_string(),
-    };
-
-    let vault = GenericVault::new(mock, dex, &instantiate_msg).unwrap();
+    let vault = GenericVault::new(mock, wyndex_setup, &instantiate_msg).unwrap();
 
     // TODO: Check autocompounder config
     let config: Config = vault.autocompounder_app.config().unwrap();
@@ -213,12 +204,7 @@ fn setup_mock_cw20_vault() -> Result<GenericVault<Mock>, AbstractInterfaceError>
     Ok(vault)
 }
 
-fn setup_generic_dex<Dex: DexInit>(dex: Dex) {
-    let _assets = dex.asset_infos().unwrap();
-
-}
-
-fn setup_mock_native_vault() -> Result<GenericVault<Mock>, AbstractInterfaceError> {
+fn setup_mock_native_vault() -> Result<GenericVault<'static, Mock>, AbstractInterfaceError> {
     let owner = Addr::unchecked(common::OWNER);
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
     let user1 = Addr::unchecked(common::USER1);
@@ -277,7 +263,11 @@ fn setup_mock_native_vault() -> Result<GenericVault<Mock>, AbstractInterfaceErro
 
     let mut wyndex_setup = SetupWyndDex {
         chain: mock.clone(),
-        assets: assets.iter().map(|f| f.asset_info.clone()).collect(),
+        dex_base: DexBase {
+            pools,
+            contracts,
+            assets,
+        },
         cw20_minter: wyndex_owner,
         name: "wyndex".to_string(),
     };
@@ -311,14 +301,7 @@ fn setup_mock_native_vault() -> Result<GenericVault<Mock>, AbstractInterfaceErro
         max_swap_spread: Some(Decimal::percent(50)),
     };
 
-    let dex = GenericDex {
-        assets,
-        pools,
-        contracts,
-        dex_name: WYNDEX.to_string(),
-    };
-
-    let vault = GenericVault::new(mock, dex, &instantiate_msg).unwrap();
+    let vault = GenericVault::new(mock, wyndex_setup, &instantiate_msg).unwrap();
 
     // TODO: Check autocompounder config
     let config: Config = vault.autocompounder_app.config().unwrap();
@@ -326,42 +309,72 @@ fn setup_mock_native_vault() -> Result<GenericVault<Mock>, AbstractInterfaceErro
     Ok(vault)
 }
 
-pub fn setup_osmosis_vault() -> Result<GenericVault<OsmosisTestTube>, AbstractInterfaceError> {
-    let eur_token = AssetInfo::native(EUR);
-    let usd_token = AssetInfo::native(USD);
-    let osmo_token = AssetInfo::native("uosmo");
+pub fn setup_osmosis_vault() -> Result<GenericVault<'static, OsmosisTestTube>, AbstractInterfaceError> {
+    let token_a = AssetInfo::native(EUR);
+    let token_b = AssetInfo::native(USD);
+    let reward_token = AssetInfo::native("uosmo");
 
-    let mut chain = OsmosisTestTube::new(vec![coin(1_000_000_000_000, "uosmo")]);
-    let owner = chain.init_account(vec![
-        coin(1_000_000_000_000, "uosmo"),
-        coin(1_000_000_000_000, EUR),
-        coin(1_000_000_000_000, USD),
-    ])?;
-    let user = chain.init_account(vec![])?;
+    let ans_asset_references = vec![
+        (EUR.to_string(), token_a.clone()),
+        (USD.to_string(), token_b.clone()),
+        ("uosmo".to_string(), reward_token.clone()),
+    ];
 
-    let mut osmosis_setup = OsmosisDexSetup {
-        chain: chain.clone(),
-        signer: owner,
-        assets: vec![],
-        name: "osmosis".to_string(),
+    let initial_liquidity = vec![
+        vec![
+            Asset::new(token_a.clone(), 10_000u128),
+            Asset::new(token_b.clone(), 10_000u128),
+        ],
+        vec![
+            Asset::new(token_a.clone(), 10_000u128),
+            Asset::new(reward_token.clone(), 10_000u128),
+        ],
+    ];
+
+    let initial_accounts_balances = vec![(
+        "account1",
+        vec![
+            Asset::new(token_a.clone(), 10_000u128),
+            Asset::new(token_b.clone(), 10_000u128),
+        ],
+    )];
+
+    let incentive = IncentiveParams::from_coin(100u128, "uosmo", 1);
+
+    let (mut osmosis_setup, chain) = OsmosisDexSetup::setup_dex(
+        ans_asset_references,
+        initial_liquidity,
+        initial_accounts_balances,
+        incentive,
+    ).unwrap();
+
+    let instantiate_msg = autocompounder::msg::AutocompounderInstantiateMsg {
+        code_id: None,
+        commission_addr: COMMISSION_RECEIVER.to_string(),
+        deposit_fees: Decimal::percent(0),
+        dex: osmosis_setup.name.clone(),
+        performance_fees: Decimal::percent(3),
+        pool_assets: osmosis_setup.dex_base.pools.first().unwrap().1.assets.clone(),
+        withdrawal_fees: Decimal::percent(0),
+        bonding_data: Some(BondingData {
+            unbonding_period: Duration::Time(1),
+            max_claims_per_address: None,
+        }),
+        max_swap_spread: Some(Decimal::percent(50)),
     };
 
-    let pools = osmosis_setup
-        .setup_pools(vec![
-            vec![
-                Asset::new(eur_token.clone(), 10_000u128),
-                Asset::new(usd_token.clone(), 10_000u128),
-            ],
-            vec![
-                Asset::new(eur_token.clone(), 10_000u128),
-                Asset::new(osmo_token.clone(), 10_000u128),
-            ],
-        ])
-        .unwrap();
+    let vault = GenericVault::new(chain, osmosis_setup, &instantiate_msg).unwrap();
 
-    let main_pool = pools.first().unwrap().clone();
+    // TODO: Check autocompounder config
+    let config: Config = vault.autocompounder_app.config().unwrap();
 
-    let gamm_tokens = pools
+    Ok(vault)
+}
+
+fn ans_info_from_osmosis_pools(
+    pools: &Vec<(PoolAddressBase<String>, PoolMetadata)>,
+) -> Vec<(String, AssetInfo)> {
+    pools
         .iter()
         .map(|(pool_id, metadata)| {
             let cs_assets = metadata
@@ -377,73 +390,18 @@ pub fn setup_osmosis_vault() -> Result<GenericVault<OsmosisTestTube>, AbstractIn
                 AssetInfo::native(format!("gamm/pool/{pool_id}")),
             )
         })
-        .collect::<Vec<_>>();
-
-    let assets: Vec<AssetWithInfo> = vec![
-        vec![
-            (EUR.to_owned(), eur_token.clone()),
-            (USD.to_owned(), usd_token.clone()),
-        ],
-        gamm_tokens,
-    ]
-    .concat()
-    .iter()
-    .map(|(ans_name, asset_info)| AssetWithInfo::new(ans_name, asset_info.clone()))
-    .collect();
-
-    osmosis_setup
-        .set_balances(&[(
-            &Addr::unchecked(user.address()),
-            &vec![
-                Asset::new(AssetInfo::native(USD), 10_000u128),
-                Asset::new(AssetInfo::native(EUR), 10_000u128),
-            ],
-        )])
-        .unwrap();
-
-    osmosis_setup.setup_incentives(&main_pool, IncentiveParams::from_coin(
-        100u128, "uosmo".to_string() , 3)).unwrap();
-
-
-    let instantiate_msg = autocompounder::msg::AutocompounderInstantiateMsg {
-        code_id: None,
-        commission_addr: COMMISSION_RECEIVER.to_string(),
-        deposit_fees: Decimal::percent(0),
-        dex: osmosis_setup.name.clone(),
-        performance_fees: Decimal::percent(3),
-        pool_assets: pools.first().unwrap().1.assets.clone(),
-        withdrawal_fees: Decimal::percent(0),
-        bonding_data: Some(BondingData {
-            unbonding_period: Duration::Time(1),
-            max_claims_per_address: None,
-        }),
-        max_swap_spread: Some(Decimal::percent(50)),
-    };
-
-    let dex = GenericDex {
-        assets,
-        pools,
-        contracts: vec![],
-        dex_name: osmosis_setup.name.clone().to_string(),
-    };
-
-    let vault = GenericVault::new(chain, dex, &instantiate_msg).unwrap();
-
-    // TODO: Check autocompounder config
-    let config: Config = vault.autocompounder_app.config().unwrap();
-
-    Ok(vault)
+        .collect::<Vec<_>>()
 }
 
-// #[test]
-// fn deposit_assets_native_osmosistesttube() -> AResult {
-//     let vault = setup_osmosis_vault()?;
+#[test]
+fn deposit_assets_native_osmosistesttube() -> AResult {
+    let vault = setup_osmosis_vault()?;
 
-//     let owner = Addr::unchecked(common::OWNER);
-//     let user1 = Addr::unchecked(common::USER1);
+    let owner = Addr::unchecked(common::OWNER);
+    let user1 = Addr::unchecked(common::USER1);
 
-//     test_deposit_assets(vault, &owner, &owner, &user1, &user1)
-// }
+    test_deposit_assets(vault, &owner, &owner, &user1, &user1)
+}
 
 #[test]
 fn deposit_assets_cw20_mock() -> AResult {

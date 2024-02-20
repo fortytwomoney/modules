@@ -24,6 +24,7 @@ use cw_plus_interface::cw20_base::Cw20Base;
 use wyndex_bundle::WynDex;
 
 use super::account_setup::setup_autocompounder_account;
+use super::dexes::DexInit;
 use super::AResult;
 
 #[derive(Clone)]
@@ -53,63 +54,61 @@ pub struct Vault<Chain: CwEnv> {
 }
 
 #[allow(dead_code)]
-pub struct GenericVault<Chain: CwEnv> {
+pub struct GenericVault<'a, Chain: CwEnv> {
     pub account: Account<Chain>,
     pub autocompounder_app: Application<Chain, AutocompounderApp<Chain>>,
     pub staking_adapter: CwStakingAdapter<Chain>,
     pub dex_adapter: DexAdapter<Chain>,
-    pub dex: GenericDex,
+    pub dex: &'a dyn DexInit,
     pub abstract_client: AbstractClient<Chain>,
     pub chain: Chain,
     pub signing_account: Option<SigningAccount>, // preferably this is not included in the struct, but needed to initially set balances for osmosis_testtube
 }
 
-pub struct GenericDex {
-    pub assets: Vec<AssetWithInfo>,
-    pub pools: Vec<(UncheckedPoolAddress, PoolMetadata)>,
-    pub contracts: Vec<(UncheckedContractEntry, String)>,
-    pub dex_name: String,
-}
+// pub struct GenericDex {
+//     pub assets: Vec<AssetWithInfo>,
+//     pub pools: Vec<(UncheckedPoolAddress, PoolMetadata)>,
+//     pub contracts: Vec<(UncheckedContractEntry, String)>,
+//     pub dex_name: String,
+// }
 
-impl GenericDex {
-    pub fn new(
-        assets: Vec<(String, AssetInfoBase<Addr>)>,
-        pools: Vec<(UncheckedPoolAddress, PoolMetadata)>,
-        contracts: Vec<( UncheckedContractEntry, String)>,
-        dex_name: String,
-    ) -> Self {
-        let assets_with_info = assets
-            .into_iter()
-            .map(|(name, asset)| AssetWithInfo {
-                ans_name: name,
-                asset_info: asset.into(),
-            })
-            .collect();
-        Self {
-            assets: assets_with_info,
-            pools,
-            contracts,
-            dex_name,
-        }
-    }
+// impl GenericDex {
+
+//     pub fn new(
+        
+//     ) -> Self {
+//         let assets_with_info = assets
+//             .into_iter()
+//             .map(|(name, asset)| AssetWithInfo {
+//                 ans_name: name,
+//                 asset_info: asset.into(),
+//             })
+//             .collect();
+//         Self {
+//             assets: assets_with_info,
+//             pools,
+//             contracts,
+//             dex_name,
+//         }
+//     }
 
 
-    /// returns the first pool. should be the main pool
-    pub fn main_pool(&self) -> (UncheckedPoolAddress, PoolMetadata) {
-        self.pools.first().unwrap().to_owned()
-    }
+//     /// returns the first pool. should be the main pool
+//     pub fn main_pool(&self) -> (UncheckedPoolAddress, PoolMetadata) {
+//         self.pools.first().unwrap().to_owned()
+//     }
 
-    pub fn asset_a(&self) -> AssetWithInfo {
-        self.assets[0].clone()
-    }
+//     pub fn asset_a(&self) -> AssetWithInfo {
+//         self.assets[0].clone()
+//     }
 
-    pub fn asset_b(&self) -> AssetWithInfo {
-        self.assets[1].clone()
-    }
-}
+//     pub fn asset_b(&self) -> AssetWithInfo {
+//         self.assets[1].clone()
+//     }
+// }
 
 #[allow(dead_code)]
-impl<T: CwEnv> GenericVault<T> {
+impl<'a, T: CwEnv> GenericVault<'a, T> {
     pub fn redeem_vault_token(
         &self,
         amount: u128,
@@ -165,17 +164,18 @@ impl<T: CwEnv> GenericVault<T> {
 
 
 #[allow(dead_code)]
-impl<T: MutCwEnv + Clone + 'static> GenericVault<T> {
+impl<'a, T: MutCwEnv + Clone + 'static> GenericVault<'a, T> {
     pub fn new(
         chain: T,
-        dex: GenericDex,
+        dex: dyn DexInit,
         autocompounder_instantiate_msg: &autocompounder::msg::AutocompounderInstantiateMsg,
     ) -> Result<Self, Error> {
         // Initialize the blockchain environment, similar to OsmosisTestTube setup
         let chain_env = chain.clone(); // Assuming T can be used similar to OsmosisTestTube
 
-        // TODO: Add balance init for accounts. This should include both cw20 assets as native assets.
-        let unchecked_assets = dex.assets
+        let dex_base = dex.dex_base();
+
+        let unchecked_assets = dex_base.assets
             .iter()
             .map(|asset| (asset.ans_name.clone(), asset.asset_info.clone().into()))
             .collect();
@@ -183,9 +183,9 @@ impl<T: MutCwEnv + Clone + 'static> GenericVault<T> {
         // Setup the abstract client similar to the provided `setup_vault` function
         let abstract_client = AbstractClient::builder(chain_env.clone())
         .assets(unchecked_assets)
-        .dex(&dex.dex_name)
-        .pools(dex.pools.clone())
-        .contracts(dex.contracts.clone())
+        .dex(&dex.name())
+        .pools(dex_base.pools.clone())
+        .contracts(dex_base.contracts.clone())
         .build()?; // Simplified for illustration
 
 
@@ -206,7 +206,7 @@ impl<T: MutCwEnv + Clone + 'static> GenericVault<T> {
             autocompounder_app,
             dex_adapter,
             staking_adapter,
-            dex,
+            dex: &dex,
             abstract_client,
             signing_account: None,
         })
@@ -215,7 +215,7 @@ impl<T: MutCwEnv + Clone + 'static> GenericVault<T> {
 
 // Dex convenience functions
 #[allow(dead_code)]
-impl<Chain: CwEnv> GenericVault<Chain> {
+impl<'a, Chain: CwEnv> GenericVault<'a, Chain> {
     fn main_pool(&self) -> (UncheckedPoolAddress, PoolMetadata) {
         self.dex.main_pool()
     }

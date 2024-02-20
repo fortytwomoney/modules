@@ -1008,6 +1008,8 @@ dependencies = [
  "dotenv",
  "env_logger",
  "kujira",
+ "osmosis-std",
+ "osmosis-test-tube",
  "protobuf",
  "rstest",
  "schemars",

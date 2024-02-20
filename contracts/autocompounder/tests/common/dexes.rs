@@ -1,11 +1,13 @@
 use std::rc::Rc;
 
+use abstract_app::objects::UncheckedContractEntry;
 use abstract_core::objects::pool_id::{PoolAddressBase, UncheckedPoolAddress};
 use abstract_core::objects::{AssetEntry, PoolMetadata};
 use cosmwasm_std::{coin, Addr, Coin};
 use cw20::msg::Cw20ExecuteMsgFns;
 use cw_asset::{Asset, AssetInfo};
 use cw_orch::contract::interface_traits::CallAs;
+use cw_orch::daemon::networks::osmosis;
 use cw_orch::environment::{CwEnv, MutCwEnv, TxHandler};
 use cw_orch::osmosis_test_tube::osmosis_test_tube::SigningAccount;
 use cw_orch::osmosis_test_tube::OsmosisTestTube;
@@ -16,7 +18,7 @@ use osmosis_std::types::osmosis::incentives::MsgCreateGauge;
 use osmosis_test_tube::Module;
 
 use super::osmosis_pool_incentives_module::Incentives;
-
+use super::vault::AssetWithInfo;
 
 pub struct IncentiveParams {
     /// start time in seconds would default to the current block time if none
@@ -35,35 +37,27 @@ impl IncentiveParams {
         }
     }
 
-    pub fn from_coin(amount: u128, denom: String, num_epochs: u64) -> IncentiveParams {
+    pub fn from_coin<T: Into<String>>(amount: u128, denom: T, num_epochs: u64) -> IncentiveParams {
         IncentiveParams {
-            coins: vec![coin(amount, denom)],
+            coins: vec![coin(amount, denom.into())],
             start_time: None,
             num_epochs_paid_over: num_epochs,
         }
     }
 }
 
-pub struct WyndDex<Chain: CwEnv> {
-    pub chain: Chain,
-    pub cw20_minter: <Chain as TxHandler>::Sender,
-    pub assets: Vec<AssetInfo>,
-    pub name: String,
+#[derive(Clone, Default)]
+pub struct DexBase {
+    pub assets: Vec<AssetWithInfo>,
+    pub pools: Vec<(UncheckedPoolAddress, PoolMetadata)>,
+    pub contracts: Vec<(UncheckedContractEntry, String)>,
 }
 
-pub struct OsmosisDex<OsmosisTestTube> {
-    pub chain: OsmosisTestTube,
-    pub signer: Rc<SigningAccount>,
-    pub assets: Vec<String>,
-    pub name: String,
-}
-
+///
 pub trait DexInit {
-    fn base_assets(&self) -> Vec<AssetEntry>;
-    fn asset_infos(&self) -> Vec<AssetInfo>;
     fn set_balances(
-        &mut self,
-        balances: &[(&Addr, &[Asset])],
+        &self,
+        balances: Vec<(&str, Vec<Asset>)>,
     ) -> Result<(), Box<dyn std::error::Error>>;
     fn setup_pools(
         &self,
@@ -74,45 +68,105 @@ pub trait DexInit {
         pool: &(PoolAddressBase<String>, PoolMetadata),
         incentives: IncentiveParams,
     ) -> Result<(), Box<dyn std::error::Error>>;
+    fn setup_dex<Chain: CwEnv>(
+        ans_references: Vec<(String, AssetInfo)>,
+        initial_liquidity: Vec<Vec<Asset>>,
+        initial_balances: Vec<(&str, Vec<Asset>)>,
+        incentives: IncentiveParams,
+    ) -> Result<(Self, Chain), Box<dyn std::error::Error>>
+    where
+        Self: Sized;
+
+    fn dex_base(&self) -> DexBase;
+    fn name(&self) -> &str;
+}
+
+pub struct OsmosisDex<OsmosisTestTube>  {
+    pub chain: OsmosisTestTube,
+    pub signer: Rc<SigningAccount>,
+    pub name: String,
+    pub dex_base: DexBase,
+    pub accounts: Vec<Rc<SigningAccount>>,
+}
+
+impl OsmosisDex<OsmosisTestTube> {
+    fn new(chain: OsmosisTestTube) -> Self {
+        Self {
+            chain,
+            signer: chain.sender,
+            accounts: vec![],
+            dex_base: DexBase::default(),
+            name: "osmosis".to_string(),
+        }
+    }
 }
 
 impl DexInit for OsmosisDex<OsmosisTestTube> {
-    fn base_assets(&self) -> Vec<AssetEntry> {
-        self.assets
-            .iter()
-            .map(|asset| AssetEntry::new(asset.as_str()))
-            .collect()
+
+    fn name(&self) -> &str {
+        &self.name
     }
 
-    fn asset_infos(&self) -> Vec<AssetInfo> {
-        self.assets
+    fn setup_dex<Chain: CwEnv>(
+        ans_references: Vec<(String, AssetInfo)>,
+        initial_liquidity: Vec<Vec<Asset>>,
+        initial_balances: Vec<(&str, Vec<Asset>)>,
+        incentives: IncentiveParams,
+    ) -> Result<(Self, Chain), Box<dyn std::error::Error>>
+    where
+        Self: Sized,
+    {
+        let initial_coins = ans_references
             .iter()
-            .map(|asset| AssetInfo::cw20(Addr::unchecked(asset.clone())))
-            .collect()
+            .map(|(denom, _)| coin(1_000_000_000_000, denom))
+            .collect::<Vec<Coin>>();
+        let mut chain = OsmosisTestTube::new(initial_coins);
+
+        let mut osmosis = OsmosisDex::new(chain);
+
+        osmosis.set_balances(initial_balances)?;
+
+        let pools = osmosis.setup_pools(initial_liquidity)?;
+        let main_pool = pools.first().unwrap();
+
+        osmosis.setup_incentives(main_pool, incentives)?;
+
+        let gamm_tokens = ans_info_from_osmosis_pools(&pools);
+
+        let assets = vec![ans_references, gamm_tokens]
+            .concat()
+            .iter()
+            .map(|(ans_name, asset_info)| AssetWithInfo::new(ans_name, asset_info.clone()))
+            .collect::<Vec<AssetWithInfo>>();
+
+        osmosis.dex_base.assets = assets;
+
+        Ok((osmosis, chain))
     }
 
     fn set_balances(
-        &mut self,
-        balances: &[(&Addr, &[Asset])],
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        balances.into_iter().try_for_each(
-            |(address, assets)| -> Result<(), Box<dyn std::error::Error>> {
-                let (native_balances, cw20_balances) =
-                    split_native_from_cw20_assets(assets.to_vec());
+        &self,
+        balances: Vec<(&str, Vec<Asset>)>,
+    ) -> Result<(), Box<(dyn std::error::Error + 'static)>> {
+        let accounts: Vec<Rc<SigningAccount>> = balances
+            .into_iter()
+            .map(
+                |(address, assets)| -> Result<_, Box<dyn std::error::Error>> {
+                    let (native_balances, cw20_balances) =
+                        split_native_from_cw20_assets(assets.to_vec());
 
-                if !cw20_balances.is_empty() {
-                    panic!("This method is only for setting native assets, no cw20");
-                }
+                    if !cw20_balances.is_empty() {
+                        panic!("This method is only for setting native assets, no cw20");
+                    }
 
-                let _res = self
-                    .chain
-                    .call_as(&self.signer)
-                    .bank_send(address.to_string(), native_balances)
-                    .map_err(|err| Box::new(err) as Box<dyn std::error::Error>)?;
+                    let account = self.chain.init_account(native_balances)?;
 
-                Ok(())
-            },
-        )?;
+                    Ok(account)
+                },
+            )
+            .collect::<Result<_, Box<dyn std::error::Error>>>()?;
+
+        self.accounts = accounts;
         Ok(())
     }
 
@@ -175,31 +229,30 @@ impl DexInit for OsmosisDex<OsmosisTestTube> {
                 },
                 &self.chain.sender,
             )
-            .map_err(|e| Box::new(cosmwasm_std::StdError::generic_err(e.to_string())) as Box<dyn std::error::Error>)?;
+            .map_err(|e| {
+                Box::new(cosmwasm_std::StdError::generic_err(e.to_string()))
+                    as Box<dyn std::error::Error>
+            })?;
 
         Ok(())
     }
+
+    fn dex_base(&self) -> DexBase {
+        self.dex_base.clone()
+    }
+}
+
+pub struct WyndDex<Chain: CwEnv> {
+    pub chain: Chain,
+    pub cw20_minter: <Chain as TxHandler>::Sender,
+    pub dex_base: DexBase,
+    pub name: String,
 }
 
 impl<Chain: MutCwEnv> DexInit for WyndDex<Chain> {
-    fn base_assets(&self) -> Vec<AssetEntry> {
-        self.assets
-            .iter()
-            .map(|asset| AssetEntry::new(asset.to_string().as_str()))
-            .collect()
-    }
-
-    fn asset_infos(&self) -> Vec<AssetInfo> {
-        todo!()
-        // self.assets
-        //     .iter()
-        //     .map(|asset| *asset)
-        //     .collect()
-    }
-
     fn set_balances(
-        &mut self,
-        balances: &[(&Addr, &[Asset])],
+        &self,
+        balances: Vec<(&str, Vec<Asset>)>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         balances.into_iter().try_for_each(
             |(address, assets)| -> Result<(), Box<dyn std::error::Error>> {
@@ -207,7 +260,7 @@ impl<Chain: MutCwEnv> DexInit for WyndDex<Chain> {
                     split_native_from_cw20_assets(assets.to_vec());
 
                 self.chain
-                    .set_balance(address, native_balances)
+                    .set_balance(&Addr::unchecked(address), native_balances)
                     .map_err(|err: <Chain as TxHandler>::Error| Box::new(err.into()))?;
 
                 let _ = cw20_balances.into_iter().try_for_each(
@@ -225,7 +278,7 @@ impl<Chain: MutCwEnv> DexInit for WyndDex<Chain> {
 
                 Ok(()) // https://github.com/fortytwomoney/modules/blob/e82f2570cfb3c3ca88b8cc005db26a940538592e/contracts/autocompounder/tests/common/vault.rs#L49-L156)
             },
-        )?;
+        );
         Ok(())
     }
 
@@ -236,7 +289,7 @@ impl<Chain: MutCwEnv> DexInit for WyndDex<Chain> {
         // my current idea is to just verify whether the pools with the initial liquidity actuaally exist on chain. if not raise an error
         // TODO: verify whether pools exist on chain
 
-        // TODO: LATER: really create the pools here for astroport!
+        // TODO: LATER: really create the pools here for wyndex (maybe this is not worth it and instead we should do astroport)
 
         let pools = initial_liquidity.iter().map(|liquidity| -> Result<(UncheckedPoolAddress, PoolMetadata), Box<dyn std::error::Error>>{
             let pool_base = PoolAddressBase::contract("astroport_pool_address".to_string());
@@ -253,13 +306,32 @@ impl<Chain: MutCwEnv> DexInit for WyndDex<Chain> {
         &self,
         pool: &(PoolAddressBase<String>, PoolMetadata),
         incentives: IncentiveParams,
-    ) -> Result<(),Box<dyn std::error::Error>> {
+    ) -> Result<(), Box<dyn std::error::Error>> {
         todo!()
     }
+    
+    fn dex_base(&self) -> DexBase {
+        self.dex_base.clone()
+    }
+    
+    fn name(&self) -> &str {
+        &self.name
+    }
+    
+    fn setup_dex<C: CwEnv>(
+        ans_references: Vec<(String, AssetInfo)>,
+        initial_liquidity: Vec<Vec<Asset>>,
+        initial_balances: Vec<(&str, Vec<Asset>)>,
+        incentives: IncentiveParams,
+    ) -> Result<(Self, C), Box<dyn std::error::Error>>
+    where
+        Self: Sized {
+        todo!()
+    }
+    
 }
 
 /// UTILS
-
 fn split_native_from_cw20_assets(
     assets: Vec<cw_asset::AssetBase<Addr>>,
 ) -> (Vec<cosmwasm_std::Coin>, Vec<(cosmwasm_std::Addr, u128)>) {
@@ -278,10 +350,31 @@ fn split_native_from_cw20_assets(
     })
 }
 
-
 pub fn get_id_from_osmo_pool(pool_id: &PoolAddressBase<String>) -> u64 {
     match pool_id {
         PoolAddressBase::Id(id) => *id,
         _ => panic!("Invalid pool ID"),
     }
+}
+
+fn ans_info_from_osmosis_pools(
+    pools: &Vec<(PoolAddressBase<String>, PoolMetadata)>,
+) -> Vec<(String, AssetInfo)> {
+    pools
+        .iter()
+        .map(|(pool_id, metadata)| {
+            let cs_assets = metadata
+                .assets
+                .iter()
+                .map(|a| a.to_string())
+                .collect::<Vec<String>>();
+
+            let pool_id = get_id_from_osmo_pool(pool_id);
+
+            (
+                format!("{}/{}", metadata.dex, cs_assets.join(","),),
+                AssetInfo::native(format!("gamm/pool/{pool_id}")),
+            )
+        })
+        .collect::<Vec<_>>()
 }

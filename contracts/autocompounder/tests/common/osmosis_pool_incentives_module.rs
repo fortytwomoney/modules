@@ -1,11 +1,11 @@
 use osmosis_std::types::osmosis::incentives::{
-    Gauge, GaugeWeight, GaugesRequest, GaugesResponse, IncentivesQuerier, MsgAddToGauge,
+    GaugesRequest, GaugesResponse, MsgAddToGauge,
     MsgAddToGaugeResponse, MsgCreateGauge, MsgCreateGaugeResponse, RewardsEstRequest,
     RewardsEstResponse,
 };
 
 use osmosis_std::types::osmosis::poolincentives::v1beta1::{
-    QueryDistrInfoRequest, QueryDistrInfoResponse, QueryExternalIncentiveGaugesRequest, QueryExternalIncentiveGaugesResponse, QueryGaugeIdsRequest, QueryGaugeIdsResponse, QueryIncentivizedPoolsRequest, QueryParamsRequest, QueryParamsResponse
+    QueryDistrInfoRequest, QueryDistrInfoResponse, QueryExternalIncentiveGaugesRequest, QueryExternalIncentiveGaugesResponse, QueryGaugeIdsRequest, QueryGaugeIdsResponse, QueryIncentivizedPoolsRequest
 };
 use osmosis_test_tube::{fn_execute, fn_query};
 use osmosis_test_tube::{Module, Runner};
