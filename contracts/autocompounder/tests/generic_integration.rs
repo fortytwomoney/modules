@@ -274,7 +274,7 @@ fn setup_mock_native_vault() -> Result<GenericVault<'static, Mock>, AbstractInte
 
     wyndex_setup.setup_pools(vec![]).unwrap();
     wyndex_setup
-        .set_balances(&[(
+        .set_balances(vec![(
             &owner,
             &vec![
                 Asset::new(AssetInfo::native(USD), 10_000u128),
@@ -341,7 +341,8 @@ pub fn setup_osmosis_vault() -> Result<GenericVault<'static, OsmosisTestTube>, A
 
     let incentive = IncentiveParams::from_coin(100u128, "uosmo", 1);
 
-    let (mut osmosis_setup, chain) = OsmosisDexSetup::setup_dex(
+
+    let mut osmosis_setup = OsmosisDexSetup::setup_dex(
         ans_asset_references,
         initial_liquidity,
         initial_accounts_balances,

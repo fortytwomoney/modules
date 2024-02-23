@@ -73,7 +73,7 @@ pub trait DexInit {
         initial_liquidity: Vec<Vec<Asset>>,
         initial_balances: Vec<(&str, Vec<Asset>)>,
         incentives: IncentiveParams,
-    ) -> Result<(Self, Chain), Box<dyn std::error::Error>>
+    ) -> Result<Self, Box<dyn std::error::Error>>
     where
         Self: Sized;
 
@@ -112,7 +112,7 @@ impl DexInit for OsmosisDex<OsmosisTestTube> {
         initial_liquidity: Vec<Vec<Asset>>,
         initial_balances: Vec<(&str, Vec<Asset>)>,
         incentives: IncentiveParams,
-    ) -> Result<(Self, Chain), Box<dyn std::error::Error>>
+    ) -> Result<Self, Box<dyn std::error::Error>>
     where
         Self: Sized,
     {
@@ -141,7 +141,7 @@ impl DexInit for OsmosisDex<OsmosisTestTube> {
 
         osmosis.dex_base.assets = assets;
 
-        Ok((osmosis, chain))
+        Ok(osmosis)
     }
 
     fn set_balances(
@@ -323,7 +323,7 @@ impl<Chain: MutCwEnv> DexInit for WyndDex<Chain> {
         initial_liquidity: Vec<Vec<Asset>>,
         initial_balances: Vec<(&str, Vec<Asset>)>,
         incentives: IncentiveParams,
-    ) -> Result<(Self, C), Box<dyn std::error::Error>>
+    ) -> Result<Self, Box<dyn std::error::Error>>
     where
         Self: Sized {
         todo!()
