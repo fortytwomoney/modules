@@ -337,6 +337,10 @@ pub fn setup_osmosis_vault() -> Result<GenericVault<OsmosisTestTube, OsmosisDexS
             Asset::new(token_a.clone(), 10_000u128),
             Asset::new(token_b.clone(), 10_000u128),
         ],
+    ),
+    (
+        COMMISSION_RECEIVER,
+        vec![],
     )];
 
     let incentive = IncentiveParams::from_coin(100u128, "uosmo", 1);
@@ -351,7 +355,7 @@ pub fn setup_osmosis_vault() -> Result<GenericVault<OsmosisTestTube, OsmosisDexS
 
     let instantiate_msg = autocompounder::msg::AutocompounderInstantiateMsg {
         code_id: None,
-        commission_addr: COMMISSION_RECEIVER.to_string(),
+        commission_addr: osmosis_setup.accounts.get(1).unwrap().address().to_string(),
         deposit_fees: Decimal::percent(0),
         dex: osmosis_setup.name.clone(),
         performance_fees: Decimal::percent(3),
@@ -401,7 +405,7 @@ fn ans_info_from_osmosis_pools(
 
 #[test]
 fn deposit_assets_native_osmosistesttube() -> AResult {
-    let vault = setup_osmosis_vault()?;
+    let vault = setup_osmosis_vault().unwrap();
 
     let owner = vault.dex.accounts[0].clone();
     let user1 = vault.dex.accounts[1].clone();
