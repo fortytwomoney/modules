@@ -1,7 +1,7 @@
 mod common;
 
-use std::borrow::BorrowMut;
-use std::str::FromStr;
+
+
 
 use abstract_core::objects::pool_id::PoolAddressBase;
 use abstract_core::objects::UncheckedContractEntry;
@@ -27,7 +27,7 @@ use abstract_interface::Abstract;
 use autocompounder::state::Config;
 use cw_orch::prelude::*;
 
-use autocompounder::msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, BondingData};
+use autocompounder::msg::{AutocompounderQueryMsgFns, BondingData};
 
 use common::vault::{AssetWithInfo, GenericVault};
 use common::AResult;
@@ -79,17 +79,17 @@ pub fn convert_to_shares(
 fn setup_mock_cw20_vault() -> Result<GenericVault<Mock, SetupWyndDex<Mock>>, AbstractInterfaceError> {
     let owner = Addr::unchecked(common::OWNER);
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
-    let user1 = Addr::unchecked(common::USER1);
+    let _user1 = Addr::unchecked(common::USER1);
     let mock = Mock::new(&owner);
-    let abstract_ = Abstract::deploy_on(mock.clone(), mock.sender().to_string())?;
+    let _abstract_ = Abstract::deploy_on(mock.clone(), mock.sender().to_string())?;
     let wyndex = WynDex::store_on(mock.clone()).unwrap();
 
     let WynDex {
         raw_token,
         raw_2_token,
-        eur_token,
-        usd_token,
-        wynd_token,
+        
+        
+        
         eur_usd_lp,
         raw_eur_lp,
         wynd_eur_lp,
@@ -199,7 +199,7 @@ fn setup_mock_cw20_vault() -> Result<GenericVault<Mock, SetupWyndDex<Mock>>, Abs
     let vault = GenericVault::new(mock, wyndex_setup, &instantiate_msg).unwrap();
 
     // TODO: Check autocompounder config
-    let config: Config = vault.autocompounder_app.config().unwrap();
+    let _config: Config = vault.autocompounder_app.config().unwrap();
 
     Ok(vault)
 }
@@ -207,9 +207,9 @@ fn setup_mock_cw20_vault() -> Result<GenericVault<Mock, SetupWyndDex<Mock>>, Abs
 fn setup_mock_native_vault() -> Result<GenericVault<Mock, SetupWyndDex<Mock>>, AbstractInterfaceError> {
     let owner = Addr::unchecked(common::OWNER);
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
-    let user1 = Addr::unchecked(common::USER1);
+    let _user1 = Addr::unchecked(common::USER1);
     let mock = Mock::new(&owner);
-    let abstract_ = Abstract::deploy_on(mock.clone(), mock.sender().to_string())?;
+    let _abstract_ = Abstract::deploy_on(mock.clone(), mock.sender().to_string())?;
     let wyndex = WynDex::store_on(mock.clone()).unwrap();
 
     let WynDex {
@@ -304,7 +304,7 @@ fn setup_mock_native_vault() -> Result<GenericVault<Mock, SetupWyndDex<Mock>>, A
     let vault = GenericVault::new(mock, wyndex_setup, &instantiate_msg).unwrap();
 
     // TODO: Check autocompounder config
-    let config: Config = vault.autocompounder_app.config().unwrap();
+    let _config: Config = vault.autocompounder_app.config().unwrap();
 
     Ok(vault)
 }
@@ -342,7 +342,7 @@ pub fn setup_osmosis_vault() -> Result<GenericVault<OsmosisTestTube, OsmosisDexS
     let incentive = IncentiveParams::from_coin(100u128, "uosmo", 1);
 
 
-    let mut osmosis_setup = OsmosisDexSetup::setup_dex::<OsmosisTestTube>(
+    let osmosis_setup = OsmosisDexSetup::setup_dex::<OsmosisTestTube>(
         ans_asset_references,
         initial_liquidity,
         initial_accounts_balances,
@@ -364,12 +364,17 @@ pub fn setup_osmosis_vault() -> Result<GenericVault<OsmosisTestTube, OsmosisDexS
         max_swap_spread: Some(Decimal::percent(50)),
     };
 
-    let vault = GenericVault::new(osmosis_setup.chain.clone(), osmosis_setup, &instantiate_msg).unwrap();
+    let vault = GenericVault::new(osmosis_setup.chain.clone(), osmosis_setup, &instantiate_msg)
+        .map_err(map_any_error)?;
 
     // TODO: Check autocompounder config
-    let config: Config = vault.autocompounder_app.config().unwrap();
+    let _config: Config = vault.autocompounder_app.config().unwrap();
 
     Ok(vault)
+}
+
+fn map_any_error(e: anyhow::Error) -> AbstractInterfaceError {
+   AbstractInterfaceError::Std(cosmwasm_std::StdError::GenericErr { msg: e.to_string() })
 }
 
 fn ans_info_from_osmosis_pools(
@@ -426,11 +431,11 @@ fn test_deposit_assets<Chain: CwEnv, Dex: DexInit>(
     vault: GenericVault<Chain, Dex>,
     owner: &<Chain as TxHandler>::Sender,
     owner_addr: &Addr,
-    user: &<Chain as TxHandler>::Sender,
-    user_addr: &Addr,
+    _user: &<Chain as TxHandler>::Sender,
+    _user_addr: &Addr,
 ) -> AResult {
     let _ac_addres = vault.autocompounder_app.addr_str()?;
-    let config: Config = vault.autocompounder_app.config()?;
+    let _config: Config = vault.autocompounder_app.config()?;
 
     // deposit 10_000 of both assets
     let amount = 10_000u128;

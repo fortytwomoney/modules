@@ -5,7 +5,8 @@ use osmosis_std::types::osmosis::incentives::{
 };
 
 use osmosis_std::types::osmosis::poolincentives::v1beta1::{
-    QueryDistrInfoRequest, QueryDistrInfoResponse, QueryExternalIncentiveGaugesRequest, QueryExternalIncentiveGaugesResponse, QueryGaugeIdsRequest, QueryGaugeIdsResponse, QueryIncentivizedPoolsRequest
+    QueryDistrInfoRequest, QueryDistrInfoResponse, QueryExternalIncentiveGaugesRequest, QueryExternalIncentiveGaugesResponse, QueryGaugeIdsRequest, QueryGaugeIdsResponse, QueryIncentivizedPoolsRequest,
+    QueryLockableDurationsRequest, QueryLockableDurationsResponse,
 };
 use osmosis_test_tube::{fn_execute, fn_query};
 use osmosis_test_tube::{Module, Runner};
@@ -56,5 +57,8 @@ where
     }
     fn_query! {
         pub query_external_incentive_gauges ["osmosis.incentives.v1beta1.Query/ExternalIncentiveGauges"]: QueryExternalIncentiveGaugesRequest => QueryExternalIncentiveGaugesResponse
+    }
+    fn_query! {
+        pub query_lockable_durations ["/osmosis.incentives.Query/LockableDurations"]: QueryLockableDurationsRequest => QueryLockableDurationsResponse
     }
 }

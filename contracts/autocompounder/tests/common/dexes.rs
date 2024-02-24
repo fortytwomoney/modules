@@ -2,12 +2,12 @@ use std::rc::Rc;
 
 use abstract_app::objects::UncheckedContractEntry;
 use abstract_core::objects::pool_id::{PoolAddressBase, UncheckedPoolAddress};
-use abstract_core::objects::{AssetEntry, PoolMetadata};
+use abstract_core::objects::{PoolMetadata};
 use cosmwasm_std::{coin, Addr, Coin};
 use cw20::msg::Cw20ExecuteMsgFns;
 use cw_asset::{Asset, AssetInfo};
 use cw_orch::contract::interface_traits::CallAs;
-use cw_orch::daemon::networks::osmosis;
+
 use cw_orch::environment::{CwEnv, MutCwEnv, TxHandler};
 use cw_orch::osmosis_test_tube::osmosis_test_tube::SigningAccount;
 use cw_orch::osmosis_test_tube::OsmosisTestTube;
@@ -16,6 +16,7 @@ use osmosis_std::cosmwasm_to_proto_coins;
 use osmosis_std::shim::{Duration, Timestamp};
 use osmosis_std::types::osmosis::incentives::MsgCreateGauge;
 use osmosis_std::types::osmosis::lockup::{LockQueryType, QueryCondition};
+use osmosis_std::types::osmosis::poolincentives::v1beta1::QueryLockableDurationsRequest;
 use osmosis_test_tube::Module;
 
 
@@ -138,16 +139,17 @@ impl DexInit for OsmosisDex<OsmosisTestTube> {
             .iter()
             .map(|(denom, _)| coin(1_000_000_000_000, denom))
             .collect::<Vec<Coin>>();
-        let mut chain = OsmosisTestTube::new(initial_coins);
+        let chain = OsmosisTestTube::new(initial_coins);
 
         let mut osmosis = OsmosisDex::new(chain);
 
         osmosis.set_balances(initial_balances)?;
 
         let pools = osmosis.setup_pools(initial_liquidity)?;
+        osmosis.dex_base.pools = pools.clone();
         let main_pool = pools.first().unwrap();
 
-        osmosis.setup_incentives(main_pool, incentives).unwrap();
+        osmosis.setup_incentives(main_pool, incentives)?;
 
         let gamm_tokens = ans_info_from_osmosis_pools(&pools);
 
@@ -169,7 +171,7 @@ impl DexInit for OsmosisDex<OsmosisTestTube> {
         let accounts: Vec<Rc<SigningAccount>> = balances
             .into_iter()
             .map(
-                |(address, assets)| -> Result<_, Box<dyn std::error::Error>> {
+                |(_address, assets)| -> Result<_, Box<dyn std::error::Error>> {
                     let (native_balances, cw20_balances) =
                         split_native_from_cw20_assets(assets.to_vec());
 
@@ -215,6 +217,7 @@ impl DexInit for OsmosisDex<OsmosisTestTube> {
             .collect::<Result<Vec<(UncheckedPoolAddress, PoolMetadata)>, Box<dyn std::error::Error>>>();
 
         let pools = pools?;
+
         Ok(pools)
     }
 
@@ -224,16 +227,38 @@ impl DexInit for OsmosisDex<OsmosisTestTube> {
         incentives: IncentiveParams,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let osmosistesttube = &*self.chain.app.borrow();
+
         let current_block = osmosistesttube.get_block_timestamp();
         let incentive_wrapper = Incentives::new(osmosistesttube);
+
         let pool_denom = format!("gamm/pool/{}",get_id_from_osmo_pool(&pool.0));
 
         let lock_query_condition = QueryCondition {
             lock_query_type: LockQueryType::ByDuration as i32,
-            duration: Some(Duration { seconds: 1 * SECONDS_PER_DAY as i64, nanos: 0 }),
+            duration: Some(Duration { seconds: 1 as i64, nanos: 0 }),
             denom: pool_denom,
             timestamp: None,
         };
+
+        /// lockable_durations: 
+        //         Duration {
+        //             seconds: 1,
+        //             nanos: 0,
+        //         },
+        //         Duration {
+        //             seconds: 3600,
+        //             nanos: 0,
+        //         },
+        //         Duration {
+        //             seconds: 10800,
+        //             nanos: 0,
+        //         },
+        //         Duration {
+        //             seconds: 25200,
+        //             nanos: 0,
+        //         },
+        //     ],
+        // }
         
 
         incentive_wrapper
@@ -333,8 +358,8 @@ impl<Chain: MutCwEnv> DexInit for WyndDex<Chain> {
 
     fn setup_incentives(
         &self,
-        pool: &(PoolAddressBase<String>, PoolMetadata),
-        incentives: IncentiveParams,
+        _pool: &(PoolAddressBase<String>, PoolMetadata),
+        _incentives: IncentiveParams,
     ) -> Result<(), Box<dyn std::error::Error>> {
         todo!()
     }
@@ -348,10 +373,10 @@ impl<Chain: MutCwEnv> DexInit for WyndDex<Chain> {
     }
     
     fn setup_dex<C: CwEnv>(
-        ans_references: Vec<(String, AssetInfo)>,
-        initial_liquidity: Vec<Vec<Asset>>,
-        initial_balances: Vec<(&str, Vec<Asset>)>,
-        incentives: IncentiveParams,
+        _ans_references: Vec<(String, AssetInfo)>,
+        _initial_liquidity: Vec<Vec<Asset>>,
+        _initial_balances: Vec<(&str, Vec<Asset>)>,
+        _incentives: IncentiveParams,
     ) -> Result<Self, Box<dyn std::error::Error>>
     where
         Self: Sized {
