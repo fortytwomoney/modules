@@ -54,12 +54,12 @@ pub struct Vault<Chain: CwEnv> {
 }
 
 #[allow(dead_code)]
-pub struct GenericVault<'a, Chain: CwEnv> {
+pub struct GenericVault<Chain: CwEnv, Dex: DexInit> {
     pub account: Account<Chain>,
     pub autocompounder_app: Application<Chain, AutocompounderApp<Chain>>,
     pub staking_adapter: CwStakingAdapter<Chain>,
     pub dex_adapter: DexAdapter<Chain>,
-    pub dex: &'a dyn DexInit,
+    pub dex: Dex,
     pub abstract_client: AbstractClient<Chain>,
     pub chain: Chain,
     pub signing_account: Option<SigningAccount>, // preferably this is not included in the struct, but needed to initially set balances for osmosis_testtube
@@ -108,7 +108,7 @@ pub struct GenericVault<'a, Chain: CwEnv> {
 // }
 
 #[allow(dead_code)]
-impl<'a, T: CwEnv> GenericVault<'a, T> {
+impl<T: CwEnv, Dex: DexInit> GenericVault< T, Dex> {
     pub fn redeem_vault_token(
         &self,
         amount: u128,
@@ -164,10 +164,10 @@ impl<'a, T: CwEnv> GenericVault<'a, T> {
 
 
 #[allow(dead_code)]
-impl<'a, T: MutCwEnv + Clone + 'static> GenericVault<'a, T> {
+impl<T: MutCwEnv + Clone + 'static, Dex: DexInit> GenericVault<T, Dex> {
     pub fn new(
         chain: T,
-        dex: dyn DexInit,
+        dex: Dex,
         autocompounder_instantiate_msg: &autocompounder::msg::AutocompounderInstantiateMsg,
     ) -> Result<Self, Error> {
         // Initialize the blockchain environment, similar to OsmosisTestTube setup
@@ -206,7 +206,7 @@ impl<'a, T: MutCwEnv + Clone + 'static> GenericVault<'a, T> {
             autocompounder_app,
             dex_adapter,
             staking_adapter,
-            dex: &dex,
+            dex: dex,
             abstract_client,
             signing_account: None,
         })
@@ -215,17 +215,18 @@ impl<'a, T: MutCwEnv + Clone + 'static> GenericVault<'a, T> {
 
 // Dex convenience functions
 #[allow(dead_code)]
-impl<'a, Chain: CwEnv> GenericVault<'a, Chain> {
+impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
     fn main_pool(&self) -> (UncheckedPoolAddress, PoolMetadata) {
-        self.dex.main_pool()
+        self.dex.dex_base().pools.first().unwrap().clone()
     }
 
     /// Allows for depositing any amount without having to care about cw20 or native assets
     pub fn deposit_assets(&self, depositor: &Chain::Sender, amount_a: u128, amount_b: u128) -> AResult {
+        let dex_base = self.dex.dex_base();
 
 
-        let asset_a = self.dex.asset_a();
-        let asset_b = self.dex.asset_b();
+        let asset_a = dex_base.asset_a();
+        let asset_b = dex_base.asset_b();
 
         let assets = vec![
             (&asset_a, amount_a),

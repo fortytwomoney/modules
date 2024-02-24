@@ -13,12 +13,16 @@ use cw_orch::osmosis_test_tube::osmosis_test_tube::SigningAccount;
 use cw_orch::osmosis_test_tube::OsmosisTestTube;
 use cw_plus_interface::cw20_base::Cw20Base;
 use osmosis_std::cosmwasm_to_proto_coins;
-use osmosis_std::shim::Timestamp;
+use osmosis_std::shim::{Duration, Timestamp};
 use osmosis_std::types::osmosis::incentives::MsgCreateGauge;
+use osmosis_std::types::osmosis::lockup::{LockQueryType, QueryCondition};
 use osmosis_test_tube::Module;
+
 
 use super::osmosis_pool_incentives_module::Incentives;
 use super::vault::AssetWithInfo;
+
+const SECONDS_PER_DAY: u64 = 86400;
 
 pub struct IncentiveParams {
     /// start time in seconds would default to the current block time if none
@@ -53,10 +57,24 @@ pub struct DexBase {
     pub contracts: Vec<(UncheckedContractEntry, String)>,
 }
 
+impl DexBase {
+    pub fn main_pool(&self) -> (UncheckedPoolAddress, PoolMetadata) {
+        self.pools.first().unwrap().clone()
+    }
+
+    pub fn asset_a(&self) -> &AssetWithInfo {
+        self.assets.get(0).unwrap()
+    }
+
+    pub fn asset_b(&self) -> &AssetWithInfo {
+        self.assets.get(1).unwrap()
+    }
+}
+
 ///
 pub trait DexInit {
     fn set_balances(
-        &self,
+        &mut self,
         balances: Vec<(&str, Vec<Asset>)>,
     ) -> Result<(), Box<dyn std::error::Error>>;
     fn setup_pools(
@@ -92,7 +110,7 @@ pub struct OsmosisDex<OsmosisTestTube>  {
 impl OsmosisDex<OsmosisTestTube> {
     fn new(chain: OsmosisTestTube) -> Self {
         Self {
-            chain,
+            chain: chain.clone(),
             signer: chain.sender,
             accounts: vec![],
             dex_base: DexBase::default(),
@@ -129,7 +147,7 @@ impl DexInit for OsmosisDex<OsmosisTestTube> {
         let pools = osmosis.setup_pools(initial_liquidity)?;
         let main_pool = pools.first().unwrap();
 
-        osmosis.setup_incentives(main_pool, incentives)?;
+        osmosis.setup_incentives(main_pool, incentives).unwrap();
 
         let gamm_tokens = ans_info_from_osmosis_pools(&pools);
 
@@ -145,7 +163,7 @@ impl DexInit for OsmosisDex<OsmosisTestTube> {
     }
 
     fn set_balances(
-        &self,
+        &mut self,
         balances: Vec<(&str, Vec<Asset>)>,
     ) -> Result<(), Box<(dyn std::error::Error + 'static)>> {
         let accounts: Vec<Rc<SigningAccount>> = balances
@@ -206,26 +224,37 @@ impl DexInit for OsmosisDex<OsmosisTestTube> {
         incentives: IncentiveParams,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let osmosistesttube = &*self.chain.app.borrow();
+        let current_block = osmosistesttube.get_block_timestamp();
         let incentive_wrapper = Incentives::new(osmosistesttube);
+        let pool_denom = format!("gamm/pool/{}",get_id_from_osmo_pool(&pool.0));
+
+        let lock_query_condition = QueryCondition {
+            lock_query_type: LockQueryType::ByDuration as i32,
+            duration: Some(Duration { seconds: 1 * SECONDS_PER_DAY as i64, nanos: 0 }),
+            denom: pool_denom,
+            timestamp: None,
+        };
+        
 
         incentive_wrapper
             .create_gauge(
                 MsgCreateGauge {
                     is_perpetual: false,
                     owner: self.chain.sender().to_string(),
-                    distribute_to: None,
+                    distribute_to: Some(lock_query_condition),
                     coins: cosmwasm_to_proto_coins(incentives.coins),
                     start_time: match incentives.start_time {
                         Some(val) => Some(Timestamp {
-                            seconds: i64::try_from(val).map_err(|_e| {
-                                cosmwasm_std::StdError::generic_err("try from u64 to i64 error")
-                            })?,
+                            seconds: val as i64,
                             nanos: 0,
                         }),
-                        None => None,
+                        None => Some(Timestamp {
+                            seconds: current_block.seconds() as i64,
+                            nanos: 0,
+                        }),
                     },
                     num_epochs_paid_over: incentives.num_epochs_paid_over,
-                    pool_id: get_id_from_osmo_pool(&pool.0),
+                    pool_id: 0, 
                 },
                 &self.chain.sender,
             )
@@ -251,10 +280,10 @@ pub struct WyndDex<Chain: CwEnv> {
 
 impl<Chain: MutCwEnv> DexInit for WyndDex<Chain> {
     fn set_balances(
-        &self,
+        &mut self,
         balances: Vec<(&str, Vec<Asset>)>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        balances.into_iter().try_for_each(
+        let _ = balances.into_iter().try_for_each(
             |(address, assets)| -> Result<(), Box<dyn std::error::Error>> {
                 let (native_balances, cw20_balances) =
                     split_native_from_cw20_assets(assets.to_vec());
@@ -278,7 +307,7 @@ impl<Chain: MutCwEnv> DexInit for WyndDex<Chain> {
 
                 Ok(()) // https://github.com/fortytwomoney/modules/blob/e82f2570cfb3c3ca88b8cc005db26a940538592e/contracts/autocompounder/tests/common/vault.rs#L49-L156)
             },
-        );
+        )?;
         Ok(())
     }
 

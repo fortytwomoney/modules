@@ -74,7 +74,6 @@ osmosis-std = "0.21.0"
 [dev-dependencies]
 wyndex-bundle = { workspace = true }
 wyndex-stake = { git = "https://github.com/cosmorama/wynddex.git", rev = "v1.1.2" }
-autocompounder = { path = ".", features = ["interface"] }
 abstract-dex-adapter = { workspace = true, features = [
   "interface",
   "testing",

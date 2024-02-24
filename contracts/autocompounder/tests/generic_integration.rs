@@ -76,7 +76,7 @@ pub fn convert_to_shares(
     )
 }
 
-fn setup_mock_cw20_vault() -> Result<GenericVault<'static, Mock>, AbstractInterfaceError> {
+fn setup_mock_cw20_vault() -> Result<GenericVault<Mock, SetupWyndDex<Mock>>, AbstractInterfaceError> {
     let owner = Addr::unchecked(common::OWNER);
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
     let user1 = Addr::unchecked(common::USER1);
@@ -176,7 +176,7 @@ fn setup_mock_cw20_vault() -> Result<GenericVault<'static, Mock>, AbstractInterf
     wyndex_setup.setup_pools(vec![]).unwrap();
 
     // TODO: set balances for test users and env
-    wyndex_setup.set_balances(&vec![]).unwrap();
+    wyndex_setup.set_balances(vec![]).unwrap();
 
     let vault_token = Cw20Base::new(VAULT_TOKEN, mock.clone());
     let cw20_id = vault_token.upload().unwrap().uploaded_code_id().unwrap();
@@ -204,7 +204,7 @@ fn setup_mock_cw20_vault() -> Result<GenericVault<'static, Mock>, AbstractInterf
     Ok(vault)
 }
 
-fn setup_mock_native_vault() -> Result<GenericVault<'static, Mock>, AbstractInterfaceError> {
+fn setup_mock_native_vault() -> Result<GenericVault<Mock, SetupWyndDex<Mock>>, AbstractInterfaceError> {
     let owner = Addr::unchecked(common::OWNER);
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
     let user1 = Addr::unchecked(common::USER1);
@@ -264,7 +264,7 @@ fn setup_mock_native_vault() -> Result<GenericVault<'static, Mock>, AbstractInte
     let mut wyndex_setup = SetupWyndDex {
         chain: mock.clone(),
         dex_base: DexBase {
-            pools,
+            pools: pools.clone(),
             contracts,
             assets,
         },
@@ -275,8 +275,8 @@ fn setup_mock_native_vault() -> Result<GenericVault<'static, Mock>, AbstractInte
     wyndex_setup.setup_pools(vec![]).unwrap();
     wyndex_setup
         .set_balances(vec![(
-            &owner,
-            &vec![
+            owner.to_string().as_str(),
+            vec![
                 Asset::new(AssetInfo::native(USD), 10_000u128),
                 Asset::new(AssetInfo::native(EUR), 10_000u128),
             ],
@@ -292,7 +292,7 @@ fn setup_mock_native_vault() -> Result<GenericVault<'static, Mock>, AbstractInte
         deposit_fees: Decimal::percent(0),
         dex: WYNDEX.to_string(),
         performance_fees: Decimal::percent(3),
-        pool_assets: pools.first().unwrap().1.assets.clone(),
+        pool_assets: pools.clone().first().unwrap().1.assets.clone(),
         withdrawal_fees: Decimal::percent(0),
         bonding_data: Some(BondingData {
             unbonding_period: Duration::Time(1),
@@ -309,7 +309,7 @@ fn setup_mock_native_vault() -> Result<GenericVault<'static, Mock>, AbstractInte
     Ok(vault)
 }
 
-pub fn setup_osmosis_vault() -> Result<GenericVault<'static, OsmosisTestTube>, AbstractInterfaceError> {
+pub fn setup_osmosis_vault() -> Result<GenericVault<OsmosisTestTube, OsmosisDexSetup<OsmosisTestTube>>, AbstractInterfaceError> {
     let token_a = AssetInfo::native(EUR);
     let token_b = AssetInfo::native(USD);
     let reward_token = AssetInfo::native("uosmo");
@@ -342,7 +342,7 @@ pub fn setup_osmosis_vault() -> Result<GenericVault<'static, OsmosisTestTube>, A
     let incentive = IncentiveParams::from_coin(100u128, "uosmo", 1);
 
 
-    let mut osmosis_setup = OsmosisDexSetup::setup_dex(
+    let mut osmosis_setup = OsmosisDexSetup::setup_dex::<OsmosisTestTube>(
         ans_asset_references,
         initial_liquidity,
         initial_accounts_balances,
@@ -364,7 +364,7 @@ pub fn setup_osmosis_vault() -> Result<GenericVault<'static, OsmosisTestTube>, A
         max_swap_spread: Some(Decimal::percent(50)),
     };
 
-    let vault = GenericVault::new(chain, osmosis_setup, &instantiate_msg).unwrap();
+    let vault = GenericVault::new(osmosis_setup.chain.clone(), osmosis_setup, &instantiate_msg).unwrap();
 
     // TODO: Check autocompounder config
     let config: Config = vault.autocompounder_app.config().unwrap();
@@ -398,10 +398,12 @@ fn ans_info_from_osmosis_pools(
 fn deposit_assets_native_osmosistesttube() -> AResult {
     let vault = setup_osmosis_vault()?;
 
-    let owner = Addr::unchecked(common::OWNER);
-    let user1 = Addr::unchecked(common::USER1);
+    let owner = vault.dex.accounts[0].clone();
+    let user1 = vault.dex.accounts[1].clone();
+    let owner_addr = Addr::unchecked(owner.address());
+    let user1_addr = Addr::unchecked(user1.address());
 
-    test_deposit_assets(vault, &owner, &owner, &user1, &user1)
+    test_deposit_assets(vault, &owner, &owner_addr, &user1, &user1_addr)
 }
 
 #[test]
@@ -420,8 +422,8 @@ fn deposit_assets_native_mock() -> AResult {
     test_deposit_assets(vault, &owner, &owner, &user1, &user1)
 }
 
-fn test_deposit_assets<Chain: CwEnv>(
-    vault: GenericVault<Chain>,
+fn test_deposit_assets<Chain: CwEnv, Dex: DexInit>(
+    vault: GenericVault<Chain, Dex>,
     owner: &<Chain as TxHandler>::Sender,
     owner_addr: &Addr,
     user: &<Chain as TxHandler>::Sender,

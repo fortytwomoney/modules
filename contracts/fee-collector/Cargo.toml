@@ -61,9 +61,6 @@ abstract-dex-adapter = { workspace = true, default-features = false }
 anyhow = { workspace = true }
 wyndex-bundle = { workspace = true }
 cw-orch = { workspace = true, features = ["daemon"] }
-fee-collector = { path = ".", features = [
-  "interface",
-], package = "fee-collector" }
 speculoos = "0.11.0"
 abstract-interface = { workspace = true, features = ["daemon"] }
 abstract-testing = { workspace = true }
