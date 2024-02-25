@@ -26,7 +26,7 @@ use autocompounder::msg::{
 use common::abstract_helper::{self, init_auto_compounder};
 use common::vault::Vault;
 use common::AResult;
-use common::{TEST_NAMESPACE, VAULT_TOKEN};
+use common::TEST_NAMESPACE;
 use cosmwasm_std::{coin, coins, to_json_binary, Addr, Decimal, Uint128};
 
 use cw_utils::{Duration, Expiration};
@@ -124,7 +124,7 @@ pub fn create_vault(
     let staking_api = abstract_helper::init_staking(mock.clone(), None)?;
     let auto_compounder = init_auto_compounder(mock.clone(), &abstract_, None)?;
 
-    let vault_token = Cw20Base::new(VAULT_TOKEN, mock.clone());
+    let vault_token = Cw20Base::new(common::VAULT_TOKEN, mock.clone());
     // upload the vault token code
     let vault_token_code_id = vault_token.upload()?.uploaded_code_id()?;
     // Create an Account that we will turn into a vault

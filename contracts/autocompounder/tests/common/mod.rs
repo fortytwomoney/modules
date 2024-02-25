@@ -2,8 +2,8 @@ pub mod abstract_helper;
 pub mod vault;
 pub mod dexes;
 pub mod osmosis_pool_incentives_module;
-pub mod dex_implementations;
 pub mod account_setup;
+pub mod integration;
 
 pub type AResult = anyhow::Result<()>;
 

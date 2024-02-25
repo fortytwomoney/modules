@@ -1,23 +1,24 @@
 
 
+use abstract_app::objects::pool_id::UncheckedPoolAddress;
 use abstract_client::AbstractClient;
 use abstract_client::{Account, Application};
-use abstract_core::ans_host::QueryMsgFns;
-use abstract_core::objects::pool_id::{UncheckedPoolAddress};
+
 use abstract_core::objects::{AnsAsset, PoolMetadata};
 use abstract_cw_staking::interface::CwStakingAdapter;
 use abstract_dex_adapter::interface::DexAdapter;
 use abstract_interface::{Abstract, AbstractAccount};
 use anyhow::Error;
-use autocompounder::interface::AutocompounderApp;
 use autocompounder::msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns};
+use autocompounder::interface::AutocompounderApp;
 use cosmwasm_std::{coin, coins, Addr, Coin};
 use cw20::msg::Cw20ExecuteMsgFns;
 use cw20_base::msg::QueryMsgFns as _;
 use cw_asset::{AssetInfo, AssetInfoBase};
-use cw_orch::contract::interface_traits::{CallAs};
+
+use cw_orch::contract::interface_traits::CallAs;
 use cw_orch::contract::interface_traits::ContractInstance;
-use cw_orch::environment::{CwEnv, MutCwEnv, TxHandler};
+use cw_orch::environment::{CwEnv, MutCwEnv};
 use cw_orch::osmosis_test_tube::osmosis_test_tube::SigningAccount;
 
 use cw_plus_interface::cw20_base::Cw20Base;
@@ -64,48 +65,6 @@ pub struct GenericVault<Chain: CwEnv, Dex: DexInit> {
     pub chain: Chain,
     pub signing_account: Option<SigningAccount>, // preferably this is not included in the struct, but needed to initially set balances for osmosis_testtube
 }
-
-// pub struct GenericDex {
-//     pub assets: Vec<AssetWithInfo>,
-//     pub pools: Vec<(UncheckedPoolAddress, PoolMetadata)>,
-//     pub contracts: Vec<(UncheckedContractEntry, String)>,
-//     pub dex_name: String,
-// }
-
-// impl GenericDex {
-
-//     pub fn new(
-        
-//     ) -> Self {
-//         let assets_with_info = assets
-//             .into_iter()
-//             .map(|(name, asset)| AssetWithInfo {
-//                 ans_name: name,
-//                 asset_info: asset.into(),
-//             })
-//             .collect();
-//         Self {
-//             assets: assets_with_info,
-//             pools,
-//             contracts,
-//             dex_name,
-//         }
-//     }
-
-
-//     /// returns the first pool. should be the main pool
-//     pub fn main_pool(&self) -> (UncheckedPoolAddress, PoolMetadata) {
-//         self.pools.first().unwrap().to_owned()
-//     }
-
-//     pub fn asset_a(&self) -> AssetWithInfo {
-//         self.assets[0].clone()
-//     }
-
-//     pub fn asset_b(&self) -> AssetWithInfo {
-//         self.assets[1].clone()
-//     }
-// }
 
 #[allow(dead_code)]
 impl<T: CwEnv, Dex: DexInit> GenericVault< T, Dex> {
@@ -161,8 +120,6 @@ impl<T: CwEnv, Dex: DexInit> GenericVault< T, Dex> {
     }
 }
 
-
-
 #[allow(dead_code)]
 impl<T: MutCwEnv + Clone + 'static, Dex: DexInit> GenericVault<T, Dex> {
     pub fn new(
@@ -189,15 +146,8 @@ impl<T: MutCwEnv + Clone + 'static, Dex: DexInit> GenericVault<T, Dex> {
         .build()?; // Simplified for illustration
 
 
-        // let ans_pools = abstract_client.name_service().pool_list(None, None, None)?;
-
-        // let ans_others = abstract_client.name_service().contract_list(None, None, None)?;
-
-        // println!("pools:  /n{:?}/n/nContracts: /n{:?}", ans_pools, ans_others);
-    
         let (dex_adapter, staking_adapter, _fortytwo_publisher, account, autocompounder_app) =
             setup_autocompounder_account(&abstract_client, &autocompounder_instantiate_msg)?;
-
 
         // Return the constructed GenericVault instance
         Ok(Self {
@@ -231,7 +181,7 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
         let assets = vec![
             (&asset_a, amount_a),
             (&asset_b, amount_b),
-        ];
+        ].into_iter().filter(|(_, amount)| *amount > 0).collect::<Vec<_>>();
 
         println!("Depositing assets: {:?}", assets);
 
@@ -273,14 +223,7 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
             _ => panic!("invalid asset_info"),
         }
     }
-
-
-    
-
-    
 }
-
-
 
 
 // NOTE: I think because Osmosis has only native assets, and Astroport has both, we should have 3 environments: 

@@ -1,24 +1,16 @@
 mod common;
-
-
-
-
 use abstract_core::objects::pool_id::PoolAddressBase;
 use abstract_core::objects::UncheckedContractEntry;
 use abstract_interface::AbstractInterfaceError;
 
 use autocompounder::error::AutocompounderError;
-use autocompounder::state::DECIMAL_OFFSET;
 use common::dexes::get_id_from_osmo_pool;
 use common::dexes::DexBase;
 use common::dexes::DexInit;
-use common::dexes::IncentiveParams;
-use common::dexes::OsmosisDex as OsmosisDexSetup;
-use common::dexes::WyndDex as SetupWyndDex;
+use common::integration::test_deposit_assets;
 use cw_asset::Asset;
 use cw_asset::AssetInfo;
 use cw_asset::AssetInfoBase;
-use cw_orch::osmosis_test_tube::osmosis_test_tube::Account;
 use cw_plus_interface::cw20_base::Cw20Base;
 
 use abstract_core::objects::{LpToken, PoolMetadata};
@@ -27,7 +19,10 @@ use abstract_interface::Abstract;
 use autocompounder::state::Config;
 use cw_orch::prelude::*;
 
-use autocompounder::msg::{AutocompounderQueryMsgFns, AutocompounderExecuteMsgFns, BondingData};
+use autocompounder::msg::BondingData;
+use autocompounder::msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns};
+
+use common::dexes::WyndDex as SetupWyndDex;
 
 use common::vault::{AssetWithInfo, GenericVault};
 use common::AResult;
@@ -37,11 +32,9 @@ use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw_utils::Duration;
 
 use cw_orch::deploy::Deploy;
-use speculoos::assert_that;
 use wyndex_bundle::*;
 
 const WYNDEX: &str = "wyndex";
-const COMMISSION_RECEIVER: &str = "commission_receiver";
 const ATTACKER: &str = "attacker";
 /// Convert vault tokens to lp assets
 pub fn convert_to_assets(
@@ -183,7 +176,7 @@ fn setup_mock_cw20_vault() -> Result<GenericVault<Mock, SetupWyndDex<Mock>>, Abs
 
     let instantiate_msg = autocompounder::msg::AutocompounderInstantiateMsg {
         code_id: Some(cw20_id),
-        commission_addr: COMMISSION_RECEIVER.to_string(),
+        commission_addr: common::COMMISSION_RECEIVER.to_string(),
         deposit_fees: Decimal::percent(0),
         dex: WYNDEX.to_string(),
         performance_fees: Decimal::percent(3),
@@ -288,7 +281,7 @@ fn setup_mock_native_vault() -> Result<GenericVault<Mock, SetupWyndDex<Mock>>, A
 
     let instantiate_msg = autocompounder::msg::AutocompounderInstantiateMsg {
         code_id: Some(cw20_id),
-        commission_addr: COMMISSION_RECEIVER.to_string(),
+        commission_addr: common::COMMISSION_RECEIVER.to_string(),
         deposit_fees: Decimal::percent(0),
         dex: WYNDEX.to_string(),
         performance_fees: Decimal::percent(3),
@@ -307,83 +300,6 @@ fn setup_mock_native_vault() -> Result<GenericVault<Mock, SetupWyndDex<Mock>>, A
     let _config: Config = vault.autocompounder_app.config().unwrap();
 
     Ok(vault)
-}
-
-pub fn setup_osmosis_vault() -> Result<GenericVault<OsmosisTestTube, OsmosisDexSetup<OsmosisTestTube>>, AbstractInterfaceError> {
-    let token_a = AssetInfo::native(EUR);
-    let token_b = AssetInfo::native(USD);
-    let reward_token = AssetInfo::native("uosmo");
-
-    let ans_asset_references = vec![
-        (EUR.to_string(), token_a.clone()),
-        (USD.to_string(), token_b.clone()),
-        ("uosmo".to_string(), reward_token.clone()),
-    ];
-
-    let initial_liquidity = vec![
-        vec![
-            Asset::new(token_a.clone(), 10_000u128),
-            Asset::new(token_b.clone(), 10_000u128),
-        ],
-        vec![
-            Asset::new(token_a.clone(), 10_000u128),
-            Asset::new(reward_token.clone(), 10_000u128),
-        ],
-    ];
-
-    let initial_accounts_balances = vec![(
-        "account1",
-        vec![
-            Asset::new(token_a.clone(), 10_000u128),
-            Asset::new(token_b.clone(), 10_000u128),
-            Asset::new(reward_token, 10_000_000_000u128), // 10 osmo for gas?
-
-        ],
-    ),
-    (
-        COMMISSION_RECEIVER,
-        vec![],
-    )];
-
-    let incentive = IncentiveParams::from_coin(100u128, "uosmo", 1);
-
-
-    let osmosis_setup = OsmosisDexSetup::setup_dex::<OsmosisTestTube>(
-        ans_asset_references,
-        initial_liquidity,
-        initial_accounts_balances,
-        incentive,
-    ).unwrap();
-
-    let instantiate_msg = autocompounder::msg::AutocompounderInstantiateMsg {
-        code_id: None,
-        commission_addr: osmosis_setup.accounts.get(1).unwrap().address().to_string(),
-        deposit_fees: Decimal::percent(0),
-        dex: osmosis_setup.name.clone(),
-        performance_fees: Decimal::percent(3),
-        pool_assets: osmosis_setup.dex_base.pools.first().unwrap().1.assets.clone(),
-        withdrawal_fees: Decimal::percent(0),
-        bonding_data: Some(BondingData {
-            unbonding_period: Duration::Time(1),
-            max_claims_per_address: None,
-        }),
-        max_swap_spread: Some(Decimal::percent(50)),
-    };
-
-    println!("instantiate_msg: {:?}", instantiate_msg);
-
-    let vault = GenericVault::new(osmosis_setup.chain.clone(), osmosis_setup, &instantiate_msg)
-        .map_err(map_any_error)?;
-
-    // TODO: Check autocompounder config
-    let _config: Config = vault.autocompounder_app.config().unwrap();
-    println!(" config: {:#?}", _config);
-
-    Ok(vault)
-}
-
-fn map_any_error(e: anyhow::Error) -> AbstractInterfaceError {
-   AbstractInterfaceError::Std(cosmwasm_std::StdError::GenericErr { msg: e.to_string() })
 }
 
 fn ans_info_from_osmosis_pools(
@@ -408,17 +324,7 @@ fn ans_info_from_osmosis_pools(
         .collect::<Vec<_>>()
 }
 
-#[test]
-fn deposit_assets_native_osmosistesttube() -> AResult {
-    let vault = setup_osmosis_vault().unwrap();
 
-    let owner = vault.dex.accounts[0].clone();
-    let user1 = vault.dex.accounts[1].clone();
-    let owner_addr = Addr::unchecked(owner.address());
-    let user1_addr = Addr::unchecked(user1.address());
-
-    test_deposit_assets(vault, &owner, &owner_addr, &user1, &user1_addr)
-}
 
 #[test]
 fn deposit_assets_cw20_mock() -> AResult {
@@ -436,59 +342,4 @@ fn deposit_assets_native_mock() -> AResult {
     test_deposit_assets(vault, &owner, &owner, &user1, &user1)
 }
 
-fn test_deposit_assets<Chain: CwEnv, Dex: DexInit>(
-    vault: GenericVault<Chain, Dex>,
-    owner: &<Chain as TxHandler>::Sender,
-    owner_addr: &Addr,
-    _user: &<Chain as TxHandler>::Sender,
-    _user_addr: &Addr,
-) -> AResult {
-    let _ac_addres = vault.autocompounder_app.addr_str()?;
-    let _config: Config = vault.autocompounder_app.config()?;
 
-    // deposit 10_000 of both assets
-    let amount = 10_000u128;
-    vault.deposit_assets(owner, amount, amount)?;
-
-    let lp_token_amount: Uint128 = vault.autocompounder_app.total_lp_position()?;
-
-    let balance_owner = vault.vault_token_balance(owner_addr.to_string())?;
-    assert_that!(balance_owner).is_equal_to(lp_token_amount.u128() * 10u128.pow(DECIMAL_OFFSET));
-
-    // single cw20asset deposit from different address
-    // single asset deposit from different address
-    // raw_token
-    //     .call_as(&user1)
-    //     .increase_allowance(1000u128.into(), _ac_addres.to_string(), None)?;
-    // vault.autocompounder_app.call_as(&user1).deposit(
-    //     vec![AnsAsset::new(raw_asset, 1000u128)],
-    //     None,
-    //     None,
-    //     &[],
-    // )?;
-
-    // // check that the vault token is minted
-    // let vault_token_balance = vault.vault_token.balance(owner.to_string())?;
-    // assert_that!(vault_token_balance.balance.u128())
-    //     .is_equal_to(10000u128 * 10u128.pow(DECIMAL_OFFSET));
-    // let new_position = vault.autocompounder_app.total_lp_position()?;
-    // // check if the user1 balance is correct
-    // let vault_token_balance_user1 = vault.vault_token.balance(user1.to_string())?;
-    // assert_that!(vault_token_balance_user1.balance.u128())
-    //     .is_equal_to(487u128 * 10u128.pow(DECIMAL_OFFSET));
-    // // assert_that!(new_position).is_greater_than(position);
-
-    // let redeem_amount = Uint128::from(4000u128 * 10u128.pow(DECIMAL_OFFSET));
-    // vault
-    //     .vault_token
-    //     .call_as(&owner)
-    //     .increase_allowance(redeem_amount, _ac_addres, None)?;
-    // vault.autocompounder_app.redeem(redeem_amount, None, &[])?;
-
-    // // check that the vault token decreased
-    // let vault_token_balance = vault.vault_token.balance(owner.to_string())?;
-    // assert_that!(vault_token_balance.balance.u128())
-    //     .is_equal_to(6000u128 * 10u128.pow(DECIMAL_OFFSET));
-
-    Ok(())
-}

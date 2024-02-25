@@ -22,8 +22,6 @@ use osmosis_test_tube::Module;
 use super::osmosis_pool_incentives_module::Incentives;
 use super::vault::AssetWithInfo;
 
-const SECONDS_PER_DAY: u64 = 86400;
-
 pub struct IncentiveParams {
     /// start time in seconds would default to the current block time if none
     start_time: Option<u64>,
