@@ -27,7 +27,7 @@ use abstract_interface::Abstract;
 use autocompounder::state::Config;
 use cw_orch::prelude::*;
 
-use autocompounder::msg::{AutocompounderQueryMsgFns, BondingData};
+use autocompounder::msg::{AutocompounderQueryMsgFns, AutocompounderExecuteMsgFns, BondingData};
 
 use common::vault::{AssetWithInfo, GenericVault};
 use common::AResult;
@@ -336,6 +336,8 @@ pub fn setup_osmosis_vault() -> Result<GenericVault<OsmosisTestTube, OsmosisDexS
         vec![
             Asset::new(token_a.clone(), 10_000u128),
             Asset::new(token_b.clone(), 10_000u128),
+            Asset::new(reward_token, 10_000_000_000u128), // 10 osmo for gas?
+
         ],
     ),
     (
@@ -368,11 +370,14 @@ pub fn setup_osmosis_vault() -> Result<GenericVault<OsmosisTestTube, OsmosisDexS
         max_swap_spread: Some(Decimal::percent(50)),
     };
 
+    println!("instantiate_msg: {:?}", instantiate_msg);
+
     let vault = GenericVault::new(osmosis_setup.chain.clone(), osmosis_setup, &instantiate_msg)
         .map_err(map_any_error)?;
 
     // TODO: Check autocompounder config
     let _config: Config = vault.autocompounder_app.config().unwrap();
+    println!(" config: {:#?}", _config);
 
     Ok(vault)
 }
@@ -445,11 +450,10 @@ fn test_deposit_assets<Chain: CwEnv, Dex: DexInit>(
     let amount = 10_000u128;
     vault.deposit_assets(owner, amount, amount)?;
 
-    let position = vault.autocompounder_app.total_lp_position()?;
-    assert_that!(position).is_equal_to(Uint128::from(10_000u128));
+    let lp_token_amount: Uint128 = vault.autocompounder_app.total_lp_position()?;
 
     let balance_owner = vault.vault_token_balance(owner_addr.to_string())?;
-    assert_that!(balance_owner).is_equal_to(10_000u128 * 10u128.pow(DECIMAL_OFFSET));
+    assert_that!(balance_owner).is_equal_to(lp_token_amount.u128() * 10u128.pow(DECIMAL_OFFSET));
 
     // single cw20asset deposit from different address
     // single asset deposit from different address

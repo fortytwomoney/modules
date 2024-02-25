@@ -16,7 +16,6 @@ use osmosis_std::cosmwasm_to_proto_coins;
 use osmosis_std::shim::{Duration, Timestamp};
 use osmosis_std::types::osmosis::incentives::MsgCreateGauge;
 use osmosis_std::types::osmosis::lockup::{LockQueryType, QueryCondition};
-use osmosis_std::types::osmosis::poolincentives::v1beta1::QueryLockableDurationsRequest;
 use osmosis_test_tube::Module;
 
 
@@ -240,7 +239,7 @@ impl DexInit for OsmosisDex<OsmosisTestTube> {
             timestamp: None,
         };
 
-        /// lockable_durations: 
+        // lockable_durations: 
         //         Duration {
         //             seconds: 1,
         //             nanos: 0,

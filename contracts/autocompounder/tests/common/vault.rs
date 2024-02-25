@@ -27,7 +27,7 @@ use super::account_setup::setup_autocompounder_account;
 use super::dexes::DexInit;
 use super::AResult;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AssetWithInfo {
     pub ans_name: String,
     pub asset_info: AssetInfo,
@@ -233,6 +233,8 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
             (&asset_b, amount_b),
         ];
 
+        println!("Depositing assets: {:?}", assets);
+
         let ans_assets_deposit_coins = assets.into_iter().map(|(asset, amount)| {
             self.asset_amount_to_deposit(depositor, amount, asset)
         })
@@ -241,6 +243,8 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
         let (ans_assets, deposit_coins ): (Vec<_>, Vec<_>)= ans_assets_deposit_coins.into_iter().unzip();
 
         let deposit_coins = deposit_coins.into_iter().filter_map(|x| x).collect::<Vec<_>>();
+
+        println!("Depositing coins: and assets {:?}, {:?}", ans_assets, deposit_coins);
         
 
         self.autocompounder_app.call_as(depositor).deposit(
