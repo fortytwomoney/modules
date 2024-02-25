@@ -1,5 +1,3 @@
-
-
 use abstract_app::objects::pool_id::UncheckedPoolAddress;
 use abstract_client::AbstractClient;
 use abstract_client::{Account, Application};
@@ -9,8 +7,8 @@ use abstract_cw_staking::interface::CwStakingAdapter;
 use abstract_dex_adapter::interface::DexAdapter;
 use abstract_interface::{Abstract, AbstractAccount};
 use anyhow::Error;
-use autocompounder::msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns};
 use autocompounder::interface::AutocompounderApp;
+use autocompounder::msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, Config};
 use cosmwasm_std::{coin, coins, Addr, Coin};
 use cw20::msg::Cw20ExecuteMsgFns;
 use cw20_base::msg::QueryMsgFns as _;
@@ -18,7 +16,7 @@ use cw_asset::{AssetInfo, AssetInfoBase};
 
 use cw_orch::contract::interface_traits::CallAs;
 use cw_orch::contract::interface_traits::ContractInstance;
-use cw_orch::environment::{CwEnv, MutCwEnv};
+use cw_orch::environment::{CwEnv, MutCwEnv, TxHandler};
 use cw_orch::osmosis_test_tube::osmosis_test_tube::SigningAccount;
 
 use cw_plus_interface::cw20_base::Cw20Base;
@@ -67,15 +65,15 @@ pub struct GenericVault<Chain: CwEnv, Dex: DexInit> {
 }
 
 #[allow(dead_code)]
-impl<T: CwEnv, Dex: DexInit> GenericVault< T, Dex> {
+impl<T: CwEnv, Dex: DexInit> GenericVault<T, Dex> {
     pub fn redeem_vault_token(
         &self,
         amount: u128,
-        sender: &Addr,
+        sender: &<T as TxHandler>::Sender,
         reciever: Option<Addr>,
     ) -> Result<<T as cw_orch::prelude::TxHandler>::Response, Error>
     where
-        T: cw_orch::prelude::TxHandler<Sender = Addr>,
+        T: cw_orch::prelude::TxHandler,
     {
         let config = self.autocompounder_app.config()?;
         match config.vault_token {
@@ -104,19 +102,66 @@ impl<T: CwEnv, Dex: DexInit> GenericVault< T, Dex> {
         }
     }
 
-    pub fn vault_token_balance(&self, account: String) -> Result<u128, Error> {
+    pub fn vault_token_balance<S: Into<String>>(&self, account: S) -> Result<u128, Error> {
         match self.autocompounder_app.config()?.vault_token {
             AssetInfoBase::Cw20(c) => {
                 let vault_token = Cw20Base::new(c, self.chain.clone());
-                Ok(vault_token
-                    .balance(account.clone())?
-                .balance
-                    .u128())
+                Ok(vault_token.balance(account.into().clone())?.balance.u128())
             }
             // @Buckram123 HELP: how do i Properly handle the balance().unwrap()
-            AssetInfoBase::Native(denom) => Ok(self.chain.balance(account, Some(denom)).unwrap().first().unwrap().amount.u128()),
+            AssetInfoBase::Native(denom) => Ok(self
+                .chain
+                .balance(account.into(), Some(denom))
+                .unwrap()
+                .first()
+                .unwrap()
+                .amount
+                .u128()),
             _ => panic!("invalid vault token"),
         }
+    }
+
+    fn asset_balance(&self, account: String, asset: u8) -> Result<u128, Error> {
+        let dex_base = self.dex.dex_base();
+        let asset = match asset {
+            1 => dex_base.asset_a(),
+            2 => dex_base.asset_b(),
+            _ => panic!("invalid asset"),
+        };
+        match asset.asset_info.clone() {
+            AssetInfoBase::Cw20(c) => {
+                let cw20_asset = Cw20Base::new(c, self.chain.clone());
+                Ok(cw20_asset.balance(account.clone())?.balance.u128())
+            }
+            AssetInfoBase::Native(denom) => Ok(self
+                .chain
+                .balance(account, Some(denom))
+                .unwrap()
+                .first()
+                .unwrap()
+                .amount
+                .u128()),
+            _ => panic!("invalid asset_info"),
+        }
+    }
+
+    pub fn asset_a_balance(&self, account: String) -> Result<u128, Error> {
+        self.asset_balance(account, 1)
+    }
+
+    pub fn asset_b_balance(&self, account: String) -> Result<u128, Error> {
+        self.asset_balance(account, 2)
+    }
+
+    pub fn asset_balances<S: Into<String> + Clone>(&self, account: S) -> Result<(u128, u128), Error> {
+        Ok((
+            self.asset_a_balance(account.clone().into())?,
+            self.asset_b_balance(account.into())?,
+        ))
+    }
+
+    pub fn pending_claims(&self, account: &Addr) -> Result<u128, Error> {
+        Ok(self.autocompounder_app.pending_claims(account.clone())?.into())
     }
 }
 
@@ -132,19 +177,19 @@ impl<T: MutCwEnv + Clone + 'static, Dex: DexInit> GenericVault<T, Dex> {
 
         let dex_base = dex.dex_base();
 
-        let unchecked_assets = dex_base.assets
+        let unchecked_assets = dex_base
+            .assets
             .iter()
             .map(|asset| (asset.ans_name.clone(), asset.asset_info.clone().into()))
             .collect();
-        
+
         // Setup the abstract client similar to the provided `setup_vault` function
         let abstract_client = AbstractClient::builder(chain_env.clone())
-        .assets(unchecked_assets)
-        .dex(&dex.name())
-        .pools(dex_base.pools.clone())
-        .contracts(dex_base.contracts.clone())
-        .build()?; // Simplified for illustration
-
+            .assets(unchecked_assets)
+            .dex(&dex.name())
+            .pools(dex_base.pools.clone())
+            .contracts(dex_base.contracts.clone())
+            .build()?; // Simplified for illustration
 
         let (dex_adapter, staking_adapter, _fortytwo_publisher, account, autocompounder_app) =
             setup_autocompounder_account(&abstract_client, &autocompounder_instantiate_msg)?;
@@ -171,62 +216,79 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
     }
 
     /// Allows for depositing any amount without having to care about cw20 or native assets
-    pub fn deposit_assets(&self, depositor: &Chain::Sender, amount_a: u128, amount_b: u128) -> AResult {
+    pub fn deposit_assets(
+        &self,
+        depositor: &Chain::Sender,
+        amount_a: u128,
+        amount_b: u128,
+        recipient: Option<Addr>,
+    ) -> AResult {
         let dex_base = self.dex.dex_base();
-
 
         let asset_a = dex_base.asset_a();
         let asset_b = dex_base.asset_b();
 
-        let assets = vec![
-            (&asset_a, amount_a),
-            (&asset_b, amount_b),
-        ].into_iter().filter(|(_, amount)| *amount > 0).collect::<Vec<_>>();
+        let assets = vec![(&asset_a, amount_a), (&asset_b, amount_b)]
+            .into_iter()
+            .filter(|(_, amount)| *amount > 0)
+            .collect::<Vec<_>>();
 
         println!("Depositing assets: {:?}", assets);
 
-        let ans_assets_deposit_coins = assets.into_iter().map(|(asset, amount)| {
-            self.asset_amount_to_deposit(depositor, amount, asset)
-        })
-        .collect::<Result<Vec<(AnsAsset, Option<Coin>)>, Error>>()?;
+        let ans_assets_deposit_coins = assets
+            .into_iter()
+            .map(|(asset, amount)| self.asset_amount_to_deposit(depositor, amount, asset))
+            .collect::<Result<Vec<(AnsAsset, Option<Coin>)>, Error>>()?;
 
-        let (ans_assets, deposit_coins ): (Vec<_>, Vec<_>)= ans_assets_deposit_coins.into_iter().unzip();
+        let (ans_assets, deposit_coins): (Vec<_>, Vec<_>) =
+            ans_assets_deposit_coins.into_iter().unzip();
 
-        let deposit_coins = deposit_coins.into_iter().filter_map(|x| x).collect::<Vec<_>>();
+        let deposit_coins = deposit_coins
+            .into_iter()
+            .filter_map(|x| x)
+            .collect::<Vec<_>>();
 
-        println!("Depositing coins: and assets {:?}, {:?}", ans_assets, deposit_coins);
-        
+        println!(
+            "Depositing coins: and assets {:?}, {:?}",
+            ans_assets, deposit_coins
+        );
 
         self.autocompounder_app.call_as(depositor).deposit(
             ans_assets,
             None,
-            None,
+            recipient,
             &deposit_coins,
         )?;
 
         Ok(())
     }
 
-
-    fn asset_amount_to_deposit(&self, depositor: &Chain::Sender, amount: u128, asset: &AssetWithInfo) -> Result<(AnsAsset, Option<Coin>), Error> {
+    fn asset_amount_to_deposit(
+        &self,
+        depositor: &Chain::Sender,
+        amount: u128,
+        asset: &AssetWithInfo,
+    ) -> Result<(AnsAsset, Option<Coin>), Error> {
         match &asset.asset_info {
             AssetInfoBase::Cw20(addr) => {
                 let cw20_asset = Cw20Base::new(addr, self.chain.clone());
-                cw20_asset
-                    .call_as(depositor)
-                    .increase_allowance(amount.into(), self.autocompounder_app.addr_str()?, None)?;
+                cw20_asset.call_as(depositor).increase_allowance(
+                    amount.into(),
+                    self.autocompounder_app.addr_str()?,
+                    None,
+                )?;
                 Ok((AnsAsset::new(asset.ans_name.clone(), amount), None))
             }
-            AssetInfoBase::Native(denom) => {
-                Ok((AnsAsset::new(asset.ans_name.clone(), amount), Some(coin(amount, denom))))
-            }
+            AssetInfoBase::Native(denom) => Ok((
+                AnsAsset::new(asset.ans_name.clone(), amount),
+                Some(coin(amount, denom)),
+            )),
             _ => panic!("invalid asset_info"),
         }
     }
 }
 
-
-// NOTE: I think because Osmosis has only native assets, and Astroport has both, we should have 3 environments: 
+// NOTE: I think because Osmosis has only native assets, and Astroport has both, we should have 3 environments:
 // - Osmosis environment with only native asset pools
 // - Astroport environment with only cw20 asset pools
 // - Astroport environment with both native and cw20 pools

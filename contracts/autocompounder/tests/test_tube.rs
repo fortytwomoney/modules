@@ -4,6 +4,7 @@ use abstract_interface::AbstractInterfaceError;
 
 use common::dexes::DexInit;
 use common::dexes::IncentiveParams;
+use common::integration::deposit_with_recipient;
 use common::integration::test_deposit_assets;
 use cw_asset::Asset;
 use cw_asset::AssetInfo;
@@ -118,4 +119,16 @@ fn deposit_assets_native_osmosistesttube() -> AResult {
     let user2_addr = Addr::unchecked(user2.address());
 
     test_deposit_assets(vault, &user1, &user1_addr, &user2, &user2_addr)
+}
+
+#[test]
+fn deposit_with_recipient_osmosistesttube() -> AResult {
+    let vault = setup_osmosis_vault().unwrap();
+
+    let user1 = vault.dex.accounts[0].clone();
+    let user2 = vault.dex.accounts[1].clone();
+    let user1_addr = Addr::unchecked(user1.address());
+    let user2_addr = Addr::unchecked(user2.address());
+
+    deposit_with_recipient(vault, &user1, &user1_addr, &user2, &user2_addr)
 }
