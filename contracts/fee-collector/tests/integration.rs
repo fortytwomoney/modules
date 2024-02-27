@@ -190,10 +190,9 @@ fn create_fee_collector(
 
 #[test]
 fn test_update_config() -> AResult {
-    let owner = Addr::unchecked(OWNER);
     let commission_addr = Addr::unchecked(COMMISSION_ADDR);
-    let mock = MockBech32::new(&);
-    mock.addr_make();
+    let mock = MockBech32::new("mock");
+    let owner = mock.addr_make(OWNER);
     let app = create_fee_collector(mock, vec![])?;
 
     let eur_asset = AssetEntry::new(EUR);
@@ -257,8 +256,8 @@ fn test_update_config() -> AResult {
 
 #[test]
 fn test_collect_fees() -> AResult {
-    let owner = Addr::unchecked(OWNER);
-    let mock = MockBech32::new(&owner);
+    let owner = mock.addr_make(OWNER);
+    let mock = MockBech32::new("mock");
 
     let _eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);
@@ -303,8 +302,8 @@ fn test_collect_fees() -> AResult {
 #[test]
 #[ignore = "Multipool hops need a router contract... Not supported yet"]
 fn test_add_allowed_assets() -> AResult {
-    let owner = Addr::unchecked(OWNER);
-    let mock = MockBech32::new(&owner);
+    let mock = MockBech32::new("mock");
+    let owner = mock.addr_make(OWNER);
 
     let eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);

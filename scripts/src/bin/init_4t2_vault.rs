@@ -3,7 +3,7 @@ use abstract_core::objects::{AssetEntry, DexAssetPairing};
 use abstract_core::PROXY;
 use autocompounder::kujira_tx::TOKEN_FACTORY_CREATION_FEE;
 use cw_orch::daemon::networks::osmosis::OSMO_NETWORK;
-use cw_orch::daemon::queriers::{Bank};
+use cw_orch::daemon::queriers::Bank;
 use cw_orch::daemon::{ChainInfo, ChainKind, DaemonBuilder};
 use cw_orch::prelude::*;
 use std::env;
@@ -103,8 +103,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     // Funds for creating the token denomination
     let instantiation_funds: Vec<Coin> = if let Some(creation_fee) = token_creation_fee {
         let bank: Bank = chain.querier();
-        let balance: u128 = bank.balance(&sender, Some("ukuji".to_string()))
-            .unwrap()[0]
+        let balance: u128 = bank.balance(&sender, Some("ukuji".to_string())).unwrap()[0]
             .amount
             .u128();
         if balance < creation_fee {

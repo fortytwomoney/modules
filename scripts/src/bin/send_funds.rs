@@ -1,8 +1,5 @@
 use cosmwasm_std::coin;
-use cw_orch::prelude::{
-    networks,
-    Daemon,
-};
+use cw_orch::prelude::{networks, Daemon};
 use tokio::runtime::Runtime;
 
 const LOCAL_MNEMONIC: &str = "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius";
