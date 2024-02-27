@@ -161,7 +161,7 @@ fn create_fee_collector(
         .1
         .clone();
     // set the address on the contract
-    fee_collector.set_address(&Addr::unchecked(fee_collector_addr.clone()));
+    fee_collector.set_address(&fee_collector_addr);
 
     // give the autocompounder permissions to call on the dex and cw-staking contracts
     account.manager.update_adapter_authorized_addresses(
@@ -190,7 +190,7 @@ fn create_fee_collector(
 
 #[test]
 fn test_update_config() -> AResult {
-    let commission_addr = Addr::unchecked(COMMISSION_ADDR);
+    let commission_addr = mock.addr_make(COMMISSION_ADDR);
     let mock = MockBech32::new("mock");
     let owner = mock.addr_make(OWNER);
     let app = create_fee_collector(mock, vec![])?;
@@ -256,8 +256,10 @@ fn test_update_config() -> AResult {
 
 #[test]
 fn test_collect_fees() -> AResult {
-    let owner = mock.addr_make(OWNER);
     let mock = MockBech32::new("mock");
+    let owner = mock.addr_make(OWNER);
+    let non_admin = mock.addr_make("non-admin");
+    let commission_addr = mock.addr_make(COMMISSION_ADDR);
 
     let _eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);
@@ -276,7 +278,7 @@ fn test_collect_fees() -> AResult {
     // not admin
     let _err = app
         .fee_collector
-        .call_as(&Addr::unchecked("non-admin"))
+        .call_as(&non_admin)
         .collect()
         .unwrap_err();
 
@@ -291,7 +293,7 @@ fn test_collect_fees() -> AResult {
 
     // swap of wynd->eur and usd->eur of 1K each lead to 2 * 909 = 1818 eur. This + the 1K eur that was already in the account
     let expected_usd_balance = coin(2818u128, EUR);
-    let commission_balances = mock.query_all_balances(&Addr::unchecked(COMMISSION_ADDR))?;
+    let commission_balances = mock.query_all_balances(&commission_addr)?;
     let usd_balance = commission_balances.first().unwrap();
     assert_that!(commission_balances).has_length(1);
     assert_that!(usd_balance).is_equal_to(&expected_usd_balance);
