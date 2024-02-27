@@ -1635,7 +1635,7 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
         .call_as(&user1)
         .deposit_lp(AnsAsset::new(eur_usd_lp_asset_entry, send_amount), None);
 
-    // this will min a zero amount so it will fail
+    // this will mint a zero amount so it will fail
     assert_that!(res).is_err();
 
     Ok(())
