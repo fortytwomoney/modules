@@ -12,10 +12,13 @@ use cw_orch::{
     daemon::{DaemonError, TxBuilder, Wallet},
     prelude::{
         networks::parse_network,
-        queriers::{Bank, DaemonQuerier, Node},
+        queriers::{Bank, Node},
         Daemon, TxHandler,
     },
 };
+use cw_orch::prelude::QueryHandler;
+use cw_orch::prelude::BankQuerier;
+use cw_orch::prelude::NodeQuerier;
 
 use speculoos::{assert_that, result::ResultAssertions};
 use test_case::test_case;
@@ -49,13 +52,14 @@ pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
 
     println!("{:?}", daemon.sender());
 
-    let bank_querier = Bank::new(daemon.channel());
-    let supply = rt
-        .block_on(bank_querier.supply_of(denom))
-        .map_err(|e| {
-            eprintln!("Error: {:?}", e);
-        })
-        .unwrap();
+    let bank_querier = Bank::new(&daemon);
+    let supply = bank_querier.supply_of(denom).unwrap();
+    // let supply = rt
+    //     .block_on(bank_querier.supply_of(denom))
+    //     .map_err(|e| {
+    //         eprintln!("Error: {:?}", e);
+    //     })
+    //     .unwrap();
     println!("Daemon Bank supply: {:?}", supply);
 
     let data = encode_query_supply_of(denom);
@@ -88,7 +92,7 @@ pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
 
     // remove the denom from the supply_of_coin string
     let supply_of_coin = supply_of_coin.replace(denom, "");
-    assert_that!(supply_of_coin).is_equal_to(supply.amount);
+    assert_that!(supply_of_coin).is_equal_to(supply.amount.to_string());
 
     // query token factory params
     let response =
@@ -184,6 +188,7 @@ fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
 
     let tx_response = rt.block_on(simulate_any_msg(
         &wallet,
+        &daemon,
         short_denom_test_msgs,
         timeout_height,
     ));
@@ -199,6 +204,7 @@ fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
 
 async fn simulate_any_msg(
     wallet: &Wallet,
+    daemon: &Daemon,
     any_msgs: Vec<Any>,
     timeout_height: Height,
 ) -> Result<u64, DaemonError> {
@@ -206,7 +212,6 @@ async fn simulate_any_msg(
     let mut tx_builder = TxBuilder::new(tx_body);
 
     let raw_tx = tx_builder.build(wallet).await.unwrap();
-    Node::new(wallet.channel())
+    Node::new(daemon)
         .simulate_tx(raw_tx.to_bytes()?)
-        .await
 }

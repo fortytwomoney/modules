@@ -106,7 +106,7 @@ fn setup_vault() -> anyhow::Result<VaultOsmosis> {
                 AssetInfo::native(format!("gamm/pool/{pool_id}")).into(),
             ),
         ])
-        .ans_dex(DEX)
+        .dex(DEX)
         .pools(vec![(
             PoolAddressBase::id(pool_id),
             PoolMetadata::stable(DEX, vec![EUR, USD]),
@@ -243,7 +243,7 @@ fn deposit_asset() -> AResult {
     let AssetInfo::Native(denom) = config.vault_token else {
         panic!("Expected factory token")
     };
-    let balance_owner: Uint128 = chain.balance(&owner, Some(denom))?[0].amount;
+    let balance_owner: Uint128 = chain.query_balance(owner.as_str(), denom.as_str())?;
     assert_eq!(
         balance_owner.u128(),
         10_000u128 * 10u128.pow(DECIMAL_OFFSET)

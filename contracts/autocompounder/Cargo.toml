@@ -101,12 +101,3 @@ dotenv = { workspace = true }
 env_logger = { workspace = true }
 clap = { workspace = true }
 serial_test = "3.0.0"
-
-[profile.release]
-lto = true
-debug = false
-debug-assertions = false
-opt-level = "s"
-overflow-checks = true
-panic = "abort"
-rpath = false

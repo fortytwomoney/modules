@@ -190,8 +190,8 @@ fn create_fee_collector(
 
 #[test]
 fn test_update_config() -> AResult {
-    let commission_addr = mock.addr_make(COMMISSION_ADDR);
     let mock = MockBech32::new("mock");
+    let commission_addr = mock.addr_make(COMMISSION_ADDR);
     let owner = mock.addr_make(OWNER);
     let app = create_fee_collector(mock, vec![])?;
 

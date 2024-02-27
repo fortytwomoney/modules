@@ -35,14 +35,14 @@ abstract-testing = { version = "0.21.0" }
 abstract-client = { version = "0.21.0" }
 
 ## Abstract API
-# abstract-dex-adapter = { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.21.0", default-features = false }
-# abstract-cw-staking = { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.21.0", default-features = false }
-abstract-dex-adapter = { git = "https://github.com/AbstractSDK/abstract.git", default-features = false }
-abstract-cw-staking = { git = "https://github.com/AbstractSDK/abstract.git", default-features = false }
+abstract-dex-adapter = { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.21.0", default-features = false }
+abstract-cw-staking = { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.21.0", default-features = false }
+# abstract-dex-adapter = { git = "https://github.com/AbstractSDK/abstract.git", default-features = false }
+# abstract-cw-staking = { git = "https://github.com/AbstractSDK/abstract.git", default-features = false }
 
 # Dev Abstract dependencies
-# wyndex-bundle = { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.21.0" }
-wyndex-bundle = { git = "https://github.com/AbstractSDK/abstract.git" }
+wyndex-bundle = { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.21.0" }
+# wyndex-bundle = { git = "https://github.com/AbstractSDK/abstract.git" }
 
 autocompounder = { path = "contracts/autocompounder" }
 fee-collector = { path = "contracts/fee-collector" }
@@ -82,7 +82,7 @@ cw-orch = { version = "0.20.1" }
 rpath = false
 lto = true
 overflow-checks = true
-opt-level = 3
+opt-level = "s"
 debug = false
 debug-assertions = false
 panic = "abort"

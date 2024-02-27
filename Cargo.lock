@@ -4,8 +4,9 @@ version = 3
 
 [[package]]
 name = "abstract-account-factory"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77c573065f707a6b81afac022ae9e590528d090ace83252b06aad52d844a92ce"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -26,8 +27,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-adapter"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e1cdc4181565b48fb6b40df4fffaae8c201b59e8c28c4223396dfec6a3fad97"
 dependencies = [
  "abstract-core",
  "abstract-sdk",
@@ -43,8 +45,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-adapter-utils"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b5a5214ae7544dcd69df1303f1c521897c749023656bc2030b283f52126fe2b"
 dependencies = [
  "cosmwasm-std",
  "cw-asset",
@@ -53,8 +56,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-ans-host"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72f782d04cd07aa56380f5cbb7c6e206bb17b4b770da0dc414d48792a245fd0b"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -72,8 +76,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-app"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ef8526272785786edd3e62551b649d4f6b25dfe59d06a96ccd3f23e3b97829e"
 dependencies = [
  "abstract-core",
  "abstract-interface",
@@ -94,7 +99,7 @@ dependencies = [
 [[package]]
 name = "abstract-astroport-adapter"
 version = "2.10.0"
-source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -105,8 +110,8 @@ dependencies = [
 
 [[package]]
 name = "abstract-astrovault-adapter"
-version = "0.1.0"
-source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.2.0"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -117,8 +122,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-client"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a34d4ef32df22b8e5c24859783e2f7bf93cd9f03e70fd7b4b61c156ea75dc94"
 dependencies = [
  "abstract-core",
  "abstract-cw-plus-interface",
@@ -136,8 +142,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-core"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93f564e989726a254014fc3e05ae64941a1d6a6f0211935c6bdd68bc823e2e4c"
 dependencies = [
  "abstract-polytone",
  "cosmwasm-schema",
@@ -208,8 +215,8 @@ dependencies = [
 
 [[package]]
 name = "abstract-cw-staking"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -451,8 +458,8 @@ dependencies = [
 
 [[package]]
 name = "abstract-dex-adapter"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -478,8 +485,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-dex-standard"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e842551ac3ff07b8f481010e4573bbfe77499b6c14dd4c137f1fbce3d836fcae"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -499,8 +507,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-ibc-client"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2615507566c3c9ac5f108afa065bc88aa9d4129fce0fe71968748dade816a23"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -520,8 +529,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-ibc-host"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "939fc828c537f6dc555ec8f1bbed33a5a7e211c1358ac5f8a663f159abee4e8f"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -542,8 +552,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-interface"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54ccc7632a76880fcef5b13aa833dcf3738b236a58937971409f7145686d2302"
 dependencies = [
  "abstract-account-factory",
  "abstract-ans-host",
@@ -573,8 +584,8 @@ dependencies = [
 
 [[package]]
 name = "abstract-kujira-adapter"
-version = "0.2.0"
-source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.3.0"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -584,8 +595,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-macros"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d46b2e9e324ef65e57e64e76c0e97f68e1907c813156a47bf01dd265b65360e2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -594,8 +606,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-manager"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8fd8ad83361da28098f65a4bd749d8556c320d9390bc7eb1449411042ae7bc7"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -617,8 +630,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-module-factory"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97a82cb96ae5cbd4890b9a71f897fcf4aeb3dda3f372557c4c5a03c0d36847f9"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -638,8 +652,8 @@ dependencies = [
 
 [[package]]
 name = "abstract-osmosis-adapter"
-version = "0.15.2"
-source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.16.2"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
 dependencies = [
  "abstract-cw20",
  "abstract-dex-standard",
@@ -680,8 +694,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-proxy"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c3bbc23ff0cb3fb691f2bf08d8e88d602cd5a7460f0c3125fcd80351a55feb2"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -702,8 +717,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-sdk"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "606926337e7f14e5a88bcde0089016ed90d971e28176d6d98d6b0022ba89b2e5"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -725,8 +741,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-staking-standard"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9f1041f2a564fadc4be0d83438457b8f039b75f03bb4e23f2633b0716f071f8"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -747,8 +764,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-testing"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ff7dae5fc385a50ef69b7466fbab44f73b941d1b29f7d32ab991d04d30b0661"
 dependencies = [
  "abstract-core",
  "cosmwasm-schema",
@@ -767,8 +785,9 @@ dependencies = [
 
 [[package]]
 name = "abstract-version-control"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64048ddbdfd391974e724dc5f3d60d9746ff21850066f378afd8594d7801a580"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -784,8 +803,8 @@ dependencies = [
 
 [[package]]
 name = "abstract-wyndex-adapter"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
 dependencies = [
  "abstract-cw20",
  "abstract-dex-standard",
@@ -4742,7 +4761,7 @@ checksum = "b93fb4adc70021ac1b47f7d45e8cc4169baaa7ea58483bc5b721d19a26202212"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.51",
 ]
 
 [[package]]
@@ -6110,8 +6129,8 @@ dependencies = [
 
 [[package]]
 name = "wyndex-bundle"
-version = "0.20.0"
-source = "git+https://github.com/AbstractSDK/abstract.git#0c19ec029f5134af37f84ef62f132445e27a82c1"
+version = "0.21.0"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
 dependencies = [
  "abstract-core",
  "abstract-cw-plus-interface",
