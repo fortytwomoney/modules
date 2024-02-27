@@ -41,10 +41,10 @@ pub struct App<Chain: CwEnv> {
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
 pub(crate) fn init_exchange(
-    chain: Mock,
-    deployment: &Abstract<Mock>,
+    chain: MockBech32,
+    deployment: &Abstract<MockBech32>,
     version: Option<String>,
-) -> Result<DexAdapter<Mock>, AbstractInterfaceError> {
+) -> Result<DexAdapter<MockBech32>, AbstractInterfaceError> {
     let exchange = DexAdapter::new(DEX_ADAPTER_ID, chain);
 
     exchange.upload()?;
@@ -72,10 +72,10 @@ pub(crate) fn init_exchange(
 }
 
 fn init_fee_collector(
-    chain: Mock,
-    deployment: &Abstract<Mock>,
+    chain: MockBech32,
+    deployment: &Abstract<MockBech32>,
     _version: Option<String>,
-) -> Result<FeeCollectorInterface<Mock>, AbstractInterfaceError> {
+) -> Result<FeeCollectorInterface<MockBech32>, AbstractInterfaceError> {
     let fee_collector = FeeCollectorInterface::new(FEE_COLLECTOR, chain);
 
     fee_collector.upload()?;
@@ -91,9 +91,9 @@ fn init_fee_collector(
 }
 
 fn create_fee_collector(
-    mock: Mock,
+    mock: MockBech32,
     allowed_assets: Vec<AssetEntry>,
-) -> Result<App<Mock>, AbstractInterfaceError> {
+) -> Result<App<MockBech32>, AbstractInterfaceError> {
     // Deploy abstract
     let abstract_ = Abstract::deploy_on(mock.clone(), mock.sender.to_string())?;
 
@@ -258,7 +258,7 @@ fn test_update_config() -> AResult {
 #[test]
 fn test_collect_fees() -> AResult {
     let owner = Addr::unchecked(OWNER);
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
 
     let _eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);
@@ -304,7 +304,7 @@ fn test_collect_fees() -> AResult {
 #[ignore = "Multipool hops need a router contract... Not supported yet"]
 fn test_add_allowed_assets() -> AResult {
     let owner = Addr::unchecked(OWNER);
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
 
     let eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);

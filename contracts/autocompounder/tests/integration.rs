@@ -77,11 +77,11 @@ pub fn convert_to_shares(
 }
 
 pub fn create_vault(
-    mock: Mock,
+    mock: MockBech32,
     asset1: &str,
     asset2: &str,
     vault_token_is_cw20: bool,
-) -> Result<Vault<Mock>, AbstractInterfaceError> {
+) -> Result<Vault<MockBech32>, AbstractInterfaceError> {
     // Deploy abstract
     let abstract_ = Abstract::deploy_on(mock.clone(), mock.sender().to_string())?;
     // create first Account
@@ -210,7 +210,7 @@ fn deposit_cw20_asset() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
     let user1 = Addr::unchecked(common::USER1);
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
     let vault = crate::create_vault(mock, RAW_TOKEN, RAW_2_TOKEN, true)?;
     let WynDex {
         raw_token,
@@ -323,7 +323,7 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
 
     // create testing environment
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
 
     // create a vault
     let vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
@@ -460,7 +460,7 @@ fn deposit_with_recipient() -> AResult {
     let user1: Addr = Addr::unchecked(common::USER1);
 
     // create testing environment
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
 
     // create a vault
     let vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
@@ -548,7 +548,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     let user1: Addr = Addr::unchecked(common::USER1);
 
     // create testing environment
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
 
     // create a vault
     let mut vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
@@ -812,7 +812,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
 
     // create testing environment
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
 
     // create a vault
     let mut vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
@@ -925,7 +925,7 @@ fn test_deposit_fees_fee_token_and_withdraw_fees() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
     let commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
     let _wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
 
     // create a vault
     let vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
@@ -1005,7 +1005,7 @@ fn test_deposit_fees_non_fee_token() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
     let commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
     let _wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
 
     // create a vault
     let vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
@@ -1077,7 +1077,7 @@ fn test_zero_performance_fees() -> AResult {
     let owner = Addr::unchecked(common::OWNER);
     let commission_addr = Addr::unchecked(COMMISSION_RECEIVER);
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
 
     // create a vault
     let mut vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
@@ -1139,7 +1139,7 @@ fn test_zero_performance_fees() -> AResult {
 fn test_owned_funds_stay_in_vault() -> AResult {
     // test that the funds in the vault are not used for the autocompounding and fee reward distribution
     let owner = Addr::unchecked(common::OWNER);
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
     let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
     let vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
     let WynDex {
@@ -1230,7 +1230,7 @@ fn test_owned_funds_stay_in_vault() -> AResult {
 fn batch_unbond_pagination() -> anyhow::Result<()> {
     let owner = Addr::unchecked(common::OWNER);
 
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
 
     let mut vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
     let vault_token = vault.vault_token.to_owned();
@@ -1318,7 +1318,7 @@ fn test_lp_deposit() -> AResult {
     let _wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
 
     // create testing environment
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
 
     // create a vault
     let vault = crate::create_vault(mock, EUR, USD, true)?;
@@ -1396,7 +1396,7 @@ fn test_lp_deposit() -> AResult {
     Ok(())
 }
 
-fn paginate_all_claims(vault: &Vault<Mock>) -> Result<Vec<(Addr, Vec<Claim>)>, anyhow::Error> {
+fn paginate_all_claims(vault: &Vault<MockBech32>) -> Result<Vec<(Addr, Vec<Claim>)>, anyhow::Error> {
     let mut all_claims = vec![];
     let mut start_after: Option<Addr> = None;
     loop {
@@ -1410,7 +1410,7 @@ fn paginate_all_claims(vault: &Vault<Mock>) -> Result<Vec<(Addr, Vec<Claim>)>, a
     Ok(all_claims)
 }
 
-fn paginate_all_pending_claims(vault: &Vault<Mock>) -> Result<Vec<(Addr, Uint128)>, anyhow::Error> {
+fn paginate_all_pending_claims(vault: &Vault<MockBech32>) -> Result<Vec<(Addr, Uint128)>, anyhow::Error> {
     let mut pending_claims: Vec<(Addr, Uint128)> = vec![];
     let mut start_after: Option<Addr> = None;
     loop {
@@ -1433,7 +1433,7 @@ fn vault_token_inflation_attack_original() -> AResult {
     let attacker: Addr = Addr::unchecked(ATTACKER);
 
     // create testing environment
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
 
     // create a vault
     let vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
@@ -1557,7 +1557,7 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
         AnsEntryConvertor::new(LpToken::new(WYNDEX, vec![EUR, USD])).asset_entry();
 
     // create testing environment
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&owner);
 
     // create a vault
     let vault = crate::create_vault(mock, EUR, USD, true)?;

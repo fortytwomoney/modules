@@ -26,7 +26,7 @@ pub struct AutocompounderApp;
 impl<Chain: CwEnv> AppDeployer<Chain> for AutocompounderApp<Chain> {}
 
 impl<Chain: CwEnv> Uploadable for AutocompounderApp<Chain> {
-    fn wrapper(&self) -> <Mock as TxHandler>::ContractSource {
+    fn wrapper(&self) -> <MockBech32 as TxHandler>::ContractSource {
         Box::new(
             ContractWrapper::new_with_empty(
                 crate::contract::execute,
