@@ -296,7 +296,7 @@ pub fn swap_rewards(
     let max_spread = config.max_swap_spread;
     let target_assets = config.pool_data.assets;
 
-    let dex = app.dex(deps, dex_name.clone());
+    let dex = app.ans_dex(deps, dex_name.clone());
     let ans_host = app.ans_host(deps)?;
 
     let mut swap_msgs = Vec::new();

@@ -106,7 +106,7 @@ fn setup_vault() -> anyhow::Result<VaultOsmosis> {
                 AssetInfo::native(format!("gamm/pool/{pool_id}")).into(),
             ),
         ])
-        .dex(DEX)
+        .ans_dex(DEX)
         .pools(vec![(
             PoolAddressBase::id(pool_id),
             PoolMetadata::stable(DEX, vec![EUR, USD]),

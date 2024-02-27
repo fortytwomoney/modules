@@ -1,5 +1,4 @@
 use abstract_core::objects::gov_type::GovernanceDetails;
-use cw_orch::deploy::Deploy;
 use std::str::FromStr;
 
 use abstract_core::objects::AssetEntry;
@@ -107,6 +106,7 @@ fn create_fee_collector(
 
     let _account = abstract_.account_factory.create_new_account(
         AccountDetails {
+            account_id: None,
             namespace: Some(TEST_NAMESPACE.to_string()),
             description: None,
             link: None,
@@ -192,7 +192,8 @@ fn create_fee_collector(
 fn test_update_config() -> AResult {
     let owner = Addr::unchecked(OWNER);
     let commission_addr = Addr::unchecked(COMMISSION_ADDR);
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new(&);
+    mock.addr_make();
     let app = create_fee_collector(mock, vec![])?;
 
     let eur_asset = AssetEntry::new(EUR);

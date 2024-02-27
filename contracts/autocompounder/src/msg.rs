@@ -28,8 +28,8 @@
 //! ## Migration
 //! Migrating this contract is done by calling `ExecuteMsg::Upgrade` on [`crate::manager`] with `crate::AUTOCOMPOUNDER` as module.
 
+use abstract_app::objects::AnsAsset;
 use abstract_core::objects::{AnsEntryConvertor, LpToken};
-use abstract_dex_adapter::msg::OfferAsset;
 use abstract_sdk::core::app;
 use abstract_sdk::core::objects::{AssetEntry, DexName, PoolAddress, PoolMetadata};
 use cosmwasm_schema::QueryResponses;
@@ -89,13 +89,13 @@ pub enum AutocompounderExecuteMsg {
     /// Join vault by depositing one or more funds. Requires approval for cw20 tokens
     #[cfg_attr(feature = "interface", payable)]
     Deposit {
-        funds: Vec<OfferAsset>,
+        funds: Vec<AnsAsset>,
         recipient: Option<Addr>,
         max_spread: Option<Decimal>,
     },
     /// Deposit LP tokens. Requires approval for cw20 tokens
     DepositLp {
-        lp_token: OfferAsset,
+        lp_token: AnsAsset,
         recipient: Option<Addr>,
     },
     Redeem {

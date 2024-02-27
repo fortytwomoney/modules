@@ -179,7 +179,7 @@ pub fn deposit(
     let fee_config = FEE_CONFIG.load(deps.storage)?;
 
     let ans_host = app.ans_host(deps.as_ref())?;
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
+    let dex = app.ans_dex(deps.as_ref(), config.pool_data.dex.clone());
 
     let mut messages = vec![];
     let mut submessages = vec![];
@@ -789,9 +789,9 @@ fn redeem_without_bonding_period(
     )?;
 
     // 3) withdraw lp tokens
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
+    let dex = app.ans_dex(deps.as_ref(), config.pool_data.dex);
     let withdraw_msg: CosmosMsg =
-        dex.withdraw_liquidity(lp_asset_entry, lp_tokens_withdraw_amount)?;
+        dex.withdraw_liquidity(AnsAsset::new(lp_asset_entry, lp_tokens_withdraw_amount))?;
     let sub_msg = SubMsg::reply_on_success(withdraw_msg, LP_WITHDRAWAL_REPLY_ID);
 
     // TODO: Check all the lp_token() calls and make sure they are everywhere.
@@ -902,9 +902,11 @@ pub fn withdraw_claims(
     );
 
     // 3) withdraw lp tokens
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
-    let withdraw_msg: CosmosMsg =
-        dex.withdraw_liquidity(config.lp_asset_entry(), lp_tokens_to_withdraw)?;
+    let dex = app.ans_dex(deps.as_ref(), config.pool_data.dex.clone());
+    let withdraw_msg: CosmosMsg = dex.withdraw_liquidity(AnsAsset::new(
+        config.lp_asset_entry(),
+        lp_tokens_to_withdraw,
+    ))?;
     let sub_msg = SubMsg::reply_on_success(withdraw_msg, LP_WITHDRAWAL_REPLY_ID);
 
     Ok(app

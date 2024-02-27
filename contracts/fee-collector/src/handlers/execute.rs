@@ -101,7 +101,7 @@ fn add_allowed_assets(
     let config = CONFIG.load(deps.storage)?;
 
     let ans = app.ans_host(deps.as_ref())?;
-    let dex = app.dex(deps.as_ref(), config.dex.clone());
+    let dex = app.ans_dex(deps.as_ref(), config.dex.clone());
     for asset in assets {
         if asset == config.fee_asset {
             return Err(crate::error::FeeCollectorError::FeeAssetNotAllowed {});
@@ -160,7 +160,7 @@ fn collect(deps: DepsMut, msg_info: MessageInfo, app: FeeCollectorApp) -> FeeCol
         .collect::<Vec<AnsAsset>>();
 
     // swap all non-lp balances to fee asset
-    let dex = app.dex(deps.as_ref(), config.dex);
+    let dex = app.ans_dex(deps.as_ref(), config.dex);
     let mut swap_msgs = vec![];
     swap_assets
         .into_iter()
