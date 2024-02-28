@@ -870,9 +870,9 @@ dependencies = [
 
 [[package]]
 name = "anstream"
-version = "0.6.12"
+version = "0.6.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96b09b5178381e0874812a9b157f7fe84982617e48f71f4e3235482775e5b540"
+checksum = "d96bd03f33fe50a863e394ee9718a706f988b9079b20c3784fb726e7678b62fb"
 dependencies = [
  "anstyle",
  "anstyle-parse",
@@ -1774,9 +1774,9 @@ dependencies = [
 
 [[package]]
 name = "cw-orch-core"
-version = "0.20.2"
+version = "0.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7db6d7ea10f1222707a492a8e60f91cbab5eb92c6c99238fafdb4fe724d3cc6"
+checksum = "734eb7991db40a46c476b1dd18e6066166ef7663bbb95a0c57c53f964d8eb95e"
 dependencies = [
  "abstract-cw-multi-test",
  "anyhow",
@@ -1793,9 +1793,9 @@ dependencies = [
 
 [[package]]
 name = "cw-orch-daemon"
-version = "0.20.1"
+version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "130036df966b4008c7d570c32621ad5e730c8698ad9ab05fbf2c7f3777aeab26"
+checksum = "97b6e11712817671d544b1a9beb8b5a7afe238a8d18b848030163cb04dd20020"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -1857,9 +1857,9 @@ dependencies = [
 
 [[package]]
 name = "cw-orch-mock"
-version = "0.20.3"
+version = "0.20.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07145c25ad08ff51b5121498ef450ea51c4b511ee7d627ead8cc331f10fa6fbe"
+checksum = "ef09232b5d4275e99a473c2a39fe933253aaea3a5259a5c2f775480c30b01081"
 dependencies = [
  "abstract-cw-multi-test",
  "cosmwasm-std",
@@ -1872,9 +1872,9 @@ dependencies = [
 
 [[package]]
 name = "cw-orch-networks"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa4942c997b5a2295f70da6ef295c7bf872e079f5dc7e1f895fff5985e29e969"
+checksum = "bfaaf512529d10779afd924f09672d56e36f8a6c56724d70551b9787aaffdd6a"
 dependencies = [
  "cw-orch-core",
  "ibc-chain-registry",
