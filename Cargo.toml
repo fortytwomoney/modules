@@ -103,7 +103,3 @@ incremental = false
 # abstract-dex-standard = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
 # abstract-adapter = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
 # abstract-adapter-utils = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
-
-# Nicoco Local
-[patch.crates-io]
-osmosis-test-tube = { path = "../../test-tube/packages/osmosis-test-tube" }
