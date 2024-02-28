@@ -531,7 +531,10 @@ mod test {
             assert_that!(res).is_err();
             assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(
                 StdError::NotFound {
-                    kind: "cosmwasm_std::addresses::Addr".to_string(),
+                    kind: format!(
+                        "type: cosmwasm_std::addresses::Addr; key: {:02X?}",
+                        CACHED_USER_ADDR.as_slice()
+                    ),
                 },
             ));
 
@@ -541,7 +544,10 @@ mod test {
             assert_that!(res).is_err();
             assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(
                 StdError::NotFound {
-                    kind: "cosmwasm_std::math::uint128::Uint128".to_string(),
+                    kind: format!(
+                        "type: cosmwasm_std::math::uint128::Uint128; key: {:02X?}",
+                        CACHED_ASSETS.key("native:eur".to_string()).to_vec()
+                    ),
                 },
             ));
             Ok(())

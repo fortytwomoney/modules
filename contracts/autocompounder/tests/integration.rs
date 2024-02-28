@@ -148,7 +148,7 @@ pub fn create_vault(
             } else {
                 None
             },
-            commission_addr: COMMISSION_RECEIVER.to_string(),
+            commission_addr: mock.addr_make(COMMISSION_RECEIVER).to_string(),
             deposit_fees: Decimal::percent(0),
             dex: WYNDEX.to_string(),
             performance_fees: Decimal::percent(3),
@@ -210,7 +210,7 @@ fn deposit_cw20_asset() -> AResult {
     let mock = MockBech32::new("mock");
 
     let wyndex_owner = mock.addr_make(WYNDEX_OWNER);
-    let owner = mock.addr_make(common::OWNER);
+    let owner = mock.sender();
     let user1 = mock.addr_make(common::USER1);
     let vault = crate::create_vault(mock, RAW_TOKEN, RAW_2_TOKEN, true)?;
     let WynDex {
@@ -323,7 +323,7 @@ fn deposit_cw20_asset() -> AResult {
 fn generator_without_reward_proxies_balanced_assets() -> AResult {
     // create testing environment
     let mock = MockBech32::new("mock");
-    let owner = mock.addr_make(common::OWNER);
+    let owner = mock.sender();
 
     // create a vault
     let vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
@@ -456,10 +456,9 @@ fn generator_without_reward_proxies_balanced_assets() -> AResult {
 
 #[test]
 fn deposit_with_recipient() -> AResult {
-    
     // create testing environment
     let mock = MockBech32::new("mock");
-    let owner = mock.addr_make(common::OWNER);
+    let owner = mock.sender();
     let user1 = mock.addr_make(common::USER1);
 
     // create a vault
@@ -546,9 +545,8 @@ fn deposit_with_recipient() -> AResult {
 fn generator_without_reward_proxies_single_sided() -> AResult {
     // create testing environment
     let mock = MockBech32::new("mock");
-    let owner = mock.addr_make(common::OWNER);
+    let owner = mock.sender();
     let user1: Addr = mock.addr_make(common::USER1);
-
 
     // create a vault
     let mut vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
@@ -809,10 +807,9 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
 fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
     // create testing environment
     let mock = MockBech32::new("mock");
-    let owner = mock.addr_make(common::OWNER);
+    let owner = mock.sender();
     let commission_addr = mock.addr_make(COMMISSION_RECEIVER);
     let wyndex_owner = mock.addr_make(WYNDEX_OWNER);
-
 
     // create a vault
     let mut vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
@@ -923,7 +920,7 @@ fn generator_with_rewards_test_fee_and_reward_distribution() -> AResult {
 #[test]
 fn test_deposit_fees_fee_token_and_withdraw_fees() -> AResult {
     let mock = MockBech32::new("mock");
-    let owner = mock.addr_make(common::OWNER);
+    let owner = mock.sender();
     let commission_addr = mock.addr_make(COMMISSION_RECEIVER);
     let _wyndex_owner = mock.addr_make(WYNDEX_OWNER);
 
@@ -1003,7 +1000,7 @@ fn test_deposit_fees_fee_token_and_withdraw_fees() -> AResult {
 #[test]
 fn test_deposit_fees_non_fee_token() -> AResult {
     let mock = MockBech32::new("mock");
-    let owner = mock.addr_make(common::OWNER);
+    let owner = mock.sender();
     let commission_addr = mock.addr_make(COMMISSION_RECEIVER);
     let _wyndex_owner = mock.addr_make(WYNDEX_OWNER);
 
@@ -1075,7 +1072,7 @@ fn test_deposit_fees_non_fee_token() -> AResult {
 #[test]
 fn test_zero_performance_fees() -> AResult {
     let mock = MockBech32::new("mock");
-    let owner = mock.addr_make(common::OWNER);
+    let owner = mock.sender();
     let commission_addr = mock.addr_make(COMMISSION_RECEIVER);
     let wyndex_owner = mock.addr_make(WYNDEX_OWNER);
 
@@ -1139,7 +1136,7 @@ fn test_zero_performance_fees() -> AResult {
 fn test_owned_funds_stay_in_vault() -> AResult {
     // test that the funds in the vault are not used for the autocompounding and fee reward distribution
     let mock = MockBech32::new("mock");
-    let owner = mock.addr_make(common::OWNER);
+    let owner = mock.sender();
     let wyndex_owner = mock.addr_make(WYNDEX_OWNER);
     let vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
     let WynDex {
@@ -1229,8 +1226,7 @@ fn test_owned_funds_stay_in_vault() -> AResult {
 #[test]
 fn batch_unbond_pagination() -> anyhow::Result<()> {
     let mock = MockBech32::new("mock");
-    let owner = mock.addr_make(common::OWNER);
-
+    let owner = mock.sender();
 
     let mut vault = crate::create_vault(mock.clone(), EUR, USD, true)?;
     let vault_token = vault.vault_token.to_owned();
@@ -1313,7 +1309,7 @@ fn batch_unbond_pagination() -> anyhow::Result<()> {
 #[test]
 fn test_lp_deposit() -> AResult {
     let mock = MockBech32::new("mock");
-    let owner = mock.addr_make(common::OWNER);
+    let owner = mock.sender();
     let _user1: Addr = mock.addr_make(common::USER1);
     let _commission_addr = mock.addr_make(COMMISSION_RECEIVER);
     let _wyndex_owner = mock.addr_make(WYNDEX_OWNER);
@@ -1433,7 +1429,6 @@ fn paginate_all_pending_claims(
 #[test]
 fn vault_token_inflation_attack_original() -> AResult {
     let mock = MockBech32::new("mock");
-    let owner = mock.addr_make(common::OWNER);
     let user1: Addr = mock.addr_make(common::USER1);
     let attacker: Addr = mock.addr_make(ATTACKER);
 
@@ -1553,13 +1548,11 @@ fn vault_token_inflation_attack_original() -> AResult {
 fn vault_token_inflation_attack_full_dilute() -> AResult {
     // create testing environment
     let mock = MockBech32::new("mock");
-    let owner = mock.addr_make(common::OWNER);
     let user1: Addr = mock.addr_make(common::USER1);
     let attacker: Addr = mock.addr_make(ATTACKER);
 
     let eur_usd_lp_asset_entry =
         AnsEntryConvertor::new(LpToken::new(WYNDEX, vec![EUR, USD])).asset_entry();
-
 
     // create a vault
     let vault = crate::create_vault(mock, EUR, USD, true)?;

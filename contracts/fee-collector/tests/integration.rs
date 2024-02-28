@@ -3,9 +3,9 @@ use std::str::FromStr;
 
 use abstract_core::objects::AssetEntry;
 
+use abstract_dex_adapter::contract::CONTRACT_VERSION as DEX_ADAPTER_VERSION;
 use abstract_dex_adapter::msg::DexInstantiateMsg;
 use abstract_dex_adapter::{interface::DexAdapter, DEX_ADAPTER_ID};
-use abstract_dex_adapter::contract::CONTRACT_VERSION as DEX_ADAPTER_VERSION;
 
 use abstract_interface::{
     Abstract, AbstractAccount, AbstractInterfaceError, AccountDetails, ManagerQueryFns,
@@ -25,7 +25,6 @@ use speculoos::{assert_that, prelude::ContainingIntoIterAssertions, vec::VecAsse
 use wyndex_bundle::{WynDex, WYNDEX, WYND_TOKEN};
 
 const COMMISSION_ADDR: &str = "commission_addr";
-const OWNER: &str = "owner";
 const TEST_NAMESPACE: &str = "4t2";
 pub type AResult = anyhow::Result<()>;
 
@@ -145,7 +144,7 @@ fn create_fee_collector(
     account.manager.install_module(
         FEE_COLLECTOR,
         Some(&fee_collector::msg::FeeCollectorInstantiateMsg {
-            commission_addr: COMMISSION_ADDR.to_string(),
+            commission_addr: mock.addr_make(COMMISSION_ADDR).to_string(),
             max_swap_spread: Decimal::percent(25),
             fee_asset: EUR.to_string(),
             dex: WYNDEX.to_string(),
@@ -192,8 +191,7 @@ fn create_fee_collector(
 fn test_update_config() -> AResult {
     let mock = MockBech32::new("mock");
     let commission_addr = mock.addr_make(COMMISSION_ADDR);
-    let owner = mock.addr_make(OWNER);
-    let app = create_fee_collector(mock, vec![])?;
+    let app = create_fee_collector(mock.clone(), vec![])?;
 
     let eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);
@@ -204,7 +202,7 @@ fn test_update_config() -> AResult {
     app.fee_collector
         .call_as(&app.account.manager.address()?)
         .update_config(
-            Some(COMMISSION_ADDR.to_string()),
+            Some(mock.addr_make(COMMISSION_ADDR).to_string()),
             Some(WYNDEX.to_string()),
             Some(USD.to_string()),
             Some(Decimal::from_str("0.2")?),
@@ -257,7 +255,6 @@ fn test_update_config() -> AResult {
 #[test]
 fn test_collect_fees() -> AResult {
     let mock = MockBech32::new("mock");
-    let owner = mock.addr_make(OWNER);
     let non_admin = mock.addr_make("non-admin");
     let commission_addr = mock.addr_make(COMMISSION_ADDR);
 
@@ -276,11 +273,7 @@ fn test_collect_fees() -> AResult {
     )?;
 
     // not admin
-    let _err = app
-        .fee_collector
-        .call_as(&non_admin)
-        .collect()
-        .unwrap_err();
+    let _err = app.fee_collector.call_as(&non_admin).collect().unwrap_err();
 
     // call as admin
     // will swap 1K USD to EUR, 1K WYND to EUR. Both pools have 10K/10K ratio, so 10K swap leads to a spread 0f 129 which is 0.90%
@@ -305,7 +298,6 @@ fn test_collect_fees() -> AResult {
 #[ignore = "Multipool hops need a router contract... Not supported yet"]
 fn test_add_allowed_assets() -> AResult {
     let mock = MockBech32::new("mock");
-    let owner = mock.addr_make(OWNER);
 
     let eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);

@@ -3792,8 +3792,6 @@ dependencies = [
 [[package]]
 name = "osmosis-test-tube"
 version = "21.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3a528c942d25d3159634f77953ca0e16c5a450fc44578ad922320128e4025fd"
 dependencies = [
  "base64 0.21.7",
  "bindgen",
@@ -5274,8 +5272,6 @@ dependencies = [
 [[package]]
 name = "test-tube"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c17f30e7fea966bde5f9933a4cb2db79dd272115ea19d1656da2aac7ce0700fa"
 dependencies = [
  "base64 0.21.7",
  "cosmrs",
