@@ -65,7 +65,6 @@ fn main() -> anyhow::Result<()> {
 
     let args = Arguments::parse();
 
-    let network: ChainInfo;
     pub const OSMOSIS_1: ChainInfo = ChainInfo {
         kind: ChainKind::Mainnet,
         chain_id: "osmosis-1",
@@ -77,10 +76,10 @@ fn main() -> anyhow::Result<()> {
         fcd_url: None,
     };
 
-    if &args.network_id == "osmosis-1" {
-        network = OSMOSIS_1;
+    let network = if &args.network_id == "osmosis-1" {
+        OSMOSIS_1
     } else {
-        network = parse_network(&args.network_id).unwrap();
-    }
+        parse_network(&args.network_id).unwrap()
+    };
     deploy_autocompounder(network, args.code_id)
 }

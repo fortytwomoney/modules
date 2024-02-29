@@ -53,11 +53,11 @@ pub(crate) fn init_staking<Chain: CwEnv>(
 
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
-pub(crate) fn init_auto_compounder<Chain: CwEnv>(
-    chain: Chain,
-    deployment: &Abstract<Chain>,
+pub(crate) fn init_auto_compounder(
+    chain: MockBech32,
+    deployment: &Abstract<MockBech32>,
     _version: Option<String>,
-) -> Result<autocompounder::interface::AutocompounderApp<Chain>, AbstractInterfaceError> {
+) -> Result<autocompounder::interface::AutocompounderApp<MockBech32>, AbstractInterfaceError> {
     let auto_compounder = AutocompounderApp::new(AUTOCOMPOUNDER_ID, chain);
 
     // upload and register autocompounder

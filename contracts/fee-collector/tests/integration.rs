@@ -1,11 +1,12 @@
 use abstract_core::objects::gov_type::GovernanceDetails;
-use cw_orch::deploy::Deploy;
 use std::str::FromStr;
 
 use abstract_core::objects::AssetEntry;
 
+use abstract_dex_adapter::contract::CONTRACT_VERSION as DEX_ADAPTER_VERSION;
 use abstract_dex_adapter::msg::DexInstantiateMsg;
 use abstract_dex_adapter::{interface::DexAdapter, DEX_ADAPTER_ID};
+
 use abstract_interface::{
     Abstract, AbstractAccount, AbstractInterfaceError, AccountDetails, ManagerQueryFns,
 };
@@ -24,7 +25,6 @@ use speculoos::{assert_that, prelude::ContainingIntoIterAssertions, vec::VecAsse
 use wyndex_bundle::{WynDex, WYNDEX, WYND_TOKEN};
 
 const COMMISSION_ADDR: &str = "commission_addr";
-const OWNER: &str = "owner";
 const TEST_NAMESPACE: &str = "4t2";
 pub type AResult = anyhow::Result<()>;
 
@@ -37,15 +37,13 @@ pub struct App<Chain: CwEnv> {
     pub abstract_core: Abstract<Chain>,
 }
 
-const DEX_ADAPTER_VERSION: &str = "0.20.0";
-
 /// Instantiates the dex api and registers it with the version control
 #[allow(dead_code)]
 pub(crate) fn init_exchange(
-    chain: Mock,
-    deployment: &Abstract<Mock>,
+    chain: MockBech32,
+    deployment: &Abstract<MockBech32>,
     version: Option<String>,
-) -> Result<DexAdapter<Mock>, AbstractInterfaceError> {
+) -> Result<DexAdapter<MockBech32>, AbstractInterfaceError> {
     let exchange = DexAdapter::new(DEX_ADAPTER_ID, chain);
 
     exchange.upload()?;
@@ -73,10 +71,10 @@ pub(crate) fn init_exchange(
 }
 
 fn init_fee_collector(
-    chain: Mock,
-    deployment: &Abstract<Mock>,
+    chain: MockBech32,
+    deployment: &Abstract<MockBech32>,
     _version: Option<String>,
-) -> Result<FeeCollectorInterface<Mock>, AbstractInterfaceError> {
+) -> Result<FeeCollectorInterface<MockBech32>, AbstractInterfaceError> {
     let fee_collector = FeeCollectorInterface::new(FEE_COLLECTOR, chain);
 
     fee_collector.upload()?;
@@ -92,9 +90,9 @@ fn init_fee_collector(
 }
 
 fn create_fee_collector(
-    mock: Mock,
+    mock: MockBech32,
     allowed_assets: Vec<AssetEntry>,
-) -> Result<App<Mock>, AbstractInterfaceError> {
+) -> Result<App<MockBech32>, AbstractInterfaceError> {
     // Deploy abstract
     let abstract_ = Abstract::deploy_on(mock.clone(), mock.sender.to_string())?;
 
@@ -107,6 +105,7 @@ fn create_fee_collector(
 
     let _account = abstract_.account_factory.create_new_account(
         AccountDetails {
+            account_id: None,
             namespace: Some(TEST_NAMESPACE.to_string()),
             description: None,
             link: None,
@@ -145,7 +144,7 @@ fn create_fee_collector(
     account.manager.install_module(
         FEE_COLLECTOR,
         Some(&fee_collector::msg::FeeCollectorInstantiateMsg {
-            commission_addr: COMMISSION_ADDR.to_string(),
+            commission_addr: mock.addr_make(COMMISSION_ADDR).to_string(),
             max_swap_spread: Decimal::percent(25),
             fee_asset: EUR.to_string(),
             dex: WYNDEX.to_string(),
@@ -161,7 +160,7 @@ fn create_fee_collector(
         .1
         .clone();
     // set the address on the contract
-    fee_collector.set_address(&Addr::unchecked(fee_collector_addr.clone()));
+    fee_collector.set_address(&fee_collector_addr);
 
     // give the autocompounder permissions to call on the dex and cw-staking contracts
     account.manager.update_adapter_authorized_addresses(
@@ -190,10 +189,9 @@ fn create_fee_collector(
 
 #[test]
 fn test_update_config() -> AResult {
-    let owner = Addr::unchecked(OWNER);
-    let commission_addr = Addr::unchecked(COMMISSION_ADDR);
-    let mock = Mock::new(&owner);
-    let app = create_fee_collector(mock, vec![])?;
+    let mock = MockBech32::new("mock");
+    let commission_addr = mock.addr_make(COMMISSION_ADDR);
+    let app = create_fee_collector(mock.clone(), vec![])?;
 
     let eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);
@@ -204,7 +202,7 @@ fn test_update_config() -> AResult {
     app.fee_collector
         .call_as(&app.account.manager.address()?)
         .update_config(
-            Some(COMMISSION_ADDR.to_string()),
+            Some(mock.addr_make(COMMISSION_ADDR).to_string()),
             Some(WYNDEX.to_string()),
             Some(USD.to_string()),
             Some(Decimal::from_str("0.2")?),
@@ -256,8 +254,9 @@ fn test_update_config() -> AResult {
 
 #[test]
 fn test_collect_fees() -> AResult {
-    let owner = Addr::unchecked(OWNER);
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new("mock");
+    let non_admin = mock.addr_make("non-admin");
+    let commission_addr = mock.addr_make(COMMISSION_ADDR);
 
     let _eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);
@@ -274,11 +273,7 @@ fn test_collect_fees() -> AResult {
     )?;
 
     // not admin
-    let _err = app
-        .fee_collector
-        .call_as(&Addr::unchecked("non-admin"))
-        .collect()
-        .unwrap_err();
+    let _err = app.fee_collector.call_as(&non_admin).collect().unwrap_err();
 
     // call as admin
     // will swap 1K USD to EUR, 1K WYND to EUR. Both pools have 10K/10K ratio, so 10K swap leads to a spread 0f 129 which is 0.90%
@@ -291,7 +286,7 @@ fn test_collect_fees() -> AResult {
 
     // swap of wynd->eur and usd->eur of 1K each lead to 2 * 909 = 1818 eur. This + the 1K eur that was already in the account
     let expected_usd_balance = coin(2818u128, EUR);
-    let commission_balances = mock.query_all_balances(&Addr::unchecked(COMMISSION_ADDR))?;
+    let commission_balances = mock.query_all_balances(&commission_addr)?;
     let usd_balance = commission_balances.first().unwrap();
     assert_that!(commission_balances).has_length(1);
     assert_that!(usd_balance).is_equal_to(&expected_usd_balance);
@@ -302,8 +297,7 @@ fn test_collect_fees() -> AResult {
 #[test]
 #[ignore = "Multipool hops need a router contract... Not supported yet"]
 fn test_add_allowed_assets() -> AResult {
-    let owner = Addr::unchecked(OWNER);
-    let mock = Mock::new(&owner);
+    let mock = MockBech32::new("mock");
 
     let eur_asset = AssetEntry::new(EUR);
     let usd_asset = AssetEntry::new(USD);

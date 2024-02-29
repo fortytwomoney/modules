@@ -7,8 +7,7 @@ pub mod integration;
 
 pub type AResult = anyhow::Result<()>;
 
-pub(crate) const OWNER: &str = "owner";
 pub(crate) const USER1: &str = "user1";
 pub(crate) const TEST_NAMESPACE: &str = "4t2";
 pub(crate) const VAULT_TOKEN: &str = "vault_token";
-pub(crate) const COMMISSION_RECEIVER: &str = "commission_account";
+pub(crate) const COMMISSION_RECEIVER: &str = "commission_receiver";

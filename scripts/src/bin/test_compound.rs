@@ -10,8 +10,7 @@ use clap::Parser;
 use cosmwasm_std::coins;
 use cw_orch::daemon::networks::parse_network;
 use cw_orch::daemon::DaemonBuilder;
-
-use cw_orch::prelude::TxHandler;
+use cw_orch::prelude::*;
 use log::info;
 
 use speculoos::prelude::*;

@@ -51,7 +51,6 @@ serde = { workspace = true }
 abstract-core = { workspace = true }
 abstract-app = { workspace = true }
 abstract-sdk = { workspace = true }
-# TODO: once stable, this should be updated to the stable release
 cw-orch = { workspace = true, optional = true }
 
 abstract-interface = { workspace = true, optional = true }

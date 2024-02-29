@@ -8,11 +8,14 @@ use cosmrs::{
     tendermint::block::Height,
     Any,
 };
+use cw_orch::prelude::BankQuerier;
+use cw_orch::prelude::NodeQuerier;
+use cw_orch::prelude::QueryHandler;
 use cw_orch::{
     daemon::{DaemonError, TxBuilder, Wallet},
     prelude::{
         networks::parse_network,
-        queriers::{Bank, DaemonQuerier, Node},
+        queriers::{Bank, Node},
         Daemon, TxHandler,
     },
 };
@@ -24,6 +27,7 @@ const LOCAL_MNEMONIC: &str = "notice oak worry limit wrap speak medal online pre
 
 #[test_case("harpoon-4", "kujira"; "testing for kujira testnet")]
 #[test_case("osmo-test-5", "osmosis"; "testing for osmosis testnet")]
+#[serial_test::serial]
 pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
     // There are two types of daemon, sync and async. Sync daemons can be used is generic code. Async daemons can be used
     // in async code (e.g. tokio), which enables multi-threaded and non-blocking code.
@@ -44,18 +48,11 @@ pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
         .unwrap();
 
     // We can now use the daemon to interact with the chain. For example, we can query the total supply of a token.
-    // let denom = "ukuji";
-    // let chain = "kujira".to_string();
-
     println!("{:?}", daemon.sender());
 
-    let bank_querier = Bank::new(daemon.channel());
-    let supply = rt
-        .block_on(bank_querier.supply_of(denom))
-        .map_err(|e| {
-            eprintln!("Error: {:?}", e);
-        })
-        .unwrap();
+    let bank_querier = Bank::new(&daemon);
+    let supply = bank_querier.supply_of(denom).unwrap();
+
     println!("Daemon Bank supply: {:?}", supply);
 
     let data = encode_query_supply_of(denom);
@@ -88,7 +85,7 @@ pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
 
     // remove the denom from the supply_of_coin string
     let supply_of_coin = supply_of_coin.replace(denom, "");
-    assert_that!(supply_of_coin).is_equal_to(supply.amount);
+    assert_that!(supply_of_coin).is_equal_to(supply.amount.to_string());
 
     // query token factory params
     let response =
@@ -143,11 +140,11 @@ fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
         };
         let any_mint_msg = Any {
             type_url: msg_mint_type_url(chain_name),
-            value: encode_msg_mint(sender_str, &factory_denom, 1_000_000u128.into(), sender_str),
+            value: encode_msg_mint(sender_str, factory_denom, 1_000_000u128.into(), sender_str),
         };
         let any_burn_msg = Any {
             type_url: msg_burn_type_url(chain_name),
-            value: encode_msg_burn(sender_str, &factory_denom, 1_000_000u128.into()),
+            value: encode_msg_burn(sender_str, factory_denom, 1_000_000u128.into()),
         };
 
         vec![create_denom_msg, any_mint_msg, any_burn_msg]
@@ -173,7 +170,7 @@ fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
     let mut truncated_subdenom = LONG_TEST_DENOM.to_string().clone();
     truncated_subdenom.truncate(max_subdenom_length_for_chain(chain_name));
     let factory_denom =
-        format_tokenfactory_denom(daemon.sender().as_str(), &truncated_subdenom.as_str());
+        format_tokenfactory_denom(daemon.sender().as_str(), truncated_subdenom.as_str());
 
     let short_denom_test_msgs = create_mint_burn_msgs(
         daemon.sender().as_str(),
@@ -182,11 +179,7 @@ fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
         &factory_denom,
     );
 
-    let tx_response = rt.block_on(simulate_any_msg(
-        &wallet,
-        short_denom_test_msgs,
-        timeout_height,
-    ));
+    let tx_response = simulate_any_msg(&wallet, &daemon, short_denom_test_msgs, timeout_height);
 
     let response = assert_that!(tx_response).is_ok().subject;
     dbg!(format!(
@@ -197,16 +190,15 @@ fn tokefactory_create_mint_burn(chain_id: &str, chain_name: &str) {
     ));
 }
 
-async fn simulate_any_msg(
+fn simulate_any_msg(
     wallet: &Wallet,
+    daemon: &Daemon,
     any_msgs: Vec<Any>,
     timeout_height: Height,
 ) -> Result<u64, DaemonError> {
     let tx_body = cosmrs::tx::Body::new(any_msgs, "The answer is 42", timeout_height);
     let mut tx_builder = TxBuilder::new(tx_body);
 
-    let raw_tx = tx_builder.build(wallet).await.unwrap();
-    Node::new(wallet.channel())
-        .simulate_tx(raw_tx.to_bytes()?)
-        .await
+    let raw_tx = daemon.rt_handle.block_on(tx_builder.build(wallet)).unwrap();
+    Node::new(daemon).simulate_tx(raw_tx.to_bytes()?)
 }

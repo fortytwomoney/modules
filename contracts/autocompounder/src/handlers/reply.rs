@@ -15,7 +15,6 @@ use abstract_cw_staking::{
     CW_STAKING_ADAPTER_ID,
 };
 use abstract_dex_adapter::api::DexInterface;
-use abstract_dex_adapter::msg::OfferAsset;
 use abstract_sdk::Execution;
 use abstract_sdk::{
     core::objects::AnsAsset,
@@ -183,7 +182,7 @@ pub fn lp_compound_reply(
     let mut messages = vec![];
     let mut submessages = vec![];
     // claim rewards (this happened in the execution before this reply)
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
+    let dex = app.ans_dex(deps.as_ref(), config.pool_data.dex.clone());
 
     // query the rewards and filters out zero rewards
     let mut rewards = get_staking_rewards(deps.as_ref(), &app, &config)?;
@@ -209,9 +208,9 @@ pub fn lp_compound_reply(
                     .find(|reward| reward.name == *pool_asset)
                     .map(|reward| reward.amount)
                     .unwrap_or(Uint128::zero());
-                OfferAsset::new(pool_asset.clone(), amount)
+                AnsAsset::new(pool_asset.clone(), amount)
             })
-            .collect::<Vec<OfferAsset>>();
+            .collect::<Vec<AnsAsset>>();
 
         // provide liquidity
         let lp_msg: CosmosMsg = dex.provide_liquidity(assets, Some(Decimal::percent(50)))?;
@@ -289,7 +288,7 @@ pub fn swapped_reply(
 ) -> AutocompounderResult {
     let ans_host = app.ans_host(deps.as_ref())?;
     let config = CONFIG.load(deps.storage)?;
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
+    let dex = app.ans_dex(deps.as_ref(), config.pool_data.dex);
 
     // query balance of pool tokens
     let rewards = config
@@ -532,7 +531,10 @@ mod test {
             assert_that!(res).is_err();
             assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(
                 StdError::NotFound {
-                    kind: "cosmwasm_std::addresses::Addr".to_string(),
+                    kind: format!(
+                        "type: cosmwasm_std::addresses::Addr; key: {:02X?}",
+                        CACHED_USER_ADDR.as_slice()
+                    ),
                 },
             ));
 
@@ -542,7 +544,10 @@ mod test {
             assert_that!(res).is_err();
             assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(
                 StdError::NotFound {
-                    kind: "cosmwasm_std::math::uint128::Uint128".to_string(),
+                    kind: format!(
+                        "type: cosmwasm_std::math::uint128::Uint128; key: {:02X?}",
+                        CACHED_ASSETS.key("native:eur".to_string()).to_vec()
+                    ),
                 },
             ));
             Ok(())

@@ -1,6 +1,6 @@
 use abstract_core::{ans_host::QueryMsgFns, objects::AccountId};
 use cw_orch::daemon::DaemonBuilder;
-use cw_orch::deploy::Deploy;
+use cw_orch::prelude::Deploy;
 use std::env;
 use std::sync::Arc;
 
