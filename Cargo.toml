@@ -37,12 +37,9 @@ abstract-client = { version = "0.21.0" }
 ## Abstract API
 abstract-dex-adapter = { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.21.0", default-features = false }
 abstract-cw-staking = { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.21.0", default-features = false }
-# abstract-dex-adapter = { git = "https://github.com/AbstractSDK/abstract.git", default-features = false }
-# abstract-cw-staking = { git = "https://github.com/AbstractSDK/abstract.git", default-features = false }
 
 # Dev Abstract dependencies
 wyndex-bundle = { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.21.0" }
-# wyndex-bundle = { git = "https://github.com/AbstractSDK/abstract.git" }
 
 autocompounder = { path = "contracts/autocompounder" }
 fee-collector = { path = "contracts/fee-collector" }
@@ -88,18 +85,3 @@ debug-assertions = false
 panic = "abort"
 codegen-units = 1
 incremental = false
-
-# Testing out fixes
-# TODO: bump abstract itself
-# [patch.crates-io]
-# ## Abstract dependencies
-# abstract-sdk = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
-# abstract-app = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
-# abstract-core = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
-# abstract-interface = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
-# abstract-testing = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
-# abstract-client = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
-# abstract-staking-standard = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
-# abstract-dex-standard = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
-# abstract-adapter = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
-# abstract-adapter-utils = { git = "https://github.com/AbstractSDK/abstract.git", branch = "main" }
