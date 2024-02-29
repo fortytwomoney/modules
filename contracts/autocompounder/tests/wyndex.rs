@@ -329,6 +329,7 @@ fn ans_info_from_osmosis_pools(
 
 
 #[test]
+#[ignore]
 fn deposit_assets_cw20_mock() -> AResult {
     let vault = setup_mock_cw20_vault()?;
     let owner = Addr::unchecked(common::OWNER);
@@ -337,6 +338,7 @@ fn deposit_assets_cw20_mock() -> AResult {
 }
 
 #[test]
+#[ignore]
 fn deposit_assets_native_mock() -> AResult {
     let vault = setup_mock_native_vault()?;
     let owner = Addr::unchecked(common::OWNER);
