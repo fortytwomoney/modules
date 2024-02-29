@@ -16,7 +16,7 @@ use cw_asset::{AssetInfo, AssetInfoBase};
 
 use cw_orch::contract::interface_traits::CallAs;
 use cw_orch::contract::interface_traits::ContractInstance;
-use cw_orch::environment::{CwEnv, MutCwEnv, TxHandler};
+use cw_orch::environment::{BankQuerier, CwEnv, MutCwEnv, TxHandler};
 use cw_orch::osmosis_test_tube::osmosis_test_tube::SigningAccount;
 
 use cw_plus_interface::cw20_base::Cw20Base;
@@ -111,6 +111,7 @@ impl<T: CwEnv, Dex: DexInit> GenericVault<T, Dex> {
             // @Buckram123 HELP: how do i Properly handle the balance().unwrap()
             AssetInfoBase::Native(denom) => Ok(self
                 .chain
+                .bank_querier()
                 .balance(account.into(), Some(denom))
                 .unwrap()
                 .first()
@@ -135,6 +136,7 @@ impl<T: CwEnv, Dex: DexInit> GenericVault<T, Dex> {
             }
             AssetInfoBase::Native(denom) => Ok(self
                 .chain
+                .bank_querier()
                 .balance(account, Some(denom))
                 .unwrap()
                 .first()

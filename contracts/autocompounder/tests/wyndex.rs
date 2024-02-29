@@ -20,7 +20,7 @@ use autocompounder::state::Config;
 use cw_orch::prelude::*;
 
 use autocompounder::msg::BondingData;
-use autocompounder::msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns};
+use autocompounder::msg::AutocompounderQueryMsgFns;
 
 use common::dexes::WyndDex as SetupWyndDex;
 
@@ -31,7 +31,6 @@ use cosmwasm_std::{Addr, Decimal, Uint128};
 
 use cw_utils::Duration;
 
-use cw_orch::deploy::Deploy;
 use wyndex_bundle::*;
 
 const WYNDEX: &str = "wyndex";
@@ -69,11 +68,11 @@ pub fn convert_to_shares(
     )
 }
 
-fn setup_mock_cw20_vault() -> Result<GenericVault<Mock, SetupWyndDex<Mock>>, AbstractInterfaceError> {
-    let owner = Addr::unchecked(common::OWNER);
-    let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
-    let _user1 = Addr::unchecked(common::USER1);
-    let mock = Mock::new(&owner);
+fn setup_mock_cw20_vault() -> Result<GenericVault<MockBech32, SetupWyndDex<MockBech32>>, AbstractInterfaceError> {
+    let mock = MockBech32::new(common::OWNER);
+    let owner = mock.sender();
+    let wyndex_owner = mock.addr_make(WYNDEX_OWNER);
+    let _user1 = mock.addr_make(common::USER1);
     let _abstract_ = Abstract::deploy_on(mock.clone(), mock.sender().to_string())?;
     let wyndex = WynDex::store_on(mock.clone()).unwrap();
 
@@ -197,13 +196,16 @@ fn setup_mock_cw20_vault() -> Result<GenericVault<Mock, SetupWyndDex<Mock>>, Abs
     Ok(vault)
 }
 
-fn setup_mock_native_vault() -> Result<GenericVault<Mock, SetupWyndDex<Mock>>, AbstractInterfaceError> {
-    let owner = Addr::unchecked(common::OWNER);
-    let wyndex_owner = Addr::unchecked(WYNDEX_OWNER);
-    let _user1 = Addr::unchecked(common::USER1);
-    let mock = Mock::new(&owner);
+fn setup_mock_native_vault() -> Result<GenericVault<MockBech32, SetupWyndDex<MockBech32>>, AbstractInterfaceError> {
+    let mock = MockBech32::new(&common::OWNER);
+    let owner = mock.sender();
+    let wyndex_owner = mock.addr_make(WYNDEX_OWNER);
+    let _user1 = mock.addr_make(common::USER1);
+    let commission_receiver = mock.addr_make(common::COMMISSION_RECEIVER);
+
     let _abstract_ = Abstract::deploy_on(mock.clone(), mock.sender().to_string())?;
     let wyndex = WynDex::store_on(mock.clone()).unwrap();
+
 
     let WynDex {
         // eur_token,
@@ -281,7 +283,7 @@ fn setup_mock_native_vault() -> Result<GenericVault<Mock, SetupWyndDex<Mock>>, A
 
     let instantiate_msg = autocompounder::msg::AutocompounderInstantiateMsg {
         code_id: Some(cw20_id),
-        commission_addr: common::COMMISSION_RECEIVER.to_string(),
+        commission_addr: commission_receiver.into_string(),
         deposit_fees: Decimal::percent(0),
         dex: WYNDEX.to_string(),
         performance_fees: Decimal::percent(3),
