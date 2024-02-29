@@ -1,6 +1,6 @@
 use abstract_core::{ans_host::QueryMsgFns, objects::AccountId};
 use cw_orch::daemon::DaemonBuilder;
-use cw_orch::deploy::Deploy;
+use cw_orch::prelude::Deploy;
 use std::env;
 use std::sync::Arc;
 
@@ -34,7 +34,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
     info!("Using dex: {} and base: {}", dex, base_pair_asset);
 
     // Setup the environment
-    let network = parse_network(&args.network_id);
+    let network = parse_network(&args.network_id).unwrap();
 
     // TODO: make grpc url dynamic by removing this line once cw-orch gets updated
     let chain = DaemonBuilder::default()
@@ -44,7 +44,7 @@ fn init_vault(args: Arguments) -> anyhow::Result<()> {
 
     let abstr = Abstract::load_from(chain.clone())?;
     let main_account = if let Some(account_id) = main_account_id {
-        AbstractAccount::new(&abstr, Some(AccountId::local(account_id)))
+        AbstractAccount::new(&abstr, AccountId::local(account_id))
     } else {
         panic!("Not implemented yet");
     };

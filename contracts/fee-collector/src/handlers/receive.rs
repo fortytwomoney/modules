@@ -3,7 +3,7 @@ use crate::{
     msg::Cw20HookMsg,
 };
 use abstract_sdk::AbstractResponse;
-use cosmwasm_std::{from_json, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{from_json, DepsMut, Env, MessageInfo};
 use cw20::Cw20ReceiveMsg;
 
 /// handler function invoked when the vault dapp contract receives
@@ -19,11 +19,7 @@ pub fn receive_handler(
     match from_json(cw20_msg.msg)? {
         Cw20HookMsg::Deposit {} => {
             // Do nothing, just return
-            Ok(app.custom_tag_response(
-                Response::default(),
-                "receive_cw20",
-                vec![("method", "deposit")],
-            ))
+            Ok(app.custom_response("receive_cw20", vec![("method", "deposit")]))
         }
     }
 }

@@ -22,7 +22,7 @@ use crate::state::{
     FEE_CONFIG, LATEST_UNBONDING, MAX_BATCH_SIZE, PENDING_CLAIMS,
 };
 use abstract_cw_staking::msg::{StakingAction, StakingExecuteMsg};
-use abstract_cw_staking::CW_STAKING;
+use abstract_cw_staking::CW_STAKING_ADAPTER_ID;
 use abstract_dex_adapter::api::DexInterface;
 use abstract_sdk::Execution;
 use abstract_sdk::{
@@ -107,8 +107,7 @@ pub fn update_staking_config(
     config.min_unbonding_cooldown = new_min_unbonding_cooldown;
     CONFIG.save(deps.storage, &config)?;
 
-    Ok(app.custom_tag_response(
-        Response::new(),
+    Ok(app.custom_response(
         "update_config_with_staking_contract_data",
         vec![(
             "unbonding_period",
@@ -163,7 +162,7 @@ pub fn update_fee_config(
 
     FEE_CONFIG.save(deps.storage, &config)?;
 
-    Ok(app.custom_tag_response(Response::new(), "update_fee_config", updates))
+    Ok(app.custom_response("update_fee_config", updates))
 }
 
 // This is the function that is called when the user wants to pool AND stake their funds
@@ -180,7 +179,7 @@ pub fn deposit(
     let fee_config = FEE_CONFIG.load(deps.storage)?;
 
     let ans_host = app.ans_host(deps.as_ref())?;
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
+    let dex = app.ans_dex(deps.as_ref(), config.pool_data.dex.clone());
 
     let mut messages = vec![];
     let mut submessages = vec![];
@@ -254,18 +253,16 @@ pub fn deposit(
     )?;
     CACHED_USER_ADDR.save(deps.storage, &recipient)?;
 
-    let mut response = Response::new()
+    let mut response = app
+        .custom_response("deposit", vec![("recipient", recipient.to_string())])
         .add_messages(messages)
         .add_submessages(submessages);
 
     if !account_msgs.messages().is_empty() {
         response = response.add_message(app.executor(deps.as_ref()).execute(vec![account_msgs])?);
     }
-    Ok(app.custom_tag_response(
-        response,
-        "deposit",
-        vec![("recipient", recipient.to_string())],
-    ))
+
+    Ok(response)
 }
 
 fn consolidate_funds(
@@ -430,16 +427,11 @@ fn deposit_lp(
         config.unbonding_period,
     )?;
 
-    let res = Response::new()
+    Ok(app
+        .custom_response("deposit-lp", vec![("recipient", recipient.to_string())])
         .add_message(transfer_msg)
         .add_messages(vec![mint_msg, stake_msg])
-        .add_message(fee_msg);
-
-    Ok(app.custom_tag_response(
-        res,
-        "deposit-lp",
-        vec![("recipient", recipient.to_string())],
-    ))
+        .add_message(fee_msg))
 }
 
 /// Deducts a specified fee from a given LP asset.
@@ -604,15 +596,15 @@ pub fn batch_unbond(
         config.pool_data.dex.clone(),
     )?;
 
-    let response = Response::new().add_messages(vec![unstake_msg, burn_msg]);
-    Ok(app.custom_tag_response(
-        response,
-        "batch_unbond",
-        vec![
-            ("unbond_amount", total_lp_amount_to_unbond.to_string()),
-            ("burn_amount", total_vault_tokens_to_burn.to_string()),
-        ],
-    ))
+    Ok(app
+        .custom_response(
+            "batch_unbond",
+            vec![
+                ("unbond_amount", total_lp_amount_to_unbond.to_string()),
+                ("burn_amount", total_vault_tokens_to_burn.to_string()),
+            ],
+        )
+        .add_messages(vec![unstake_msg, burn_msg]))
 }
 
 /// Handles receiving CW20 messages
@@ -715,14 +707,15 @@ fn receive_and_register_claim(
 
     register_pre_claim(deps, recipient.clone(), amount_of_vault_tokens_to_be_burned)?;
 
-    Ok(app.custom_tag_response(
-        Response::new().add_messages(transfer_msgs),
-        "claim_registered",
-        vec![
-            ("recipient", recipient.to_string()),
-            ("amount", amount_of_vault_tokens_to_be_burned.to_string()),
-        ],
-    ))
+    Ok(app
+        .custom_response(
+            "claim_registered",
+            vec![
+                ("recipient", recipient.to_string()),
+                ("amount", amount_of_vault_tokens_to_be_burned.to_string()),
+            ],
+        )
+        .add_messages(transfer_msgs))
 }
 
 /// Redeems the vault tokens without a bonding period.
@@ -796,32 +789,31 @@ fn redeem_without_bonding_period(
     )?;
 
     // 3) withdraw lp tokens
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
+    let dex = app.ans_dex(deps.as_ref(), config.pool_data.dex);
     let withdraw_msg: CosmosMsg =
-        dex.withdraw_liquidity(lp_asset_entry, lp_tokens_withdraw_amount)?;
+        dex.withdraw_liquidity(AnsAsset::new(lp_asset_entry, lp_tokens_withdraw_amount))?;
     let sub_msg = SubMsg::reply_on_success(withdraw_msg, LP_WITHDRAWAL_REPLY_ID);
 
     // TODO: Check all the lp_token() calls and make sure they are everywhere.
 
-    let response = Response::new()
+    Ok(app
+        .custom_response(
+            "redeem",
+            vec![
+                (
+                    "vault_token_burn_amount",
+                    &amount_of_vault_tokens_to_be_burned.to_string(),
+                ),
+                (
+                    "lp_token_withdraw_amount",
+                    &lp_tokens_withdraw_amount.to_string(),
+                ),
+            ],
+        )
         .add_messages(transfer_msgs)
         .add_message(unstake_msg)
         .add_message(burn_msg)
-        .add_submessage(sub_msg);
-    Ok(app.custom_tag_response(
-        response,
-        "redeem",
-        vec![
-            (
-                "vault_token_burn_amount",
-                &amount_of_vault_tokens_to_be_burned.to_string(),
-            ),
-            (
-                "lp_token_withdraw_amount",
-                &lp_tokens_withdraw_amount.to_string(),
-            ),
-        ],
-    ))
+        .add_submessage(sub_msg))
 }
 
 fn compound(deps: DepsMut, app: AutocompounderApp) -> AutocompounderResult {
@@ -846,8 +838,7 @@ fn compound(deps: DepsMut, app: AutocompounderApp) -> AutocompounderResult {
     // 3) Swap rewards to token in pool
     // 4) Provide liquidity to pool
 
-    let response = Response::new().add_submessage(claim_submsg);
-    Ok(app.tag_response(response, "compound"))
+    Ok(app.response("compound").add_submessage(claim_submsg))
 }
 
 /// withdraw all matured claims for a user
@@ -911,22 +902,23 @@ pub fn withdraw_claims(
     );
 
     // 3) withdraw lp tokens
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
-    let withdraw_msg: CosmosMsg =
-        dex.withdraw_liquidity(config.lp_asset_entry(), lp_tokens_to_withdraw)?;
+    let dex = app.ans_dex(deps.as_ref(), config.pool_data.dex.clone());
+    let withdraw_msg: CosmosMsg = dex.withdraw_liquidity(AnsAsset::new(
+        config.lp_asset_entry(),
+        lp_tokens_to_withdraw,
+    ))?;
     let sub_msg = SubMsg::reply_on_success(withdraw_msg, LP_WITHDRAWAL_REPLY_ID);
 
-    let response = Response::new()
+    Ok(app
+        .custom_response(
+            "withdraw_claims",
+            vec![
+                ("recipient", sender.to_string()),
+                ("lp_tokens_to_withdraw", lp_tokens_to_withdraw.to_string()),
+            ],
+        )
         .add_message(claim_msg)
-        .add_submessage(sub_msg);
-    Ok(app.custom_tag_response(
-        response,
-        "withdraw_claims",
-        vec![
-            ("recipient", sender.to_string()),
-            ("lp_tokens_to_withdraw", lp_tokens_to_withdraw.to_string()),
-        ],
-    ))
+        .add_submessage(sub_msg))
 }
 
 #[allow(clippy::type_complexity)]
@@ -1038,7 +1030,7 @@ fn claim_lp_rewards(
 
     adapters
         .request(
-            CW_STAKING,
+            CW_STAKING_ADAPTER_ID,
             StakingExecuteMsg {
                 provider,
                 action: StakingAction::ClaimRewards {
@@ -1060,7 +1052,7 @@ fn claim_unbonded_tokens(
 
     adapters
         .request(
-            CW_STAKING,
+            CW_STAKING_ADAPTER_ID,
             StakingExecuteMsg {
                 provider,
                 action: StakingAction::Claim {
@@ -1084,7 +1076,7 @@ fn unstake_lp_tokens(
 
     adapters
         .request(
-            CW_STAKING,
+            CW_STAKING_ADAPTER_ID,
             StakingExecuteMsg {
                 provider,
                 action: StakingAction::Unstake {

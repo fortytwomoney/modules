@@ -3,16 +3,16 @@ use crate::error::AutocompounderError;
 use crate::handlers::helpers::check_fee;
 use crate::kujira_tx::format_tokenfactory_denom;
 use crate::msg::{AutocompounderInstantiateMsg, FeeConfig, AUTOCOMPOUNDER};
-use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG, VAULT_TOKEN_SYMBOL};
+use crate::state::{Config, CONFIG, DEFAULT_MAX_SPREAD, FEE_CONFIG};
 use abstract_core::objects::{AnsEntryConvertor, AssetEntry};
 use abstract_cw_staking::msg::{StakingInfoResponse, StakingQueryMsg};
-use abstract_cw_staking::CW_STAKING;
-use abstract_sdk::AdapterInterface;
+use abstract_cw_staking::CW_STAKING_ADAPTER_ID;
 use abstract_sdk::{
     core::objects::{LpToken, PoolReference},
     features::AbstractNameService,
 };
-use cosmwasm_std::{Addr, Decimal, DepsMut, Env, MessageInfo, Response};
+use abstract_sdk::{AbstractResponse, AdapterInterface};
+use cosmwasm_std::{Addr, Decimal, DepsMut, Env, MessageInfo};
 use cw_asset::AssetInfo;
 
 use super::helpers::{
@@ -56,7 +56,7 @@ pub fn instantiate_handler(
 
     let staking_info: StakingInfoResponse =
         app.adapters(deps.as_ref()).query::<StakingQueryMsg, _>(
-            CW_STAKING,
+            CW_STAKING_ADAPTER_ID,
             StakingQueryMsg::Info {
                 provider: dex.clone(),
                 staking_tokens: vec![lp_asset],
@@ -81,12 +81,14 @@ pub fn instantiate_handler(
         max_swap_spread.unwrap_or_else(|| Decimal::percent(DEFAULT_MAX_SPREAD.into()));
 
     // vault_token will be overwritten in the instantiate reply if we are using a cw20
+
+    let subdenom = create_subdenom_from_pool_assets(&pool_data);
     let vault_token = if code_id.is_some() {
         AssetInfo::cw20(Addr::unchecked(""))
     } else {
         AssetInfo::Native(format_tokenfactory_denom(
             env.contract.address.as_str(),
-            VAULT_TOKEN_SYMBOL,
+            &subdenom,
         ))
     };
 
@@ -113,7 +115,6 @@ pub fn instantiate_handler(
     FEE_CONFIG.save(deps.storage, &fee_config)?;
 
     // create LP token SubMsg
-    let subdenom = create_subdenom_from_pool_assets(&config.pool_data);
     let sub_msg = create_vault_token_submsg(
         env.contract.address.to_string(),
         subdenom,
@@ -121,7 +122,8 @@ pub fn instantiate_handler(
         config.pool_data.dex,
     )?;
 
-    Ok(Response::new()
+    Ok(app
+        .response("instantiate")
         .add_submessage(sub_msg)
         .add_attribute("action", "instantiate")
         .add_attribute("contract", AUTOCOMPOUNDER))
@@ -131,9 +133,12 @@ pub fn instantiate_handler(
 mod test {
     use crate::{contract::AUTOCOMPOUNDER_APP, test_common::app_base_mock_querier};
     use abstract_core::objects::{AssetEntry, DexAssetPairing};
+    use abstract_core::version_control::AccountBase;
     use abstract_sdk::base::InstantiateEndpoint;
     use abstract_sdk::core as abstract_core;
-    use abstract_testing::prelude::{TEST_ANS_HOST, TEST_MODULE_FACTORY, TEST_VERSION_CONTROL};
+    use abstract_testing::prelude::{
+        TEST_ANS_HOST, TEST_MANAGER, TEST_MODULE_FACTORY, TEST_PROXY, TEST_VERSION_CONTROL,
+    };
     const ASTROPORT: &str = "astroport";
     const COMMISSION_RECEIVER: &str = "commission_receiver";
     use crate::test_common::app_init;
@@ -164,13 +169,15 @@ mod test {
             withdrawal: Decimal::percent(3),
             fee_collector_addr: Addr::unchecked("commission_receiver".to_string()),
         });
+        assert_that!(&config.vault_token).matches(|v| matches!(v, AssetInfo::Cw20(_)));
 
         // test native token factory asset
         let deps = app_init(false, false);
         let config = CONFIG.load(deps.as_ref().storage).unwrap();
+        let expected_subdenom = create_subdenom_from_pool_assets(&config.pool_data);
         assert_that!(config.vault_token).is_equal_to(AssetInfo::Native(format_tokenfactory_denom(
             "cosmos2contract",
-            VAULT_TOKEN_SYMBOL,
+            &expected_subdenom,
         )));
         Ok(())
     }
@@ -201,6 +208,10 @@ mod test {
                 base: abstract_core::app::BaseInstantiateMsg {
                     version_control_address: TEST_VERSION_CONTROL.to_string(),
                     ans_host_address: TEST_ANS_HOST.to_string(),
+                    account_base: AccountBase {
+                        manager: Addr::unchecked(TEST_MANAGER),
+                        proxy: Addr::unchecked(TEST_PROXY),
+                    },
                 },
             },
         );

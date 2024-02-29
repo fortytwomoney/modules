@@ -30,7 +30,7 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["export"]
 export = []
-interface = ["export", "dep:abstract-interface", "dep:cw-orch"]
+interface = ["export", "dep:abstract-interface", "dep:cw-orch","abstract-app/interface-macro"]
 schema = ["abstract-app/schema"]
 
 [dependencies]
@@ -51,7 +51,6 @@ serde = { workspace = true }
 abstract-core = { workspace = true }
 abstract-app = { workspace = true }
 abstract-sdk = { workspace = true }
-# TODO: once stable, this should be updated to the stable release
 cw-orch = { workspace = true, optional = true }
 
 abstract-interface = { workspace = true, optional = true }
@@ -74,5 +73,5 @@ env_logger = "0.10.0"
 clap = { version = "4.0.32", features = ["derive"] }
 abstract-sdk = { workspace = true, features = ["test-utils"] }
 
-abstract-dex-adapter = { workspace = true, features = ["juno", "interface"] }
-abstract-cw-staking = { workspace = true, features = ["juno", "interface"] }
+abstract-dex-adapter = { workspace = true, features = ["testing", "interface"] }
+abstract-cw-staking = { workspace = true, features = ["testing", "interface"] }

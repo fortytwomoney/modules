@@ -19,13 +19,14 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [features]
-backtraces = ["cosmwasm-std/backtraces"]
+# backtraces = ["cosmwasm-std/backtraces"]
 export = []
 default = ["export"]
 schema = ["abstract-app/schema"]
 interface = [
   "export",
   "dep:abstract-interface",
+  "dep:abstract-client",
   "dep:cw-orch",
   "dep:anyhow",
   "abstract-dex-adapter/interface",
@@ -34,6 +35,11 @@ interface = [
   "cw20-base/interface",
 ]
 kujira = []
+test-tube = [
+  "cw-orch/osmosis-test-tube",
+  "abstract-dex-adapter/osmosis",
+  "abstract-cw-staking/osmosis",
+]
 
 [dependencies]
 cosmwasm-std = { workspace = true, features = ["stargate"] }
@@ -57,6 +63,7 @@ abstract-dex-adapter = { workspace = true, default-features = false }
 abstract-cw-staking = { workspace = true, default-features = false }
 
 abstract-interface = { workspace = true, optional = true }
+abstract-client = { workspace = true, optional = true }
 cw-orch = { workspace = true, optional = true }
 abstract-core = { workspace = true }
 anyhow = { workspace = true, optional = true }
@@ -67,20 +74,21 @@ wyndex-bundle = { workspace = true }
 wyndex-stake = { git = "https://github.com/cosmorama/wynddex.git", rev = "v1.1.2" }
 autocompounder = { path = ".", features = ["interface"] }
 abstract-dex-adapter = { workspace = true, features = [
-  "juno",
   "interface",
   "testing",
+  "wynd",
 ] }
 abstract-cw-staking = { workspace = true, features = [
-  "juno",
   "interface",
   "testing",
+  "wynd",
 ] }
 abstract-interface = { workspace = true, features = ["daemon"] }
 abstract-testing = { workspace = true }
 abstract-core = { workspace = true }
+abstract-client = { workspace = true }
 cw-orch = { workspace = true, features = ["daemon"] }
-cosmrs = "0.14.0"
+cosmrs = { version = "0.15.0", features = ["rpc"] }
 test-case = "3.2.1"
 cw-plus-interface = { workspace = true }
 cw-multi-test = { workspace = true }
@@ -92,12 +100,4 @@ tokio = { workspace = true }
 dotenv = { workspace = true }
 env_logger = { workspace = true }
 clap = { workspace = true }
-
-[profile.release]
-lto = true
-debug = false
-debug-assertions = false
-opt-level = "s"
-overflow-checks = true
-panic = "abort"
-rpath = false
+serial_test = "3.0.0"

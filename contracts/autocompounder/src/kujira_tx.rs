@@ -105,7 +105,7 @@ pub fn tokenfactory_mint_msg(
     let proto_msg = encode_msg_mint(minter.as_str(), denom.as_str(), amount, recipient);
     let msg = CosmosMsg::Stargate {
         type_url: msg_mint_type_url(chain),
-        value: to_json_binary(&proto_msg)?,
+        value: Binary(proto_msg),
     };
     Ok(msg)
 }
@@ -140,7 +140,7 @@ pub fn tokenfactory_burn_msg(
     let proto_msg = encode_msg_burn(minter.as_str(), &denom, amount);
     let msg = CosmosMsg::Stargate {
         type_url: msg_burn_type_url(chain),
-        value: to_json_binary(&proto_msg)?,
+        value: Binary(proto_msg),
     };
     Ok(msg)
 }

@@ -1,16 +1,16 @@
+use abstract_client::AbstractClient;
 use abstract_core::objects::AccountId;
 use anyhow::Ok;
 use autocompounder::interface::{AutocompounderApp, Vault};
 
 use cw_orch::daemon::DaemonBuilder;
-use cw_orch::deploy::Deploy;
 
 use cw_orch::prelude::*;
 use semver::Version;
 use std::env;
 use std::sync::Arc;
 
-use abstract_interface::{Abstract, AppDeployer, ManagerQueryFns};
+use abstract_interface::{AppDeployer, DeployStrategy, ManagerQueryFns};
 
 use clap::Parser;
 
@@ -22,16 +22,17 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn migrate_vault(args: Arguments) -> anyhow::Result<()> {
     let rt = Arc::new(tokio::runtime::Runtime::new()?);
-    let network = parse_network(&args.network_id);
+    let network = parse_network(&args.network_id).unwrap();
     let chain = DaemonBuilder::default()
         .handle(rt.handle())
         .chain(network)
         .build()?;
 
-    let abstr = Abstract::load_from(chain.clone())?;
+    let abstract_client = AbstractClient::new(chain.clone())?;
     let account_id = AccountId::local(args.account_id);
+    let account = abstract_client.account_from(account_id)?;
 
-    let mut vault = Vault::new(&abstr, account_id)?;
+    let mut vault = Vault::new(account.as_ref())?;
 
     let versions = vault
         .account
@@ -61,14 +62,16 @@ fn migrate_vault(args: Arguments) -> anyhow::Result<()> {
             new_version
         );
 
-        autocompounder.deploy(new_version).map_err(|e| {
-            println!(
+        autocompounder
+            .deploy(new_version, DeployStrategy::Error)
+            .map_err(|e| {
+                println!(
                 "Error deploying. If its a version error, try do switch this part of the code to 
             manual uploading and version registration, as that surpasses the version control. {:?}",
                 e
             );
-            e
-        })?;
+                e
+            })?;
 
         // // in case the .deploy function complains about versioning, use this:
         // // WARNING: This will overwrite the currently registered code for the version if it exists

@@ -1,0 +1,2 @@
+525708922ec5e4d6a105389ef3259b894fb337a49bcede75ce7bba03a923cf77  autocompounder.wasm
+2e4413cf19428cf49a92c1718dbba328bc8e16bac902322cadce96c887688e7a  fee_collector.wasm

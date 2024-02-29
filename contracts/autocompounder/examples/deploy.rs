@@ -1,4 +1,4 @@
-use abstract_interface::AppDeployer;
+use abstract_interface::{AppDeployer, DeployStrategy};
 use cw_orch::daemon::networks::osmosis::OSMO_NETWORK;
 use cw_orch::daemon::{ChainInfo, ChainKind};
 
@@ -27,7 +27,7 @@ fn deploy_autocompounder(
 
     let autocompounder = AutocompounderApp::new(AUTOCOMPOUNDER_ID, chain);
 
-    autocompounder.deploy(version)?;
+    autocompounder.deploy(version, DeployStrategy::Error)?;
 
     // // This might be still useful at some point for instantiation fees
     // let update = abstr.version_control.update_module_configuration(
@@ -65,7 +65,6 @@ fn main() -> anyhow::Result<()> {
 
     let args = Arguments::parse();
 
-    let network: ChainInfo;
     pub const OSMOSIS_1: ChainInfo = ChainInfo {
         kind: ChainKind::Mainnet,
         chain_id: "osmosis-1",
@@ -77,10 +76,10 @@ fn main() -> anyhow::Result<()> {
         fcd_url: None,
     };
 
-    if &args.network_id == "osmosis-1" {
-        network = OSMOSIS_1;
+    let network = if &args.network_id == "osmosis-1" {
+        OSMOSIS_1
     } else {
-        network = parse_network(&args.network_id);
-    }
+        parse_network(&args.network_id).unwrap()
+    };
     deploy_autocompounder(network, args.code_id)
 }

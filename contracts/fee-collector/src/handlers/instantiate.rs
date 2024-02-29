@@ -1,6 +1,6 @@
 use abstract_core::objects::AssetEntry;
 use abstract_sdk::AbstractResponse;
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{DepsMut, Env, MessageInfo};
 
 use crate::contract::{FeeCollectorApp, FeeCollectorResult};
 use crate::msg::FeeCollectorInstantiateMsg;
@@ -34,9 +34,5 @@ pub fn instantiate_handler(
     CONFIG.save(deps.storage, &config)?;
     ALLOWED_ASSETS.save(deps.storage, &vec![])?;
 
-    Ok(app.custom_tag_response(
-        Response::new(),
-        "instantiate",
-        vec![("4t2", "/FC/instantiate")],
-    ))
+    Ok(app.custom_response("instantiate", vec![("4t2", "/FC/instantiate")]))
 }

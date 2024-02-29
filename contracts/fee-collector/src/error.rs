@@ -1,4 +1,5 @@
 use abstract_app::AppError;
+use abstract_core::objects::ans_host::AnsHostError;
 use abstract_core::{objects::AssetEntry, AbstractError};
 use abstract_sdk::AbstractSdkError;
 use cosmwasm_std::{OverflowError, StdError};
@@ -16,6 +17,9 @@ pub enum FeeCollectorError {
 
     #[error("{0}")]
     AbstractSdk(#[from] AbstractSdkError),
+
+    #[error("{0}")]
+    AnsHostError(#[from] AnsHostError),
 
     #[error("{0}")]
     Asset(#[from] AssetError),

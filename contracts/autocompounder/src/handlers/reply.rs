@@ -12,10 +12,9 @@ use crate::state::{Config, FeeConfig, CACHED_ASSETS, CACHED_USER_ADDR, CONFIG, F
 use abstract_core::objects::{AnsEntryConvertor, AssetEntry};
 use abstract_cw_staking::{
     msg::{RewardTokensResponse, StakingQueryMsg},
-    CW_STAKING,
+    CW_STAKING_ADAPTER_ID,
 };
 use abstract_dex_adapter::api::DexInterface;
-use abstract_dex_adapter::msg::OfferAsset;
 use abstract_sdk::Execution;
 use abstract_sdk::{
     core::objects::AnsAsset,
@@ -24,9 +23,7 @@ use abstract_sdk::{
     AbstractSdkResult, Resolve, TransferInterface,
 };
 use abstract_sdk::{AccountAction, AdapterInterface};
-use cosmwasm_std::{
-    CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, Response, StdResult, SubMsg, Uint128,
-};
+use cosmwasm_std::{CosmosMsg, Decimal, Deps, DepsMut, Env, Reply, StdResult, SubMsg, Uint128};
 use cw_asset::{Asset, AssetInfo};
 
 /// Handle a reply for the [`INSTANTIATE_REPLY_ID`] reply.
@@ -53,8 +50,7 @@ pub fn instantiate_reply(
         // CONFIG.load(deps.storage)?.vault_token
     };
 
-    Ok(app.custom_tag_response(
-        Response::new(),
+    Ok(app.custom_response(
         "instantiate_reply",
         vec![("vault_token", vault_token.to_string())],
     ))
@@ -118,12 +114,13 @@ pub fn lp_provision_reply(
         config.unbonding_period,
     )?;
 
-    let res = Response::new().add_message(mint_msg).add_message(stake_msg);
-    Ok(app.custom_tag_response(
-        res,
-        "lp_provision_reply",
-        vec![("vault_token_minted", mint_amount)],
-    ))
+    Ok(app
+        .custom_response(
+            "lp_provision_reply",
+            vec![("vault_token_minted", mint_amount)],
+        )
+        .add_message(mint_msg)
+        .add_message(stake_msg))
 }
 
 pub fn lp_withdrawal_reply(
@@ -144,15 +141,14 @@ pub fn lp_withdrawal_reply(
     let transfer_msg = bank.transfer(funds.clone(), &user_address)?;
     CACHED_ASSETS.clear(deps.storage);
 
-    let response =
-        Response::new().add_messages(app.executor(deps.as_ref()).execute(vec![transfer_msg]));
-    Ok(app.custom_tag_response(
-        response,
-        "lp_withdrawal_reply",
-        funds
-            .into_iter()
-            .map(|asset| ("recieved", asset.to_string())),
-    ))
+    Ok(app
+        .custom_response(
+            "lp_withdrawal_reply",
+            funds
+                .into_iter()
+                .map(|asset| ("recieved", asset.to_string())),
+        )
+        .add_messages(app.executor(deps.as_ref()).execute(vec![transfer_msg])))
 }
 
 /// Calculates the difference between the currently proxy-owned assets and the assets that were cached before the lp_withdrawal_reply
@@ -186,7 +182,7 @@ pub fn lp_compound_reply(
     let mut messages = vec![];
     let mut submessages = vec![];
     // claim rewards (this happened in the execution before this reply)
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex.clone());
+    let dex = app.ans_dex(deps.as_ref(), config.pool_data.dex.clone());
 
     // query the rewards and filters out zero rewards
     let mut rewards = get_staking_rewards(deps.as_ref(), &app, &config)?;
@@ -212,20 +208,21 @@ pub fn lp_compound_reply(
                     .find(|reward| reward.name == *pool_asset)
                     .map(|reward| reward.amount)
                     .unwrap_or(Uint128::zero());
-                OfferAsset::new(pool_asset.clone(), amount)
+                AnsAsset::new(pool_asset.clone(), amount)
             })
-            .collect::<Vec<OfferAsset>>();
+            .collect::<Vec<AnsAsset>>();
 
         // provide liquidity
         let lp_msg: CosmosMsg = dex.provide_liquidity(assets, Some(Decimal::percent(50)))?;
 
         submessages.push(SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID));
 
-        let response = Response::new()
+        let response = app
+            .response("lp_compound_reply")
             .add_messages(app.executor(deps.as_ref()).execute(messages))
             .add_submessages(submessages);
 
-        Ok(app.tag_response(response, "lp_compound_reply"))
+        Ok(response)
     } else {
         let mut swap_msgs = swap_rewards(&app, deps.as_ref(), rewards)?;
         let submsg = get_last_msgs_with_reply(&mut swap_msgs, SWAPPED_REPLY_ID)?;
@@ -234,11 +231,12 @@ pub fn lp_compound_reply(
 
         // adds all swap messages to the response and the submsg -> the submsg will be executed after the last swap message
         // and will trigger the reply SWAPPED_REPLY_ID
-        let response = Response::new()
+        let response = app
+            .response("lp_compound_reply")
             .add_messages(app.executor(deps.as_ref()).execute(messages))
             .add_messages(swap_msgs)
             .add_submessages(submessages);
-        Ok(app.tag_response(response, "lp_compound_reply"))
+        Ok(response)
     }
 }
 
@@ -290,26 +288,25 @@ pub fn swapped_reply(
 ) -> AutocompounderResult {
     let ans_host = app.ans_host(deps.as_ref())?;
     let config = CONFIG.load(deps.storage)?;
-    let dex = app.dex(deps.as_ref(), config.pool_data.dex);
+    let dex = app.ans_dex(deps.as_ref(), config.pool_data.dex);
 
     // query balance of pool tokens
     let rewards = config
         .pool_data
         .assets
         .iter()
-        .map(|entry| -> AbstractSdkResult<AnsAsset> {
+        .map(|entry| -> AutocompounderResult<AnsAsset> {
             let tkn = entry.resolve(&deps.querier, &ans_host)?;
             let balance = tkn.query_balance(&deps.querier, app.proxy_address(deps.as_ref())?)?;
             Ok(AnsAsset::new(entry.clone(), balance))
         })
-        .collect::<AbstractSdkResult<Vec<AnsAsset>>>()?;
+        .collect::<AutocompounderResult<Vec<AnsAsset>>>()?;
 
     // provide liquidity
     let lp_msg: CosmosMsg = dex.provide_liquidity(rewards, Some(Decimal::percent(10)))?;
     let submsg = SubMsg::reply_on_success(lp_msg, CP_PROVISION_REPLY_ID);
 
-    let response = Response::new().add_submessage(submsg);
-    Ok(app.tag_response(response, "swapped_reply"))
+    Ok(app.response("swapped_reply").add_submessage(submsg))
 }
 
 pub fn compound_lp_provision_reply(
@@ -338,9 +335,9 @@ pub fn compound_lp_provision_reply(
         config.unbonding_period,
     )?;
 
-    let response = Response::new().add_message(stake_msg);
-
-    Ok(app.tag_response(response, "compound_lp_provision_reply"))
+    Ok(app
+        .response("compound_lp_provision_reply")
+        .add_message(stake_msg))
 }
 
 fn query_rewards(
@@ -354,7 +351,7 @@ fn query_rewards(
         provider: config.pool_data.dex.clone(),
         staking_tokens: vec![config.lp_asset_entry()],
     };
-    let RewardTokensResponse { tokens } = adapters.query(CW_STAKING, query)?;
+    let RewardTokensResponse { tokens } = adapters.query(CW_STAKING_ADAPTER_ID, query)?;
     let first_tokens = tokens.first().unwrap();
 
     Ok(first_tokens.clone())
@@ -365,18 +362,18 @@ fn get_staking_rewards(
     deps: Deps,
     app: &AutocompounderApp,
     config: &Config,
-) -> AbstractSdkResult<Vec<AnsAsset>> {
+) -> AutocompounderResult<Vec<AnsAsset>> {
     let ans_host = app.ans_host(deps)?;
     let rewards = query_rewards(deps, app, config)?;
     // query balance of rewards
     let rewards = rewards
         .into_iter()
-        .map(|tkn| -> AbstractSdkResult<Asset> {
+        .map(|tkn| -> AutocompounderResult<Asset> {
             //  get the number of LP tokens minted in this transaction
             let balance = tkn.query_balance(&deps.querier, app.proxy_address(deps)?)?;
             Ok(Asset::new(tkn, balance))
         })
-        .collect::<AbstractSdkResult<Vec<Asset>>>()?;
+        .collect::<AutocompounderResult<Vec<Asset>>>()?;
     // resolve rewards to AnsAssets for dynamic processing (swaps)
     let rewards = rewards
         .into_iter()
@@ -505,7 +502,7 @@ mod test {
 
             // check the expected attributes
             let abstract_attributes = response.events[0].attributes.clone();
-            // first 2 are from custom_tag_response, second 2 are the transfered assets
+            // first 2 are from custom_response, second 2 are the transfered assets
             assert_that!(abstract_attributes).has_length(4);
             assert_that!(abstract_attributes[2].value).is_equal_to(eur_ans_asset.to_string());
             assert_that!(abstract_attributes[3].value).is_equal_to(usd_ans_asset.to_string());
@@ -534,7 +531,10 @@ mod test {
             assert_that!(res).is_err();
             assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(
                 StdError::NotFound {
-                    kind: "cosmwasm_std::addresses::Addr".to_string(),
+                    kind: format!(
+                        "type: cosmwasm_std::addresses::Addr; key: {:02X?}",
+                        CACHED_USER_ADDR.as_slice()
+                    ),
                 },
             ));
 
@@ -544,7 +544,10 @@ mod test {
             assert_that!(res).is_err();
             assert_that!(res.unwrap_err()).is_equal_to(AutocompounderError::Std(
                 StdError::NotFound {
-                    kind: "cosmwasm_std::math::uint128::Uint128".to_string(),
+                    kind: format!(
+                        "type: cosmwasm_std::math::uint128::Uint128; key: {:02X?}",
+                        CACHED_ASSETS.key("native:eur".to_string()).to_vec()
+                    ),
                 },
             ));
             Ok(())

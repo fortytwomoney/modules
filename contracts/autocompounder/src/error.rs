@@ -1,4 +1,5 @@
 use abstract_app::AppError;
+use abstract_core::objects::ans_host::AnsHostError;
 use abstract_core::AbstractError;
 use abstract_sdk::AbstractSdkError;
 use cosmwasm_std::{OverflowError, StdError, Uint128};
@@ -20,6 +21,9 @@ pub enum AutocompounderError {
 
     #[error("{0}")]
     AbstractSdkError(#[from] AbstractSdkError),
+
+    #[error("{0}")]
+    AnsHostError(#[from] AnsHostError),
 
     #[error("{0}")]
     AssetError(#[from] AssetError),
@@ -103,5 +107,5 @@ pub enum AutocompounderError {
     VaultTokenAlreadyInitialized {},
 
     #[error("Reward cannot be swapped: {0}")]
-    RewardCannotBeSwapped(AbstractError),
+    RewardCannotBeSwapped(AnsHostError),
 }

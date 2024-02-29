@@ -5,7 +5,7 @@ use abstract_sdk::{
     AbstractSdkResult, Resolve, TransferInterface,
 };
 
-use cosmwasm_std::{Decimal, DepsMut, Env, MessageInfo, Response, SubMsg};
+use cosmwasm_std::{Decimal, DepsMut, Env, MessageInfo, SubMsg};
 
 use crate::{
     contract::{FeeCollectorApp, FeeCollectorResult},
@@ -80,7 +80,7 @@ fn update_config(
 
     CONFIG.save(deps.storage, &config)?;
 
-    Ok(app.tag_response(Response::default(), "update_config"))
+    Ok(app.response("update_config"))
 }
 
 /// Add allowed assets
@@ -101,7 +101,7 @@ fn add_allowed_assets(
     let config = CONFIG.load(deps.storage)?;
 
     let ans = app.ans_host(deps.as_ref())?;
-    let dex = app.dex(deps.as_ref(), config.dex.clone());
+    let dex = app.ans_dex(deps.as_ref(), config.dex.clone());
     for asset in assets {
         if asset == config.fee_asset {
             return Err(crate::error::FeeCollectorError::FeeAssetNotAllowed {});
@@ -133,7 +133,7 @@ fn add_allowed_assets(
     supported_assets.sort();
     ALLOWED_ASSETS.save(deps.storage, &supported_assets)?;
 
-    Ok(app.tag_response(Response::default(), "add_allowed_assets"))
+    Ok(app.response("add_allowed_assets"))
 }
 
 fn collect(deps: DepsMut, msg_info: MessageInfo, app: FeeCollectorApp) -> FeeCollectorResult {
@@ -160,7 +160,7 @@ fn collect(deps: DepsMut, msg_info: MessageInfo, app: FeeCollectorApp) -> FeeCol
         .collect::<Vec<AnsAsset>>();
 
     // swap all non-lp balances to fee asset
-    let dex = app.dex(deps.as_ref(), config.dex);
+    let dex = app.ans_dex(deps.as_ref(), config.dex);
     let mut swap_msgs = vec![];
     swap_assets
         .into_iter()
@@ -183,9 +183,9 @@ fn collect(deps: DepsMut, msg_info: MessageInfo, app: FeeCollectorApp) -> FeeCol
     );
 
     // send all funds to commission address
-    let response = Response::new()
-        .add_messages(swap_msgs)
-        .add_submessage(last_swap_submsg);
 
-    Ok(app.custom_tag_response(response, "collect", vec![("4t2", "/FC/Collect")]))
+    Ok(app
+        .custom_response("collect", vec![("4t2", "/FC/Collect")])
+        .add_messages(swap_msgs)
+        .add_submessage(last_swap_submsg))
 }

@@ -1,21 +1,18 @@
+use abstract_client::AbstractClient;
 use abstract_core::objects::AccountId;
 use abstract_core::objects::{AnsAsset, PoolMetadata};
-use abstract_interface::Abstract;
-use abstract_interface::VersionControl;
 use autocompounder::{
     interface::Vault,
     msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns},
     state::Config,
 };
 use clap::Parser;
-use cosmwasm_std::{coins, Addr};
+use cosmwasm_std::coins;
 use cw_orch::daemon::networks::parse_network;
 use cw_orch::daemon::DaemonBuilder;
-use cw_orch::deploy::Deploy;
-use cw_orch::prelude::TxHandler;
+use cw_orch::prelude::*;
 use log::info;
 
-const MODULE_VERSION: &str = env!("CARGO_PKG_VERSION");
 use speculoos::prelude::*;
 use std::sync::Arc;
 
@@ -31,7 +28,7 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
     };
 
     info!("Using dex: {} and base: {}", dex, base_pair_asset);
-    let network = parse_network(&args.network_id);
+    let network = parse_network(&args.network_id).unwrap();
 
     // Setup the environment
     let chain = DaemonBuilder::default()
@@ -40,12 +37,11 @@ fn test_compound(args: Arguments) -> anyhow::Result<()> {
         .build()?;
     let sender = chain.sender();
 
-    // Set version control address
-    let _vc = VersionControl::load(chain.clone(), &Addr::unchecked(MODULE_VERSION));
+    let client = AbstractClient::new(chain)?;
+    let account_id = AccountId::local(args.vault_id);
+    let account = client.account_from(account_id)?;
 
-    let abstr = Abstract::load_from(chain)?;
-
-    let mut vault: Vault<_> = Vault::new(&abstr, AccountId::local(args.vault_id))?;
+    let mut vault: Vault<_> = Vault::new(account.as_ref())?;
 
     // Update the modules in the vault
     vault.update()?;

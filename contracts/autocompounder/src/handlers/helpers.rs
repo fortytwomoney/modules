@@ -1,11 +1,11 @@
 use crate::contract::INSTANTIATE_REPLY_ID;
 
 use crate::kujira_tx::encode_query_supply_of;
-
 use crate::kujira_tx::max_subdenom_length_for_chain;
 use crate::kujira_tx::tokenfactory_burn_msg;
 use crate::kujira_tx::tokenfactory_create_denom_msg;
 use crate::kujira_tx::tokenfactory_mint_msg;
+use crate::kujira_tx::SUPPLY_OF_PATH;
 use crate::msg::Config;
 use crate::state::CONFIG;
 use crate::state::DECIMAL_OFFSET;
@@ -17,7 +17,7 @@ use crate::{
 use abstract_core::objects::AnsAsset;
 use abstract_core::objects::DexAssetPairing;
 use abstract_core::objects::PoolMetadata;
-use abstract_cw_staking::{msg::*, CW_STAKING};
+use abstract_cw_staking::{msg::*, CW_STAKING_ADAPTER_ID};
 use abstract_dex_adapter::DexInterface;
 use abstract_sdk::feature_objects::AnsHost;
 use abstract_sdk::features::AbstractNameService;
@@ -48,11 +48,11 @@ use cw_utils::parse_reply_instantiate_data;
 // ------------------------------------------------------------
 // Helper functions for vault tokens
 // ------------------------------------------------------------
-/// performs stargate query for the following path: "cosmos.bank.v1beta1.Query/SupplyOf".
+/// performs stargate query for the following path: "/cosmos.bank.v1beta1.Query/SupplyOf".
 pub fn query_supply_with_stargate(deps: Deps, denom: &str) -> AutocompounderResult<Coin> {
-    // this may not work because kujira has its own custom bindings. https://docs.rs/kujira-std/latest/kujira_std/enum.KujiraQuery.html
+    // this may not work because kujira has its own custom bindings. https://docs.rs/kujira-std/0.8.4/kujira_std/enum.KujiraQuery.html
     let request = QueryRequest::Stargate {
-        path: "cosmos.bank.v1beta1.Query/SupplyOf".to_string(),
+        path: SUPPLY_OF_PATH.to_string(),
         data: encode_query_supply_of(denom).into(),
     };
     let res: SupplyResponse = deps.querier.query(&request)?;
@@ -219,7 +219,7 @@ pub fn query_stake(
         provider: dex,
         unbonding_period,
     };
-    let res: StakeResponse = adapters.query(CW_STAKING, query)?;
+    let res: StakeResponse = adapters.query(CW_STAKING_ADAPTER_ID, query)?;
     let amount = res
         .amounts
         .first()
@@ -239,7 +239,7 @@ pub fn stake_lp_tokens(
 ) -> AbstractSdkResult<CosmosMsg> {
     let adapters = app.adapters(deps);
     adapters.request(
-        CW_STAKING,
+        CW_STAKING_ADAPTER_ID,
         StakingExecuteMsg {
             provider,
             action: StakingAction::Stake {
@@ -296,7 +296,7 @@ pub fn swap_rewards(
     let max_spread = config.max_swap_spread;
     let target_assets = config.pool_data.assets;
 
-    let dex = app.dex(deps, dex_name.clone());
+    let dex = app.ans_dex(deps, dex_name.clone());
     let ans_host = app.ans_host(deps)?;
 
     let mut swap_msgs = Vec::new();
@@ -467,7 +467,7 @@ pub mod helpers_tests {
         fn handle_query(&self, request: &QueryRequest<Empty>) -> cosmwasm_std::QuerierResult {
             match request {
                 QueryRequest::Stargate { path, data: _ } => {
-                    if path == "cosmos.bank.v1beta1.Query/SupplyOf" {
+                    if path == SUPPLY_OF_PATH {
                         let coin = Coin {
                             denom: "test_vault_token".to_string(),
                             amount: Uint128::from(100u128),

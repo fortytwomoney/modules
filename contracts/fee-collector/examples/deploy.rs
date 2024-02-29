@@ -1,4 +1,4 @@
-use abstract_interface::AppDeployer;
+use abstract_interface::{AppDeployer, DeployStrategy};
 use cw_orch::daemon::networks::parse_network;
 
 use std::sync::Arc;
@@ -24,7 +24,7 @@ fn deploy_fc(network: ChainInfo) -> anyhow::Result<()> {
         .build()?;
     let fee_collector = FeeCollectorInterface::new(FEE_COLLECTOR, chain);
 
-    fee_collector.deploy(version)?;
+    fee_collector.deploy(version, DeployStrategy::Try)?;
 
     // let abstr = Abstract::load_from(fee_collector.get_chain().to_owned())?;
     // // check for existing version
@@ -54,7 +54,7 @@ fn main() -> anyhow::Result<()> {
 
     let args = Arguments::parse();
 
-    let network = parse_network(&args.network_id);
+    let network = parse_network(&args.network_id).unwrap();
 
     deploy_fc(network)?;
 
