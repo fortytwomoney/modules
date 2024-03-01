@@ -68,7 +68,6 @@ cw-orch = { workspace = true, optional = true }
 abstract-core = { workspace = true }
 anyhow = { workspace = true, optional = true }
 anybuf = "0.1.0"
-osmosis-test-tube = "21.0.0"
 osmosis-std = "0.21.0"
 
 [dev-dependencies]
@@ -90,6 +89,7 @@ abstract-core = { workspace = true }
 abstract-client = { workspace = true }
 cw-orch = { workspace = true, features = ["daemon"] }
 cosmrs = { version = "0.15.0", features = ["rpc"] }
+osmosis-test-tube = "21.0.0"
 test-case = "3.2.1"
 cw-plus-interface = { workspace = true }
 cw-multi-test = { workspace = true }

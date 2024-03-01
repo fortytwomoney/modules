@@ -13,6 +13,13 @@ use cosmwasm_std::{Addr, Uint128};
 
 use speculoos::{assert_that, numeric::OrderedAssertions};
 
+pub fn convert_to_shares(assets: Uint128, total_assets: Uint128, total_supply: Uint128) -> Uint128 {
+    assets.multiply_ratio(
+        total_supply + Uint128::from(10u128).pow(DECIMAL_OFFSET),
+        total_assets + Uint128::from(1u128),
+    )
+}
+
 #[allow(dead_code)]
 pub fn test_deposit_assets<Chain: CwEnv, Dex: DexInit>(
     vault: GenericVault<Chain, Dex>,
@@ -23,31 +30,44 @@ pub fn test_deposit_assets<Chain: CwEnv, Dex: DexInit>(
 ) -> AResult {
     let _ac_addres = vault.autocompounder_app.addr_str()?;
     let _config: Config = vault.autocompounder_app.config()?;
+    let amount = 10_000u128;
 
     // deposit `amount` of both assets and check whether the exact right amount of vault tokens are minted
-    let amount = 10_000u128;
     vault.deposit_assets(user1, amount, amount, None)?;
 
     let u1_lp_token_amount: u128 = vault.autocompounder_app.total_lp_position()?.into();
-    let u1_balance = vault.vault_token_balance(user1_addr)?;
-    assert_that!(u1_balance).is_equal_to(u1_lp_token_amount * 10u128.pow(DECIMAL_OFFSET));
+    let u1_vt_balance = vault.vault_token_balance(user1_addr)?;
+    let mut vt_total_supply = u1_vt_balance; // only depositor for now
+    assert_that!(u1_vt_balance).is_equal_to(u1_lp_token_amount * 10u128.pow(DECIMAL_OFFSET));
 
     // deposit `amount` of only the first asset and check whether the vault tokens of u1 have increased
     vault.deposit_assets(user1, amount, 0, None)?;
 
     let u1_new_lp_token_amount: u128 = vault.autocompounder_app.total_lp_position()?.into();
-    let u1_new_balance = vault.vault_token_balance(user1_addr)?;
+    let u1_new_vt_balance = vault.vault_token_balance(user1_addr)?;
     assert_that!(u1_new_lp_token_amount - u1_lp_token_amount).is_greater_than(0u128);
-    assert_that!(u1_new_balance - u1_balance).is_greater_than(0u128);
+    assert_that!(u1_new_vt_balance - u1_vt_balance).is_greater_than(0u128);
+    
+
+    let u1_added_lp_token_amount = u1_new_lp_token_amount - u1_lp_token_amount;
+    let u1_gained_vaulttoken = u1_new_vt_balance - u1_vt_balance;
+
+    // check the new vault token amount
+    let expected_mint_amount = convert_to_shares(u1_added_lp_token_amount.into(), u1_lp_token_amount.into(),vt_total_supply.into()).u128();
+    assert_that!(u1_gained_vaulttoken).is_equal_to(expected_mint_amount);
+    vt_total_supply += u1_gained_vaulttoken;
+
     // TODO: check whether the balance is exactly what it should be here
 
     // deposit `amount` of both assets by user2 and check whether the exact right amount of vault tokens are minted
     vault.deposit_assets(user2, amount, amount, None)?;
-    let u2_lp_token_amount =
+    let u2_added_lp_amount =
         vault.autocompounder_app.total_lp_position()?.u128() - u1_new_lp_token_amount;
-    let u2_balance = vault.vault_token_balance(user2_addr.to_string())?;
-    assert_that!(u2_lp_token_amount).is_equal_to(u1_lp_token_amount);
-    assert_that!(u2_balance).is_equal_to(u1_balance);
+    let u2_vt_balance = vault.vault_token_balance(user2_addr)?;
+
+    // check the new vault token amount
+    let expected_mint_amount = convert_to_shares(u2_added_lp_amount.into(), u1_new_lp_token_amount.into(),vt_total_supply.into()).u128();
+    assert_that!(u2_vt_balance).is_equal_to(expected_mint_amount);
 
     Ok(())
 }
@@ -64,14 +84,14 @@ pub fn deposit_with_recipient<Chain: CwEnv, Dex: DexInit>(
 ) -> AResult {
     let _ac_address = vault.autocompounder_app.addr_str()?;
     let _config: Config = vault.autocompounder_app.config()?;
+    let amount = 10_000u128;
 
     // deposit `amount` of both assets and check whether the exact right amount of vault tokens are minted
-    let amount = 10_000u128;
     vault.deposit_assets(user1, amount, amount, Some(user2_addr.clone()))?;
 
     let u1_lp_token_amount: Uint128 = vault.autocompounder_app.total_lp_position()?;
-    let u2_balance = vault.vault_token_balance(user2_addr.to_string())?;
-    assert_that!(u2_balance).is_equal_to(u1_lp_token_amount.u128() * 10u128.pow(DECIMAL_OFFSET));
+    let u2_vt_balance = vault.vault_token_balance(user2_addr.to_string())?;
+    assert_that!(u2_vt_balance).is_equal_to(u1_lp_token_amount.u128() * 10u128.pow(DECIMAL_OFFSET));
 
     // deposit `amount` of only the first asset and check whether the vault tokens of u2 have increased
     vault.deposit_assets(user1, amount, 0, Some(user2_addr.clone()))?;
@@ -79,7 +99,9 @@ pub fn deposit_with_recipient<Chain: CwEnv, Dex: DexInit>(
     let u1_new_lp_token_amount: Uint128 = vault.autocompounder_app.total_lp_position()?;
     let u2_new_balance = vault.vault_token_balance(user2_addr.to_string())?;
     assert_that!(u1_new_lp_token_amount - u1_lp_token_amount).is_greater_than(Uint128::zero());
-    assert_that!(u2_new_balance - u2_balance).is_greater_than(0u128);
+    assert_that!(u2_new_balance - u2_vt_balance).is_greater_than(0u128);
+
+
 
     // deposit `amount` of both assets by user2 and check whether the exact right amount of vault tokens are minted
     vault.deposit_assets(user2, amount, amount, Some(user1_addr.clone()))?;
@@ -87,7 +109,7 @@ pub fn deposit_with_recipient<Chain: CwEnv, Dex: DexInit>(
         vault.autocompounder_app.total_lp_position()? - u1_new_lp_token_amount;
     let u1_balance = vault.vault_token_balance(user1_addr.to_string())?;
     assert_that!(u2_lp_token_amount).is_equal_to(u1_lp_token_amount);
-    assert_that!(u1_balance).is_equal_to(u2_balance);
+    assert_that!(u1_balance).is_equal_to(u2_vt_balance);
 
     Ok(())
 }
