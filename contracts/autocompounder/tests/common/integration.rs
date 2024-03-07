@@ -1,9 +1,16 @@
+use std::str::FromStr;
+
 use super::dexes::DexInit;
+use abstract_testing::addresses::EUR;
+use autocompounder::msg::Claim;
+use autocompounder::msg::FeeConfig;
 use autocompounder::state::DECIMAL_OFFSET;
 
 use autocompounder::state::Config;
+use cosmwasm_std::Decimal;
 use cw_orch::prelude::*;
 use speculoos::result::ResultAssertions;
+use speculoos::vec::VecAssertions;
 
 use super::vault::GenericVault;
 use super::AResult;
@@ -34,40 +41,19 @@ pub fn test_deposit_assets<Chain: CwEnv, Dex: DexInit>(
 
     // deposit `amount` of both assets and check whether the exact right amount of vault tokens are minted
     vault.deposit_assets(user1, amount, amount, None)?;
-
-    let u1_lp_token_amount: u128 = vault.autocompounder_app.total_lp_position()?.into();
-    let u1_vt_balance = vault.vault_token_balance(user1_addr)?;
-    let mut vt_total_supply = u1_vt_balance; // only depositor for now
-    assert_that!(u1_vt_balance).is_equal_to(u1_lp_token_amount * 10u128.pow(DECIMAL_OFFSET));
+    let mut vt_total_supply = vault.assert_expected_shares(0u128, 0u128, 0u128, user1_addr)?;
 
     // deposit `amount` of only the first asset and check whether the vault tokens of u1 have increased
+    let prev_lp_amount = vault.autocompounder_app.total_lp_position()?.u128();
+    let prev_vt_balance = vault.vault_token_balance(user1_addr)?;
     vault.deposit_assets(user1, amount, 0, None)?;
-
-    let u1_new_lp_token_amount: u128 = vault.autocompounder_app.total_lp_position()?.into();
-    let u1_new_vt_balance = vault.vault_token_balance(user1_addr)?;
-    assert_that!(u1_new_lp_token_amount - u1_lp_token_amount).is_greater_than(0u128);
-    assert_that!(u1_new_vt_balance - u1_vt_balance).is_greater_than(0u128);
-    
-
-    let u1_added_lp_token_amount = u1_new_lp_token_amount - u1_lp_token_amount;
-    let u1_gained_vaulttoken = u1_new_vt_balance - u1_vt_balance;
-
-    // check the new vault token amount
-    let expected_mint_amount = convert_to_shares(u1_added_lp_token_amount.into(), u1_lp_token_amount.into(),vt_total_supply.into()).u128();
-    assert_that!(u1_gained_vaulttoken).is_equal_to(expected_mint_amount);
-    vt_total_supply += u1_gained_vaulttoken;
-
-    // TODO: check whether the balance is exactly what it should be here
+    vt_total_supply += vault.assert_expected_shares(prev_lp_amount, vt_total_supply, prev_vt_balance, user1_addr)?;
 
     // deposit `amount` of both assets by user2 and check whether the exact right amount of vault tokens are minted
+    let prev_lp_amount = vault.autocompounder_app.total_lp_position()?.u128();
+    let prev_vt_balance = vault.vault_token_balance(user2_addr)?;
     vault.deposit_assets(user2, amount, amount, None)?;
-    let u2_added_lp_amount =
-        vault.autocompounder_app.total_lp_position()?.u128() - u1_new_lp_token_amount;
-    let u2_vt_balance = vault.vault_token_balance(user2_addr)?;
-
-    // check the new vault token amount
-    let expected_mint_amount = convert_to_shares(u2_added_lp_amount.into(), u1_new_lp_token_amount.into(),vt_total_supply.into()).u128();
-    assert_that!(u2_vt_balance).is_equal_to(expected_mint_amount);
+    vault.assert_expected_shares(prev_lp_amount, vt_total_supply, prev_vt_balance, user2_addr)?;
 
     Ok(())
 }
@@ -88,28 +74,22 @@ pub fn deposit_with_recipient<Chain: CwEnv, Dex: DexInit>(
 
     // deposit `amount` of both assets and check whether the exact right amount of vault tokens are minted
     vault.deposit_assets(user1, amount, amount, Some(user2_addr.clone()))?;
-
-    let u1_lp_token_amount: Uint128 = vault.autocompounder_app.total_lp_position()?;
-    let u2_vt_balance = vault.vault_token_balance(user2_addr.to_string())?;
-    assert_that!(u2_vt_balance).is_equal_to(u1_lp_token_amount.u128() * 10u128.pow(DECIMAL_OFFSET));
+    let mut vt_total_supply = vault.assert_expected_shares(0u128, 0u128, 0u128, user2_addr)?;
 
     // deposit `amount` of only the first asset and check whether the vault tokens of u2 have increased
+
+    let prev_lp_amount = vault.autocompounder_app.total_lp_position()?.u128();
+    let prev_vt_balance = vault.vault_token_balance(user2_addr)?; 
     vault.deposit_assets(user1, amount, 0, Some(user2_addr.clone()))?;
-
-    let u1_new_lp_token_amount: Uint128 = vault.autocompounder_app.total_lp_position()?;
-    let u2_new_balance = vault.vault_token_balance(user2_addr.to_string())?;
-    assert_that!(u1_new_lp_token_amount - u1_lp_token_amount).is_greater_than(Uint128::zero());
-    assert_that!(u2_new_balance - u2_vt_balance).is_greater_than(0u128);
-
-
+    vt_total_supply += vault.assert_expected_shares(prev_lp_amount, vt_total_supply, prev_vt_balance, user2_addr)?;
 
     // deposit `amount` of both assets by user2 and check whether the exact right amount of vault tokens are minted
+    let prev_lp_amount = vault.autocompounder_app.total_lp_position()?.u128();
+    let prev_u2_vt_balance = vault.vault_token_balance(user2_addr)?;
     vault.deposit_assets(user2, amount, amount, Some(user1_addr.clone()))?;
-    let u2_lp_token_amount: Uint128 =
-        vault.autocompounder_app.total_lp_position()? - u1_new_lp_token_amount;
-    let u1_balance = vault.vault_token_balance(user1_addr.to_string())?;
-    assert_that!(u2_lp_token_amount).is_equal_to(u1_lp_token_amount);
-    assert_that!(u1_balance).is_equal_to(u2_vt_balance);
+    vault.assert_expected_shares(prev_lp_amount, vt_total_supply, 0u128, user1_addr)?;
+    // also check that the vault token balance of user2 has not changed
+    assert_that!(vault.vault_token_balance(user2_addr)?).is_equal_to(prev_u2_vt_balance);
 
     Ok(())
 }
@@ -127,64 +107,54 @@ pub fn redeem_deposit_immediately_with_unbonding<Chain: CwEnv, Dex: DexInit>(
     let amount = 10_000u128;
     require_unbonding_period(config, true);
 
-    let (u1_a_initial_balance, u1_b_initial_balance) = vault.asset_balances(user1_addr.to_string())?;
+    let u1_init_balances= vault.asset_balances(user1_addr.to_string())?;
 
     // deposit `amount` of both assets and check whether the exact right amount of vault tokens are minted
     vault.deposit_assets(user1, amount, amount, None)?;
-
-    let u1_lp_token_amount: u128 = vault.autocompounder_app.total_lp_position()?.into();
-    let u1_vt_balance = vault.vault_token_balance(user1_addr)?;
-    assert_that!(u1_vt_balance).is_equal_to(u1_lp_token_amount * 10u128.pow(DECIMAL_OFFSET));
+    let vt_total_supply = vault.assert_expected_shares(0u128, 0u128, 0u128, user1_addr)?;
 
     // redeem assets and check whether the vault tokens of u1 have decreased
-    vault.redeem_vault_token(u1_vt_balance, user1, None)?;
-    let u1_new_vt_balance = vault.vault_token_balance(user1_addr)?;
-    assert_that!(u1_new_vt_balance).is_equal_to(0u128);
+    let u1_vt_balance = vt_total_supply;
+    let prev_lp_amount = vault.autocompounder_app.total_lp_position()?.u128();
+    let redeem_amount = u1_vt_balance / 4;
+    vault.redeem_vault_token(redeem_amount, user1, None)?;
+    vault.assert_redeem_before_unbonding(user1_addr, prev_lp_amount, u1_vt_balance, redeem_amount, 0u128,None)?;
 
-    let u1_pending_claims = vault.pending_claims(user1_addr)?;
-    assert_that!(u1_pending_claims).is_equal_to(u1_vt_balance);
+    // redeem the rest
+    let redeem_amount = u1_vt_balance - redeem_amount;
+    vault.redeem_vault_token(redeem_amount, user1, None)?;
+    vault.assert_redeem_before_unbonding(user1_addr, prev_lp_amount, redeem_amount, redeem_amount, redeem_amount /4,  None)?;
 
-    let u1_new_lp_token_amount: u128 = vault.autocompounder_app.total_lp_position()?.into();
-    assert_that!(u1_new_lp_token_amount).is_equal_to(u1_lp_token_amount);
 
     // call batch unbond and progress block time by one second
-    vault.autocompounder_app.batch_unbond(None, None)?;
-    let ac_vt_balance = vault.vault_token_balance(_ac_address.clone())?;
-    assert_that!(ac_vt_balance).is_equal_to(0u128);
+    vault.assert_batch_unbond(prev_lp_amount, redeem_amount)?;
+    let claims: Vec<Claim> = vault.autocompounder_app.claims(user1_addr.clone())?;
+    assert_that!(claims).has_length(1);
 
-    // TODO: optionally check whether the locked tokens are now in the unbonding queue
-    // this is quite hard to generallize and might not be necessary if the rest works
+    println!("{:?}", claims.first().unwrap());
+    vault.chain.wait_seconds(1).unwrap();
 
-    vault.chain.next_block().unwrap();
 
     // Withdraw the pending claims and check whether the vault tokens of u1 have increased
-    vault.autocompounder_app.call_as(user1).withdraw()?;
-    let (u1_a_balance, u1_b_balance) = vault.asset_balances(user1_addr)?;
-    assert_that!(u1_a_balance).is_equal_to(amount);
-    assert_that!(u1_b_balance).is_equal_to(amount);
+    vault.withdraw_and_assert(user1, user1_addr, u1_init_balances)?;
 
     // Same test as above but with recipient
     let (u2_a_initial_balance, u2_b_initial_balance) = vault.asset_balances(user2_addr)?;
 
-    vault.deposit_assets(user1, amount, amount, Some(user2_addr.clone()))?;
-    let u1_vt_balance = vault.vault_token_balance(user1_addr)?;
+    vault.deposit_assets(user1, amount, amount, None)?;
+    let u1_vt_balance = vault.assert_expected_shares(0u128, 0u128, 0u128, user1_addr)?;
 
     vault.redeem_vault_token(u1_vt_balance, user1, Some(user2_addr.clone()))?;
+    let prev_lp_amount = vault.autocompounder_app.total_lp_position()?.u128();
+    vault.assert_redeem_before_unbonding(user2_addr, prev_lp_amount, u1_vt_balance, redeem_amount, 0u128, None)?;
     let u1_new_vt_balance = vault.vault_token_balance(user1_addr.to_string())?;
     assert_that!(u1_new_vt_balance).is_equal_to(0u128);
-    let u1_pending_claims: u128 = vault
-        .autocompounder_app
-        .pending_claims(user1_addr.clone())?
-        .into();
-    assert_that!(u1_pending_claims).is_equal_to(0u128);
 
-    let (u1_a_balance, u1_b_balance) = vault.asset_balances(user1_addr)?;
-    let (u2_a_balance, u2_b_balance) = vault.asset_balances(user2_addr)?;
-    assert_that!(u1_a_balance).is_equal_to(u1_a_initial_balance - amount);
-    assert_that!(u1_b_balance).is_equal_to(u1_b_initial_balance - amount);
-    assert_that!(u2_a_balance).is_equal_to(u2_a_initial_balance + amount);
-    assert_that!(u2_b_balance).is_equal_to(u2_b_initial_balance + amount);
+    vault.assert_batch_unbond(prev_lp_amount, u1_vt_balance)?;
+    vault.chain.wait_seconds(1).unwrap();
 
+
+    vault.withdraw_and_assert(user2, user2_addr, (u2_a_initial_balance+amount, u2_b_initial_balance + amount))?;
     Ok(())
 }
 
@@ -193,142 +163,75 @@ pub fn redeem_deposit_immediately_with_unbonding<Chain: CwEnv, Dex: DexInit>(
 #[allow(dead_code)]
 pub fn redeem_deposit_immediately_without_unbonding<Chain: CwEnv, Dex: DexInit>(
     vault: GenericVault<Chain, Dex>,
-    user1: &<Chain as TxHandler>::Sender,
-    user1_addr: &Addr,
-    user2: &<Chain as TxHandler>::Sender,
-    user2_addr: &Addr,
+    _user1: &<Chain as TxHandler>::Sender,
+    _user1_addr: &Addr,
+    _user2: &<Chain as TxHandler>::Sender,
+    _user2_addr: &Addr,
 ) -> AResult {
     let _ac_address = vault.autocompounder_app.addr_str()?;
     let config: Config = vault.autocompounder_app.config()?;
-    let amount = 10_000u128;
+    let _amount = 10_000u128;
     require_unbonding_period(config, false);
 
-    let (u1_a_init_balance, u1_b_init_balance) = vault.asset_balances(user1_addr)?;
+    todo!("implement this test once we have a testsuite that has nonbonding periods")
+}
 
-    // deposit `amount` of both assets and check whether the exact right amount of vault tokens are minted
-    vault.deposit_assets(user1, amount, amount, None)?;
-    let u1_vt_balance = vault.vault_token_balance(user1_addr)?;
+/// Deposit fees, fee token handling, and withdrawal fees test
+#[allow(dead_code)]
+pub fn deposit_fees_fee_token_and_withdraw_fees<Chain: CwEnv, Dex: DexInit>(
+    vault: GenericVault<Chain, Dex>,
+    owner: &<Chain as TxHandler>::Sender,
+    owner_addr: &Addr,
+    commission_addr: &Addr,
+) -> AResult {
+    let amount = 1_000u128;
+    let deposit_fee_percentage = Decimal::from_str("0.01")?;
+    let withdrawal_fee_percentage = Decimal::from_str("0.1")?;
+    let performance_fee_percentage = Decimal::zero();
 
-    vault.redeem_vault_token(u1_vt_balance, user1, None)?;
-    let u1_new_vt_balance = vault.vault_token_balance(user1_addr)?;
-    assert_that!(u1_new_vt_balance).is_equal_to(0u128);
-    let u1_pending_claims= vault.pending_claims(user1_addr)?;
-    assert_that!(u1_pending_claims).is_equal_to(0u128);
+    // Update performance fees to zero and deposit/withdrawal fees to 10%
+    vault.autocompounder_app.update_fee_config(
+        Some(performance_fee_percentage),
+        Some(deposit_fee_percentage.to_string()),
+        Some(withdrawal_fee_percentage),
+        None,
+    )?;
 
-    let (u1_a_balance, u1_b_balance) = vault.asset_balances(user1_addr)?;
-    assert_that!(u1_a_balance).is_equal_to(u1_a_init_balance);
-    assert_that!(u1_b_balance).is_equal_to(u1_b_init_balance);
-    
-    
-    // Same test as above but with recipient
-    let (u2_a_initial_balance, u2_b_initial_balance) = vault.asset_balances(user2_addr)?;
-    vault.deposit_assets(user1, amount, amount, Some(user2_addr.clone()))?;
-    let u1_vt_balance = vault.vault_token_balance(user1_addr)?;
-    
-    vault.redeem_vault_token(u1_vt_balance, user1, Some(user2_addr.clone()))?;
-    let u1_new_vt_balance = vault.vault_token_balance(user1_addr)?;
-    assert_that!(u1_new_vt_balance).is_equal_to(0u128);
-    let u1_pending_claims= vault.pending_claims(user1_addr)?;
-    assert_that!(u1_pending_claims).is_equal_to(0u128);
+    let fee_config: FeeConfig = vault.autocompounder_app.fee_config()?;
+    assert_that!(fee_config.deposit).is_equal_to(deposit_fee_percentage);
+    assert_that!(fee_config.withdrawal).is_equal_to(withdrawal_fee_percentage);
+    assert_that!(fee_config.performance).is_equal_to(performance_fee_percentage);
 
-    let (u1_a_balance, u1_b_balance) = vault.asset_balances(user1_addr)?;
-    let (u2_a_balance, u2_b_balance) = vault.asset_balances(user2_addr)?;
-    assert_that!(u1_a_balance).is_equal_to(0u128);
-    assert_that!(u1_b_balance).is_equal_to(0u128);
-    assert_that!(u2_a_balance).is_equal_to(u2_a_initial_balance + amount);
-    assert_that!(u2_b_balance).is_equal_to(u2_b_initial_balance + amount);
+    // Deposit 1000 EUR and check fees
+    vault.deposit_assets(owner, amount, 0, None)?;
+    vault.assert_expected_shares(0u128, 0u128, 0u128, owner_addr)?;
+    let expected_deposit_fee = Uint128::from(amount) * deposit_fee_percentage;
+
+    let received_fee = vault.chain.bank_querier().balance(commission_addr, Some(EUR.to_string())).unwrap().first().unwrap().amount;
+    assert_that!(received_fee).is_equal_to(expected_deposit_fee);
+
+    // Check the owner's vault token balance after deposit
+    let owner_vault_balance = vault.vault_token_balance(owner_addr)?;
+    assert_that!(owner_vault_balance).is_greater_than(0u128);
+
+    // Redeem all and check withdrawal fees
+    let redeem_amount = owner_vault_balance;
+    let prev_lp_amount = vault.autocompounder_app.total_lp_position()?.u128();
+    vault.redeem_vault_token(redeem_amount, owner, None)?;
+    assert_that!(vault.pending_claims(owner_addr)?).is_equal_to(redeem_amount);
+
+
+    vault.assert_batch_unbond(prev_lp_amount, redeem_amount)?;
+
+    // Check pending claims which should consider withdrawal fees
+    let claims: Vec<Claim> = vault.autocompounder_app.claims(owner_addr.clone())?;
+    let expected_withdrawal_fee = (Uint128::from(redeem_amount) * withdrawal_fee_percentage).u128();
+    assert_that!(claims.first().unwrap().amount_of_vault_tokens_to_burn.u128()).is_equal_to(redeem_amount - expected_withdrawal_fee);
+
+    assert_that!(vault.autocompounder_app.total_supply()?).is_equal_to(Uint128::zero());
 
     Ok(())
 }
-
-// // TOFIX: need some detailse fixed
-// pub fn vault_token_inflation_attack_original<Chain: CwEnv, Dex: DexInit>(
-//     vault: GenericVault<Chain, Dex>,
-//     user: &<Chain as TxHandler>::Sender,
-//     user_addr: &Addr,
-//     attacker: &<Chain as TxHandler>::Sender,
-//     attacker_addr: &Addr,
-// ) -> AResult {
-//     let _ac_address = vault.autocompounder_app.addr_str()?;
-//     let config: Config = vault.autocompounder_app.config()?;
-//     let amount = 100_000u128; // Adjusted to match the old test's user_deposit
-//     require_unbonding_period(config, false); // Assuming no unbonding is required for this scenario, adjust based on actual needs
-
-//     // Attacker makes initial deposit to vault pool
-//     vault.deposit_assets(attacker, amount / 2, 0, None)?;
-//     let attacker_initial_vt_balance = vault.vault_token_balance(attacker_addr)?;
-
-//     // Attacker makes donation to liquidity pool
-//     // Note: Assuming `donate_to_liquidity_pool` is a method available in the new framework to mimic the donation behavior
-//     donate_to_liquidity_pool(&vault, attacker, amount / 2 + 1)?;
-
-//     let lp_staked_after_donation: u128 = vault.autocompounder_app.total_lp_position()?.into();
-//     assert_that!(lp_staked_after_donation).is_equal_to(amount / 2 + 1);
-
-//     // User deposits assets into the vault
-//     vault.deposit_assets(user, amount, amount, None)?;
-//     let total_lp_staked: u128 = vault.autocompounder_app.total_lp_position()?.into();
-//     assert_that!(total_lp_staked).is_equal_to(150_002u128);
-
-//     // Check the amount of vault token the user has
-//     let user_vault_token_balance = vault.vault_token_balance(user_addr)?;
-//     // Logic to calculate expected balance, adjusted to new framework's calculation method
-//     // Placeholder for calculation logic
-//     let expected_user_vault_token_balance = calculate_expected_balance(amount, total_lp_staked, attacker_initial_vt_balance);
-//     assert_that!(user_vault_token_balance).is_equal_to(expected_user_vault_token_balance);
-
-//     // Attacker redeems the initial deposit without unbonding
-//     vault.redeem_vault_token(attacker_initial_vt_balance, attacker, None)?;
-//     let attacker_pending_claims = vault.pending_claims(attacker_addr)?;
-//     assert_that!(attacker_pending_claims).is_equal_to(attacker_initial_vt_balance);
-
-//     Ok(())
-// }
-
-// pub fn vault_token_inflation_attack_full_dilute<Chain: CwEnv, Dex: DexInit>(
-//     vault: GenericVault<Chain, Dex>,
-//     user: &<Chain as TxHandler>::Sender,
-//     user_addr: &Addr,
-//     attacker: &<Chain as TxHandler>::Sender,
-//     attacker_addr: &Addr,
-// ) -> AResult {
-//     let _ac_address = vault.autocompounder_app.addr_str()?;
-//     let config: Config = vault.autocompounder_app.config()?;
-//     let user_deposit = 100_000u128;
-//     let attacker_deposit = 1u128;
-//     let fully_dilute_donation = (10u128.pow(DECIMAL_OFFSET) * user_deposit - 1) * (attacker_deposit + 1) + 1;
-
-//     // Assuming the new framework handles the setup and minting implicitly or it's done beforehand
-//     // Deposit by attacker with minimal amount to attempt to dilute vault token value
-//     vault.deposit_assets(attacker, attacker_deposit, 0, None)?;
-//     let attacker_initial_vt_balance = vault.vault_token_balance(attacker_addr)?;
-
-//     // Attacker makes a large donation to attempt full dilution
-//     // Note: Assuming `donate_to_liquidity_pool` or equivalent method is available
-//     donate_to_liquidity_pool(&vault, attacker, fully_dilute_donation)?;
-
-//     // User attempts to deposit, expecting dilution to prevent meaningful vault token issuance
-//     let deposit_attempt_result = vault.deposit_assets(user, user_deposit, 0, None);
-
-//     // Check the result of the deposit attempt - expecting an error or zero minting based on your logic
-//     // Adjust this assertion based on how your framework indicates a failed deposit due to full dilution
-//     assert_that!(deposit_attempt_result).is_err();
-
-//     Ok(())
-// }
-
-// // You may need a helper function or modify the existing method for donations if it doesn't exist
-// // This is a placeholder for the logic to handle donations in the new framework
-// fn donate_to_liquidity_pool<Chain: CwEnv, Dex: DexInit>(
-//     vault: &GenericVault<Chain, Dex>,
-//     donor: &<Chain as TxHandler>::Sender,
-//     amount: u128,
-// ) -> AResult {
-//     // Placeholder for donation logic
-//     // Adjust based on actual implementation
-//     Ok(())
-// }
-
 
 
 

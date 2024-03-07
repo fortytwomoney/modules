@@ -2,9 +2,12 @@
 mod common;
 use abstract_interface::AbstractInterfaceError;
 
+use autocompounder::msg::FeeConfig;
 use common::dexes::DexInit;
 use common::dexes::IncentiveParams;
+use common::integration::deposit_fees_fee_token_and_withdraw_fees;
 use common::integration::deposit_with_recipient;
+use common::integration::redeem_deposit_immediately_with_unbonding;
 use common::integration::test_deposit_assets;
 use cw_asset::Asset;
 use cw_asset::AssetInfo;
@@ -121,6 +124,19 @@ fn deposit_assets_native_osmosistesttube() -> AResult {
     test_deposit_assets(vault, &user1, &user1_addr, &user2, &user2_addr)
 }
 
+ 
+#[test]
+fn redeem_after_deposit_native_osmosistesttube() -> AResult {
+    let vault = setup_osmosis_vault().unwrap();
+
+    let user1 = vault.dex.accounts[0].clone();
+    let user2 = vault.dex.accounts[1].clone();
+    let user1_addr = Addr::unchecked(user1.address());
+    let user2_addr = Addr::unchecked(user2.address());
+
+    redeem_deposit_immediately_with_unbonding(vault, &user1, &user1_addr, &user2, &user2_addr)
+}
+
 #[test]
 fn deposit_with_recipient_osmosistesttube() -> AResult {
     let vault = setup_osmosis_vault().unwrap();
@@ -132,3 +148,17 @@ fn deposit_with_recipient_osmosistesttube() -> AResult {
 
     deposit_with_recipient(vault, &user1, &user1_addr, &user2, &user2_addr)
 }
+
+// #[test]
+// fn deposit_fees_fee_token_and_withdraw_fees_osmosistesttube() -> AResult {
+//     let vault = setup_osmosis_vault().unwrap();
+//     let fee_config :FeeConfig= vault.autocompounder_app.fee_config()?;
+
+//     let user1 = vault.dex.accounts[0].clone();
+//     let user2 = vault.dex.accounts[1].clone();
+    
+//     let user1_addr = Addr::unchecked(user1.address());
+//     let _user2_addr = Addr::unchecked(user2.address());
+
+//     deposit_fees_fee_token_and_withdraw_fees(vault, &user1, &user1_addr, &fee_config.fee_collector_addr)
+// }

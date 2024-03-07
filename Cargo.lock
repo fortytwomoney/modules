@@ -106,7 +106,7 @@ dependencies = [
 [[package]]
 name = "abstract-astroport-adapter"
 version = "2.10.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=misha/abs-331-add-tests-to-osmosis-adapter#f363c46971aec6dee81af6b4c6a4862a8a26e557"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix#fe81757a3cf76fa991751e28f72e276d90c43269"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -130,7 +130,7 @@ dependencies = [
 [[package]]
 name = "abstract-astrovault-adapter"
 version = "0.2.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=misha/abs-331-add-tests-to-osmosis-adapter#f363c46971aec6dee81af6b4c6a4862a8a26e557"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix#fe81757a3cf76fa991751e28f72e276d90c43269"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -476,19 +476,19 @@ dependencies = [
 [[package]]
 name = "abstract-dex-adapter"
 version = "0.21.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=misha/abs-331-add-tests-to-osmosis-adapter#f363c46971aec6dee81af6b4c6a4862a8a26e557"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix#fe81757a3cf76fa991751e28f72e276d90c43269"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
- "abstract-astroport-adapter 2.10.0 (git+https://github.com/AbstractSDK/abstract.git?branch=misha/abs-331-add-tests-to-osmosis-adapter)",
- "abstract-astrovault-adapter 0.2.0 (git+https://github.com/AbstractSDK/abstract.git?branch=misha/abs-331-add-tests-to-osmosis-adapter)",
+ "abstract-astroport-adapter 2.10.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix)",
+ "abstract-astrovault-adapter 0.2.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix)",
  "abstract-core",
  "abstract-dex-standard",
  "abstract-interface",
- "abstract-kujira-adapter 0.3.0 (git+https://github.com/AbstractSDK/abstract.git?branch=misha/abs-331-add-tests-to-osmosis-adapter)",
- "abstract-osmosis-adapter 0.16.2 (git+https://github.com/AbstractSDK/abstract.git?branch=misha/abs-331-add-tests-to-osmosis-adapter)",
+ "abstract-kujira-adapter 0.3.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix)",
+ "abstract-osmosis-adapter 0.16.2 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix)",
  "abstract-sdk",
- "abstract-wyndex-adapter 0.21.0 (git+https://github.com/AbstractSDK/abstract.git?branch=misha/abs-331-add-tests-to-osmosis-adapter)",
+ "abstract-wyndex-adapter 0.21.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix)",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-asset",
@@ -610,7 +610,7 @@ dependencies = [
 [[package]]
 name = "abstract-kujira-adapter"
 version = "0.3.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=misha/abs-331-add-tests-to-osmosis-adapter#f363c46971aec6dee81af6b4c6a4862a8a26e557"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix#fe81757a3cf76fa991751e28f72e276d90c43269"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -690,7 +690,7 @@ dependencies = [
 [[package]]
 name = "abstract-osmosis-adapter"
 version = "0.16.2"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=misha/abs-331-add-tests-to-osmosis-adapter#f363c46971aec6dee81af6b4c6a4862a8a26e557"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix#fe81757a3cf76fa991751e28f72e276d90c43269"
 dependencies = [
  "abstract-cw20",
  "abstract-dex-standard",
@@ -853,7 +853,7 @@ dependencies = [
 [[package]]
 name = "abstract-wyndex-adapter"
 version = "0.21.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?branch=misha/abs-331-add-tests-to-osmosis-adapter#f363c46971aec6dee81af6b4c6a4862a8a26e557"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix#fe81757a3cf76fa991751e28f72e276d90c43269"
 dependencies = [
  "abstract-cw20",
  "abstract-dex-standard",

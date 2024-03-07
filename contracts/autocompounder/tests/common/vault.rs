@@ -8,8 +8,8 @@ use abstract_dex_adapter::interface::DexAdapter;
 use abstract_interface::{Abstract, AbstractAccount};
 use anyhow::Error;
 use autocompounder::interface::AutocompounderApp;
-use autocompounder::msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, Config};
-use cosmwasm_std::{coin, coins, Addr, Coin};
+use autocompounder::msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, Claim, Config};
+use cosmwasm_std::{coin, coins, Addr, Coin, Uint128};
 use cw20::msg::Cw20ExecuteMsgFns;
 use cw20_base::msg::QueryMsgFns as _;
 use cw_asset::{AssetInfo, AssetInfoBase};
@@ -20,10 +20,15 @@ use cw_orch::environment::{BankQuerier, CwEnv, MutCwEnv, TxHandler};
 use cw_orch::osmosis_test_tube::osmosis_test_tube::SigningAccount;
 
 use cw_plus_interface::cw20_base::Cw20Base;
+use speculoos::assert_that;
+use speculoos::iter::ContainingIntoIterAssertions;
+use speculoos::numeric::OrderedAssertions;
+use speculoos::vec::VecAssertions;
 use wyndex_bundle::WynDex;
 
 use super::account_setup::setup_autocompounder_account;
 use super::dexes::DexInit;
+use super::integration::convert_to_shares;
 use super::AResult;
 
 #[derive(Clone, Debug)]
@@ -288,6 +293,126 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
             _ => panic!("invalid asset_info"),
         }
     }
+}
+
+impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
+    pub fn assert_expected_shares(
+        &self,
+        prev_lp_amount: u128,
+        prev_total_supply: u128,
+        prev_vt_balance: u128,
+        account: &Addr,
+    ) -> Result<u128, Error> {
+        let new_lp_amount = self.autocompounder_app.total_lp_position()?.u128() - prev_lp_amount;
+        assert_that!(new_lp_amount).is_greater_than(0u128);
+
+        let gained_shares = self.vault_token_balance(account.clone())? - prev_vt_balance;
+        assert_that!(gained_shares).is_greater_than(0u128);
+
+        let expected_gained_shares: u128 = convert_to_shares(new_lp_amount.into(), prev_lp_amount.into(), prev_total_supply.into()).into();
+        assert_that!(gained_shares).is_equal_to(expected_gained_shares);
+
+        Ok(gained_shares)
+    }
+
+    pub fn assert_redeem_before_unbonding(
+        &self,
+        account: &Addr,
+        prev_lp_amount: u128,
+        prev_vt_balance: u128,
+        redeem_amount: u128,
+        previous_pending: u128,
+        reciever: Option<&Addr>,
+    ) -> Result<(), Error> {
+        let vt_balance = self.vault_token_balance(account.clone())?;
+        assert_that!(vt_balance).is_equal_to(prev_vt_balance - redeem_amount);
+        
+        // redeem with unbonding doesnt change the lp amount without unbonding
+        let lp_amount = self.autocompounder_app.total_lp_position()?.u128();
+        assert_that!(lp_amount).is_equal_to(prev_lp_amount);
+
+        let pending_claims = if let Some(reciever) = reciever {
+            let account_pending_claims = self.pending_claims(&account)?;
+            assert_that!(account_pending_claims).is_equal_to(0u128);
+
+            self.pending_claims(reciever)?
+        } else {
+            self.pending_claims(account)?
+        };
+        assert_that!(pending_claims).is_equal_to(redeem_amount + previous_pending);
+
+        // in case of no other accounts, the vault token balance should be equal to the pending claims,
+        // otherwise it should be greater than or equal pending claims for the account
+        let ac_vt_balance = self.vault_token_balance(self.autocompounder_app.addr_str()?)?;
+        assert_that!(ac_vt_balance).is_greater_than_or_equal_to(pending_claims);
+
+        Ok(())
+    }
+
+    pub fn assert_batch_unbond(
+        &self,
+        prev_lp_amount: u128,
+        redeem_amount: u128,
+    ) -> Result<(), Error> {
+
+        let prev_total_supply = self.autocompounder_app.total_supply()?.u128();
+        let all_pending_claims: Vec<(Addr, Uint128)> = self.autocompounder_app.all_pending_claims(None,None)?;
+        let all_claims: Vec<(Addr, Vec<Claim>)> = self.autocompounder_app.all_claims(None,None)?;
+
+        // TODO: What happens if the pending claims are empty? currently, nothing i think. Just a note to check this
+        //       so in both cases this batch_unbond should work
+        self.autocompounder_app.batch_unbond(None, None)?;
+        
+        // after batch-unbonding, the ac vault token balance should always be 0
+        assert_that!(
+            self.vault_token_balance(self.autocompounder_app.addr_str()?)?)
+            .is_equal_to(0u128);
+
+        // after batch-unbonding, all the pending claims should be 0
+        // assuming that the batch-unbonding is done for all the accounts
+        let pending_claims: Vec<(Addr, Uint128)> = self.autocompounder_app.all_pending_claims(None,None)?;
+        assert_that!(pending_claims).is_empty();
+        
+        // after batch-unbonding, the lp amount should be reduced by the redeem amount
+        let lp_amount = self.autocompounder_app.total_lp_position()?.u128();
+        assert_that!(lp_amount).is_equal_to(prev_lp_amount - redeem_amount);
+
+        // the total supply of the vault token should be reduced by the redeem amount
+        assert_that!(self.autocompounder_app.total_supply()?.u128()).is_equal_to(prev_total_supply - redeem_amount);
+
+        // after batch unbonding all the pending claim amounts should have been added to the claims
+        let all_claims_after: Vec<(Addr, Vec<Claim>)> = self.autocompounder_app.all_claims(None,None)?;
+        if !all_pending_claims.is_empty() {
+            assert_that!(all_claims_after).is_not_equal_to(all_claims.clone());
+        } else {
+            assert_that!(all_claims_after).is_equal_to(all_claims.clone());
+        }
+
+        all_pending_claims.iter().for_each(|(addr, claim)| {
+            let claim = claim.u128();
+            let previous_claims = all_claims.iter().find(|(a, _)| a == addr).unwrap().clone().1;
+            let claims = all_claims_after.iter().find(|(a, _)| a == addr).unwrap().clone().1;
+            assert_that!(claims.len()).is_equal_to(previous_claims.len() + 1);
+
+            let mut claims = claims.clone();
+            let new_claims = claims.split_off(previous_claims.len() - 1);
+            assert_that!(claims).equals_iterator(&previous_claims.iter());
+
+            assert_that!(new_claims.len()).is_equal_to(1);
+            assert_that!(new_claims.first().unwrap().amount_of_vault_tokens_to_burn.u128()).is_equal_to(claim);
+        });
+
+
+        Ok(())
+    }
+
+    pub fn withdraw_and_assert(&self, user: &Chain::Sender,user_addr: &Addr, expected_balance: (u128, u128)) -> AResult {
+        self.autocompounder_app.call_as(user).withdraw()?;
+
+        assert_that!(self.asset_balances(user_addr)?).is_equal_to(expected_balance);
+        Ok(())
+    }
+
 }
 
 // NOTE: I think because Osmosis has only native assets, and Astroport has both, we should have 3 environments:

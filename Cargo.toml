@@ -35,7 +35,7 @@ abstract-testing = { version = "0.21.0" }
 abstract-client = { version = "0.21.0" }
 
 ## Abstract API
-abstract-dex-adapter = { git = "https://github.com/AbstractSDK/abstract.git", branch = "misha/abs-331-add-tests-to-osmosis-adapter", default-features = false }
+abstract-dex-adapter = { git = "https://github.com/AbstractSDK/abstract.git", tag="v0.21.0-osmosis-dex-fix", default-features = false }
 abstract-cw-staking = { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.21.0", default-features = false }
 
 # Dev Abstract dependencies
