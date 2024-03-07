@@ -53,6 +53,7 @@ pub struct DexBase {
     pub assets: Vec<AssetWithInfo>,
     pub pools: Vec<(UncheckedPoolAddress, PoolMetadata)>,
     pub contracts: Vec<(UncheckedContractEntry, String)>,
+    pub reward_token_denoms: Vec<String>,
 }
 
 impl DexBase {
@@ -147,6 +148,7 @@ impl DexInit for OsmosisDex<OsmosisTestTube> {
         let main_pool = pools.first().unwrap();
 
         osmosis.setup_incentives(main_pool, incentives)?;
+        osmosis.dex_base.reward_token_denoms =  incentives.coins.iter().map(|c| c.denom.clone()).collect::<Vec<String>>();
 
         let gamm_tokens = ans_info_from_osmosis_pools(&pools);
 

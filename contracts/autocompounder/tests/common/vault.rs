@@ -80,7 +80,7 @@ impl<T: CwEnv, Dex: DexInit> GenericVault<T, Dex> {
     where
         T: cw_orch::prelude::TxHandler,
     {
-        let config = self.autocompounder_app.config()?;
+        let config: Config = self.autocompounder_app.config()?;
         match config.vault_token {
             AssetInfoBase::Cw20(c) => {
                 let vault_token = Cw20Base::new(c, self.chain.clone());
@@ -108,7 +108,8 @@ impl<T: CwEnv, Dex: DexInit> GenericVault<T, Dex> {
     }
 
     pub fn vault_token_balance<S: Into<String>>(&self, account: S) -> Result<u128, Error> {
-        match self.autocompounder_app.config()?.vault_token {
+        let config: Config= self.autocompounder_app.config()?;
+        match config.vault_token {
             AssetInfoBase::Cw20(c) => {
                 let vault_token = Cw20Base::new(c, self.chain.clone());
                 Ok(vault_token.balance(account.into().clone())?.balance.u128())
@@ -167,8 +168,19 @@ impl<T: CwEnv, Dex: DexInit> GenericVault<T, Dex> {
         ))
     }
 
+    
+    // CONVENIENCE FUNCTIONS
+
     pub fn pending_claims(&self, account: &Addr) -> Result<u128, Error> {
         Ok(self.autocompounder_app.pending_claims(account.clone())?.into())
+    }
+
+    pub fn total_lp_position(&self) -> Result<u128, Error> {
+        Ok(self.autocompounder_app.total_lp_position()?.u128())
+    }
+
+    pub fn total_supply(&self) -> Result<u128, Error> {
+        Ok(self.autocompounder_app.total_supply()?.u128())
     }
 }
 
@@ -231,6 +243,7 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
         recipient: Option<Addr>,
     ) -> AResult {
         let dex_base = self.dex.dex_base();
+        let autocompounder_addr = self.autocompounder_app.addr_str()?;
 
         let asset_a = dex_base.asset_a();
         let asset_b = dex_base.asset_b();
@@ -244,7 +257,7 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
 
         let ans_assets_deposit_coins = assets
             .into_iter()
-            .map(|(asset, amount)| self.asset_amount_to_deposit(depositor, amount, asset))
+            .map(|(asset, amount)| self.asset_amount_to_deposit(depositor, autocompounder_addr.clone(), amount, asset))
             .collect::<Result<Vec<(AnsAsset, Option<Coin>)>, Error>>()?;
 
         let (ans_assets, deposit_coins): (Vec<_>, Vec<_>) =
@@ -270,9 +283,51 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
         Ok(())
     }
 
-    fn asset_amount_to_deposit(
+    fn provide_liquidity(
         &self,
         depositor: &Chain::Sender,
+        amount_a: u128,
+        amount_b: u128,
+        recipient: Option<Addr>,
+    ) -> Result<AnsAsset, Error> {
+        let dex_base = self.dex.dex_base();
+        let dex_addr = "unknown dex address";  // #FIXME: This should be the actual dex adapter address
+
+        let asset_a = dex_base.asset_a();
+        let asset_b = dex_base.asset_b();
+
+        let assets = vec![(&asset_a, amount_a), (&asset_b, amount_b)]
+            .into_iter()
+            .filter(|(_, amount)| *amount > 0)
+            .collect::<Vec<_>>();
+
+        println!("Depositing assets: {:?}", assets);
+
+        let ans_assets_deposit_coins = assets
+            .into_iter()
+            .map(|(asset, amount)| self.asset_amount_to_deposit(depositor, dex_addr, amount, asset))
+            .collect::<Result<Vec<(AnsAsset, Option<Coin>)>, Error>>()?;
+
+        let (ans_assets, deposit_coins): (Vec<_>, Vec<_>) =
+            ans_assets_deposit_coins.into_iter().unzip();
+
+        let deposit_coins = deposit_coins
+            .into_iter()
+            .filter_map(|x| x)
+            .collect::<Vec<_>>();
+
+        println!(
+            "Depositing coins: and assets {:?}, {:?}",
+            ans_assets, deposit_coins
+        );
+
+        todo!("Provide liquidity using the dex adapter here")
+    }
+
+    fn asset_amount_to_deposit<S: Into<String>>(
+        &self,
+        depositor: &Chain::Sender,
+        spender: S,
         amount: u128,
         asset: &AssetWithInfo,
     ) -> Result<(AnsAsset, Option<Coin>), Error> {
@@ -281,7 +336,7 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
                 let cw20_asset = Cw20Base::new(addr, self.chain.clone());
                 cw20_asset.call_as(depositor).increase_allowance(
                     amount.into(),
-                    self.autocompounder_app.addr_str()?,
+                    spender.into(),
                     None,
                 )?;
                 Ok((AnsAsset::new(asset.ans_name.clone(), amount), None))
@@ -374,6 +429,7 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
         assert_that!(pending_claims).is_empty();
         
         // after batch-unbonding, the lp amount should be reduced by the redeem amount
+        // TODO: This should actually be a bit different. it should use the convert to assets function
         let lp_amount = self.autocompounder_app.total_lp_position()?.u128();
         assert_that!(lp_amount).is_equal_to(prev_lp_amount - redeem_amount);
 

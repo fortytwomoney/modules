@@ -9,7 +9,6 @@ use autocompounder::state::DECIMAL_OFFSET;
 use autocompounder::state::Config;
 use cosmwasm_std::Decimal;
 use cw_orch::prelude::*;
-use speculoos::result::ResultAssertions;
 use speculoos::vec::VecAssertions;
 
 use super::vault::GenericVault;
@@ -44,13 +43,13 @@ pub fn test_deposit_assets<Chain: CwEnv, Dex: DexInit>(
     let mut vt_total_supply = vault.assert_expected_shares(0u128, 0u128, 0u128, user1_addr)?;
 
     // deposit `amount` of only the first asset and check whether the vault tokens of u1 have increased
-    let prev_lp_amount = vault.autocompounder_app.total_lp_position()?.u128();
+    let prev_lp_amount = vault.total_lp_position()?;
     let prev_vt_balance = vault.vault_token_balance(user1_addr)?;
     vault.deposit_assets(user1, amount, 0, None)?;
     vt_total_supply += vault.assert_expected_shares(prev_lp_amount, vt_total_supply, prev_vt_balance, user1_addr)?;
 
     // deposit `amount` of both assets by user2 and check whether the exact right amount of vault tokens are minted
-    let prev_lp_amount = vault.autocompounder_app.total_lp_position()?.u128();
+    let prev_lp_amount = vault.total_lp_position()?;
     let prev_vt_balance = vault.vault_token_balance(user2_addr)?;
     vault.deposit_assets(user2, amount, amount, None)?;
     vault.assert_expected_shares(prev_lp_amount, vt_total_supply, prev_vt_balance, user2_addr)?;
@@ -78,13 +77,13 @@ pub fn deposit_with_recipient<Chain: CwEnv, Dex: DexInit>(
 
     // deposit `amount` of only the first asset and check whether the vault tokens of u2 have increased
 
-    let prev_lp_amount = vault.autocompounder_app.total_lp_position()?.u128();
+    let prev_lp_amount = vault.total_lp_position()?;
     let prev_vt_balance = vault.vault_token_balance(user2_addr)?; 
     vault.deposit_assets(user1, amount, 0, Some(user2_addr.clone()))?;
     vt_total_supply += vault.assert_expected_shares(prev_lp_amount, vt_total_supply, prev_vt_balance, user2_addr)?;
 
     // deposit `amount` of both assets by user2 and check whether the exact right amount of vault tokens are minted
-    let prev_lp_amount = vault.autocompounder_app.total_lp_position()?.u128();
+    let prev_lp_amount = vault.total_lp_position()?;
     let prev_u2_vt_balance = vault.vault_token_balance(user2_addr)?;
     vault.deposit_assets(user2, amount, amount, Some(user1_addr.clone()))?;
     vault.assert_expected_shares(prev_lp_amount, vt_total_supply, 0u128, user1_addr)?;
@@ -115,19 +114,20 @@ pub fn redeem_deposit_immediately_with_unbonding<Chain: CwEnv, Dex: DexInit>(
 
     // redeem assets and check whether the vault tokens of u1 have decreased
     let u1_vt_balance = vt_total_supply;
-    let prev_lp_amount = vault.autocompounder_app.total_lp_position()?.u128();
-    let redeem_amount = u1_vt_balance / 4;
+    let prev_lp_amount = vault.total_lp_position()?;
+    let redeem_amount = u1_vt_balance.div_ceil(4u128);
     vault.redeem_vault_token(redeem_amount, user1, None)?;
     vault.assert_redeem_before_unbonding(user1_addr, prev_lp_amount, u1_vt_balance, redeem_amount, 0u128,None)?;
 
     // redeem the rest
-    let redeem_amount = u1_vt_balance - redeem_amount;
-    vault.redeem_vault_token(redeem_amount, user1, None)?;
-    vault.assert_redeem_before_unbonding(user1_addr, prev_lp_amount, redeem_amount, redeem_amount, redeem_amount /4,  None)?;
+    let rest_redeem_amount = u1_vt_balance - redeem_amount;
+    let total_redeem_amount = u1_vt_balance;
+    vault.redeem_vault_token(rest_redeem_amount, user1, None)?;
+    vault.assert_redeem_before_unbonding(user1_addr, prev_lp_amount, rest_redeem_amount, rest_redeem_amount, redeem_amount,  None)?;
 
 
     // call batch unbond and progress block time by one second
-    vault.assert_batch_unbond(prev_lp_amount, redeem_amount)?;
+    vault.assert_batch_unbond(prev_lp_amount, total_redeem_amount)?;
     let claims: Vec<Claim> = vault.autocompounder_app.claims(user1_addr.clone())?;
     assert_that!(claims).has_length(1);
 
@@ -145,8 +145,8 @@ pub fn redeem_deposit_immediately_with_unbonding<Chain: CwEnv, Dex: DexInit>(
     let u1_vt_balance = vault.assert_expected_shares(0u128, 0u128, 0u128, user1_addr)?;
 
     vault.redeem_vault_token(u1_vt_balance, user1, Some(user2_addr.clone()))?;
-    let prev_lp_amount = vault.autocompounder_app.total_lp_position()?.u128();
-    vault.assert_redeem_before_unbonding(user2_addr, prev_lp_amount, u1_vt_balance, redeem_amount, 0u128, None)?;
+    let prev_lp_amount = vault.total_lp_position()?;
+    vault.assert_redeem_before_unbonding(user2_addr, prev_lp_amount, u1_vt_balance, rest_redeem_amount, 0u128, None)?;
     let u1_new_vt_balance = vault.vault_token_balance(user1_addr.to_string())?;
     assert_that!(u1_new_vt_balance).is_equal_to(0u128);
 
@@ -158,23 +158,7 @@ pub fn redeem_deposit_immediately_with_unbonding<Chain: CwEnv, Dex: DexInit>(
     Ok(())
 }
 
-/// Redeem vault tokens without unbonding.
-/// tests both with and without recipient.
-#[allow(dead_code)]
-pub fn redeem_deposit_immediately_without_unbonding<Chain: CwEnv, Dex: DexInit>(
-    vault: GenericVault<Chain, Dex>,
-    _user1: &<Chain as TxHandler>::Sender,
-    _user1_addr: &Addr,
-    _user2: &<Chain as TxHandler>::Sender,
-    _user2_addr: &Addr,
-) -> AResult {
-    let _ac_address = vault.autocompounder_app.addr_str()?;
-    let config: Config = vault.autocompounder_app.config()?;
-    let _amount = 10_000u128;
-    require_unbonding_period(config, false);
 
-    todo!("implement this test once we have a testsuite that has nonbonding periods")
-}
 
 /// Deposit fees, fee token handling, and withdrawal fees test
 #[allow(dead_code)]
@@ -216,7 +200,7 @@ pub fn deposit_fees_fee_token_and_withdraw_fees<Chain: CwEnv, Dex: DexInit>(
 
     // Redeem all and check withdrawal fees
     let redeem_amount = owner_vault_balance;
-    let prev_lp_amount = vault.autocompounder_app.total_lp_position()?.u128();
+    let prev_lp_amount = vault.total_lp_position()?;
     vault.redeem_vault_token(redeem_amount, owner, None)?;
     assert_that!(vault.pending_claims(owner_addr)?).is_equal_to(redeem_amount);
 
@@ -228,11 +212,74 @@ pub fn deposit_fees_fee_token_and_withdraw_fees<Chain: CwEnv, Dex: DexInit>(
     let expected_withdrawal_fee = (Uint128::from(redeem_amount) * withdrawal_fee_percentage).u128();
     assert_that!(claims.first().unwrap().amount_of_vault_tokens_to_burn.u128()).is_equal_to(redeem_amount - expected_withdrawal_fee);
 
-    assert_that!(vault.autocompounder_app.total_supply()?).is_equal_to(Uint128::zero());
+    assert_that!(vault.total_supply()?).is_equal_to(0u128);
 
     Ok(())
 }
 
+#[allow(dead_code)]
+pub fn compound_reward_distribution<Chain: CwEnv, Dex: DexInit>(
+    vault: GenericVault<Chain, Dex>,
+    owner: &<Chain as TxHandler>::Sender,
+    owner_addr: &Addr,
+    commission_addr: &Addr,
+    wyndex_owner: &<Chain as TxHandler>::Sender,
+) -> AResult {
+    let amount = 100_000u128;
+    let reward_amount = 1_000u128;
+
+    // Initial deposit
+    vault.deposit_assets(owner, amount, amount, None)?;
+
+    // Query LP tokens in the vault before reward distribution
+    let vault_lp_balance_before_rewards = vault.total_lp_position()?;
+
+    // Simulate block pass and distribute rewards
+    vault.distribute_rewards()?;
+
+    // Compound rewards
+    vault.autocompounder_app.compound()?;
+
+    // Assert fee distribution is correct
+    let commission_received = vault(commission_addr, &reward_token)?;
+    assert_eq!(commission_received, 30u128, "Commission received is not as expected");
+
+    // Query LP tokens in the vault after reward distribution
+    let vault_lp_balance_after_rewards = vault.total_lp_position()?;
+    let new_lp_tokens = vault_lp_balance_after_rewards - vault_lp_balance_before_rewards;
+
+    // Expected new LP value, assuming a 0.4% increase due to rewards
+    let expected_new_lp_tokens = vault_lp_balance_before_rewards * 4u128 / 1000u128;
+    assert!(new_lp_tokens > expected_new_lp_tokens, "New LP tokens are less than expected");
+
+    // Redeem vault tokens to check if rewards were correctly allocated
+    vault.redeem_vault_tokens(owner)?;
+
+    // Assert user has more EUR and USD than they deposited
+    let (eur_diff, usd_diff) = vault.assert_asset_difference(owner_addr, &(eur_token, usd_token), amount)?;
+    assert!(eur_diff > 0, "EUR balance did not increase as expected");
+    assert!(usd_diff > 0, "USD balance did not increase as expected");
+
+    Ok(())
+}
+
+
+/// Redeem vault tokens for vaoult without unbonding period.
+#[allow(dead_code)]
+pub fn redeem_deposit_immediately_without_unbonding<Chain: CwEnv, Dex: DexInit>(
+    vault: GenericVault<Chain, Dex>,
+    _user1: &<Chain as TxHandler>::Sender,
+    _user1_addr: &Addr,
+    _user2: &<Chain as TxHandler>::Sender,
+    _user2_addr: &Addr,
+) -> AResult {
+    let _ac_address = vault.autocompounder_app.addr_str()?;
+    let config: Config = vault.autocompounder_app.config()?;
+    let _amount = 10_000u128;
+    require_unbonding_period(config, false);
+
+    todo!("implement this test once we have a testsuite that has nonbonding periods")
+}
 
 
 fn require_unbonding_period(config: Config, state: bool) {
