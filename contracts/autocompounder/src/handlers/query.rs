@@ -182,7 +182,7 @@ pub fn query_assets_per_shares(
 
     let total_lp_position = query_total_lp_position(app, deps)?;
     let total_supply = query_total_supply(deps)?;
-    let assets = convert_to_assets(shares, total_lp_position, total_supply);
+    let assets = convert_to_assets(shares, total_lp_position, total_supply, None);
 
     Ok(assets)
 }
@@ -400,7 +400,7 @@ mod test {
             let app = AutocompounderApp::new("test", "test_version", None);
 
             let assets_per_share =
-                convert_to_assets(1000u128.into(), 100u128.into(), 1000u128.into());
+                convert_to_assets(1000u128.into(), 100u128.into(), 1000u128.into(), None);
             let mut config = default_config();
             config.vault_token = AssetInfo::cw20(Addr::unchecked(TEST_VAULT_TOKEN));
             CONFIG.save(deps.as_mut().storage, &config).unwrap();

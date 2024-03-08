@@ -262,18 +262,20 @@ pub fn create_subdenom_from_pool_assets(pool_data: &PoolMetadata) -> String {
 }
 
 /// Convert vault tokens to lp assets
-pub fn convert_to_assets(shares: Uint128, total_assets: Uint128, total_supply: Uint128) -> Uint128 {
+pub fn convert_to_assets(shares: Uint128, total_assets: Uint128, total_supply: Uint128, decimal_offset: Option<u32>) -> Uint128 {
+    let offset = decimal_offset.unwrap_or(DECIMAL_OFFSET);
     shares.multiply_ratio(
         total_assets + Uint128::from(1u128),
-        total_supply + Uint128::from(10u128).pow(DECIMAL_OFFSET),
+        total_supply + Uint128::from(10u128).pow(offset),
     )
 }
 
 /// Convert lp assets to shares
 /// Uses virtual assets to mitigate asset inflation attack. description: https://gist.github.com/Amxx/ec7992a21499b6587979754206a48632
-pub fn convert_to_shares(assets: Uint128, total_assets: Uint128, total_supply: Uint128) -> Uint128 {
+pub fn convert_to_shares(assets: Uint128, total_assets: Uint128, total_supply: Uint128, decimal_offset: Option<u32>) -> Uint128 {
+    let offset = decimal_offset.unwrap_or(DECIMAL_OFFSET);
     assets.multiply_ratio(
-        total_supply + Uint128::from(10u128).pow(DECIMAL_OFFSET),
+        total_supply + Uint128::from(10u128).pow(offset),
         total_assets + Uint128::from(1u128),
     )
 }
@@ -685,8 +687,8 @@ pub mod helpers_tests {
         let shares = Uint128::from(100u128);
         let total_assets = Uint128::from(1000u128);
         let total_supply = Uint128::from(500u128);
-        let result = convert_to_assets(shares, total_assets, total_supply);
-        let reverse = convert_to_shares(result, total_assets, total_supply);
+        let result = convert_to_assets(shares, total_assets, total_supply, None);
+        let reverse = convert_to_shares(result, total_assets, total_supply, None);
         assert_eq!(result, Uint128::from(200u128 - 4u128)); // rounding error leads to -4
         assert_that!(reverse).is_equal_to(Uint128::from(shares.u128() - 1u128));
         // rounding error leads to -1
@@ -697,7 +699,7 @@ pub mod helpers_tests {
         let assets = Uint128::from(100u128);
         let total_assets = Uint128::from(1000u128);
         let total_supply = Uint128::from(500u128);
-        let result = convert_to_shares(assets, total_assets, total_supply);
+        let result = convert_to_shares(assets, total_assets, total_supply, None);
         assert_eq!(result, Uint128::from(50u128));
     }
 

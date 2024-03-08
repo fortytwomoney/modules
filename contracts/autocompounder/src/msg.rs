@@ -94,6 +94,7 @@ pub enum AutocompounderExecuteMsg {
         max_spread: Option<Decimal>,
     },
     /// Deposit LP tokens. Requires approval for cw20 tokens
+    #[cfg_attr(feature = "interface", payable)]
     DepositLp {
         lp_token: AnsAsset,
         recipient: Option<Addr>,

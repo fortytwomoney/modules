@@ -91,7 +91,7 @@ pub fn lp_provision_reply(
 
     // The increase in LP tokens held by the vault should be reflected by an equal increase (% wise) in vault tokens.
     // Calculate the number of vault tokens to mint
-    let mint_amount = convert_to_shares(user_allocated_lp, staked_lp, current_vault_supply);
+    let mint_amount = convert_to_shares(user_allocated_lp, staked_lp, current_vault_supply, None);
     if mint_amount.is_zero() {
         return Err(AutocompounderError::ZeroMintAmount {});
     }

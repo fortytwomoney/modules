@@ -2,14 +2,14 @@
 mod common;
 use abstract_interface::AbstractInterfaceError;
 
-use autocompounder::msg::FeeConfig;
 use common::dexes::DexInit;
 use common::dexes::IncentiveParams;
 use common::integration::compound_reward_distribution;
-use common::integration::deposit_fees_fee_token_and_withdraw_fees;
 use common::integration::deposit_with_recipient;
 use common::integration::redeem_deposit_immediately_with_unbonding;
 use common::integration::test_deposit_assets;
+use common::integration::vault_token_inflation_attack;
+use common::integration::vault_token_inflation_attack_full_dilute;
 use cw_asset::Asset;
 use cw_asset::AssetInfo;
 use cw_orch::osmosis_test_tube::osmosis_test_tube::Account;
@@ -68,13 +68,23 @@ pub fn setup_osmosis_vault() -> Result<GenericVault<OsmosisTestTube, OsmosisDexS
         vec![
             Asset::new(token_a.clone(), 10_000u128),
             Asset::new(token_b.clone(), 10_000u128),
-            Asset::new(reward_token, 10_000_000_000u128), // 10 osmo for gas?
+            Asset::new(reward_token.clone(), 10_000_000_000u128), // 10 osmo for gas?
         ],
     ),
     (
         common::COMMISSION_RECEIVER,
         vec![],
-    )];
+    ),
+    (
+        "minter",
+        vec![
+            Asset::new(token_a.clone(), 10_000_000_000u128),
+            Asset::new(token_b.clone(), 10_000_000_000u128),
+            Asset::new(reward_token, 10_000_000_000u128), // 10 osmo for gas?
+        ]
+    )
+    
+    ];
 
     let incentive = IncentiveParams::from_coin(100u128, "uosmo", 1);
 
@@ -158,22 +168,39 @@ fn compound_reward_distribution_osmosistesttube() -> AResult {
     let user2 = vault.dex.accounts[1].clone();
     let commission_reciever = vault.dex.accounts[2].clone();
     let user1_addr = Addr::unchecked(user1.address());
-    let user2_addr = Addr::unchecked(user2.address());
     let commission_addr = Addr::unchecked(commission_reciever.address());
 
     compound_reward_distribution(vault, &user1, &user1_addr, &commission_addr)
 }
 
-// #[test]
-// fn deposit_fees_fee_token_and_withdraw_fees_osmosistesttube() -> AResult {
-//     let vault = setup_osmosis_vault().unwrap();
-//     let fee_config :FeeConfig= vault.autocompounder_app.fee_config()?;
+#[ignore = "This test requires the staking adapter to have a 'stake for' functionality"]
+#[test]
+fn vault_token_inflation_attack_original_osmosis() -> AResult {
+    let vault = setup_osmosis_vault().unwrap();
 
-//     let user1 = vault.dex.accounts[0].clone();
-//     let user2 = vault.dex.accounts[1].clone();
-    
-//     let user1_addr = Addr::unchecked(user1.address());
-//     let _user2_addr = Addr::unchecked(user2.address());
+    let user1 = vault.dex.accounts[0].clone();
+    let user2 = vault.dex.accounts[1].clone();
+    let user1_addr = Addr::unchecked(user1.address());
+    let user2_addr = Addr::unchecked(user2.address());
 
-//     deposit_fees_fee_token_and_withdraw_fees(vault, &user1, &user1_addr, &fee_config.fee_collector_addr)
-// }
+    let minter = vault.dex.accounts[3].clone();
+    let minter_addr = Addr::unchecked(minter.address());
+
+    vault_token_inflation_attack(vault, &user1, &user1_addr, &user2, &user2_addr, &minter, &minter_addr)
+}
+
+#[ignore = "This test requires the staking adapter to have a 'stake for' functionality"]
+#[test]
+fn vault_token_inflation_attack_full_dilute_osmosis() -> AResult {
+    let vault = setup_osmosis_vault().unwrap();
+
+    let user1 = vault.dex.accounts[0].clone();
+    let user2 = vault.dex.accounts[1].clone();
+    let user1_addr = Addr::unchecked(user1.address());
+    let user2_addr = Addr::unchecked(user2.address());
+
+    let minter = vault.dex.accounts[3].clone();
+    let minter_addr = Addr::unchecked(minter.address());
+
+    vault_token_inflation_attack_full_dilute(vault, &user1, &user1_addr, &user2, &user2_addr, &minter, &minter_addr)
+}

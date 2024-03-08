@@ -3,6 +3,7 @@ mod common;
 use abstract_core::objects::gov_type::GovernanceDetails;
 use abstract_interface::{AbstractInterfaceError, AccountDetails};
 
+use autocompounder::convert_to_assets;
 use autocompounder::error::AutocompounderError;
 use cw_asset::{AssetInfo, AssetInfoBase};
 use cw_plus_interface::cw20_base::Cw20Base;
@@ -42,36 +43,12 @@ use wyndex_bundle::*;
 const WYNDEX: &str = "wyndex";
 const ATTACKER: &str = "attacker";
 /// Convert vault tokens to lp assets
-pub fn convert_to_assets(
-    shares: Uint128,
-    total_assets: Uint128,
-    total_supply: Uint128,
-    decimal_offset: u32,
-) -> Uint128 {
-    shares.multiply_ratio(
-        total_assets + Uint128::from(1u128),
-        total_supply + Uint128::from(10u128).pow(decimal_offset),
-    )
-}
+
 pub fn cw20_lp_token(liquidity_token: AssetInfoBase<Addr>) -> Result<Addr, AutocompounderError> {
     match liquidity_token {
         AssetInfoBase::Cw20(contract_addr) => Ok(contract_addr),
         _ => Err(AutocompounderError::SenderIsNotLpToken {}),
     }
-}
-
-/// Convert lp assets to shares
-/// Uses virtual assets to mitigate asset inflation attack. description: https://gist.github.com/Amxx/ec7992a21499b6587979754206a48632
-pub fn convert_to_shares(
-    assets: Uint128,
-    total_assets: Uint128,
-    total_supply: Uint128,
-    decimal_offset: u32,
-) -> Uint128 {
-    assets.multiply_ratio(
-        total_supply + Uint128::from(10u128).pow(decimal_offset),
-        total_assets + Uint128::from(1u128),
-    )
 }
 
 pub fn create_vault(
@@ -667,7 +644,7 @@ fn generator_without_reward_proxies_single_sided() -> AResult {
     let vault_token_balance = vault_token.balance(user1.to_string())?.balance;
     let total_supply = vault_token.token_info()?.total_supply;
     let user1_lp_tokens_voucher =
-        convert_to_assets(vault_token_balance, new_position, total_supply, 0u32);
+        convert_to_assets(vault_token_balance, new_position, total_supply, Some(0u32));
 
     // withdraw part from the auto-compounder
     vault.auto_compounder.set_sender(&owner);
@@ -979,7 +956,7 @@ fn test_deposit_fees_fee_token_and_withdraw_fees() -> AResult {
         amount - amount * fee_config.withdrawal,
         total_vault_lp,
         vault_supply,
-        DECIMAL_OFFSET,
+        Some(DECIMAL_OFFSET),
     );
     assert_that!(claim.first().unwrap().amount_of_lp_tokens_to_unbond.u128())
         .is_equal_to(expected_asset.u128());
@@ -1054,7 +1031,7 @@ fn test_deposit_fees_non_fee_token() -> AResult {
         amount - amount * fee_config.withdrawal,
         total_vault_lp,
         vault_supply,
-        DECIMAL_OFFSET,
+        Some(DECIMAL_OFFSET),
     );
     assert_that!(claim.first().unwrap().amount_of_lp_tokens_to_unbond.u128())
         .is_equal_to(expected_asset.u128());
@@ -1377,7 +1354,7 @@ fn test_lp_deposit() -> AResult {
     let _res = vault
         .auto_compounder
         .call_as(&owner)
-        .deposit_lp(AnsAsset::new(eur_usd_lp_asset_entry, send_amount), None)?;
+        .deposit_lp(AnsAsset::new(eur_usd_lp_asset_entry, send_amount), None, &[])?;
 
     assert_that!(vault.auto_compounder.total_lp_position().unwrap().u128()).is_equal_to(99_000u128);
     assert_that!(vault_token.balance(owner.to_string())?.balance.u128())
@@ -1474,6 +1451,7 @@ fn vault_token_inflation_attack_original() -> AResult {
     let _res = vault.auto_compounder.call_as(&attacker).deposit_lp(
         AnsAsset::new(eur_usd_lp_asset_entry.clone(), send_amount),
         None,
+        &[]
     )?;
 
     // check the number of vault tokens the attacker has
@@ -1504,7 +1482,7 @@ fn vault_token_inflation_attack_original() -> AResult {
     let _res = vault
         .auto_compounder
         .call_as(&user1)
-        .deposit_lp(AnsAsset::new(eur_usd_lp_asset_entry, send_amount), None)?;
+        .deposit_lp(AnsAsset::new(eur_usd_lp_asset_entry, send_amount), None, &[])?;
 
     // check the amount of lp tokens staked by the vault in total
     let total_lp_staked = vault.auto_compounder.total_lp_position().unwrap() as Uint128;
@@ -1598,6 +1576,7 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
     let _res = vault.auto_compounder.call_as(&attacker).deposit_lp(
         AnsAsset::new(eur_usd_lp_asset_entry.clone(), send_amount),
         None,
+        &[],
     )?;
 
     // check the number of vault tokens the attacker has
@@ -1627,7 +1606,10 @@ fn vault_token_inflation_attack_full_dilute() -> AResult {
     let res = vault
         .auto_compounder
         .call_as(&user1)
-        .deposit_lp(AnsAsset::new(eur_usd_lp_asset_entry, send_amount), None);
+        .deposit_lp(AnsAsset::new(eur_usd_lp_asset_entry, send_amount), None
+    ,
+        &[],
+);
 
     // this will mint a zero amount so it will fail
     assert_that!(res).is_err();

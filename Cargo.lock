@@ -94,19 +94,7 @@ dependencies = [
 [[package]]
 name = "abstract-astroport-adapter"
 version = "2.10.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
-dependencies = [
- "abstract-dex-standard",
- "abstract-sdk",
- "abstract-staking-standard",
- "cosmwasm-std",
- "lazy_static",
-]
-
-[[package]]
-name = "abstract-astroport-adapter"
-version = "2.10.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix#fe81757a3cf76fa991751e28f72e276d90c43269"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.1-osmosis-adapters#5f72765dced0ed664460ea3eb2274121bebacf78"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -118,19 +106,7 @@ dependencies = [
 [[package]]
 name = "abstract-astrovault-adapter"
 version = "0.2.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
-dependencies = [
- "abstract-dex-standard",
- "abstract-sdk",
- "abstract-staking-standard",
- "cosmwasm-std",
- "lazy_static",
-]
-
-[[package]]
-name = "abstract-astrovault-adapter"
-version = "0.2.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix#fe81757a3cf76fa991751e28f72e276d90c43269"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.1-osmosis-adapters#5f72765dced0ed664460ea3eb2274121bebacf78"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -232,20 +208,20 @@ dependencies = [
 
 [[package]]
 name = "abstract-cw-staking"
-version = "0.21.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
+version = "0.21.1"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.1-osmosis-adapters#5f72765dced0ed664460ea3eb2274121bebacf78"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
- "abstract-astroport-adapter 2.10.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0)",
- "abstract-astrovault-adapter 0.2.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0)",
+ "abstract-astroport-adapter",
+ "abstract-astrovault-adapter",
  "abstract-core",
  "abstract-interface",
- "abstract-kujira-adapter 0.3.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0)",
- "abstract-osmosis-adapter 0.16.2 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0)",
+ "abstract-kujira-adapter",
+ "abstract-osmosis-adapter",
  "abstract-sdk",
  "abstract-staking-standard",
- "abstract-wyndex-adapter 0.21.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0)",
+ "abstract-wyndex-adapter",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-asset",
@@ -475,20 +451,20 @@ dependencies = [
 
 [[package]]
 name = "abstract-dex-adapter"
-version = "0.21.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix#fe81757a3cf76fa991751e28f72e276d90c43269"
+version = "0.21.1"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.1-osmosis-adapters#5f72765dced0ed664460ea3eb2274121bebacf78"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
- "abstract-astroport-adapter 2.10.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix)",
- "abstract-astrovault-adapter 0.2.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix)",
+ "abstract-astroport-adapter",
+ "abstract-astrovault-adapter",
  "abstract-core",
  "abstract-dex-standard",
  "abstract-interface",
- "abstract-kujira-adapter 0.3.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix)",
- "abstract-osmosis-adapter 0.16.2 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix)",
+ "abstract-kujira-adapter",
+ "abstract-osmosis-adapter",
  "abstract-sdk",
- "abstract-wyndex-adapter 0.21.0 (git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix)",
+ "abstract-wyndex-adapter",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-asset",
@@ -599,18 +575,7 @@ dependencies = [
 [[package]]
 name = "abstract-kujira-adapter"
 version = "0.3.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
-dependencies = [
- "abstract-dex-standard",
- "abstract-sdk",
- "abstract-staking-standard",
- "cosmwasm-std",
-]
-
-[[package]]
-name = "abstract-kujira-adapter"
-version = "0.3.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix#fe81757a3cf76fa991751e28f72e276d90c43269"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.1-osmosis-adapters#5f72765dced0ed664460ea3eb2274121bebacf78"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -674,23 +639,8 @@ dependencies = [
 
 [[package]]
 name = "abstract-osmosis-adapter"
-version = "0.16.2"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
-dependencies = [
- "abstract-cw20",
- "abstract-dex-standard",
- "abstract-sdk",
- "abstract-staking-standard",
- "cosmwasm-std",
- "cw-asset",
- "cw-utils",
- "osmosis-std",
-]
-
-[[package]]
-name = "abstract-osmosis-adapter"
-version = "0.16.2"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix#fe81757a3cf76fa991751e28f72e276d90c43269"
+version = "0.17.0"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.1-osmosis-adapters#5f72765dced0ed664460ea3eb2274121bebacf78"
 dependencies = [
  "abstract-cw20",
  "abstract-dex-standard",
@@ -836,24 +786,7 @@ dependencies = [
 [[package]]
 name = "abstract-wyndex-adapter"
 version = "0.21.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
-dependencies = [
- "abstract-cw20",
- "abstract-dex-standard",
- "abstract-sdk",
- "abstract-staking-standard",
- "cosmwasm-std",
- "cw-asset",
- "cw-controllers",
- "cw-utils",
- "wyndex 1.1.2 (git+https://github.com/wynddao/wynddex?tag=v1.1.2)",
- "wyndex-stake 1.1.2 (git+https://github.com/wynddao/wynddex?tag=v1.1.2)",
-]
-
-[[package]]
-name = "abstract-wyndex-adapter"
-version = "0.21.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0-osmosis-dex-fix#fe81757a3cf76fa991751e28f72e276d90c43269"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.1-osmosis-adapters#5f72765dced0ed664460ea3eb2274121bebacf78"
 dependencies = [
  "abstract-cw20",
  "abstract-dex-standard",

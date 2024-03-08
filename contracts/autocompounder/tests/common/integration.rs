@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use crate::common::dexes::OSMOSIS_EPOCH;
+
 use super::dexes::DexInit;
 use abstract_testing::addresses::EUR;
 use autocompounder::msg::Claim;
@@ -19,12 +21,6 @@ use cosmwasm_std::{Addr, Uint128};
 
 use speculoos::{assert_that, numeric::OrderedAssertions};
 
-pub fn convert_to_shares(assets: Uint128, total_assets: Uint128, total_supply: Uint128) -> Uint128 {
-    assets.multiply_ratio(
-        total_supply + Uint128::from(10u128).pow(DECIMAL_OFFSET),
-        total_assets + Uint128::from(1u128),
-    )
-}
 
 #[allow(dead_code)]
 pub fn test_deposit_assets<Chain: CwEnv, Dex: DexInit>(
@@ -237,7 +233,8 @@ pub fn compound_reward_distribution<Chain: CwEnv, Dex: DexInit>(
 
     // Simulate block pass and distribute rewards
     // NOTE: For osmosis we need to wait one epoch for the rewards to be distributed
-    vault.chain.wait_seconds(1);
+    // TODO: This should be handled by the dex/vault
+    vault.chain.wait_seconds(OSMOSIS_EPOCH).unwrap();
 
     // Compound rewards
     vault.autocompounder_app.compound()?;
@@ -262,6 +259,97 @@ pub fn compound_reward_distribution<Chain: CwEnv, Dex: DexInit>(
     // let (eur_diff, usd_diff) = vault.assert_asset_difference(owner_addr, &(eur_token, usd_token), amount)?;
     // assert!(eur_diff > 0, "EUR balance did not increase as expected");
     // assert!(usd_diff > 0, "USD balance did not increase as expected");
+
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub fn vault_token_inflation_attack<Chain: CwEnv, Dex: DexInit>(
+    vault: GenericVault<Chain, Dex>,
+    owner: &<Chain as TxHandler>::Sender,
+    owner_addr: &Addr,
+    attacker: &<Chain as TxHandler>::Sender,
+    attacker_addr: &Addr,
+    minter: &<Chain as TxHandler>::Sender,
+    minter_addr: &Addr,
+) -> AResult {
+    let user_deposit = 100_000u128;
+    let attacker_initial_deposit = 1u128;
+    let attacker_donation = user_deposit / 2 + 1u128;
+
+    // Mint LP tokens to the user and the attacker
+    vault.mint_lp_tokens(minter, minter_addr, vec![owner_addr, attacker_addr], user_deposit)?;
+
+    // Attacker makes initial deposit to vault pool
+    vault.deposit_lp_token(attacker, attacker_initial_deposit, None)?;
+
+    // Check the number of vault tokens the attacker has
+    let attacker_vault_token_balance = vault.vault_token_balance(attacker_addr)?;
+    assert_eq!(attacker_vault_token_balance, 10u128.pow(DECIMAL_OFFSET), "Attacker vault token balance mismatch");
+
+    // Attacker makes a donation to the liquidity pool
+    vault.donate_lp_to_liquidity_pool(attacker, attacker_donation)?;
+
+    // Check the total LP staked after donation
+    let lp_staked_after_donation = vault.total_lp_position()?;
+    assert_eq!(lp_staked_after_donation, attacker_donation + attacker_initial_deposit, "LP staked after donation mismatch");
+
+    // User deposits LP tokens into the vault
+    vault.deposit_lp_token(owner, user_deposit, None)?;
+
+    // Check the total LP tokens staked by the vault
+    let total_lp_staked = vault.total_lp_position()?;
+    assert_eq!(total_lp_staked, 150002u128, "Total LP staked mismatch");
+
+    // Check the amount of vault token the user has
+    let user_vault_token_balance = vault.vault_token_balance(owner_addr)?;
+    let attacker_vault_token_balance = vault.vault_token_balance(attacker_addr)?;
+    // The calculation for user_vault_token_balance should consider the virtual assets and rounding logic used by the vault
+    // This will need to be adjusted based on the vault's specific logic for token minting
+
+    // TODO: Check balance user and attacker
+    assert_that!(user_vault_token_balance).is_greater_than_or_equal_to(attacker_vault_token_balance);
+
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub fn vault_token_inflation_attack_full_dilute<Chain: CwEnv, Dex: DexInit>(
+    vault: GenericVault<Chain, Dex>,
+    owner: &<Chain as TxHandler>::Sender,
+    owner_addr: &Addr,
+    attacker: &<Chain as TxHandler>::Sender,
+    attacker_addr: &Addr,
+    minter: &<Chain as TxHandler>::Sender,
+    minter_addr: &Addr,
+) -> AResult {
+    let user_deposit = 100_000u128;
+    let attacker_deposit = 1u128;
+    // Calculate the fully dilute donation amount based on the formula provided in the original test
+    let fully_dilute_donation = (10u128.pow(DECIMAL_OFFSET) * user_deposit - 1) * (attacker_deposit + 1) + 1;
+
+    vault.mint_lp_tokens(minter, minter_addr, vec![owner_addr, attacker_addr], user_deposit+attacker_deposit)?;
+    // Mint LP tokens to the user and the attacker
+
+    // Attacker makes initial deposit to vault pool
+    vault.deposit_lp_token(attacker, attacker_deposit, None)?;
+
+    // Check the number of vault tokens the attacker has
+    let attacker_vault_token_balance = vault.vault_token_balance(attacker_addr)?;
+    assert_eq!(attacker_vault_token_balance, 10u128, "Attacker vault token balance mismatch");
+
+    // Attacker makes a donation to the liquidity pool
+    vault.donate_lp_to_liquidity_pool(attacker, fully_dilute_donation)?;
+
+    // Check the total LP staked after the attacker's donation
+    let lp_staked_after_donation = vault.total_lp_position()?;
+    assert_eq!(lp_staked_after_donation, fully_dilute_donation + attacker_deposit, "LP staked after donation mismatch");
+
+    // User attempts to deposit LP tokens into the vault
+    let deposit_result = vault.deposit_lp_token(owner, user_deposit, None);
+
+    // Assert that the deposit attempt fails due to the dilution effect caused by the attacker's actions
+    assert!(deposit_result.is_err(), "Deposit did not fail as expected due to full dilution");
 
     Ok(())
 }
