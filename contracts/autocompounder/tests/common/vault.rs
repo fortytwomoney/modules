@@ -4,8 +4,12 @@ use abstract_client::{Account, Application};
 
 use abstract_core::objects::{AnsAsset, PoolMetadata};
 use abstract_cw_staking::interface::CwStakingAdapter;
-use abstract_dex_adapter::interface::DexAdapter;
 use abstract_interface::{Abstract, AbstractAccount};
+use abstract_dex_adapter::interface::DexAdapter;
+use abstract_dex_standard::ans_action::DexAnsAction;
+use abstract_dex_adapter::api::DexInterface;
+use abstract_dex_adapter::msg::{DexExecuteMsg, DexQueryMsgFns};
+
 use anyhow::Error;
 use autocompounder::interface::AutocompounderApp;
 use autocompounder::msg::{AutocompounderExecuteMsgFns, AutocompounderQueryMsgFns, Claim, Config};
@@ -14,7 +18,7 @@ use cw20::msg::Cw20ExecuteMsgFns;
 use cw20_base::msg::QueryMsgFns as _;
 use cw_asset::{AssetInfo, AssetInfoBase};
 
-use cw_orch::contract::interface_traits::CallAs;
+use cw_orch::contract::interface_traits::{CallAs, CwOrchExecute};
 use cw_orch::contract::interface_traits::ContractInstance;
 use cw_orch::environment::{BankQuerier, CwEnv, MutCwEnv, TxHandler};
 use cw_orch::osmosis_test_tube::osmosis_test_tube::SigningAccount;
@@ -128,17 +132,11 @@ impl<T: CwEnv, Dex: DexInit> GenericVault<T, Dex> {
         }
     }
 
-    fn asset_balance(&self, account: String, asset: u8) -> Result<u128, Error> {
-        let dex_base = self.dex.dex_base();
-        let asset = match asset {
-            1 => dex_base.asset_a(),
-            2 => dex_base.asset_b(),
-            _ => panic!("invalid asset"),
-        };
-        match asset.asset_info.clone() {
+    pub fn asset_balance<S: Into<String>>(&self, account: S, asset_info: &AssetInfo) -> Result<u128, Error> {
+        match asset_info.clone() {
             AssetInfoBase::Cw20(c) => {
                 let cw20_asset = Cw20Base::new(c, self.chain.clone());
-                Ok(cw20_asset.balance(account.clone())?.balance.u128())
+                Ok(cw20_asset.balance(account.into())?.balance.u128())
             }
             AssetInfoBase::Native(denom) => Ok(self
                 .chain
@@ -154,22 +152,31 @@ impl<T: CwEnv, Dex: DexInit> GenericVault<T, Dex> {
     }
 
     pub fn asset_a_balance(&self, account: String) -> Result<u128, Error> {
-        self.asset_balance(account, 1)
+        let dex_base = self.dex.dex_base();
+        self.asset_balance(account, &dex_base.asset_a().asset_info)
     }
 
     pub fn asset_b_balance(&self, account: String) -> Result<u128, Error> {
-        self.asset_balance(account, 2)
+        let dex_base = self.dex.dex_base();
+        self.asset_balance(account, &dex_base.asset_b().asset_info)
     }
 
-    pub fn asset_balances<S: Into<String> + Clone>(&self, account: S) -> Result<(u128, u128), Error> {
+    pub fn pool_assets_balances<S: Into<String> + Clone>(&self, account: S) -> Result<(u128, u128), Error> {
         Ok((
             self.asset_a_balance(account.clone().into())?,
             self.asset_b_balance(account.into())?,
         ))
     }
 
+    // CONVENIENCE DEX FUNCTIONS
+    pub fn reward_token(&self) -> AssetInfo {
+        let dex_base = self.dex.dex_base();
+        // NOTE: Asuming a single reward token
+        dex_base.reward_tokens.first().unwrap().clone()
+
+    }
     
-    // CONVENIENCE FUNCTIONS
+    // CONVENIENCE QUERY FUNCTIONS
 
     pub fn pending_claims(&self, account: &Addr) -> Result<u128, Error> {
         Ok(self.autocompounder_app.pending_claims(account.clone())?.into())
@@ -291,7 +298,7 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
         recipient: Option<Addr>,
     ) -> Result<AnsAsset, Error> {
         let dex_base = self.dex.dex_base();
-        let dex_addr = "unknown dex address";  // #FIXME: This should be the actual dex adapter address
+        let dex_addr = self.dex_adapter.addr_str()?;  // #FIXME: This should be the actual dex adapter address
 
         let asset_a = dex_base.asset_a();
         let asset_b = dex_base.asset_b();
@@ -305,7 +312,7 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
 
         let ans_assets_deposit_coins = assets
             .into_iter()
-            .map(|(asset, amount)| self.asset_amount_to_deposit(depositor, dex_addr, amount, asset))
+            .map(|(asset, amount)| self.asset_amount_to_deposit(depositor, dex_addr.clone(), amount, asset))
             .collect::<Result<Vec<(AnsAsset, Option<Coin>)>, Error>>()?;
 
         let (ans_assets, deposit_coins): (Vec<_>, Vec<_>) =
@@ -320,6 +327,18 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
             "Depositing coins: and assets {:?}, {:?}",
             ans_assets, deposit_coins
         );
+
+           self.dex_adapter.execute(
+            &DexExecuteMsg::AnsAction {
+                dex: self.dex.name().to_string(),
+                action: DexAnsAction::ProvideLiquidity {
+                    assets: vec![],
+                    max_spread: None,
+                },
+            }.into(),
+            Some(&deposit_coins),
+        )?;
+        // self.dex_adapter.ans_action(&provide_liquidity_msg, &deposit_coins);
 
         todo!("Provide liquidity using the dex adapter here")
     }
@@ -429,9 +448,10 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
         assert_that!(pending_claims).is_empty();
         
         // after batch-unbonding, the lp amount should be reduced by the redeem amount
-        // TODO: This should actually be a bit different. it should use the convert to assets function
+        // #TODO: This should actually be a bit different. it should use the convert to assets function
         let lp_amount = self.autocompounder_app.total_lp_position()?.u128();
-        assert_that!(lp_amount).is_equal_to(prev_lp_amount - redeem_amount);
+
+        assert_that!(lp_amount).is_equal_to(prev_lp_amount.checked_sub(redeem_amount).unwrap_or(0u128));
 
         // the total supply of the vault token should be reduced by the redeem amount
         assert_that!(self.autocompounder_app.total_supply()?.u128()).is_equal_to(prev_total_supply - redeem_amount);
@@ -465,7 +485,7 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
     pub fn withdraw_and_assert(&self, user: &Chain::Sender,user_addr: &Addr, expected_balance: (u128, u128)) -> AResult {
         self.autocompounder_app.call_as(user).withdraw()?;
 
-        assert_that!(self.asset_balances(user_addr)?).is_equal_to(expected_balance);
+        assert_that!(self.pool_assets_balances(user_addr)?).is_equal_to(expected_balance);
         Ok(())
     }
 

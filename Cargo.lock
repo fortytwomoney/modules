@@ -1056,6 +1056,7 @@ dependencies = [
  "abstract-cw20",
  "abstract-cw20-base",
  "abstract-dex-adapter",
+ "abstract-dex-standard",
  "abstract-interface",
  "abstract-sdk",
  "abstract-testing",

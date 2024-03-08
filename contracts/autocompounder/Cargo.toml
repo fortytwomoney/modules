@@ -69,6 +69,7 @@ abstract-core = { workspace = true }
 anyhow = { workspace = true, optional = true }
 anybuf = "0.1.0"
 osmosis-std = "0.21.0"
+abstract-dex-standard = "0.21.0"
 
 [dev-dependencies]
 wyndex-bundle = { workspace = true }

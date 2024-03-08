@@ -5,6 +5,7 @@ use abstract_interface::AbstractInterfaceError;
 use autocompounder::msg::FeeConfig;
 use common::dexes::DexInit;
 use common::dexes::IncentiveParams;
+use common::integration::compound_reward_distribution;
 use common::integration::deposit_fees_fee_token_and_withdraw_fees;
 use common::integration::deposit_with_recipient;
 use common::integration::redeem_deposit_immediately_with_unbonding;
@@ -56,8 +57,8 @@ pub fn setup_osmosis_vault() -> Result<GenericVault<OsmosisTestTube, OsmosisDexS
     let initial_accounts_balances = vec![(
         "account1",
         vec![
-            Asset::new(token_a.clone(), 20_000u128),
-            Asset::new(token_b.clone(), 10_000u128),
+            Asset::new(token_a.clone(), 200_000u128),
+            Asset::new(token_b.clone(), 200_000u128),
             Asset::new(reward_token.clone(), 10_000_000_000u128), // 10 osmo for gas?
 
         ],
@@ -147,6 +148,20 @@ fn deposit_with_recipient_osmosistesttube() -> AResult {
     let user2_addr = Addr::unchecked(user2.address());
 
     deposit_with_recipient(vault, &user1, &user1_addr, &user2, &user2_addr)
+}
+
+#[test]
+fn compound_reward_distribution_osmosistesttube() -> AResult {
+    let vault = setup_osmosis_vault().unwrap();
+
+    let user1 = vault.dex.accounts[0].clone();
+    let user2 = vault.dex.accounts[1].clone();
+    let commission_reciever = vault.dex.accounts[2].clone();
+    let user1_addr = Addr::unchecked(user1.address());
+    let user2_addr = Addr::unchecked(user2.address());
+    let commission_addr = Addr::unchecked(commission_reciever.address());
+
+    compound_reward_distribution(vault, &user1, &user1_addr, &commission_addr)
 }
 
 // #[test]
