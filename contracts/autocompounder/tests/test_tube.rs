@@ -137,7 +137,7 @@ fn deposit_assets_native_osmosistesttube() -> AResult {
 
  
 #[test]
-fn redeem_after_deposit_native_osmosistesttube() -> AResult {
+fn redeem_deposit_immediately_with_unbonding_osmosis() -> AResult {
     let vault = setup_osmosis_vault().unwrap();
 
     let user1 = vault.dex.accounts[0].clone();

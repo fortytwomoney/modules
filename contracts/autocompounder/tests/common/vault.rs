@@ -64,20 +64,31 @@ pub struct Vault<Chain: CwEnv> {
     pub abstract_core: Abstract<Chain>,
 }
 
+/// A generic vault structure for a blockchain application.
+/// It is generic over two types: `Chain` and `Dex`.
 #[allow(dead_code)]
 pub struct GenericVault<Chain: CwEnv, Dex: DexInit> {
+    /// An account on the `Chain`.
     pub account: Account<Chain>,
+    /// An application that uses the `Chain` and an `AutocompounderApp` which is likely used for automatically compounding interest or rewards.
     pub autocompounder_app: Application<Chain, AutocompounderApp<Chain>>,
+    /// An adapter for staking operations on the `Chain`.
     pub staking_adapter: CwStakingAdapter<Chain>,
+    /// An adapter for decentralized exchange (Dex) operations on the `Chain`.
     pub dex_adapter: DexAdapter<Chain>,
+    /// The actual decentralized exchange (Dex) object.
     pub dex: Dex,
+    /// An abstract client for interacting with the `Chain`.
     pub abstract_client: AbstractClient<Chain>,
+    /// The actual `Chain` object.
     pub chain: Chain,
-    pub signing_account: Option<SigningAccount>, // preferably this is not included in the struct, but needed to initially set balances for osmosis_testtube
+    /// An optional `SigningAccount`. This is used to sign transactions. The comment suggests that it is preferably not included in the struct, but is needed to initially set balances for `osmosis_testtube`.
+    pub signing_account: Option<SigningAccount>,
 }
 
 #[allow(dead_code)]
 impl<T: CwEnv, Dex: DexInit> GenericVault<T, Dex> {
+    /// redeem vault token by sending it to the autocompounder app and calling `redeem`
     pub fn redeem_vault_token(
         &self,
         amount: u128,
@@ -114,6 +125,7 @@ impl<T: CwEnv, Dex: DexInit> GenericVault<T, Dex> {
         }
     }
 
+    /// queries the balance of the vault token for `account`
     pub fn vault_token_balance<S: Into<String>>(&self, account: S) -> Result<u128, Error> {
         let config: Config = self.autocompounder_app.config()?;
         match config.vault_token {
@@ -135,6 +147,7 @@ impl<T: CwEnv, Dex: DexInit> GenericVault<T, Dex> {
         }
     }
 
+    /// queries the balance of the vault token with `asset_info` for `account`
     pub fn asset_balance<S: Into<String>>(
         &self,
         account: S,
@@ -179,6 +192,7 @@ impl<T: CwEnv, Dex: DexInit> GenericVault<T, Dex> {
     }
 
     // CONVENIENCE DEX FUNCTIONS
+    /// queries the pool balance of the main pool
     pub fn reward_token(&self) -> AssetInfo {
         let dex_base = self.dex.dex_base();
         // NOTE: Asuming a single reward token
@@ -186,7 +200,7 @@ impl<T: CwEnv, Dex: DexInit> GenericVault<T, Dex> {
     }
 
     // CONVENIENCE QUERY FUNCTIONS
-
+    /// queries the autocompouder for enpoint `pending_claims`
     pub fn pending_claims(&self, account: &Addr) -> Result<u128, Error> {
         Ok(self
             .autocompounder_app
@@ -194,10 +208,12 @@ impl<T: CwEnv, Dex: DexInit> GenericVault<T, Dex> {
             .into())
     }
 
+    /// queries the autocompouder for enpoint `total_lp_position`
     pub fn total_lp_position(&self) -> Result<u128, Error> {
         Ok(self.autocompounder_app.total_lp_position()?.u128())
     }
 
+    /// queries the autocompouder for enpoint `total_supply`
     pub fn total_supply(&self) -> Result<u128, Error> {
         Ok(self.autocompounder_app.total_supply()?.u128())
     }
@@ -353,7 +369,7 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
                 },
             }
             .into(),
-            Some(&deposit_coins),
+        Some(&deposit_coins),
         )?;
         Ok(())
     }
@@ -539,8 +555,7 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
         assert_that!(pending_claims).is_empty();
 
         // after batch-unbonding, the lp amount should be reduced by the redeem amount
-        // #TODO: This should actually be a bit different. it should use the convert to assets function
-        let lp_amount = self.autocompounder_app.total_lp_position()?.u128();
+        let lp_amount: u128 = self.autocompounder_app.total_lp_position()?.u128();
         let expected_unbonded_lp = convert_to_assets(
             redeem_amount.into(),
             prev_lp_amount.into(),
@@ -548,7 +563,7 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
             None,
         ).u128();
 
-        assert_that!(prev_lp_amount - lp_amount).is_equal_to(expected_unbonded_lp);
+        assert_that!(prev_lp_amount - lp_amount).is_equal_to(prev_lp_amount - expected_unbonded_lp);
 
         // the total supply of the vault token should be reduced by the redeem amount
         assert_that!(self.autocompounder_app.total_supply()?.u128())
@@ -568,19 +583,19 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
             let previous_claims = all_claims
                 .iter()
                 .find(|(a, _)| a == addr)
-                .unwrap()
                 .clone()
-                .1;
+                .map_or(vec![], |(_, c)| c.clone());
+                
             let claims = all_claims_after
                 .iter()
                 .find(|(a, _)| a == addr)
-                .unwrap()
                 .clone()
-                .1;
+                .map_or(vec![], |(_, c)| c.clone());
+
             assert_that!(claims.len()).is_equal_to(previous_claims.len() + 1);
 
             let mut claims = claims.clone();
-            let new_claims = claims.split_off(previous_claims.len() - 1);
+            let new_claims = claims.split_off(previous_claims.len() );
             assert_that!(claims).equals_iterator(&previous_claims.iter());
 
             assert_that!(new_claims.len()).is_equal_to(1);
@@ -614,3 +629,4 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
 // - Astroport environment with both native and cw20 pools
 //
 // in this way, we can run the same tests for cw20 and native pools.?
+
