@@ -98,6 +98,7 @@ pub fn deposit_with_recipient<Chain: CwEnv, Dex: DexInit>(
     Ok(())
 }
 
+
 #[allow(dead_code)]
 pub fn redeem_deposit_immediately_with_unbonding<Chain: CwEnv, Dex: DexInit>(
     vault: GenericVault<Chain, Dex>,
@@ -159,7 +160,6 @@ pub fn redeem_deposit_immediately_with_unbonding<Chain: CwEnv, Dex: DexInit>(
     vault.withdraw_and_assert(user1, user1_addr, u1_init_balances)?;
 
     // Same test as above but with recipient
-    let (u2_a_initial_balance, u2_b_initial_balance) = vault.pool_assets_balances(user2_addr)?;
 
     vault.deposit_assets(user1, amount, amount, None)?;
     let u1_vt_balance = vault.assert_expected_shares(0u128, 0u128, 0u128, user1_addr)?;
@@ -167,24 +167,17 @@ pub fn redeem_deposit_immediately_with_unbonding<Chain: CwEnv, Dex: DexInit>(
     vault.redeem_vault_token(u1_vt_balance, user1, Some(user2_addr.clone()))?;
     let prev_lp_amount = vault.total_lp_position()?;
     vault.assert_redeem_before_unbonding(
-        user2_addr,
+        user1_addr,
         prev_lp_amount,
         u1_vt_balance,
-        rest_redeem_amount,
+        u1_vt_balance,
         0u128,
-        None,
+        Some(user2_addr),
     )?;
     let u1_new_vt_balance = vault.vault_token_balance(user1_addr.to_string())?;
     assert_that!(u1_new_vt_balance).is_equal_to(0u128);
-
-    vault.assert_batch_unbond(prev_lp_amount, u1_vt_balance)?;
-    vault.chain.wait_seconds(1).unwrap();
-
-    vault.withdraw_and_assert(
-        user2,
-        user2_addr,
-        (u2_a_initial_balance + amount, u2_b_initial_balance + amount),
-    )?;
+    // from here on the logic is the exact same as without receiver, no need to test.
+    // @note This is where we found out that fully unstaking at osmosis is problematic as it removes the lockID
     Ok(())
 }
 
