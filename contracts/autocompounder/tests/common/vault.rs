@@ -288,8 +288,6 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
             .filter(|(_, amount)| *amount > 0)
             .collect::<Vec<_>>();
 
-        println!("Depositing assets: {:?}", assets);
-
         let ans_assets_deposit_coins = assets
             .into_iter()
             .map(|(asset, amount)| {
@@ -304,11 +302,6 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
             .into_iter()
             .filter_map(|x| x)
             .collect::<Vec<_>>();
-
-        println!(
-            "Depositing coins: and assets {:?}, {:?}",
-            ans_assets, deposit_coins
-        );
 
         self.autocompounder_app.call_as(depositor).deposit(
             ans_assets,
@@ -338,8 +331,6 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
             .filter(|(_, amount)| *amount > 0)
             .collect::<Vec<_>>();
 
-        println!("Depositing assets: {:?}", assets);
-
         let ans_assets_deposit_coins = assets
             .into_iter()
             .map(|(asset, amount)| {
@@ -354,11 +345,6 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
             .into_iter()
             .filter_map(|x| x)
             .collect::<Vec<_>>();
-
-        println!(
-            "Depositing coins: and assets {:?}, {:?}",
-            ans_assets, deposit_coins
-        );
 
         self.dex_adapter.execute(
             &DexExecuteMsg::AnsAction {

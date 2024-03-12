@@ -153,7 +153,6 @@ pub fn redeem_deposit_immediately_with_unbonding<Chain: CwEnv, Dex: DexInit>(
     let claims: Vec<Claim> = vault.autocompounder_app.claims(user1_addr.clone())?;
     assert_that!(claims).has_length(1);
 
-    println!("{:?}", claims.first().unwrap());
     vault.chain.wait_seconds(1).unwrap();
 
     // Withdraw the pending claims and check whether the vault tokens of u1 have increased

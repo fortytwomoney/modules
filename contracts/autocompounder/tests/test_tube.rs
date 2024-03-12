@@ -111,14 +111,11 @@ pub fn setup_osmosis_vault() -> Result<GenericVault<OsmosisTestTube, OsmosisDexS
         max_swap_spread: Some(Decimal::percent(50)),
     };
 
-    println!("instantiate_msg: {:?}", instantiate_msg);
-
     let vault = GenericVault::new(osmosis_setup.chain.clone(), osmosis_setup, &instantiate_msg)
         .map_err(|e| AbstractInterfaceError::Std(cosmwasm_std::StdError::GenericErr { msg: e.to_string() }))?;
 
     // TODO: Check autocompounder config
     let _config: Config = vault.autocompounder_app.config().unwrap();
-    println!(" config: {:#?}", _config);
 
     Ok(vault)
 }
