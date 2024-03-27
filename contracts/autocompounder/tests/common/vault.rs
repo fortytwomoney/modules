@@ -303,6 +303,7 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
             .filter_map(|x| x)
             .collect::<Vec<_>>();
 
+
         self.autocompounder_app.call_as(depositor).deposit(
             ans_assets,
             None,
@@ -495,7 +496,7 @@ impl<Chain: CwEnv, Dex: DexInit> GenericVault<Chain, Dex> {
         assert_that!(vt_balance).is_equal_to(prev_vt_balance - redeem_amount);
 
         // redeem with unbonding doesnt change the lp amount without unbonding
-        let lp_amount = self.autocompounder_app.total_lp_position()?.u128();
+        let lp_amount = self.total_lp_position()?;
         assert_that!(lp_amount).is_equal_to(prev_lp_amount);
 
         let pending_claims = if let Some(reciever) = reciever {

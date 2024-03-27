@@ -163,8 +163,8 @@ pub fn redeem_deposit_immediately_with_unbonding<Chain: CwEnv, Dex: DexInit>(
     vault.deposit_assets(user1, amount, amount, None)?;
     let u1_vt_balance = vault.assert_expected_shares(0u128, 0u128, 0u128, user1_addr)?;
 
-    vault.redeem_vault_token(u1_vt_balance, user1, Some(user2_addr.clone()))?;
     let prev_lp_amount = vault.total_lp_position()?;
+    vault.redeem_vault_token(u1_vt_balance, user1, Some(user2_addr.clone()))?;
     vault.assert_redeem_before_unbonding(
         user1_addr,
         prev_lp_amount,
