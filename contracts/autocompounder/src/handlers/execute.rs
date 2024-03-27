@@ -407,7 +407,9 @@ fn deposit_lp(
     )?;
 
     let current_vault_supply = vault_token_total_supply(deps.as_ref(), &config)?;
-    let mint_amount = convert_to_shares(lp_asset.amount, staked_lp, current_vault_supply);
+    let mint_amount = convert_to_shares(lp_asset.amount, staked_lp, current_vault_supply,
+        None,
+    );
     if mint_amount.is_zero() {
         return Err(AutocompounderError::ZeroMintAmount {});
     }
@@ -766,6 +768,7 @@ fn redeem_without_bonding_period(
         amount_of_vault_tokens_to_be_burned,
         total_lp_tokens_staked_in_vault,
         total_supply_vault,
+        None,
     );
 
     // Substract withdrawal fee from the amount of lp tokens allocated to the user
@@ -964,6 +967,7 @@ fn calculate_withdrawals(
             user_amount_of_vault_tokens_to_be_burned,
             total_lp_tokens_staked_in_vault,
             vault_tokens_total_supply,
+            None,
         );
 
         // substract withdrawal fees from the amount of lp tokens to unbond

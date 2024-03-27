@@ -7,6 +7,8 @@ pub mod response;
 pub mod state;
 
 pub use crate::handlers::swap_rewards;
+pub use crate::handlers::convert_to_assets;
+pub use crate::handlers::convert_to_shares;
 
 #[cfg(feature = "interface")]
 pub mod interface;

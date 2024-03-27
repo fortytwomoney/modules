@@ -5,8 +5,7 @@ version = 3
 [[package]]
 name = "abstract-account-factory"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c573065f707a6b81afac022ae9e590528d090ace83252b06aad52d844a92ce"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -28,8 +27,7 @@ dependencies = [
 [[package]]
 name = "abstract-adapter"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e1cdc4181565b48fb6b40df4fffaae8c201b59e8c28c4223396dfec6a3fad97"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-core",
  "abstract-sdk",
@@ -46,8 +44,7 @@ dependencies = [
 [[package]]
 name = "abstract-adapter-utils"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b5a5214ae7544dcd69df1303f1c521897c749023656bc2030b283f52126fe2b"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "cosmwasm-std",
  "cw-asset",
@@ -57,8 +54,7 @@ dependencies = [
 [[package]]
 name = "abstract-ans-host"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72f782d04cd07aa56380f5cbb7c6e206bb17b4b770da0dc414d48792a245fd0b"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -77,8 +73,7 @@ dependencies = [
 [[package]]
 name = "abstract-app"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ef8526272785786edd3e62551b649d4f6b25dfe59d06a96ccd3f23e3b97829e"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-core",
  "abstract-interface",
@@ -99,7 +94,7 @@ dependencies = [
 [[package]]
 name = "abstract-astroport-adapter"
 version = "2.10.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.1-osmosis-adapters#5f72765dced0ed664460ea3eb2274121bebacf78"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -111,7 +106,7 @@ dependencies = [
 [[package]]
 name = "abstract-astrovault-adapter"
 version = "0.2.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.1-osmosis-adapters#5f72765dced0ed664460ea3eb2274121bebacf78"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -123,8 +118,7 @@ dependencies = [
 [[package]]
 name = "abstract-client"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a34d4ef32df22b8e5c24859783e2f7bf93cd9f03e70fd7b4b61c156ea75dc94"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-core",
  "abstract-cw-plus-interface",
@@ -143,8 +137,7 @@ dependencies = [
 [[package]]
 name = "abstract-core"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93f564e989726a254014fc3e05ae64941a1d6a6f0211935c6bdd68bc823e2e4c"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-polytone",
  "cosmwasm-schema",
@@ -215,8 +208,8 @@ dependencies = [
 
 [[package]]
 name = "abstract-cw-staking"
-version = "0.21.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
+version = "0.21.1"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.1-osmosis-adapters#5f72765dced0ed664460ea3eb2274121bebacf78"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -458,8 +451,8 @@ dependencies = [
 
 [[package]]
 name = "abstract-dex-adapter"
-version = "0.21.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
+version = "0.21.1"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.1-osmosis-adapters#5f72765dced0ed664460ea3eb2274121bebacf78"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -486,8 +479,7 @@ dependencies = [
 [[package]]
 name = "abstract-dex-standard"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e842551ac3ff07b8f481010e4573bbfe77499b6c14dd4c137f1fbce3d836fcae"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -508,8 +500,7 @@ dependencies = [
 [[package]]
 name = "abstract-ibc-client"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2615507566c3c9ac5f108afa065bc88aa9d4129fce0fe71968748dade816a23"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -530,8 +521,7 @@ dependencies = [
 [[package]]
 name = "abstract-ibc-host"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "939fc828c537f6dc555ec8f1bbed33a5a7e211c1358ac5f8a663f159abee4e8f"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -553,8 +543,7 @@ dependencies = [
 [[package]]
 name = "abstract-interface"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54ccc7632a76880fcef5b13aa833dcf3738b236a58937971409f7145686d2302"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-account-factory",
  "abstract-ans-host",
@@ -574,6 +563,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
  "log",
+ "rust-embed",
  "schemars",
  "semver",
  "serde",
@@ -585,7 +575,7 @@ dependencies = [
 [[package]]
 name = "abstract-kujira-adapter"
 version = "0.3.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.1-osmosis-adapters#5f72765dced0ed664460ea3eb2274121bebacf78"
 dependencies = [
  "abstract-dex-standard",
  "abstract-sdk",
@@ -596,8 +586,7 @@ dependencies = [
 [[package]]
 name = "abstract-macros"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d46b2e9e324ef65e57e64e76c0e97f68e1907c813156a47bf01dd265b65360e2"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -607,8 +596,7 @@ dependencies = [
 [[package]]
 name = "abstract-manager"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8fd8ad83361da28098f65a4bd749d8556c320d9390bc7eb1449411042ae7bc7"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -631,8 +619,7 @@ dependencies = [
 [[package]]
 name = "abstract-module-factory"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97a82cb96ae5cbd4890b9a71f897fcf4aeb3dda3f372557c4c5a03c0d36847f9"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -652,8 +639,8 @@ dependencies = [
 
 [[package]]
 name = "abstract-osmosis-adapter"
-version = "0.16.2"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
+version = "0.17.0"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.1-osmosis-adapters#5f72765dced0ed664460ea3eb2274121bebacf78"
 dependencies = [
  "abstract-cw20",
  "abstract-dex-standard",
@@ -695,8 +682,7 @@ dependencies = [
 [[package]]
 name = "abstract-proxy"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c3bbc23ff0cb3fb691f2bf08d8e88d602cd5a7460f0c3125fcd80351a55feb2"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -718,8 +704,7 @@ dependencies = [
 [[package]]
 name = "abstract-sdk"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "606926337e7f14e5a88bcde0089016ed90d971e28176d6d98d6b0022ba89b2e5"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -742,8 +727,7 @@ dependencies = [
 [[package]]
 name = "abstract-staking-standard"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9f1041f2a564fadc4be0d83438457b8f039b75f03bb4e23f2633b0716f071f8"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-adapter",
  "abstract-adapter-utils",
@@ -765,8 +749,7 @@ dependencies = [
 [[package]]
 name = "abstract-testing"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ff7dae5fc385a50ef69b7466fbab44f73b941d1b29f7d32ab991d04d30b0661"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-core",
  "cosmwasm-schema",
@@ -786,8 +769,7 @@ dependencies = [
 [[package]]
 name = "abstract-version-control"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64048ddbdfd391974e724dc5f3d60d9746ff21850066f378afd8594d7801a580"
+source = "git+https://github.com/AbstractSDK/abstract.git?branch=main#f627fc1a660752ea396b3c9bd00065fd447f3eee"
 dependencies = [
  "abstract-core",
  "abstract-macros",
@@ -804,7 +786,7 @@ dependencies = [
 [[package]]
 name = "abstract-wyndex-adapter"
 version = "0.21.0"
-source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.0#b336e352f662c647dddb4c50c937a71afd7c427b"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.21.1-osmosis-adapters#5f72765dced0ed664460ea3eb2274121bebacf78"
 dependencies = [
  "abstract-cw20",
  "abstract-dex-standard",
@@ -936,7 +918,7 @@ checksum = "5fd55a5ba1179988837d24ab4c7cc8ed6efdeff578ede0416b4225a5fca35bd0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -958,7 +940,7 @@ checksum = "16e62a023e7c117e27523144c5d2459f4397fcc3cab0085af8e2224f643a0193"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -969,7 +951,7 @@ checksum = "c980ee35e870bd1a4d2c8294d4c04d0499e67bca1e4b5cefcc693c2fa00caea9"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -1007,12 +989,12 @@ dependencies = [
  "abstract-cw20",
  "abstract-cw20-base",
  "abstract-dex-adapter",
+ "abstract-dex-standard",
  "abstract-interface",
  "abstract-sdk",
  "abstract-testing",
  "anybuf",
  "anyhow",
- "autocompounder",
  "clap",
  "cosmrs",
  "cosmwasm-schema",
@@ -1026,6 +1008,8 @@ dependencies = [
  "dotenv",
  "env_logger",
  "kujira",
+ "osmosis-std",
+ "osmosis-test-tube",
  "protobuf",
  "rstest",
  "schemars",
@@ -1161,7 +1145,7 @@ dependencies = [
  "regex",
  "rustc-hash",
  "shlex",
- "syn 2.0.51",
+ "syn 2.0.52",
  "which",
 ]
 
@@ -1255,6 +1239,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bstr"
+version = "1.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05efc5cfd9110c8416e471df0e96702d58690178e206e61b7173706673c93706"
+dependencies = [
+ "memchr",
+ "serde",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.15.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1307,7 +1301,7 @@ dependencies = [
  "js-sys",
  "num-traits",
  "wasm-bindgen",
- "windows-targets 0.52.3",
+ "windows-targets 0.52.4",
 ]
 
 [[package]]
@@ -1352,7 +1346,7 @@ dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -1616,7 +1610,7 @@ checksum = "f46882e17999c6cc590af592290432be3bce0428cb0d5f8b6715e4dc7b383eb3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -1769,7 +1763,7 @@ checksum = "8fec5dab30190a0fd39654ac4e73dd959d8f2f8b539acc956529f5de9706ae03"
 dependencies = [
  "convert_case",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -2561,7 +2555,6 @@ dependencies = [
  "cw-utils",
  "dotenv",
  "env_logger",
- "fee-collector",
  "protobuf",
  "schemars",
  "semver",
@@ -2752,7 +2745,7 @@ checksum = "87750cf4b7a4c0625b1529e4c543c2182106e4dedc60a2a6455e00d212c489ac"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -2828,6 +2821,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
+name = "globset"
+version = "0.4.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57da3b9b5b85bd66f31093f8c408b90a74431672542466497dcbdfdc02034be1"
+dependencies = [
+ "aho-corasick",
+ "bstr",
+ "log",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
 name = "group"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2861,7 +2867,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "http",
- "indexmap 2.2.3",
+ "indexmap 2.2.4",
  "slab",
  "tokio",
  "tokio-util",
@@ -2915,9 +2921,9 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
 name = "hermit-abi"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "379dada1584ad501b383485dd706b8afb7a70fcbc7f4da7d780638a5a6124a60"
+checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
 
 [[package]]
 name = "hex"
@@ -3254,9 +3260,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.2.3"
+version = "2.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "233cf39063f058ea2caae4091bf4a3ef70a653afbc026f5c4a4135d114e3c177"
+checksum = "967d6dd42f16dbf0eb8040cb9e477933562684d3918f7d253f2ff9087fb3e7a3"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.3",
@@ -3511,9 +3517,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.20"
+version = "0.4.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
+checksum = "90ed8c1e510134f979dbc4f070f87d4313098b704861a105fe34231c70a3901c"
 
 [[package]]
 name = "matchit"
@@ -3733,7 +3739,7 @@ checksum = "a948666b637a0f465e8564c73e89d4dde00d72d4d473cc972f390fc3dcee7d9c"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -3922,7 +3928,7 @@ checksum = "266c042b60c9c76b8d53061e52b2e0d1116abc57cefc8c5cd671619a56ac3690"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -3988,7 +3994,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a41cf62165e97c7f814d2221421dbb9afcbcdb0a88068e5ea206e19951c2cbb5"
 dependencies = [
  "proc-macro2",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -4077,7 +4083,7 @@ dependencies = [
  "itertools 0.11.0",
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -4330,6 +4336,41 @@ dependencies = [
  "rustc_version",
  "syn 1.0.109",
  "unicode-ident",
+]
+
+[[package]]
+name = "rust-embed"
+version = "8.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb78f46d0066053d16d4ca7b898e9343bc3530f71c61d5ad84cd404ada068745"
+dependencies = [
+ "rust-embed-impl",
+ "rust-embed-utils",
+ "walkdir",
+]
+
+[[package]]
+name = "rust-embed-impl"
+version = "8.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b91ac2a3c6c0520a3fb3dd89321177c3c692937c4eb21893378219da10c44fc8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "rust-embed-utils",
+ "syn 2.0.52",
+ "walkdir",
+]
+
+[[package]]
+name = "rust-embed-utils"
+version = "8.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86f69089032567ffff4eada41c573fc43ff466c7db7c5688b2e7969584345581"
+dependencies = [
+ "globset",
+ "sha2 0.10.8",
+ "walkdir",
 ]
 
 [[package]]
@@ -4691,7 +4732,7 @@ checksum = "7eb0b34b42edc17f6b7cac84a52a1c5f0e1bb2227e997ca9011ea3dd34e8610b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -4724,7 +4765,7 @@ checksum = "0b2e6b945e9d3df726b65d6ee24060aff8e3533d431f677a9695db04eff9dfdb"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -4761,7 +4802,7 @@ checksum = "b93fb4adc70021ac1b47f7d45e8cc4169baaa7ea58483bc5b721d19a26202212"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -4975,9 +5016,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.51"
+version = "2.0.52"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ab617d94515e94ae53b8406c628598680aa0c9587474ecbe58188f7b345d66c"
+checksum = "b699d15b36d1f02c3e7c69f8ffef53de37aefae075d8488d4ba1a7788d574a07"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5256,7 +5297,7 @@ dependencies = [
  "cfg-if",
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -5267,7 +5308,7 @@ checksum = "5c89e72a01ed4c579669add59014b9a524d609c0c88c6a585ce37485879f6ffb"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
  "test-case-core",
 ]
 
@@ -5304,7 +5345,7 @@ checksum = "a953cb265bef375dae3de6663da4d3804eee9682ea80d8e2542529b73c531c81"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -5389,7 +5430,7 @@ checksum = "5b8a1e28f2deaa14e508979454cb3a223b10b938b45af148bc0986de36f1923b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -5578,7 +5619,7 @@ checksum = "34704c8d6ebcbc939824180af020566b01a7c01f80641264eba0999f6c2b6be7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -5767,7 +5808,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
  "wasm-bindgen-shared",
 ]
 
@@ -5801,7 +5842,7 @@ checksum = "642f325be6301eb8107a83d12a8ac6c1e1c54345a7ef1a9261962dfefda09e66"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
@@ -5923,7 +5964,7 @@ version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33ab640c8d7e35bf8ba19b884ba838ceb4fba93a4e8c65a9059d08afcfc683d9"
 dependencies = [
- "windows-targets 0.52.3",
+ "windows-targets 0.52.4",
 ]
 
 [[package]]
@@ -5941,7 +5982,7 @@ version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "282be5f36a8ce781fad8c8ae18fa3f9beff57ec1b52cb3de0789201425d9a33d"
 dependencies = [
- "windows-targets 0.52.3",
+ "windows-targets 0.52.4",
 ]
 
 [[package]]
@@ -5961,17 +6002,17 @@ dependencies = [
 
 [[package]]
 name = "windows-targets"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d380ba1dc7187569a8a9e91ed34b8ccfc33123bbacb8c0aed2d1ad7f3ef2dc5f"
+checksum = "7dd37b7e5ab9018759f893a1952c9420d060016fc19a472b4bb20d1bdd694d1b"
 dependencies = [
- "windows_aarch64_gnullvm 0.52.3",
- "windows_aarch64_msvc 0.52.3",
- "windows_i686_gnu 0.52.3",
- "windows_i686_msvc 0.52.3",
- "windows_x86_64_gnu 0.52.3",
- "windows_x86_64_gnullvm 0.52.3",
- "windows_x86_64_msvc 0.52.3",
+ "windows_aarch64_gnullvm 0.52.4",
+ "windows_aarch64_msvc 0.52.4",
+ "windows_i686_gnu 0.52.4",
+ "windows_i686_msvc 0.52.4",
+ "windows_x86_64_gnu 0.52.4",
+ "windows_x86_64_gnullvm 0.52.4",
+ "windows_x86_64_msvc 0.52.4",
 ]
 
 [[package]]
@@ -5982,9 +6023,9 @@ checksum = "2b38e32f0abccf9987a4e3079dfb67dcd799fb61361e53e2882c3cbaf0d905d8"
 
 [[package]]
 name = "windows_aarch64_gnullvm"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68e5dcfb9413f53afd9c8f86e56a7b4d86d9a2fa26090ea2dc9e40fba56c6ec6"
+checksum = "bcf46cf4c365c6f2d1cc93ce535f2c8b244591df96ceee75d8e83deb70a9cac9"
 
 [[package]]
 name = "windows_aarch64_msvc"
@@ -5994,9 +6035,9 @@ checksum = "dc35310971f3b2dbbf3f0690a219f40e2d9afcf64f9ab7cc1be722937c26b4bc"
 
 [[package]]
 name = "windows_aarch64_msvc"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8dab469ebbc45798319e69eebf92308e541ce46760b49b18c6b3fe5e8965b30f"
+checksum = "da9f259dd3bcf6990b55bffd094c4f7235817ba4ceebde8e6d11cd0c5633b675"
 
 [[package]]
 name = "windows_i686_gnu"
@@ -6006,9 +6047,9 @@ checksum = "a75915e7def60c94dcef72200b9a8e58e5091744960da64ec734a6c6e9b3743e"
 
 [[package]]
 name = "windows_i686_gnu"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a4e9b6a7cac734a8b4138a4e1044eac3404d8326b6c0f939276560687a033fb"
+checksum = "b474d8268f99e0995f25b9f095bc7434632601028cf86590aea5c8a5cb7801d3"
 
 [[package]]
 name = "windows_i686_msvc"
@@ -6018,9 +6059,9 @@ checksum = "8f55c233f70c4b27f66c523580f78f1004e8b5a8b659e05a4eb49d4166cca406"
 
 [[package]]
 name = "windows_i686_msvc"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28b0ec9c422ca95ff34a78755cfa6ad4a51371da2a5ace67500cf7ca5f232c58"
+checksum = "1515e9a29e5bed743cb4415a9ecf5dfca648ce85ee42e15873c3cd8610ff8e02"
 
 [[package]]
 name = "windows_x86_64_gnu"
@@ -6030,9 +6071,9 @@ checksum = "53d40abd2583d23e4718fddf1ebec84dbff8381c07cae67ff7768bbf19c6718e"
 
 [[package]]
 name = "windows_x86_64_gnu"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "704131571ba93e89d7cd43482277d6632589b18ecf4468f591fbae0a8b101614"
+checksum = "5eee091590e89cc02ad514ffe3ead9eb6b660aedca2183455434b93546371a03"
 
 [[package]]
 name = "windows_x86_64_gnullvm"
@@ -6042,9 +6083,9 @@ checksum = "0b7b52767868a23d5bab768e390dc5f5c55825b6d30b86c844ff2dc7414044cc"
 
 [[package]]
 name = "windows_x86_64_gnullvm"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42079295511643151e98d61c38c0acc444e52dd42ab456f7ccfd5152e8ecf21c"
+checksum = "77ca79f2451b49fa9e2af39f0747fe999fcda4f5e241b2898624dca97a1f2177"
 
 [[package]]
 name = "windows_x86_64_msvc"
@@ -6054,9 +6095,9 @@ checksum = "ed94fce61571a4006852b7389a063ab983c02eb1bb37b47f8272ce92d06d9538"
 
 [[package]]
 name = "windows_x86_64_msvc"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0770833d60a970638e989b3fa9fd2bb1aaadcf88963d1659fd7d9990196ed2d6"
+checksum = "32b752e52a2da0ddfbdbcc6fceadfeede4c939ed16d13e648833a61dfb611ed8"
 
 [[package]]
 name = "winreg"
@@ -6268,5 +6309,5 @@ checksum = "ce36e65b0d2999d2aafac989fb249189a141aee1f53c612c1f37d72631959f69"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.51",
+ "syn 2.0.52",
 ]

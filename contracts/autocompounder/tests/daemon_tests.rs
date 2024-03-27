@@ -48,19 +48,11 @@ pub fn denom_query_msgs(chain_id: &str, chain_name: &str) {
         .unwrap();
 
     // We can now use the daemon to interact with the chain. For example, we can query the total supply of a token.
-    // let denom = "ukuji";
-    // let chain = "kujira".to_string();
-
     println!("{:?}", daemon.sender());
 
     let bank_querier = Bank::new(&daemon);
     let supply = bank_querier.supply_of(denom).unwrap();
-    // let supply = rt
-    //     .block_on(bank_querier.supply_of(denom))
-    //     .map_err(|e| {
-    //         eprintln!("Error: {:?}", e);
-    //     })
-    //     .unwrap();
+
     println!("Daemon Bank supply: {:?}", supply);
 
     let data = encode_query_supply_of(denom);

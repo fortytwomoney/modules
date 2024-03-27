@@ -57,7 +57,7 @@ pub(crate) fn init_auto_compounder(
     chain: MockBech32,
     deployment: &Abstract<MockBech32>,
     _version: Option<String>,
-) -> Result<autocompounder::interface::AutocompounderApp<MockBech32>, AbstractInterfaceError> {
+) -> Result<AutocompounderApp<MockBech32>, AbstractInterfaceError> {
     let auto_compounder = AutocompounderApp::new(AUTOCOMPOUNDER_ID, chain);
 
     // upload and register autocompounder
